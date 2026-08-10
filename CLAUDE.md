@@ -145,7 +145,22 @@ file" there ([`docs/README.md`](docs/README.md) tells them apart).
     - **A plan's open decision is what the *plan* has not settled — not what the *repository* has not settled.** D-4 sat open while `manifest.py` had already answered it one line below `VECTOR_TIERS`. Read the sibling key before the decision table.
     - **Read a plan's test list as part of its specification, not as an illustration of it.** Where a plan's prose and its test list disagree, the test list has been forced to be concrete and the prose has not — T7's containment rule named only the target while its test list required refusing a symlink in the template, and both layers were real.
 
-- **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) has six live items as of 20260808, and they arrived five different ways** — which is the point of the count, not the items: `graph_gate.check_identity` is blind to `chunking` and `--rebuild` never re-chunks a protected paid document (both from *building* 2d, neither visible by reading the code that holds them); a damaged template install escapes as a traceback (from T3's adversarial *reading*); `--apply` writes nothing on the *same manifest* outcome (**created** by T4, in the increment that closed the item standing there before it); an eval outcome records the vector tier it was *configured* with rather than the one that ran (T5, asking where else the defect it had just fixed still lives); and `pnk init` writes the manifest before validating a template's declared files, so a refusal leaves a half-created KB (T7, asking what a new surface *inherits* rather than what it introduces). **The last three need a decision, not a correction.** **Building, reading, shipping, generalising a fix, and reviewing what a new surface inherits each fill this list differently, and none finds the others'** — add to it when something bites.
+- **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) has four
+  live items as of 0.21.1, and **every one of them needs a decision, not a correction**: whether
+  `--rebuild` re-chunks a protected paid document (or records the index as inhomogeneous); what
+  `--apply` does on the *same manifest* outcome; whether an eval header records the tier it was
+  configured with, the one that ran, or both; and whether `pnk init` is transactional. **That is
+  the state to read the list in** — it is waiting on its planner, and an implementer picking one of
+  these forks is exactly what *Never assume what the plans have not decided* forbids.
+  - **The two closed in 0.21.1 are the two that had a stated *required* text** — the chunking-blind
+    graph gate and the damaged-template traceback. What made them takeable is what the remaining
+    four lack, so the split is not a coincidence of effort.
+  - **The six arrived five different ways, and the list is described by content rather than number**
+    (closing two renumbered the rest): building 2d found two that reading the code cannot show,
+    T3's adversarial *reading* found one, T4 *created* one in the increment that closed its
+    predecessor, T5 found one by asking where else a defect it had just fixed still lives, and T7
+    found one by asking what a new surface *inherits*. **None of those routes finds the others'** —
+    add to the list when something bites.
 
 ## Landing work: always push, always release
 

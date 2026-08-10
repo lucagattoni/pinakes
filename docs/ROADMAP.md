@@ -64,7 +64,7 @@ precision nobody measured.
   shipped as `0.20.1`**, refusing a vector tier that is not built rather than accepting it silently.
   **T7 remains**; `main` has moved far enough that the plan's Baseline block must be re-run before
   any `file:line` in it is trusted.
-- **[Six open corrections](#open-corrections--six-live)** — the list emptied on 20260805 and
+- **[Four open corrections](#open-corrections--four-live)** — the list emptied on 20260805 and
   refilled on 20260807 and 20260808. It refills from *use*, and by four different routes: two
   entries came from **building** 2d and are invisible from reading the code, one from **reading**
   under adversarial review, one was **created** by the increment that closed another, and one came
@@ -111,9 +111,10 @@ number belongs to a release only when it is cut
 | **[0.18.0](#0180--the-drift-warning-says-something-you-can-act-on--20260807-2237)** | 20260807 22:37 | The drift warning says something you can act on | • Drift reported as a **computed line count**, both sides rendered<br>• Template against template — your own tuning cannot appear<br>• `cannot compare` on every KB that exists, with an honest remedy<br>• `same manifest` instead of a misleading `0 lines differ`<br>• An unsupplied variable is a message, not a traceback<br>• *The template release, interim cut (D-9)* |
 | **[0.19.0](#0190--what-the-template-changed-in-your-own-file--20260808-0418)** | 20260808 04:18 | What the template changed, in your own file | • `pnk upgrade` — the diff itself, hunk by hunk<br>• **applies cleanly / already applied / conflicts**, and *already applied* is why a later `--apply` cannot duplicate a key<br>• Writes nothing; exit **`3`** is new and means *no baseline*<br>• `cannot compare` on every KB that exists, same wording as `pnk doctor`<br>• Five adversarial passes: 30 → 22 → 13 → 6 → 1<br>• *The template release, interim cut (D-9)* |
 | **[0.20.0](#0200--adopting-the-change-after-you-have-seen-it--20260808-0541)** | 20260808 05:41 | Adopting the change, after you have seen it | • `pnk upgrade --apply` — writes the hunks that fit, refuses the whole run if any conflicts<br>• The **only** thing that rewrites a `pinakes.toml` after `pnk init`<br>• A `[budget]` cap applies like any other change — and both commands print it first, with both values (D-10)<br>• Never writes `[kb] requires_pinakes`; it names the keys and leaves the floor to you (D-11)<br>• A conflict now carries two codes: `0` reporting, `1` applying<br>• Five adversarial passes: 5 → 2 → 2 → 3 → 0<br>• *The template release, interim cut (D-9)* |
+| **[0.21.1](#0211--a-damaged-template-says-so-and-the-gate-reads-what-it-was-chunked-under--20260810-0148)** | 20260810 01:48 | A damaged template says so, and the gate reads what it was chunked under | • Two open corrections closed — the two of six that could be **taken** rather than decided<br>• `graph_gate.py` compares `chunking`: two legs chunked differently are two corpora<br>• A damaged template install is a message on **five** functions, not the two the record named<br>• `TemplateNotInstalledError` — *absent* and *damaged* had been merged into one wrong sentence by the fix itself<br>• A template read error no longer prints where pinakes is installed<br>• Five passes; the last two found only wrong *claims* |
 | **[0.21.0](#0210--a-template-says-what-it-installs--20260808-1015)** | 20260808 10:15 | A template says what it installs | • `pnk templates` — name, version, description, `--json`; **no `--kb`**, the answer is a property of the install<br>• **CLI-only, decided 20260808** — no `pinakes_*` tool: creation has no MCP surface, so it would list templates its caller cannot use<br>• `template.toml` gains `files = [...]`; **absent still means the historical two**<br>• An entry naming `_versions/`, writing outside the KB, or reading outside the template is refused — all checked before anything is written<br>• The drift gate folds `files` into its hash, closing a hole this increment opened; every hash published before 0.21.0 is unchanged<br>• A damaged template is an `unreadable` row, not a traceback<br>• *The template release, interim cut (D-9)* |
 | **[0.20.1](#0201--a-tier-that-is-not-built-stops-being-accepted--20260808-0641)** | 20260808 06:41 | A tier that is not built stops being accepted | • `vector_tier = "sqlite-vec"` is **refused at load time** — it was accepted and silently ignored<br>• A KB setting it **stops loading entirely**, on every command; the fix is `vector_tier = "auto"` and changes nothing else<br>• Silent on all four surfaces before this: `sync`, `search`, the index's `meta`, `pnk doctor`<br>• A **PATCH with a documented config break**, deliberately (D-12), on 0.7.1's precedent<br>• The value returns when the tier does — D-4 taken as option A (T5)<br>• `meta`'s tier now comes from `search.resolve_tier()`, not a literal<br>• *The template release, interim cut (D-9)* |
-| | | **[Open corrections](#open-corrections--six-live)** | • **Six live** — two from building 2d, one from T3's review, one from T4's, one from T5's, one from T7's<br>• CRLF closed by T4; the same-manifest gap opened by it<br>• Five routes in: building, reading, shipping, generalising a fix, and reviewing a new surface — none finds the others'<br>• None blocking |
+| | | **[Open corrections](#open-corrections--four-live)** | • **Four live** — six on 20260808, two closed in 0.21.1<br>• **Every one of the four needs a decision, not a correction** — which is what made the other two takeable<br>• Five routes in: building, reading, shipping, generalising a fix, and reviewing a new surface — none finds the others'<br>• None blocking |
 | | | **[The graph release, staged](#the-graph-release-staged--gates-only-not-scheduled)** | • PPR channel, the `[ner]` extra<br>• Gate-only: no implementation plan exists, by design<br>• Not scheduled |
 | | | **[The deep release](#the-deep-release)** | • `pnk ask --deep` — the budgeted agentic loop<br>• Only paid entry point still unbuilt |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• ✅ Plan written and reviewed, decisions taken<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• Only the gated T6 (`sqlite-vec`) and T8 (a second template) remain, neither scheduled<br>• Cuts more than once (D-9), so the name stays here |
@@ -674,8 +675,10 @@ having happened.
 than inherit the verdict; turning it on is reported as drift, applied by `pnk sync --rebuild`, and a
 prefix that would not fit the model's window is refused per document instead of being silently
 truncated off the longest chunks. And `tools/two_leg_gate.py`, which refuses to compare two eval
-legs differing in anything but one named header key — `graph_gate.check_identity` compares five
-fields and not `chunking`, so two legs chunked differently compared clean.
+legs differing in anything but one named header key — `graph_gate.check_identity` compared five
+fields and not `chunking`, so two legs chunked differently compared clean. **That gap in the
+three-leg gate stayed open until 0.21.1**, which closed it as an open correction; the tense here is
+past because of that release, not because 0.16.0 fixed it.
 
 **Five silent-failure fixes came out of the increment's own adversarial review**, and the sharpest
 is worth stating because it falsified a claim the increment itself had written. The option was put
@@ -861,6 +864,46 @@ No `schema_version` bump, so no rebuild.
 
 ---
 
+## 0.21.1 — A damaged template says so, and the gate reads what it was chunked under · 20260810 01:48
+
+**Two open corrections, and they are the two of six that could be *taken* rather than decided.**
+Both had a stated required text; the four left behind each need a fork picked, which is why they
+are still open (Part 5).
+
+**`tools/graph_gate.py` compares the `chunking` block.** It checked `k`, `embedding`, `rerank`,
+`ranking` and `retrieval` and not the block `eval.header` records so a leg can say what it was built
+under. Two legs chunked differently are not one corpus with noise — they are two corpora, so rows
+paired on `id` were produced by searching different texts, and the rechunk is reported as whatever
+was under test. Measured: `max_tokens` 510 against 480 moves 63 of 1 858 chunk texts on one RFC.
+This is the gate that licensed the graph channel's default. Nothing under `chunking` is excepted,
+which is the one place it differs from `tools/two_leg_gate.py` and differs deliberately: there
+`chunking.metadata` *is* the independent variable, here it is `graph_channel`.
+
+**A damaged template install is a message rather than a traceback — on five functions, not the two
+the record named.** `render_manifest`, `declared_files` and `copy_extras` held the identical
+unguarded read, so closing only `describe` and `render_archived` would have left the defect three
+functions away. `jinja2.TemplateSyntaxError` needed its own arm because it is raised by
+`Template(...)`, not by `render`, where the existing handler sat.
+
+**The fix then came within one handler of opening its own replacement.** Making the failure a
+`PinakesError` routed it into an `except` that `pnk doctor` and `pnk upgrade` already had — one
+answering *"is not installed here"*, which sends the owner of a present-but-damaged template to
+install what they already have. Nothing went red: both surfaces still returned WARN and exit 3, and
+the existing tests cover the absent case, which still worked. `TemplateNotInstalledError` splits
+them, with a test on each surface. **A traceback is loud and a wrong sentence is quiet**, so this
+was a downgrade that read as an upgrade.
+
+A third pass found the `OSError` arm printing the install's absolute path: `OSError.__str__` appends
+its `filename`, and doctor's de-homing cannot help because it strips the *KB* root, which a template
+is outside by construction. The same defect class as the closed home-directory leak, one module
+away.
+
+**Five review passes, and the last two found only claims rather than code** — a comment asserting a
+fixture discriminated a mutant one function after measuring that it does not, and a changelog
+fragment describing a subset of its own commit. The test for the path leak was green for the wrong
+reason twice before it could fail: first with an injected error carrying no `filename`, then with
+one whose `strerror` made the code short-circuit before ever reaching the leaking branch.
+
 ## 0.21.0 — A template says what it installs · 20260808 10:15
 
 - **`pnk templates` lists what this build can stamp a KB from.** Name, version, description, and
@@ -936,38 +979,37 @@ No `schema_version` bump, so no rebuild.
 
 # Part 5 · What is not built
 
-## Open corrections — six live
+## Open corrections — four live
 
 **It emptied on 20260805 22:18, refilled on 20260807 from one increment, and again on 20260808 from
-T3's, T4's, T5's and T7's work.** Owned by
+T3's, T4's, T5's and T7's work. Two closed in 0.21.1.** Owned by
 [`plans/20260731_1202-open-corrections.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260731_1202-open-corrections.md),
-which carries all six in full.
+which carries all four in full.
 
-**The six arrived five different ways, and that is the useful part of the count.** Items 1 and 2
-came from *building* 2d and neither is visible from reading the code that holds it — the pattern
-every entry had followed until 20260808. **Item 3** broke it, found by T3's adversarial *reading*.
-**Item 4** was not found at all but *created*, by T4, in the increment that closed the item standing
-there before it. **Item 5** came from T5 asking where else the defect it had just fixed still
-lives, and finding it two files away in code T5 never touched — an eval outcome recording the
-vector tier it was *configured* with rather than the one that ran. **Item 6** came from T7 building
-a new surface and asking what it inherited: `pnk init` writes `pinakes.toml` before it copies a
-template's declared files, so a refused declaration leaves a directory holding a manifest and no
-extras. It is pre-existing — *any* failure after that write does it — and T7 only added one more way
-to reach it, which is why it is an item rather than something T7 fixed on its way past. The first
-two:
+**The six arrived five different ways, and that is the useful part of the count** — described by
+what they are rather than by number, since closing two renumbered the rest. Two came from
+*building* 2d and neither was visible from reading the code that held it, the pattern every entry
+had followed until 20260808. **The damaged-template traceback** broke it, found by T3's adversarial
+*reading*. **The `same manifest` gap** was not found at all but *created*, by T4, in the increment
+that closed the item standing there before it. **The eval header's `vector_tier`** came from T5
+asking where else the defect it had just fixed still lives, and finding it two files away in code
+T5 never touched. **`pnk init`'s half-created KB** came from T7 building a new surface and asking
+what it inherited: the manifest is written before the template's declared files are validated, so a
+refused declaration leaves a directory holding a manifest and no extras. It is pre-existing — *any*
+failure after that write does it — and T7 only added one more way to reach it.
 
-* **`graph_gate.check_identity` is blind to `chunking`.** It compares `k`, `embedding`, `rerank`,
-  `ranking` and `retrieval` across its three legs, and not the block that says what a leg was
-  chunked under — so two legs chunked differently are judged against each other and the rechunk is
-  reported as whatever was being tested. Measured: `max_tokens` 510 versus 480 moves 63 of 1 858
-  chunk texts on one RFC. `tools/two_leg_gate.py` (0.16.0) closes the **two**-leg case; the
-  three-leg gate that licensed the graph channel's default still has it.
-* **`--rebuild` never re-chunks a protected paid document.** Its chunks are copied verbatim from
-  the index being replaced, so `headings`, `max_tokens` and `overlap` do not reach it while the run
-  stamps the current settings over the whole index. Not simply fixable: re-chunking needs the
-  extracted *text*, which for this class of document is exactly what may cost money to obtain
-  again. The `metadata` half was closed in 0.16.0, since embedding is free and the chunk texts are
-  already in hand.
+**What remains is four decisions, not four fixes**, and that is the fact worth carrying out of this
+section. An implementer can close an item whose *required* text is stated; it cannot close one
+whose required text is *choose between these two defensible answers*, and both items closed in
+0.21.1 were of the first kind. The four left — re-chunking a protected paid document, `--apply` on
+the `same manifest` outcome, what an eval header should record, and whether `pnk init` is
+transactional — are each a fork someone has to pick, so the list is now waiting on its planner.
+
+**Closing one of the two nearly opened its replacement.** Guarding the template reads turned a raw
+`OSError` into a `PinakesError`, which routed the failure into an `except` that `pnk doctor` and
+`pnk upgrade` already had — one answering *"is not installed here"*, about a template sitting right
+there and merely damaged. Nothing went red: both surfaces still returned WARN and exit 3. It is the
+same shape as the `same manifest` gap above, caught inside its own increment this time.
 
 **The list refills from *use*.** An empty one means nobody has run Pinakes lately, never that it is
 done.
