@@ -691,14 +691,32 @@ files`, `Uploading pinakes-0.21.1-py3-none-any.whl (363.0KiB)` and `Uploaded pin
 the **first** attempt rather than after the ~60 s index lag the last two needed. `v0.21.1` is an
 ancestor of `main`.
 
-**And the manual-release step recurred a sixth time** — `Release` green, both files on PyPI,
-`gh release view v0.21.1` → *release not found*, exactly as `v0.20.1` and `v0.21.0` did. The rule
-written above after the third recurrence has now held three times, always for the same reason: it
-was checked because the procedure says to, not because anything flagged it. **Six for six since
-20260804. The workflow has still never created a release** — every one of them was created by hand
-afterwards. The pattern is not a flake, and the release job's own claim of `success` should be read
-as covering the PyPI upload only. **Nothing here has yet gone and read the workflow to find out
-why**, which is the open question this row keeps restating rather than answering.
+**The manual-release step recurred a sixth time, and on the sixth someone finally read the
+workflow. It is not a failure at all: there is no step that creates a release.**
+`.github/workflows/release.yml` validates the tag against `__version__`, builds, smoke-tests the
+wheel and runs `uv publish`. That is the whole job. `grep -rn 'gh release\|action-gh-release'
+.github/` returns nothing, and `git log -S` finds it never returned anything — **no workflow in this
+repository's history has ever contained a release-creating step.**
+
+So `Release: success` was honest every time; it did everything it was asked to. What was recorded
+here six times as a recurring flake was an **absent feature diagnosed as a broken one**, and the
+diagnosis survived five restatements because each one re-confirmed the *symptom* — `gh release view`
+→ *release not found* — which is equally consistent with both explanations. Checking harder was
+never going to distinguish them; reading the workflow, once, did it in a minute.
+
+**The rule this row exists for still holds and is now better supported**: verify the artifact, never
+the run's own status. The job's `success` covers the PyPI upload because that is all it does.
+
+**And [`RELEASING.md`](RELEASING.md) step 8 has said *"create the GitHub release"* the whole
+time.** The procedure always treated it as a manual step; this file recorded performing that step as
+a failure of automation that was never written. Two documents describing one act, one as routine and
+one as an anomaly, for six releases — neither wrong on its own, and the contradiction only visible
+by reading them together, which nothing prompts you to do.
+
+Every release from 0.20.1 to 0.21.1 was created by hand and all of them exist. **The remedy is a
+step, not an investigation** — `gh release create` needs `contents: write`, which this job does not
+request, so it is a small change to a path that runs only on a tag. Proposed rather than taken:
+automating it is a decision about the release path, and the manual step is working.
 
 | | |
 |---|---|
