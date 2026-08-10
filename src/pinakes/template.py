@@ -130,8 +130,15 @@ def _read_text(source: Traversable, *, reference: str, file: str) -> str:
             remedy="Its install is damaged. Reinstall pinakes, or the template it came from.",
         ) from exc
     except OSError as exc:
+        # `strerror` alone, never the exception — `OSError.__str__` appends the filename it
+        # carries, and that filename is an absolute path into wherever this build is installed.
+        # `pnk doctor` is the command whose output is the natural thing to paste into an issue,
+        # which is why it strips the KB root from every message it forwards; a template lives
+        # *outside* the KB, so that helper deliberately leaves such a path alone and this is the
+        # only place it can be kept out. The class name is the fallback: it names the failure
+        # without naming the machine.
         raise TemplateError(
-            f"template {reference}'s {file} cannot be read: {exc.strerror or exc}.",
+            f"template {reference}'s {file} cannot be read: {exc.strerror or type(exc).__name__}.",
             remedy="Check the file's permissions, or reinstall pinakes.",
         ) from exc
 

@@ -874,7 +874,13 @@ def test_an_unreadable_declared_file_is_a_message(
         # under `check.sh`'s `set -e`, and a replacement whose parameters do not match the one it
         # replaces is three diagnostics there even where pyright is satisfied.
         if self == unreadable:
-            raise PermissionError(13, "Permission denied")
+            # **Three arguments, not two.** `OSError(errno, strerror)` leaves `filename` unset and
+            # `str(exc)` is then just `[Errno 13] Permission denied` — with no path in it, the
+            # path-leak assertions below hold whatever the code does, and the mutant that
+            # interpolates the exception survives. Measured: it did. The OS sets `filename` on
+            # every error it raises from a path, so the faithful fixture is also the discriminating
+            # one.
+            raise PermissionError(13, "Permission denied", str(self))
         return real_read_text(self, encoding=encoding, errors=errors, newline=newline)
 
     monkeypatch.setattr(Path, "read_text", denied)
@@ -883,6 +889,57 @@ def test_an_unreadable_declared_file_is_a_message(
         template.copy_extras("synth", tmp_path / "kb")
     assert "README.md" in str(caught.value)
     assert "Permission denied" in str(caught.value)
+    # **The message must not carry the install's absolute path.** `OSError.__str__` appends the
+    # filename it holds, so interpolating the exception rather than its `strerror` prints wherever
+    # this build happens to live. `pnk doctor` forwards this text and is the command whose output
+    # people paste into issues; its `_de_homed` helper cannot help, because it strips the *KB*
+    # root and a template is outside it by construction.
+    assert str(unreadable) not in str(caught.value)
+    assert str(tmp_path) not in str(caught.value)
+
+
+def test_a_read_failure_with_no_strerror_still_never_names_the_install_path(
+    tmp_path: Path, synthetic_template: Callable[..., str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The fallback arm, which is the only one that can leak a path — and it needs its own test.
+
+    `OSError.__str__` appends the `filename` the error carries, so interpolating the exception
+    prints an absolute path into wherever this build is installed. `pnk doctor` forwards this text
+    and its output is the thing people paste into issues; `_de_homed` cannot help, because it
+    strips the *KB* root and a template is outside it by construction.
+
+    **The sibling test above cannot catch this and it was measured trying.** With `strerror` set,
+    `strerror or exc` short-circuits and never reaches the exception at all, so both the fix and
+    the mutant produce the identical message — the path assertions there hold whatever the code
+    does. An `OSError` with an empty `strerror` and a filename is the one shape that separates
+    them, so it is built here rather than assumed unreachable."""
+    from pinakes.errors import PinakesError
+
+    synthetic_template("synth", versions={"1.0": "name = 'x'\n"}, current="1.0")
+    secret = damaged(tmp_path, "synth") / template.MANIFEST_TEMPLATE
+    real_read_text = Path.read_text
+
+    def denied(
+        self: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> str:
+        if self == secret:
+            raise OSError(13, "", str(self))
+        return real_read_text(self, encoding=encoding, errors=errors, newline=newline)
+
+    monkeypatch.setattr(Path, "read_text", denied)
+
+    with pytest.raises(PinakesError) as caught:
+        template.render_manifest("synth", {})
+
+    message = str(caught.value)
+    assert str(secret) not in message and str(tmp_path) not in message
+    # `PermissionError`, not `OSError`: `OSError(13, ...)` is remapped to the errno's subclass by
+    # the constructor, so the class name left to stand in for the missing `strerror` is the
+    # specific one — which is the more useful of the two anyway.
+    assert "PermissionError" in message, "with no strerror the class is all that names the failure"
 
 
 def test_an_intact_synthetic_template_still_reads(
