@@ -64,7 +64,10 @@ class TemplateInfo:
         return f"{self.name}@{self.version}"
 
 
-def _unknown(name: str) -> TemplateError:
+def _unknown(name: str) -> TemplateNotInstalledError:
+    # The narrow type, not `TemplateError`: `doctor` and `upgrade` both branch on it to tell a
+    # template that is absent from one that is present and damaged, so widening the annotation
+    # would let a raiser here silently stop being distinguishable there.
     return TemplateNotInstalledError(
         f"no template named {name!r}.",
         remedy=f"Available: {', '.join(available()) or '(none)'}.",
@@ -216,6 +219,13 @@ def _render(source: str, context: dict[str, Any], *, name: str, version: str | N
         # rather than about the context, so it says the file is damaged rather than that a variable
         # is missing. Caught here because the compile and the render are one expression, and
         # splitting them to give each its own `try` would buy nothing.
+        #
+        # **The version is not looked up when it is unknown**, unlike the arm below, which resolves
+        # it through `describe`. This branch has already established that the install is damaged,
+        # and `describe` re-reads `template.toml` — so on an install damaged in both files it would
+        # raise its own error from inside this handler and replace a precise *"not valid Jinja"*
+        # with a *"missing template.toml"* naming the wrong file. A reference without a version is
+        # worth more than a message about the wrong problem.
         reference = f"{name}@{version}" if version is not None else name
         raise TemplateError(
             f"template {reference} is not valid Jinja: {exc.message} (line {exc.lineno}).",

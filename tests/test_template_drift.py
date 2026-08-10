@@ -839,13 +839,19 @@ def test_a_template_that_is_not_valid_jinja_is_a_message(
 
 
 def test_an_unreadable_declared_file_is_a_message(
-    tmp_path: Path, synthetic_template: Callable[..., str]
+    tmp_path: Path, synthetic_template: Callable[..., str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`copy_extras` reads a file the template declares, which `declared_files` has validated as a
     *declaration* — a legal entry naming an unreadable file passes every check before this one.
 
     `PermissionError` is an `OSError`, so this is the arm that also covers a directory in place of
-    a file and a dangling symlink."""
+    a file and a dangling symlink.
+
+    **Injected, not chmod'd**, which is this repository's rule and not a preference: `chmod(0o000)`
+    is ignored by root and produced a stat on CI's runner that neither succeeded nor raised, so
+    fixtures went red for being unable to build their own precondition
+    (`test_doctor.py`'s unreadable-partner test records it). What is under test is that an
+    `OSError` out of the read becomes a message — so raise one."""
     from pinakes.errors import PinakesError
 
     synthetic_template(
@@ -856,13 +862,27 @@ def test_an_unreadable_declared_file_is_a_message(
         extras={"README.md": "hello\n"},
     )
     unreadable = damaged(tmp_path, "synth") / "README.md"
-    unreadable.chmod(0o000)
-    try:
-        with pytest.raises(PinakesError) as caught:
-            template.copy_extras("synth", tmp_path / "kb")
-        assert "README.md" in str(caught.value)
-    finally:
-        unreadable.chmod(0o644)
+    real_read_text = Path.read_text
+
+    def denied(
+        self: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> str:
+        # The real signature spelled out rather than `*args, **kwargs`: `uv run ty check` runs
+        # under `check.sh`'s `set -e`, and a replacement whose parameters do not match the one it
+        # replaces is three diagnostics there even where pyright is satisfied.
+        if self == unreadable:
+            raise PermissionError(13, "Permission denied")
+        return real_read_text(self, encoding=encoding, errors=errors, newline=newline)
+
+    monkeypatch.setattr(Path, "read_text", denied)
+
+    with pytest.raises(PinakesError) as caught:
+        template.copy_extras("synth", tmp_path / "kb")
+    assert "README.md" in str(caught.value)
+    assert "Permission denied" in str(caught.value)
 
 
 def test_an_intact_synthetic_template_still_reads(

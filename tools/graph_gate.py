@@ -190,6 +190,13 @@ def check_identity(before: Leg, without: Leg, with_authored: Leg) -> list[str]:
     # The whole block, with nothing excepted — unlike `tools/two_leg_gate.py`, which excepts
     # `chunking.metadata` because there that key *is* the independent variable. Nothing under
     # `chunking` is this gate's independent variable; `graph_channel` is, and it is checked above.
+    #
+    # A field absent from all three legs compares equal and passes, which is true of the five
+    # fields beside it and is left alone rather than tightened: this gate already refuses legs not
+    # produced by the binary under test (see the module docstring), and `chunking` has been in
+    # `eval.header` since `5993521`, so three legs that all lack it are not reachable from a run
+    # this gate would otherwise accept. Requiring it would instead refuse the graph release's own
+    # archived artifacts, which is a decision about those artifacts rather than about this check.
     for field_ in ("k", "embedding", "rerank", "ranking", "retrieval", "chunking"):
         values = [leg.header.get(field_) for leg in (before, without, with_authored)]
         if any(value != values[0] for value in values):
