@@ -10,6 +10,42 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.21.1] — 20260810 01:48
+
+### Fixed
+
+- **A damaged template install is a message, never a traceback.** Every read of a template's own
+  files was unguarded, so an incomplete or third-party install raised something that is not a
+  `PinakesError` and the CLI printed a stack trace: a `_versions/<v>/` without its
+  `pinakes.toml.j2` gave `FileNotFoundError`, an unreadable file `PermissionError`, a non-UTF-8 one
+  `UnicodeDecodeError`, a malformed `template.toml` a `tomllib.TOMLDecodeError`, and an unclosed
+  `{{` a `jinja2.TemplateSyntaxError` — which `_render` never saw, because it is raised by
+  `Template(...)` rather than by `render`. All five now name the template, the version and the file.
+  The correction covers `describe`, `declared_files`, `render_manifest`, `render_archived` and
+  `copy_extras`: the record named the first two, and shipping those alone would have left the same
+  defect three functions away.
+- **`pnk doctor` and `pnk upgrade` no longer call a damaged template an uninstalled one.** Both
+  answered any failure to read one with *"is not installed here"* and a remedy about installing it
+  — correct while the only thing reaching that handler was a template genuinely absent, and wrong
+  the moment guarding the reads above routed a *damaged* one into it, since it sends the owner to
+  install what is already there. `TemplateNotInstalledError` separates the two, and each command
+  now reports an unreadable template as unreadable and names the file.
+- **A template read error no longer prints where pinakes is installed.** `OSError.__str__` appends
+  the filename it carries, so a read failure with no `strerror` put an absolute path into the text
+  `pnk doctor` forwards — the command whose output is the natural thing to paste into an issue.
+  Its existing de-homing cannot cover this: that strips the *KB* root, and a template lives outside
+  the KB by construction.
+
+- **`tools/graph_gate.py` compares the `chunking` block, so two legs chunked differently can no
+  longer be judged against each other.** It checked `k`, `embedding`, `rerank`, `ranking` and
+  `retrieval` and not `chunking` — the block `eval.header` records precisely so a leg can say what
+  it was built under. A rechunk between legs is not noise but two corpora: rows paired on `id` were
+  produced by searching different texts, and the movement is reported as whatever was under test.
+  Measured, `max_tokens` 510 against 480 moves 63 of 1 858 chunk texts on one RFC, and
+  `tools/eval_reproducibility_gate.py` exists because one question in 41 moved across a plain
+  rebuild. Nothing under `chunking` is excepted here, unlike `tools/two_leg_gate.py`, where
+  `chunking.metadata` is the independent variable; this gate's is `graph_channel`.
+
 ## [0.21.0] — 20260808 10:15
 
 ### Added
@@ -3009,7 +3045,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.21.1...HEAD
+[0.21.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.21.1
 [0.21.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.21.0
 [0.20.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.20.1
 [0.20.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.20.0

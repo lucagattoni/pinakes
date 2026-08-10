@@ -15,19 +15,39 @@ the planner's, and this file held six. They were closed as part of that ownershi
 implementer. What remains below is code and tooling.
 
 **It was empty on 20260805 22:18, for the first time since 20260731. It refilled on 20260807, and
-again on 20260808 — six live items, and the six arrived five different ways.** Items 1 and 2
+again on 20260808 — six live items, and the six arrived five different ways.** **They are described
+here by what they are, never by their number**, because closing two of them renumbered the rest and
+a paragraph keyed to positions would have been silently wrong the moment it was true of nothing.
+
+*The chunking-blind graph gate* and *`--rebuild` never re-chunking a protected paid document* both
 came out of *building* 2d and are invisible from reading the code that contains them, which is the
-pattern every entry this list had ever held until 20260808. **Item 3 broke it**: found by T3's
-adversarial review, by reading, on a surface T3 only inherited. **Item 4 is a third way again** —
-it was not found, it was *created*, by the increment that closed the item standing here before it.
-T4 resolved the CRLF item (preserve a uniform convention, refuse a mixed one — closed below) and
-opened this one in the same breath. **Item 5 is a fourth**: T5 fixed a defect in one file and then
-asked where else that defect class lives, which found it two files away in code T5 never touched.
-**Item 6 is a fifth**: T7 built a new surface and asked what it *inherited* rather than what it
-introduced — which surfaced a half-created KB that `pnk init` has been capable of leaving since it
-existed, and that no increment had reason to look at until one added a new way to trigger it.
-Building, reading, shipping, generalising from a fix, and reviewing what a new surface inherits each
-find a different class, and none of them finds the others'.
+pattern every entry this list had ever held until 20260808. **The damaged-template traceback broke
+it**: found by T3's adversarial review, by reading, on a surface T3 only inherited. **The
+`same manifest` gap is a third way again** — it was not found, it was *created*, by the increment
+that closed the item standing here before it: T4 resolved the CRLF item (preserve a uniform
+convention, refuse a mixed one — closed below) and opened this one in the same breath. **The eval
+header's `vector_tier` is a fourth**: T5 fixed a defect in one file and then asked where else that
+defect class lives, which found it two files away in code T5 never touched. **`pnk init`'s
+half-created KB is a fifth**: T7 built a new surface and asked what it *inherited* rather than what
+it introduced — which surfaced something `pnk init` has been capable of leaving since it existed,
+and that no increment had reason to look at until one added a new way to trigger it. Building,
+reading, shipping, generalising from a fix, and reviewing what a new surface inherits each find a
+different class, and none of them finds the others'.
+
+**Four live as of 0.21.1 (20260810 01:48).** The chunking-blind gate and the damaged-template
+traceback closed there, and the residue is the part worth reading: **every one of the four that
+remain needs a decision rather than a correction.** That is not a coincidence of which two were
+taken — it is what made them takeable. An implementer can close an item whose *required* text is
+stated; it cannot close one whose required text is *"choose between these two defensible answers"*,
+and CLAUDE.md's rule against assuming what the plans have not decided is exactly the wall those
+four stand behind. **A list converging on nothing but decisions is waiting on its planner, not on
+its implementer** — so the next thing this file needs is four answers, not four fixes.
+
+Closing the traceback item also came within one handler of opening the next one. The fix turned a
+raw `OSError` into a `PinakesError`, which routed the failure into an `except` two other commands
+already had — one answering it *"is not installed here"*, about a template sitting right there.
+**A correction can create the item that replaces it**, which is how the `same manifest` gap above
+got here. This one was caught inside the same increment and is recorded in the retrospective.
 
 The list refills from use, so an empty one means nobody has run Pinakes lately, never that it is
 finished. Note what is **not** here: **both releases in
@@ -41,24 +61,7 @@ default *on a corpus where three of the seven edge kinds derived zero edges*.
 
 ## Live
 
-### 1 · `graph_gate.check_identity` is blind to `chunking`
-
-**File:** `tools/graph_gate.py`, `check_identity` (~line 140).
-**Current:** it compares `k`, `embedding`, `rerank`, `ranking` and `retrieval` across its three
-legs, and not `chunking` — which `5993521` added to `eval.header` precisely so a leg could say what
-it was built under.
-**Required:** compare the `chunking` block too, so two legs chunked differently cannot be judged
-against each other.
-
-**Why it matters, measured:** `max_tokens` 510 versus 480 moves **63 of 1 858 chunk texts** on one
-RFC, and `tools/eval_reproducibility_gate.py` exists because *one question in 41* moved across a
-rebuild. A rechunk between legs is reported as whatever was being tested.
-
-**Partly worked around, not fixed.** `tools/two_leg_gate.py` (0.16.0) does this for the **two**-leg
-case, excepting one named key by path. The three-leg graph gate still has the gap, and it is the
-one that licensed the graph channel's default.
-
-### 2 · `--rebuild` never re-chunks a protected paid document
+### 1 · `--rebuild` never re-chunks a protected paid document
 
 **File:** `src/pinakes/sync.py`, `_copy_forward_protected_document`.
 **Current:** the chunks of a paid-extracted document are copied verbatim from the index being
@@ -77,25 +80,7 @@ copied, since embedding is free and the chunk texts are already in hand. The chu
 remains, and it predates the injection option by three releases.
 
 
-### 3 · A damaged template install escapes as a traceback, on two surfaces
-
-**File:** `src/pinakes/template.py`, `describe` (`:99`) and `render_archived` (`:225`, whose
-unguarded read is `:231`).
-**Current:** every read of a template's own files is unguarded, so a damaged install raises
-something that is **not** a `PinakesError` and `cli.main` prints a stack trace instead of a
-message: `_versions/<v>/` without its `pinakes.toml.j2` gives `FileNotFoundError`, an unreadable
-file `PermissionError`, a non-UTF-8 one `UnicodeDecodeError`, a broken `{{` a
-`jinja2.TemplateSyntaxError`, and a missing or malformed `template.toml` a `FileNotFoundError` or
-`tomllib.TOMLDecodeError`.
-**Required:** the same treatment `_render` already gives `UndefinedError` — catch, and re-raise as
-a `TemplateError` naming the template, the version and the file.
-
-**Found 20260808 by T3's adversarial review, and it is not T3's.** `pnk doctor` has had the
-identical hole since the archive landed, and `pnk upgrade` inherited it by calling the same two
-functions. Unreachable from a wheel this project ships — the drift gate would be red first — so it
-is a message-quality defect on a damaged or third-party install, not a correctness one.
-
-### 4 · `--apply` writes nothing on the *same manifest* outcome, so that KB can never stop drifting
+### 2 · `--apply` writes nothing on the *same manifest* outcome, so that KB can never stop drifting
 
 **File:** `src/pinakes/cli.py`, `run_upgrade` (`applying = args.apply and report.outcome is
 Outcome.DRIFTED`).
@@ -117,7 +102,7 @@ applying anything, or the case is accepted and documented. This is the planner's
 
 **Recorded 20260808 by T4's third review pass**, in the increment that created it.
 
-### 5 · An eval outcome records the vector tier it was *configured* with, not the one that ran
+### 3 · An eval outcome records the vector tier it was *configured* with, not the one that ran
 
 **File:** `src/pinakes/eval.py` (`"vector_tier": settings.vector_tier` in the outcomes header) and
 `tools/reachable_ceiling_probe.py`, which copies the line.
@@ -142,7 +127,7 @@ field today — verified: no test asserts it and no tool consumes it.
 defect class lives.
 
 
-### 6 · `pnk init` writes the manifest before it knows the template's files are legal
+### 4 · `pnk init` writes the manifest before it knows the template's files are legal
 
 **File:** `src/pinakes/init.py` — `pinakes.toml` is written at line 88, `copy_extras` is called at
 line 99.
@@ -175,6 +160,8 @@ inherits rather than what it introduces.
 
 | Was | Closed by |
 |---|---|
+| `graph_gate.check_identity` was blind to `chunking` — it compared `k`, `embedding`, `rerank`, `ranking` and `retrieval` and not the block `5993521` added to `eval.header` so a leg could say what it was built under. Two legs chunked differently are two corpora, so rows paired on `id` were produced by searching different texts and the rechunk was reported as whatever was under test — on the gate that licensed the graph channel's default | 0.21.1. The whole block, with **nothing excepted** — which is the one place it differs from `tools/two_leg_gate.py`, and deliberately: there `chunking.metadata` *is* the independent variable, here it is `graph_channel`. Both tests are built so that copying two_leg_gate's exception list across fails. A block absent from all three legs still compares equal and passes, as the five fields beside it do: the gate already refuses legs not produced by the binary under test, and requiring it would refuse the graph release's own archived artifacts |
+| A damaged template install escaped as a traceback, on two surfaces | 0.21.1, and on **five** functions rather than the two this item named — `render_manifest`, `declared_files` and `copy_extras` held the identical unguarded read, so fixing only `describe` and `render_archived` would have left the defect three functions away. `jinja2.TemplateSyntaxError` needed its own arm because it is raised by `Template(...)` and not by `render`, where the existing `UndefinedError` handler sits. **The fix then nearly opened its own replacement**: making the failure a `PinakesError` routed it into `doctor` and `upgrade`'s existing `except`, which answers *"is not installed here"* — advice that sends the owner of a *present but damaged* template to install what they already have. `TemplateNotInstalledError` splits them, with a test on each surface. A third pass found the `OSError` arm printing the install's absolute path, since `OSError.__str__` appends its `filename` and doctor's de-homing strips the *KB* root, which a template is outside by construction |
 | CRLF was invisible to the placement predicate, and only `--apply` could be hurt by it — `Path.read_text` opens with universal newlines, so a CRLF manifest is already `\n`-only by the time `hunks` sees it, which is right for a *report* and would have written LF lines into a CRLF file | 20260808, in T4, and the fork it named resolves to **both**. A **uniform** convention is preserved, because a CRLF manifest is an ordinary Windows file and rewriting it is a change nobody asked for; a **mixed** one is refused, because it is already two tools disagreeing and picking a winner silently rewrites lines the user never touched. The report path is unaffected either way, since reporting reads. **A third case the item had not named turned up in review**: `str.splitlines()` also breaks on `\u2028`, `\u2029` and `\x85`, all three legal in a TOML comment — so the report and the writer would disagree about *which lines the file has*. Refused, for the same reason |
 | Every document was titled by its filename — all 300 RFC sidecars read `title: rfc9110` rather than *"HTTP Semantics"*, so search results were unreadable, and nothing reported it | 20260805 22:18. `pnk doctor`'s `titles` check counts documents still carrying the minted title, with a sample. **Always OK, never a warning**, and that is the decision rather than timidity: the filename fallback was kept deliberately, so warning would fire on every uncurated KB — most of them, and both committed corpora at **100%**. The first-line heuristic stays **rejected** — an RFC's first line is `Internet Engineering Task Force (IETF)`, so inference mints confidently wrong titles at scale into sidecars the user then commits, and a plausible wrong title is harder to notice than a visibly wrong one. The check and the minter share one `minted_title()`, because a second copy of the rule would fail silently toward reporting nothing |
 | `pnk init` could not adopt a directory that already had content — a `.git`, a `README.md` and a `pyproject.toml` made it *"not empty"*, and *"clear this one first"* is alarming about a directory holding the documents you meant to index. **Hit three times independently** | 20260805 22:11. The blanket emptiness test is gone; what replaces it is narrower and stronger — **`init` never overwrites a file that is already there**, so nothing is left for an emptiness test to protect. Adopted files are left byte-identical and named in the output. **The decision as written said to *refuse* any file `init` would write that already exists; implemented literally that refuses on `README.md` and `.gitignore`, which a real repository always has, so adoption would still have been impossible in the exact case the item exists for.** The intent — do not destroy the user's files — is honoured by never overwriting and reporting instead. Two things are called out rather than silently handled: an adopted `.gitignore` missing `.pinakes/` is flagged with the line to add, and `--ci` is refused (an explicit request, so doing nothing would be worse) **before anything is created** — a gap the removed guard had been holding, found by an existing test |
