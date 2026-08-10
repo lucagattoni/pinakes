@@ -874,12 +874,10 @@ def test_an_unreadable_declared_file_is_a_message(
         # under `check.sh`'s `set -e`, and a replacement whose parameters do not match the one it
         # replaces is three diagnostics there even where pyright is satisfied.
         if self == unreadable:
-            # **Three arguments, not two.** `OSError(errno, strerror)` leaves `filename` unset and
-            # `str(exc)` is then just `[Errno 13] Permission denied` — with no path in it, the
-            # path-leak assertions below hold whatever the code does, and the mutant that
-            # interpolates the exception survives. Measured: it did. The OS sets `filename` on
-            # every error it raises from a path, so the faithful fixture is also the discriminating
-            # one.
+            # **Three arguments, not two**, because that is what the OS raises: it sets `filename`
+            # on every error it raises from a path, and a fixture that leaves it unset is not the
+            # error being handled. It does **not** make this test discriminate the path leak — see
+            # the sibling below, which measured that it cannot.
             raise PermissionError(13, "Permission denied", str(self))
         return real_read_text(self, encoding=encoding, errors=errors, newline=newline)
 
@@ -889,11 +887,12 @@ def test_an_unreadable_declared_file_is_a_message(
         template.copy_extras("synth", tmp_path / "kb")
     assert "README.md" in str(caught.value)
     assert "Permission denied" in str(caught.value)
-    # **The message must not carry the install's absolute path.** `OSError.__str__` appends the
-    # filename it holds, so interpolating the exception rather than its `strerror` prints wherever
-    # this build happens to live. `pnk doctor` forwards this text and is the command whose output
-    # people paste into issues; its `_de_homed` helper cannot help, because it strips the *KB*
-    # root and a template is outside it by construction.
+    # **A regression guard, not the test of the path-leak property** — and the distinction is
+    # recorded rather than left for a reader to assume. With `strerror` set, the code never
+    # evaluates the exception at all, so these two hold under the leaking version as well; the
+    # test that actually fails on it is the sibling below, which builds the one shape that can.
+    # They stay because a future change *could* put the path in on this path too, and then they
+    # would be the thing that notices.
     assert str(unreadable) not in str(caught.value)
     assert str(tmp_path) not in str(caught.value)
 
