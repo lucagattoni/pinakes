@@ -409,6 +409,22 @@ class TemplateError(PinakesError):
     """A template is missing or unusable."""
 
 
+class TemplateNotInstalledError(TemplateError):
+    """No template of that name is installed — as distinct from one that is, and is damaged.
+
+    The two are one sentence apart for a user and opposite in what to do about them, and nothing in
+    the message lets a caller tell them apart. `pnk doctor` and `pnk upgrade` both answer a
+    *missing* template with "not installed here" and a remedy about installing it; saying that
+    about a template sitting right there with an unreadable `template.toml` sends its owner to
+    install something they already have.
+
+    Separated when the reads under `describe` were guarded (open-corrections item 3). Until then a
+    damaged install raised a bare `OSError` straight past both handlers as a traceback, so the two
+    could not be confused. Guarding them is what made both a `TemplateError`, and this is what
+    keeps them apart.
+    """
+
+
 class InitError(PinakesError):
     """A KB cannot be created here."""
 

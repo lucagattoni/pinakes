@@ -40,7 +40,12 @@ from pathlib import Path
 from typing import Any, cast
 
 from pinakes import template
-from pinakes.errors import ManifestError, PinakesError, UpgradeError
+from pinakes.errors import (
+    ManifestError,
+    PinakesError,
+    TemplateNotInstalledError,
+    UpgradeError,
+)
 from pinakes.lock import LOCK_NAME, read_holder
 from pinakes.manifest import MANIFEST_NAME, Manifest
 
@@ -616,9 +621,20 @@ def plan(manifest: Manifest) -> Report:
     name, _, version = recorded.partition("@")
     try:
         installed = template.describe(name)
-    except PinakesError as exc:
+    except TemplateNotInstalledError as exc:
         return _no_baseline(
             f"cannot compare: {recorded} is not installed here",
+            f"{exc.remedy} Your KB is unaffected — a template is the blueprint it was stamped "
+            "from, not something it needs at rest.",
+            recorded=recorded,
+            name=name,
+        )
+    except PinakesError as exc:
+        # Installed and unreadable — the same split `doctor` makes, for the same reason. "Not
+        # installed here" would send the user to install what they already have; the sentence about
+        # the KB being unaffected is true in both cases and is kept in both.
+        return _no_baseline(
+            f"cannot compare: {name} is installed but cannot be read — {exc.message}",
             f"{exc.remedy} Your KB is unaffected — a template is the blueprint it was stamped "
             "from, not something it needs at rest.",
             recorded=recorded,

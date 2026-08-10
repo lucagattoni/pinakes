@@ -724,6 +724,32 @@ def test_a_template_not_installed_here_cannot_compare(
     assert out.startswith("cannot compare:")  # docs/CLI.md publishes this opening for every cause
 
 
+def test_a_template_installed_but_damaged_is_not_reported_as_not_installed(
+    tmp_path: Path, synthetic_template: Callable[..., str]
+) -> None:
+    """The same split `pnk doctor` makes, asserted on the other surface that makes it.
+
+    Both commands answered a missing template with *"not installed here"* through one handler, and
+    open-corrections item 3 is what made a damaged one reach that handler at all — before it, the
+    bare `OSError` went straight past as a traceback. Two surfaces, so two tests: the wording is a
+    fact with one home, but the *routing* is a decision each caller takes for itself, and a single
+    test would leave whichever surface it did not cover free to merge the cases back."""
+    from pinakes import template as template_module
+
+    name = _two_versions(synthetic_template)
+    root = _stamp(tmp_path / "kb", name, "1.0")
+    installed = template_module._root(name)  # pyright: ignore[reportPrivateUsage]
+    assert isinstance(installed, Path)
+    installed.joinpath("template.toml").unlink()
+
+    code, out = _run(root)
+
+    assert code == 3
+    assert "not installed here" not in out, "an install that is present is not a missing one"
+    assert "cannot be read" in out and "template.toml" in out
+    assert out.startswith("cannot compare:")  # the published opening holds for this cause too
+
+
 def test_a_kb_recording_no_template_cannot_compare(
     tmp_path: Path, synthetic_template: Callable[..., str]
 ) -> None:
