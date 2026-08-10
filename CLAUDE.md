@@ -146,7 +146,7 @@ file" there ([`docs/README.md`](docs/README.md) tells them apart).
     - **Read a plan's test list as part of its specification, not as an illustration of it.** Where a plan's prose and its test list disagree, the test list has been forced to be concrete and the prose has not — T7's containment rule named only the target while its test list required refusing a symlink in the template, and both layers were real.
 
 - **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) has four
-  live items as of 0.21.1, and **every one of them needs a decision, not a correction**: whether
+  live items as of 0.21.1, and every one of them needs a decision, not a correction**: whether
   `--rebuild` re-chunks a protected paid document (or records the index as inhomogeneous); what
   `--apply` does on the *same manifest* outcome; whether an eval header records the tier it was
   configured with, the one that ran, or both; and whether `pnk init` is transactional. **That is
