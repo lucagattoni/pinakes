@@ -1066,6 +1066,38 @@ def test_a_template_the_install_does_not_have_is_a_warning_not_a_failure(kb: Pat
     assert "not installed here" in detail
 
 
+def test_a_template_that_is_installed_but_damaged_is_not_called_uninstalled(
+    kb: Path, tmp_path: Path, synthetic_template: Callable[..., str]
+) -> None:
+    """Absent and damaged are one sentence apart and take opposite actions, so the report must not
+    merge them.
+
+    This case was **unreachable** before open-corrections item 3: a damaged install raised a bare
+    `OSError`, which is not a `PinakesError`, so it went past this check's handler and took the
+    whole report down as a traceback. Guarding the reads made it a `TemplateError` — and a single
+    handler would then have routed it to *"not installed here"*, telling the owner to install a
+    template that is sitting right there. So the fix for one defect is what creates the other, and
+    this is the assertion that separates them."""
+    from pinakes import template as template_module
+
+    name = synthetic_template("synth", versions={"1.0": "[kb]\n"}, current="1.0")
+    root = template_module._root(name)  # pyright: ignore[reportPrivateUsage]
+    assert isinstance(root, Path)
+    root.joinpath("template.toml").unlink()
+
+    path = kb / "pinakes.toml"
+    body = path.read_text(encoding="utf-8")
+    recorded = re.search(r'^template = "(.+)"$', body, re.MULTILINE)
+    assert recorded is not None
+    path.write_text(body.replace(recorded.group(1), "synth@1.0"), encoding="utf-8")
+
+    status, detail = checks(kb)["template"]
+
+    assert status is Status.WARN
+    assert "not installed here" not in detail, "an install that is present is not a missing one"
+    assert "cannot read synth" in detail and "template.toml" in detail
+
+
 def test_a_template_version_drift_is_reported_with_both_versions(kb: Path) -> None:
     """Both references still reach the reader — the recorded one in the detail, the installed one
     in the remedy that says what this build actually ships.

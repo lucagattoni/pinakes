@@ -43,6 +43,7 @@ from pinakes.errors import (
     LedgerError,
     PinakesError,
     PricesMissingError,
+    TemplateNotInstalledError,
 )
 from pinakes.extract import (
     backend_requirement,
@@ -249,7 +250,7 @@ def _template(manifest: Manifest) -> Check:
     name, _, version = recorded.partition("@")
     try:
         installed = template.describe(name)
-    except PinakesError:
+    except TemplateNotInstalledError:
         return Check(
             "template",
             Status.WARN,
@@ -257,6 +258,13 @@ def _template(manifest: Manifest) -> Check:
             "The KB still works. `pnk upgrade` is what diffs templates, and it needs this "
             "one installed to do it.",
         )
+    except PinakesError as exc:
+        # Installed *and* unreadable, which is the opposite advice. This arm was unreachable until
+        # the reads under `describe` were guarded: a damaged install raised a bare `OSError` past
+        # both arms and took the whole report down as a traceback. Guarding it without splitting
+        # the arms would have routed it to the one above — telling the user to install a template
+        # that is sitting right there, damaged.
+        return Check("template", Status.WARN, f"cannot read {name}: {exc.message}", exc.remedy)
     if installed.version == version:
         return Check("template", Status.OK, recorded)
 

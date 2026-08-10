@@ -16,7 +16,7 @@ from typing import Any, cast
 
 from jinja2 import StrictUndefined, Template, TemplateSyntaxError, UndefinedError
 
-from pinakes.errors import TemplateError
+from pinakes.errors import TemplateError, TemplateNotInstalledError
 from pinakes.manifest import Manifest
 from pinakes.paths import lands_inside
 
@@ -65,7 +65,7 @@ class TemplateInfo:
 
 
 def _unknown(name: str) -> TemplateError:
-    return TemplateError(
+    return TemplateNotInstalledError(
         f"no template named {name!r}.",
         remedy=f"Available: {', '.join(available()) or '(none)'}.",
     )
