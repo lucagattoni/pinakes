@@ -171,14 +171,22 @@ def answer_schema(*, passages: int) -> dict[str, Any]:
     particular call was handed. Both halves are enforced: the schema asks for `1..passages`, and
     `parse_answer` checks it again — structured output constrains what the model may emit, and this
     project's rule is that a value which decides what gets cited is validated where it is read.
+
+    **Zero passages is refused rather than clamped to one.** The first draft wrote
+    `max(passages, 1)`, which describes a call whose schema admits citation `[1]` and whose parser
+    refuses every index — the two halves disagreeing about the same bound, in the direction that
+    produces prose with nothing behind it. `build_answer_request` refuses the call outright
+    (`NoEvidenceError`); this refuses the schema, so neither can be reached alone.
     """
+    if passages < 1:
+        raise NoEvidenceError
     return {
         "type": "object",
         "properties": {
             "answer": {"type": "string"},
             "citations": {
                 "type": "array",
-                "items": {"type": "integer", "minimum": 1, "maximum": max(passages, 1)},
+                "items": {"type": "integer", "minimum": 1, "maximum": passages},
             },
         },
         "required": ["answer", "citations"],
@@ -297,19 +305,29 @@ class Answer:
 
 
 def render_passages(passages: Sequence[Passage]) -> str:
-    """The numbered block an answer call cites into — the same rendering the user reads.
+    """The numbered block an answer call cites into: `[n] path — heading`, then the text.
 
-    `cli.py`'s `_print_passages` prints `[n] path — heading` and the citation line, and this is that
-    shape: what the model is shown and what the user is shown must be the same evidence, or a
-    citation cannot be checked by looking. The number is the *only* identifier in it, which is what
-    makes `parse_answer`'s range check a complete defence rather than a filter.
+    The same header `cli.py`'s `_print_passages` prints, so a citation can be checked by looking at
+    what the user was shown. The number is the *only* identifier in it, which is what makes
+    `parse_answer`'s range check a complete defence rather than a filter.
+
+    **The citation line the user sees is deliberately not repeated here, and the reason is the
+    price.** `PASSAGE_ENVELOPE_TOKENS` (250) was measured against *one* copy of `path —
+    heading_path`: 220 characters at the widest real passage in the corpora, ~110 tokens at the
+    pessimistic 2 characters per vendor token. `Passage.citation()` carries the path *and* the
+    heading again, and the first draft of this function emitted both — 452 characters for that same
+    passage, 226 tokens, **90% of the ceiling spent on the envelope alone**, with nothing left for a
+    KB whose headings run deeper than the two corpora measured. E2's own rule settles it: a ceiling
+    that thin is not a ceiling (`PAGE_TOKEN_CEILING` records the same refusal). The offsets were the
+    least useful part to a caller that cites by number, so they are what goes.
+
+    `test_the_rendered_envelope_fits_the_constant_that_prices_it` pins the arithmetic, at the
+    measurement, so a second copy of the path cannot come back unnoticed.
     """
     blocks: list[str] = []
     for position, passage in enumerate(passages, start=1):
         heading = f" — {passage.heading_path}" if passage.heading_path else ""
-        blocks.append(
-            f"[{position}] {passage.path}{heading}\n{passage.text.strip()}\n({passage.citation()})"
-        )
+        blocks.append(f"[{position}] {passage.path}{heading}\n{passage.text.strip()}")
     return "\n\n".join(blocks)
 
 
@@ -359,6 +377,19 @@ class MemoryTooLongError(DeepError):
         self.length = length
 
 
+def subproblem_cap(max_subproblems: int) -> int:
+    """The cap that goes into the request's schema, and the one the response is checked against.
+
+    **One function because they must be the same number.** The schema's `maxItems` is what the API
+    enforces and `parse_subproblems`'s cap is what this module enforces; computing the ceiling twice
+    is how the second check ends up being about a different limit than the first, at which point one
+    of them is decoration. A cap below 1 is a mistake wherever it came from — a `maxItems` of zero
+    describes a call that cannot succeed — so it clamps up rather than refusing, and never down past
+    `MAX_SUBPROBLEMS`.
+    """
+    return max(1, min(max_subproblems, MAX_SUBPROBLEMS))
+
+
 def build_decompose_request(
     *,
     model: str,
@@ -375,7 +406,7 @@ def build_decompose_request(
     """
     if len(memory) > CARRIED_MEMORY_CHAR_CEILING:
         raise MemoryTooLongError(len(memory))
-    cap = max(1, min(max_subproblems, MAX_SUBPROBLEMS))
+    cap = subproblem_cap(max_subproblems)
     lines = [f"{QUESTION_LABEL}: {_checked_question(question)}"]
     if memory:
         lines.append(f"\n{MEMORY_LABEL}:\n{memory}")
@@ -412,6 +443,8 @@ def build_answer_request(
     """
     if kind not in ANSWER_KINDS:
         raise ValueError(f"build_answer_request: kind={kind!r} is not one of {ANSWER_KINDS}")
+    if not passages:
+        raise NoEvidenceError
     if len(passages) > passage_cap:
         raise TooManyPassagesError(sent=len(passages), cap=passage_cap)
     label = SUBPROBLEM_LABEL if kind == SUBANSWER else QUESTION_LABEL
@@ -425,6 +458,26 @@ def build_answer_request(
         body=body,
         schema=answer_schema(passages=len(passages)),
     )
+
+
+class NoEvidenceError(DeepError):
+    """An answer call over **no** passages, refused rather than sent.
+
+    `deep/estimate.py` will not price the `none` branch for the same reason, in its own words: a run
+    with no evidence to reason over is not a cheaper run, it is one that must not be offered. The
+    concrete failure here is narrower and worse — `answer_schema(passages=0)` would have to admit
+    some citation range or none, and `parse_answer` refuses every index against zero passages, so
+    the call could only ever produce prose with nothing behind it. Paid.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "an answer call was asked for over no passages at all.",
+            remedy=(
+                "Nothing was sent or spent. A question nothing matched is not a cheaper question "
+                "to answer — it is one with no evidence, and `pnk ask` says so without spending."
+            ),
+        )
 
 
 class TooManyPassagesError(DeepError):
@@ -616,6 +669,13 @@ def billed_call(
                     raise
                 if not exc.retryable or attempt == TRANSPORT_ATTEMPTS:
                     raise
+            except Exception:
+                # Anything the transport did **not** classify. `AnthropicTransport.create` wraps
+                # every exception, so reaching this means a defect — and a defect is not proof the
+                # call never billed, which is the only thing that may void a reservation. Left
+                # unresolved rather than voided, in the direction a budget is allowed to be wrong.
+                call.may_have_billed()
+                raise
             else:
                 call.response_received()
                 input_tokens, output_tokens = usage_of(response)
@@ -673,7 +733,7 @@ def decompose(
         sleep=sleep,
     )
     check_stop_reason(response, model=model)
-    cap = max(1, min(max_subproblems, MAX_SUBPROBLEMS))
+    cap = subproblem_cap(max_subproblems)
     try:
         return parse_subproblems(response, cap=cap)
     except SchemaFailureError as exc:

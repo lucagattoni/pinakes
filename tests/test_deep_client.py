@@ -17,6 +17,7 @@ import re
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from decimal import Decimal
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any, cast
 
@@ -352,10 +353,14 @@ def test_the_answer_call_shows_the_model_the_evidence_the_user_reads(
     rendered = render_passages(PASSAGES)
     assert rendered.startswith("[1] docs/note-1.md — Retrieval > Confidence 1")
     assert "[2] docs/note-2.md" in rendered
-    assert PASSAGES[0].citation() in rendered
+    assert PASSAGES[0].text in rendered
     assert PASSAGES[0].doc_id not in rendered, (
         "a document id in the prompt is an identifier the model could compose one of"
     )
+    # The user's citation line — path and heading a *second* time, plus offsets — is deliberately
+    # absent: it is 90% of `PASSAGE_ENVELOPE_TOKENS` spent on an identifier the model never emits.
+    assert PASSAGES[0].citation() not in rendered
+    assert str(PASSAGES[0].char_end) not in rendered
 
     transport = RecordedTransport("answer-cited")
     run_answer(accountant, transport)
@@ -604,6 +609,14 @@ def test_a_citation_naming_a_passage_the_call_never_saw_is_refused(
     )
 
 
+def test_the_answer_schema_refuses_the_bound_it_cannot_describe() -> None:
+    """`max(passages, 1)` would describe a call whose schema admits citation `[1]` and whose parser
+    refuses every index — the two halves disagreeing about the same bound, in the direction that
+    produces prose with nothing behind it."""
+    with pytest.raises(deep_client.NoEvidenceError):
+        answer_schema(passages=0)
+
+
 def test_the_answer_schema_bounds_citations_to_the_passages_actually_sent() -> None:
     schema = answer_schema(passages=4)
     assert set(schema["properties"]) == {"answer", "citations"}
@@ -743,15 +756,230 @@ def test_an_unparseable_body_is_reported_as_a_billed_failure(accountant: Account
 
 
 def test_every_error_this_module_raises_carries_a_remedy() -> None:
-    """`PinakesError`'s contract: the message says what went wrong, the remedy says what to try.
-    A paid path is the last place to raise something the CLI can only print as a traceback."""
+    """`PinakesError`'s contract: the message says what went wrong, the remedy says what to try, and
+    `cli.py` prints both — so a paid path is the last place to raise something that reaches a user
+    as a traceback.
+
+    Asserted over the **parsed source**, on each class's own `super().__init__` call. The first
+    version of this test checked `issubclass(..., PinakesError)`, which is true by construction of
+    the base class and would have passed for a subclass that forgot the keyword entirely — a
+    vacuous assertion wearing a safety check's name.
+    """
+    tree = ast.parse(CLIENT_SOURCE.read_text(encoding="utf-8"))
     errors = [
         node
-        for node in ast.walk(ast.parse(CLIENT_SOURCE.read_text(encoding="utf-8")))
+        for node in ast.walk(tree)
         if isinstance(node, ast.ClassDef)
         and any(isinstance(base, ast.Name) and base.id == "DeepError" for base in node.bases)
     ]
-    assert len(errors) >= 6, [node.name for node in errors]
+    assert len(errors) >= 7, [node.name for node in errors]
     for node in errors:
-        raised = getattr(deep_client, node.name)
-        assert issubclass(raised, PinakesError)
+        assert issubclass(getattr(deep_client, node.name), PinakesError)
+        supers = [
+            call
+            for call in ast.walk(node)
+            if isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Attribute)
+            and call.func.attr == "__init__"
+        ]
+        assert supers, f"{node.name} never calls super().__init__"
+        for call in supers:
+            assert "remedy" in {kw.arg for kw in call.keywords}, (
+                f"{node.name} raises without a remedy"
+            )
+
+
+def test_an_answer_call_over_no_passages_at_all_is_refused(accountant: Accountant) -> None:
+    """`deep/estimate.py` will not price the `none` branch — a run with no evidence to reason over
+    is not a cheaper run, it is one that must not be offered. Here the failure is narrower and
+    worse: every citation index is out of range against zero passages, so the call could only ever
+    produce prose with nothing behind it, and it would be paid for."""
+    transport = RecordedTransport("answer-cited")
+    with pytest.raises(deep_client.NoEvidenceError):
+        run_answer(accountant, transport, passages=())
+    assert transport.calls == 0
+
+
+def test_the_cap_in_the_schema_and_the_cap_in_the_parser_are_one_number() -> None:
+    """Two ceilings computed twice is how the second check ends up being about a different limit
+    than the first, at which point one of them is decoration. `subproblem_cap` is the one home, and
+    this drives it through both users at once."""
+    for asked in (0, 1, 3, MAX_SUBPROBLEMS, 99):
+        cap = deep_client.subproblem_cap(asked)
+        request = build_decompose_request(
+            model=MODEL, question=QUESTION, memory="", max_subproblems=asked
+        )
+        schema = request["output_config"]["format"]["schema"]
+        assert schema["properties"]["subproblems"]["maxItems"] == cap
+        assert f"at most {cap} subproblems" in request["messages"][0]["content"][0]["text"]
+        assert parse_subproblems(_response({"subproblems": ["q"] * cap}), cap=cap) == ("q",) * cap
+
+
+def test_the_rendered_envelope_fits_the_constant_that_prices_it() -> None:
+    """`PASSAGE_ENVELOPE_TOKENS` was measured against **one** copy of `path — heading_path` (220
+    characters, 20260811 16:17). This renderer emits both twice — once in the header, once inside
+    the citation — so the constant is being spent twice over, and nothing else would notice.
+
+    Driven at the widest envelope the corpora actually contain, and asserted at the same pessimistic
+    2 characters per vendor token the constant was derived at. A third copy of the path, or a longer
+    prefix, fails here rather than at reconciliation time on someone's bill.
+    """
+    from pinakes.deep.estimate import PASSAGE_ENVELOPE_TOKENS
+
+    longest_measured = 220
+    heading = "H" * (longest_measured // 2)
+    path = "p" * (longest_measured - len(heading) - len(" — "))
+    widest = Passage(
+        doc_id=DocId("01JBQ0000000000000000000AA"),
+        path=path,
+        title=None,
+        heading_path=heading,
+        text="",
+        char_start=0,
+        char_end=0,
+        lexical_rank=1,
+        vector_rank=1,
+        fused_score=1.0,
+        rerank_score=None,
+    )
+    envelope_chars = len(render_passages((widest,)))
+    pessimistic_chars_per_vendor_token = 2
+    spent = envelope_chars / pessimistic_chars_per_vendor_token
+    assert spent <= PASSAGE_ENVELOPE_TOKENS, (
+        f"the rendered envelope is {envelope_chars} characters, over what "
+        f"PASSAGE_ENVELOPE_TOKENS={PASSAGE_ENVELOPE_TOKENS} reserves for it"
+    )
+    # Not merely inside it: a **ceiling** with 10% headroom is what E2 refused to ship, and the
+    # first draft of `render_passages` — which repeated the path and heading inside a citation
+    # line — landed at 226 of 250. Half the ceiling is the property, not the arithmetic.
+    assert spent <= PASSAGE_ENVELOPE_TOKENS / 2, (
+        f"the envelope spends {spent:.0f} of {PASSAGE_ENVELOPE_TOKENS} reserved tokens — a "
+        "ceiling this close to its own measurement is not a ceiling"
+    )
+
+
+def test_an_exception_the_transport_did_not_classify_is_not_voided(
+    accountant: Accountant,
+) -> None:
+    """`void` needs **proof** the call never billed (INVARIANTS), and a defect is not proof.
+
+    `AnthropicTransport.create` classifies every exception, so reaching this branch means something
+    is wrong — and the safe direction when something is wrong is to leave the reservation open for
+    `pnk budget --resolve`, never to release it at zero for a call that may well have been charged.
+    """
+
+    class BrokenTransport:
+        def create(self, request: Mapping[str, Any]) -> Mapping[str, Any]:
+            raise RuntimeError("a defect in the transport, not a classified failure")
+
+    with pytest.raises(RuntimeError):
+        deep_client.billed_call(
+            transport=BrokenTransport(),
+            accountant=accountant,
+            request={"model": MODEL},
+            model=MODEL,
+            reserved_eur=RESERVED,
+            price=load_prices().for_model(MODEL),
+            tally=CallTally(),
+            sleep=never_sleeps,
+        )
+    assert [call.state for call in ledger_calls(accountant)] == [CallState.UNKNOWN]
+
+
+# --- the shared classifier, driven against the hierarchy it claims -------------------------------
+
+
+class _FakeSdk:
+    """The four exception classes `classify` reads, in the **real** inheritance relationship —
+    `APITimeoutError` under `APIConnectionError`, and `APIConnectionError` a *sibling* of
+    `APIStatusError`. `stubs/anthropic.pyi` states the same shape, and the test below holds the two
+    against each other so this stand-in cannot quietly describe a hierarchy the SDK does not have.
+    """
+
+    class APIError(Exception): ...
+
+    class APIStatusError(APIError):
+        # Declared here and deliberately **not** in `stubs/anthropic.pyi`: the stub is a claim
+        # about a library, and `classify` reads this through `getattr` with an `isinstance` check
+        # rather than trusting a shape this project wrote down itself. The fake declares it because
+        # a test has to be able to set it.
+        status_code: object
+
+    class APIConnectionError(APIError): ...
+
+    class APITimeoutError(APIConnectionError): ...
+
+
+def _status_error(status: object) -> Exception:
+    exc = _FakeSdk.APIStatusError("boom")
+    exc.status_code = status
+    return exc
+
+
+def test_a_timeout_is_classified_before_the_connection_error_it_is_a_subclass_of() -> None:
+    """The single most consequential ordering in the paid path, and it had **no direct test** until
+    E3 made the classifier shared code: every branch of it was reached only through a fixture that
+    raised an already-classified error.
+
+    A timeout *is* an `APIConnectionError`, so checking the parent first classifies every timeout as
+    not-billed — which voids a reservation for a call the server may have generated and charged for.
+    """
+    from pinakes.paid import classify
+
+    timeout = classify(_FakeSdk.APITimeoutError("slow"), sdk=_FakeSdk)
+    assert timeout.billability is Billability.UNKNOWN
+    assert timeout.retryable is False
+
+    connection = classify(_FakeSdk.APIConnectionError("refused"), sdk=_FakeSdk)
+    assert connection.billability is Billability.NOT_BILLED
+    assert connection.retryable is True
+
+
+def test_the_stub_states_the_hierarchy_the_classifier_depends_on() -> None:
+    """`stubs/anthropic.pyi` is what pyright reads on a `[light]` install, and `_FakeSdk` above is
+    what this suite reads. Both are claims about a library neither of them is — so they are held
+    against each other, and against the real package when it happens to be installed."""
+    stub = (Path(__file__).parent.parent / "stubs" / "anthropic.pyi").read_text(encoding="utf-8")
+    assert "class APITimeoutError(APIConnectionError)" in stub
+    assert "class APIConnectionError(APIError)" in stub
+    assert "class APIStatusError(APIError)" in stub
+
+    if find_spec("anthropic") is not None:  # pragma: no cover - the [light] leg skips this half
+        import anthropic
+
+        assert issubclass(anthropic.APITimeoutError, anthropic.APIConnectionError)
+        assert not issubclass(anthropic.APIConnectionError, anthropic.APIStatusError)
+
+
+@pytest.mark.parametrize(
+    ("status", "retryable"), [(429, True), (500, True), (503, True), (400, False), (404, False)]
+)
+def test_a_status_error_is_never_billed_and_retries_only_where_retrying_can_help(
+    status: int, retryable: bool
+) -> None:
+    from pinakes.paid import classify
+
+    failure = classify(_status_error(status), sdk=_FakeSdk)
+    assert failure.billability is Billability.NOT_BILLED
+    assert failure.retryable is retryable
+    assert failure.status == status
+
+
+def test_a_status_arriving_as_something_other_than_an_int_does_not_crash_the_comparison() -> None:
+    """`>= 500` against a string raises, and it would raise on the failure path — where a crash
+    replaces a classified failure with a traceback and an open reservation."""
+    from pinakes.paid import classify
+
+    failure = classify(_status_error("500"), sdk=_FakeSdk)
+    assert failure.status is None
+    assert failure.retryable is False
+    assert failure.billability is Billability.NOT_BILLED
+
+
+def test_an_exception_the_hierarchy_does_not_cover_is_billable_unknown() -> None:
+    """The safe default: something nobody classified may have billed."""
+    from pinakes.paid import classify
+
+    failure = classify(ValueError("who knows"), sdk=_FakeSdk)
+    assert failure.billability is Billability.UNKNOWN
+    assert failure.retryable is False
