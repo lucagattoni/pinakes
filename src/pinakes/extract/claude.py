@@ -1,4 +1,9 @@
-"""The paid Claude-vision extractor — the only module in `src/` permitted to import `anthropic`.
+"""The paid Claude-vision extractor — one of the two modules permitted to import `anthropic`.
+
+**It was the only one until E3**, which added `deep/client.py` for `pnk ask --deep` and moved what
+the two share into `pinakes/paid.py`: the key's name, the SDK's retries, the billability
+classification below, and the reconciliation arithmetic. Those rules are imported here, not
+restated; what stays local is what a *sync* does with them.
 
 Reached only when the manifest says `backend = "claude-vision"`, or when
 `pnk sync --extract=claude-vision` does. Every free step runs before any paid one, and every paid
@@ -731,8 +736,9 @@ def _audited(
 
 
 class AnthropicTransport:
-    """The only place `anthropic` is constructed. Imported lazily so the recorded-fixture suite —
-    which is unmarked, and must run with the package absent — can import this module at all."""
+    """The only place *this* entry point constructs `anthropic` (`deep/client.py` has its own, for
+    `pnk ask --deep`). Imported lazily so the recorded-fixture suite — which is unmarked, and must
+    run with the package absent — can import this module at all."""
 
     def __init__(self, *, timeout: float = 600.0) -> None:
         try:
