@@ -178,6 +178,13 @@ class SyncReport:
     paid_extraction_protected: tuple[str, ...] = ()
     """Kept at their paid extraction despite a free-effective run — printed once, not per path
     (I5, decision 9)."""
+    chunking_not_applied: tuple[str, ...] = ()
+    """Paid documents `--rebuild` copied forward without re-chunking, because their extracted text
+    was no longer cached (D-15).
+
+    The index is then **inhomogeneous**: `set_meta` stamps the current `[chunking]` settings over
+    the whole of it, and these documents were chunked under whatever built the index before. Named
+    rather than counted, because the remedy is per document and costs money."""
     paid_extraction_overwritten: tuple[str, ...] = ()
     """`--force` plus an explicit free `--extract` discarded these paid extractions — named, not
     just counted, since discarding paid work is the one thing this design must never do quietly."""
@@ -364,6 +371,13 @@ class SyncReport:
                 f"{len(self.paid_extraction_protected)} paid extraction(s) kept as-is "
                 f"(this run's backend would have downgraded them): {sample}"
                 + (f" and {more} more" if more > 0 else "")
+            )
+        if self.chunking_not_applied:
+            named = ", ".join(self.chunking_not_applied)
+            lines.append(
+                f"{len(self.chunking_not_applied)} paid document(s) kept their previous chunking — "
+                f"their extracted text is no longer cached, so this run could not re-chunk them "
+                f"without paying to extract again: {named}"
             )
         for path in self.moved_without_sidecar:
             lines.append(f"moved without its sidecar, so a new id was minted: {path}")
@@ -1100,6 +1114,17 @@ def _run(
                     if chunked_from_empty
                     else {}
                 ),
+                # **The honest half of D-15.** `chunking_identity` above claims the whole index was
+                # built under this run's settings, and for a rebuild that copied a paid document
+                # forward that claim is false for that document. Rather than withhold the identity
+                # — which would read as *unknown* and cost every KB a warning it has not earned —
+                # the index says the claim has exceptions and how many. `pnk doctor` reports it;
+                # an absent key means no exceptions, which is every index written before this.
+                **(
+                    {"chunking_exceptions": str(len(report.chunking_not_applied))}
+                    if report.chunking_not_applied
+                    else {}
+                ),
                 "built_at": stamp,
             },
         )
@@ -1257,7 +1282,7 @@ def _apply(
             # (`_paid_rebuild_survivors`'s own docstring). Copied forward at its *old* content_hash
             # regardless of whether the file has since changed — see below.
             recorded_backend, old_content_hash = survivor
-            _copy_forward_protected_document(
+            rechunked = _copy_forward_protected_document(
                 manifest,
                 connection,
                 backend=backend,
@@ -1268,6 +1293,12 @@ def _apply(
                 content_hash=old_content_hash,
                 sidecar_hash=sidecar_hash,
             )
+            if not rechunked:
+                # The extracted text was not cached, so this document keeps the chunks the previous
+                # index gave it while `set_meta` stamps this run's settings over everything (D-15).
+                # Recorded rather than silently accepted: that is precisely the disagreement between
+                # what the index claims and what it holds.
+                report.chunking_not_applied = (*report.chunking_not_applied, path)
             if old_content_hash == content_hash:
                 report.paid_extraction_protected = (*report.paid_extraction_protected, path)
             else:
@@ -1733,7 +1764,7 @@ def _copy_forward_protected_document(
     path: str,
     content_hash: str,
     sidecar_hash: str | None,
-) -> None:
+) -> bool:
     """Populate one document's row and chunks straight from the index `--rebuild` is replacing —
     **never re-extracted**, because `_paid_rebuild_survivors` already proved nothing about its paid
     extraction needs to change. Title, tags and links still come from the *current* sidecar (not
@@ -1749,15 +1780,25 @@ def _copy_forward_protected_document(
     local embedding pass over one document's chunks removes the condition, in both directions —
     turning injection *off* again had the mirror-image defect.
 
-    **It does not close the chunking half, which is older and wider than this key.** The chunks
-    themselves are copied verbatim, so `headings`, `max_tokens` and `overlap` still do not reach a
-    protected document on a rebuild — re-chunking needs the extracted *text*, which is exactly what
-    may no longer be obtainable without paying for it again. That one is reported to the planner
-    rather than widened into this increment.
+    **The chunking half is closed too, and for free whenever the cache is warm** (D-15). The
+    extraction cache lives under `.pinakes/` and **survives `--rebuild`** — rebuild builds
+    `index.db.new` beside the old one and swaps atomically, deleting no cache — so the extracted
+    *text* is usually still on disk under `(content_hash, fingerprint)`. When it is, this re-chunks
+    under the current `[chunking]` settings like any other document, and `headings`, `max_tokens`
+    and `overlap` reach a protected document at last.
+
+    **When the entry is cold the chunks are copied verbatim, as before, and the run records that
+    the index is inhomogeneous.** That is the honest outcome rather than the convenient one:
+    re-extracting costs money, and `--rebuild` is the remedy `pnk doctor` prints — a remedy that can
+    spend is not a remedy. So the index says it is not uniformly chunked instead of pretending it
+    is, which is what `set_meta` stamping the current settings over the whole index had been doing.
+
+    Returns `True` when the document was re-chunked and `False` when it was copied forward, so the
+    caller can record the second case. A `bool` rather than a report field because the caller
+    aggregates over documents and this function sees one.
     """
     if backend is None:  # pragma: no cover — the caller's own assert proves an action needing one
         raise SyncError("no embedding backend was loaded.", remedy="This is a bug; report it.")
-    source = manifest.root / path
     parsed = _read_sidecar_for(manifest, path)
     # **Read under the ATTACH, write after it.** `DETACH` needs the transaction closed, so the
     # `finally` below commits — and it commits whether or not the rest of this function succeeds.
@@ -1794,6 +1835,54 @@ def _copy_forward_protected_document(
     # Everything below is this index's own, in one transaction, under *this* run's settings.
     title = parsed.title if parsed else None
     inject = manifest.chunking.metadata == "prefix"
+
+    # **The extracted text, if it is still cached — the whole of D-15** (open-corrections item 1).
+    # The cache is keyed on `(content_hash, fingerprint)` and lives under `.pinakes/`, which
+    # `--rebuild` does not clear, so this is a hit for any document extracted on this machine and
+    # not since evicted. `peek` never calls an extractor and never spends: a miss is `None`.
+    #
+    # `old_fingerprint` rather than a freshly computed one, deliberately: what is wanted is the
+    # text *this document's recorded extraction* produced, not what today's backend would produce.
+    # Recomputing the fingerprint would miss whenever the backend has been upgraded since — turning
+    # a warm cache cold for the exact documents this path exists to protect.
+    recovered = (
+        None
+        if old_fingerprint is None
+        else extract_cache.peek(
+            manifest.extract_cache_dir, content_hash=content_hash, fingerprint=old_fingerprint
+        )
+    )
+    if recovered is not None:
+        # Re-chunked under this run's settings, so `headings`, `max_tokens` and `overlap` reach a
+        # protected document like any other. The extraction is untouched — that is the thing that
+        # cost money, and it is read back rather than repeated.
+        chunks = chunk_document(
+            recovered.text,
+            counter=backend,
+            max_tokens=manifest.chunking.max_tokens,
+            overlap=manifest.chunking.overlap,
+            kind=old_source_type,
+            headings=manifest.chunking.headings,
+            page_spans=recovered.page_spans,
+        )
+        _write_protected_document(
+            manifest,
+            connection,
+            backend=backend,
+            new_doc_id=new_doc_id,
+            path=path,
+            content_hash=content_hash,
+            sidecar_hash=sidecar_hash,
+            parsed=parsed,
+            title=title,
+            chunks=chunks,
+            source_type=old_source_type,
+            extraction_backend=old_backend,
+            extraction_fingerprint=old_fingerprint,
+            inject=inject,
+        )
+        return True
+
     chunks = [
         Chunk(
             text=str(row["text"]),
@@ -1826,11 +1915,55 @@ def _copy_forward_protected_document(
                 "chunks it (`pnk sync --rebuild --force --extract=<backend>`, which spends)."
             ),
         )
+    _write_protected_document(
+        manifest,
+        connection,
+        backend=backend,
+        new_doc_id=new_doc_id,
+        path=path,
+        content_hash=content_hash,
+        sidecar_hash=sidecar_hash,
+        parsed=parsed,
+        title=title,
+        chunks=chunks,
+        source_type=old_source_type,
+        extraction_backend=old_backend,
+        extraction_fingerprint=old_fingerprint,
+        inject=inject,
+    )
+    return False
+
+
+def _write_protected_document(
+    manifest: Manifest,
+    connection: sqlite3.Connection,
+    *,
+    backend: EmbeddingBackend,
+    new_doc_id: DocId,
+    path: str,
+    content_hash: str,
+    sidecar_hash: str | None,
+    parsed: Sidecar | None,
+    title: str | None,
+    chunks: Sequence[Chunk],
+    source_type: str,
+    extraction_backend: str | None,
+    extraction_fingerprint: str | None,
+    inject: bool,
+) -> None:
+    """The row, the chunks and the vectors — shared by both of `--rebuild`'s protected paths.
+
+    **One writer, because the two paths differ only in where their chunks came from** (D-15). One
+    re-chunks recovered text, the other copies the old rows; everything after that is identical,
+    and two copies of it is how the injection guard ends up on one path and not the other.
+    """
     if inject:
-        # The same guard `_index_document` applies, and this path needs it *more*: these chunks
-        # were sized by whatever `max_tokens` built the old index and are never re-chunked, so the
-        # current reserve does not bound them even in principle. Without it, the one path that
-        # re-embeds without re-chunking was the one path with no truncation guard.
+        # The same guard `_index_document` applies. It matters most on the copy-forward path, whose
+        # chunks were sized by whatever `max_tokens` built the old index and are not re-chunked, so
+        # the current reserve does not bound them even in principle — that was the one path
+        # re-embedding without re-chunking and without a truncation guard. It is applied to the
+        # re-chunked path too, where it should never fire: a guard that only runs where it is
+        # already known to be needed cannot report the case nobody predicted.
         assert_prefix_fits(
             chunks,
             title=title,
@@ -1855,12 +1988,12 @@ def _copy_forward_protected_document(
             path,
             content_hash,
             sidecar_hash,
-            source.stat().st_mtime,
-            old_source_type,
+            (manifest.root / path).stat().st_mtime,
+            source_type,
             title,
             store.dumps_metadata(_metadata(parsed)),
-            old_backend,
-            old_fingerprint,
+            extraction_backend,
+            extraction_fingerprint,
         ),
     )
     chunk_ids = store.replace_chunks(connection, new_doc_id, [chunk.as_row() for chunk in chunks])

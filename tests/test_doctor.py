@@ -1932,6 +1932,35 @@ def test_chunking_coherence_is_ok_on_a_freshly_synced_kb(kb: Path) -> None:
     assert "matches" in detail
 
 
+def test_chunking_coherence_reports_carried_forward_documents_as_ok_with_a_note(kb: Path) -> None:
+    """D-15's cold half, on the surface a user reads a week later.
+
+    A `--rebuild` that met a paid document whose extracted text was no longer cached kept its
+    chunks, so the settings stamped over the index are not true of every document in it. The index
+    records the count and this check reports it.
+
+    **OK with a note, not WARN, and that is the decision rather than timidity.** Nothing is broken,
+    the document is searchable at its last paid extraction, and the only remedy costs money — an
+    unclearable warning is how doctor output stops being read at all, which costs the actionable
+    warnings too. The same reasoning that narrowed the heading-coverage check.
+
+    The meta key is written directly rather than by driving a paid rebuild: what is under test here
+    is this check's *reading* of the index, and `test_sync.py` owns the writing of it."""
+    sync(load(kb), options=SyncOptions(), now="20260725 17:31")
+    connection = store.connect_rw(kb / ".pinakes" / "index.db")
+    try:
+        store.set_meta(connection, {"chunking_exceptions": "2"})
+        connection.commit()
+    finally:
+        connection.close()
+
+    status, detail = checks(kb)["chunking coherence"]
+
+    assert status is Status.OK, "a paid document nobody can re-chunk for free is not a fault"
+    assert "2 paid document(s)" in detail
+    assert "--extract" in _remedy(kb, "chunking coherence"), "the remedy must name what it costs"
+
+
 def test_chunking_coherence_warns_after_a_manifest_only_edit(kb: Path) -> None:
     """The other half of the fix. `pnk sync` catches the user who just made the edit; this catches
     the one who made it last week and is now asking why `heading_path` is empty."""
