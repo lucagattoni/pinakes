@@ -540,7 +540,7 @@ def search(
         passages.sort(key=lambda p: (-(p.rerank_score or 0.0), -_coverage(p.text, query), p.path))
 
     top = tuple(passages[:final_k])
-    confidence, reason = _confidence(manifest, reranker, top)
+    confidence, reason = confidence_of(manifest, reranker, top)
     return SearchResult(query, top, confidence, reason, considered, filters)
 
 
@@ -593,10 +593,16 @@ def _hydrate(connection: sqlite3.Connection, chunk_ids: Sequence[int]) -> list[_
     ]
 
 
-def _confidence(
+def confidence_of(
     manifest: Manifest, reranker: Reranker | None, passages: Sequence[Passage]
 ) -> tuple[str, str]:
-    """`unknown` unless thresholds exist *and* were fitted for the reranker actually in use."""
+    """`unknown` unless thresholds exist *and* were fitted for the reranker actually in use.
+
+    **Public since E4**, because `pnk ask --deep`'s loop re-runs it over the evidence a round
+    accumulated — §5's sufficiency step, and the only thing that can end a run before its round
+    cap. A copy of these branches in `deep/loop.py` would be a second reading of §4.2's thresholds,
+    free to disagree with the one `search()` reports about the same passages.
+    """
     if not passages:
         return UNKNOWN, "no passages"
 

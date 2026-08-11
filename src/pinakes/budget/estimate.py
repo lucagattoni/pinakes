@@ -84,7 +84,7 @@ def assert_prices_fresh(*, prices: Prices, now: str, max_price_age_days: int) ->
 
     **Lives here, called by both estimators.** `deep/estimate.py` (E2) needs the identical refusal,
     and a second copy of two lines of `strptime` arithmetic is a second thing that can disagree
-    about what "30 days old" means — the reason `Accountant.confirm_document` gives for living
+    about what "30 days old" means — the reason `Accountant.confirm_run` gives for living
     where it does, applied to the one comparison `pnk doctor`'s staleness WARN also has to match.
 
     `now` is an explicit `YYYYMMDD HH:MM` string, never the wall clock: staleness is checked against

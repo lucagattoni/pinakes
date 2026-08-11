@@ -26,7 +26,7 @@ import pytest
 
 from pinakes.budget.accountant import Accountant
 from pinakes.budget.ledger import CallState, ledger_path, read, resolve
-from pinakes.budget.prices import Prices, load_prices
+from pinakes.budget.prices import ModelPrice, Prices, load_prices
 from pinakes.deep import client as deep_client
 from pinakes.deep.client import (
     ANSWER_PROMPT,
@@ -894,6 +894,72 @@ def test_an_exception_the_transport_did_not_classify_is_not_voided(
     with pytest.raises(RuntimeError):
         deep_client.billed_call(
             transport=BrokenTransport(),
+            accountant=accountant,
+            request={"model": MODEL},
+            model=MODEL,
+            reserved_eur=RESERVED,
+            price=load_prices().for_model(MODEL),
+            tally=CallTally(),
+            sleep=never_sleeps,
+        )
+    assert [call.state for call in ledger_calls(accountant)] == [CallState.UNKNOWN]
+
+
+def test_a_failure_after_the_response_arrives_is_not_voided_either(
+    accountant: Accountant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """**The window `response_received()` exists for, and the only test that reaches it.**
+
+    Found by mutation at E4: deleting `call.response_received()` from the success path broke no
+    test at all. It could not — on that path `reconcile()` follows immediately and closes the pair
+    whatever the flag says, so the flag is inert *except* in the gap between a response arriving and
+    its reconciliation being written. Anything raising inside that gap has already been billed for:
+    the server generated a response and we are holding it. Voiding there records €0 for money that
+    has left the account, which is the one direction a budget may never be wrong in (INVARIANTS).
+
+    `actual_cost_usd` stands in for everything in that gap. Which line raises is not the point —
+    the point is that reaching the response at all makes the call unvoidable.
+    """
+
+    def explode(response: Mapping[str, Any], *, price: ModelPrice) -> Decimal:
+        raise RuntimeError("something between the response and the reconciliation went wrong")
+
+    monkeypatch.setattr(deep_client, "actual_cost_usd", explode)
+
+    with pytest.raises(RuntimeError):
+        deep_client.billed_call(
+            transport=RecordedTransport("answer-cited"),
+            accountant=accountant,
+            request={"model": MODEL},
+            model=MODEL,
+            reserved_eur=RESERVED,
+            price=load_prices().for_model(MODEL),
+            tally=CallTally(),
+            sleep=never_sleeps,
+        )
+    assert [call.state for call in ledger_calls(accountant)] == [CallState.UNKNOWN]
+
+
+def test_a_keyboard_interrupt_mid_request_is_not_voided_either(accountant: Accountant) -> None:
+    """**Ctrl-C while a request is in flight, which is how this is actually met.**
+
+    The request was sent, so the server may have generated a response and billed for it. Until E4
+    measured it, a `KeyboardInterrupt` fell past every `except Exception` into the ledger context
+    manager's `finally`, which voids an unclosed call — EUR 0 recorded for money that may have left
+    the account. That is the one direction a budget may never be wrong in (docs/INVARIANTS.md), and
+    it is exactly the case an interrupted paid run makes likely rather than exotic.
+
+    A `BaseException` and not an `Exception`, deliberately: catching the narrower class is what left
+    the hole, so a test raising a `RuntimeError` would pass against the broken code.
+    """
+
+    class Interrupted:
+        def create(self, request: Mapping[str, Any]) -> Mapping[str, Any]:
+            raise KeyboardInterrupt("the user pressed Ctrl-C while the request was in flight")
+
+    with pytest.raises(KeyboardInterrupt):
+        deep_client.billed_call(
+            transport=Interrupted(),
             accountant=accountant,
             request={"model": MODEL},
             model=MODEL,

@@ -27,7 +27,14 @@ from zoneinfo import ZoneInfo
 from pinakes.budget import ledger
 from pinakes.budget.estimate import Estimate
 from pinakes.budget.prices import Prices
-from pinakes.budget.reserve import Caps, Decision, DocumentDecision, reserve, reserve_document
+from pinakes.budget.reserve import (
+    Caps,
+    Decision,
+    RunDecision,
+    reserve,
+    reserve_document,
+    reserve_run,
+)
 from pinakes.budget.window import WindowTotals, aggregate
 from pinakes.errors import BudgetConfirmationError
 from pinakes.ids import CallId, OperationId, mint_call_id, mint_operation_id
@@ -103,12 +110,29 @@ class Accountant:
         """All three windows, before one call (I6a `reserve`)."""
         return reserve(reserved_eur, self.caps, self.spent())
 
-    def check_document(self, estimate: Estimate) -> DocumentDecision:
+    def check_document(self, estimate: Estimate) -> RunDecision:
         """All three windows, before the *first* call of a document (I6a `reserve_document`)."""
         return reserve_document(
             estimate,
             self.caps,
             self.spent(),
+            confirm_above_eur=self.manifest.budget.confirm_above_eur,
+        )
+
+    def check_run(self, *, total_eur: Decimal, headline: str, closing: str) -> RunDecision:
+        """All three windows, before the *first* call of a whole run whose cost is known upfront.
+
+        What `pnk ask --deep` checks before round 0 (E4). The document check above is the same
+        thing with the extractor's sentences; both refuse with every blocked window at once and the
+        complete `[budget]` edit, because a refusal naming one cap at a time is how a user is
+        walked through three edits to find the ceiling.
+        """
+        return reserve_run(
+            total_eur=total_eur,
+            headline=headline,
+            closing=closing,
+            caps=self.caps,
+            spent=self.spent(),
             confirm_above_eur=self.manifest.budget.confirm_above_eur,
         )
 
@@ -127,12 +151,15 @@ class Accountant:
             if call.reservation.operation_id == self.operation_id
         )
 
-    def confirm_document(self, decision: DocumentDecision, estimate_eur: Decimal) -> bool:
+    def confirm_run(self, decision: RunDecision, estimate_eur: Decimal) -> bool:
         """Put `confirm_above_eur`'s question, if this run owes one.
 
         On the accountant rather than in `sync.py` because the estimate it is about is computed
         here, and a second computation of the same number in the caller is a second thing that can
         disagree with the one the cap was checked against.
+
+        Named for the run rather than the document since E4: it reads nothing document-shaped out
+        of the decision, and `pnk ask --deep` owes the same prompt on the same threshold.
         """
         outcome = resolve_confirmation(
             decision,
@@ -180,7 +207,7 @@ class Confirmation:
 
 
 def resolve_confirmation(
-    decision: DocumentDecision,
+    decision: RunDecision,
     *,
     estimate_eur: Decimal,
     threshold_eur: Decimal,

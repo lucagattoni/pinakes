@@ -1,0 +1,71 @@
+{
+ "name": "loop-two-rounds",
+ "branch": "loop",
+ "why": "Two whole rounds of the E4 loop, in the order it makes them: decompose, answer, decompose, answer. Round 2's subproblems are different from round 1's, so the cursor lets them through and the run is bounded by the round cap or by sufficiency rather than by having nothing left to ask.",
+ "provenance": {
+  "kind": "authored",
+  "why_not_recorded": "Nothing on this path has been called for real yet: E6 is the increment that spends, under docs/MEASUREMENT-RUN.md, and it is the one that may replace these bodies with recordings. Until then every body here is constructed, and proves that the branch exists and behaves as the plan says when reached — never anything about what the API returns."
+ },
+ "responses": [
+  {
+   "kind": "response",
+   "stop_reason": "end_turn",
+   "model": "claude-opus-5",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"subproblems\": [\"what does the confidence signal measure\", \"how is the confidence threshold fitted\"]}"
+    }
+   ],
+   "usage": {
+    "input_tokens": 17000,
+    "output_tokens": 60
+   }
+  },
+  {
+   "kind": "response",
+   "stop_reason": "end_turn",
+   "model": "claude-opus-5",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"answer\": \"The signal is a threshold on the top reranker score, fitted against a golden set.\", \"citations\": [1]}"
+    }
+   ],
+   "usage": {
+    "input_tokens": 17000,
+    "output_tokens": 90
+   }
+  },
+  {
+   "kind": "response",
+   "stop_reason": "end_turn",
+   "model": "claude-opus-5",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"subproblems\": [\"which reranker were the thresholds fitted for\", \"what happens when the reranker changes\"]}"
+    }
+   ],
+   "usage": {
+    "input_tokens": 17000,
+    "output_tokens": 60
+   }
+  },
+  {
+   "kind": "response",
+   "stop_reason": "end_turn",
+   "model": "claude-opus-5",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"answer\": \"Thresholds name the reranker they were fitted for, and a mismatch reports unknown.\", \"citations\": [1]}"
+    }
+   ],
+   "usage": {
+    "input_tokens": 17000,
+    "output_tokens": 90
+   }
+  }
+ ]
+}

@@ -211,16 +211,21 @@ PDF extractor's fingerprint has drifted — returning garbage silently would be 
 ```
 pnk ask [--kb PATH] [--tag TAG] [--path-prefix PREFIX] [--source-type TYPE]
         [--modified-after YYYYMMDD] [--modified-before YYYYMMDD]
-        [-k K] [--json] [--offline] query
+        [-k K] [--json] [--offline] [--deep] [--yes] query
 ```
 
 The question surface. It runs exactly the pipeline [`pnk search`](#pnk-search) runs, takes exactly
 the same filters, and adds the thing `search` does not say: **what it would take to answer the
-question**.
+question, and what that would cost**.
 
-**It never synthesises an answer and it never spends.** Nothing free can, so it says so on every
-run — `no answer was synthesised — this is evidence, not a conclusion.` Passages are not an answer,
-and a command called `ask` is the easiest place in Pinakes to mistake one for the other.
+**Without `--deep` it never synthesises an answer and it never spends.** Nothing free can, so it
+says so on every run — `no answer was synthesised — this is evidence, not a conclusion.` Passages
+are not an answer, and a command called `ask` is the easiest place in Pinakes to mistake one for
+the other.
+
+**With [`--deep`](#pnk-ask---deep) it pays to answer**, and everything below still happens first:
+the free retrieval is round 0, its passages are the evidence, and its confidence chooses how much
+work the question gets.
 
 The work is sized by the confidence signal:
 
@@ -228,7 +233,7 @@ The work is sized by the confidence signal:
 |---|---|
 | `high`, `medium` | One synthesis call over the passages already retrieved |
 | `low` | Decomposition into subquestions, a search for each, and a synthesis over what they return — several calls |
-| `unknown` | **Cannot be told from here.** With no calibrated signal a run would end at its spending caps rather than at sufficiency, and the line above says which of the three causes applies. One remedy covers all three: fit `[retrieval.confidence]` with `python -m pinakes.calibrate <kb>`, with reranking on, and with the fitted reranker the one in use |
+| `unknown` | **Cannot be told from here.** With no calibrated signal a run ends at its spending caps rather than at sufficiency, and the line above says which of the three causes applies. One remedy covers all three: fit `[retrieval.confidence]` with `python -m pinakes.calibrate <kb>`, with reranking on, and with the fitted reranker the one in use |
 
 A question **nothing matches** gets none of that: it is told nothing matched, and is not sent off to
 calibrate a signal that was never the problem.
@@ -238,15 +243,105 @@ ever runs:
 
 | Key | Value |
 |---|---|
-| `answer` | `null` — always, on this surface |
+| `answer` | `null` without `--deep`; the [answer object](#pnk-ask---deep) with it. **The key is always present**, so one schema parses either way |
 | `escalation.branch` | `synthesis`, `decomposition`, `unknown`, or `none` when nothing matched. **The field to discriminate on** — never the sentence |
 | `escalation.work` | That sentence, the same one the human output prints |
-| `escalation.cost_eur` | `null` until the estimator exists. A wrong number here would be worse than none |
+| `escalation.cost_eur` | What `--deep` would cost on this branch, worst case, as a **string** at the cent — `null` when it cannot be priced (a stale price table, an unpriceable `[deep] model`). A string because JSON has no decimal type and a float would reintroduce the error `Decimal` exists to avoid |
 | `escalation.remedy` | The calibration sentence on `unknown`, `null` otherwise |
 
-**Paid synthesis is not in this build.** It belongs to the deep release, and nothing here prints a
-flag you could type for it — a flag that parses and then apologises is the defect `0.20.1` fixed
-for `vector_tier = "sqlite-vec"`, one layer out.
+**The price is computed and nothing is spent computing it**: the table is package data. And the
+free path *degrades* where the paid one refuses — a price it cannot compute leaves `cost_eur` null
+and the command working, while `--deep` on the same KB refuses rather than guessing.
+
+## `pnk ask --deep`
+
+```
+pnk ask --deep [--yes] [every filter above] query
+```
+
+**The only command in Pinakes that reasons, and the second of two that can spend.** It exists for
+the CLI and for cron — [DESIGN §4.3](DESIGN.md#43-multi-hop-without-paying-for-it)'s "where no agent is present". An
+MCP caller composes `pinakes_search` and `pinakes_get` itself, on reasoning already paid for, so
+there is no MCP tool for this and a test asserts the server never loads the module.
+
+**Confidence sizes the work; it does not authorise it.** `--deep` is an explicit, typed request to
+pay, so it always answers — the signal decides how much it costs:
+
+| Confidence | What runs | Calls |
+|---|---|---|
+| `high`, `medium` | **The cheap branch**: one synthesis call over round 0's own passages | 1 |
+| `low` | **The loop**: decompose → search each subproblem → answer from the merged evidence → re-fold what was established → ask whether that is now sufficient. It stops the moment it is | 2 per round |
+| `unknown` | The same loop, **with no early stop** — the step that would end it is the missing signal. It ends at `[deep] max_rounds` or at a `[budget]` window, and the output says which | 2 per round |
+
+A question **nothing matched** is refused rather than answered cheaply: a run with no evidence to
+reason over is not a cheaper run.
+
+### What it costs, and what stops it
+
+The whole operation is priced **before the first call** and checked against all three
+[`[budget]`](MANIFEST.md#budget) windows at once. A refusal names every blocked window, its
+headroom, and the complete manifest edit that would admit the run — walking you through one edit at
+a time to discover the ceiling is the defect that shape exists to avoid.
+
+Then `confirm_above_eur` is put **once**, for the whole run. It defaults to `0.01`, so every
+`--deep` run prompts; `--yes` answers it, which is what cron wants and what a run over a cap still
+will not get past.
+
+Each call is reserved before it is made and reconciled against the response's own usage the moment
+it returns, so `pnk budget` shows what was really spent rather than what was set aside.
+
+**On an existing KB this is where you will meet a refusal.** The default caps rose to
+`per_operation_eur = 2.00` and `daily_eur = 6.00` so a deep run fits, but a KB stamped before that
+carries the old `0.30` in its own manifest, and `pnk upgrade` will report it rather than rewrite it
+— your manifest is yours. The refusal carries the number, the key and the value.
+
+### Output
+
+The free evidence and confidence print first, unchanged — they are round 0, not a preamble. Then
+the answer, cited; then which bound ended the run, and what it cost.
+
+```
+answer — synthesised from the evidence above, and cited back into it:
+
+The signal is a threshold on the top reranker score, fitted against a golden set.
+  [1] docs/b.md:0-78 (Confidence)
+
+answered in one synthesis call — the calibrated signal said the retrieved evidence was
+already enough, so no decomposition was paid for.
+1 paid call(s), €0.08 spent against an estimated €0.26 worst case. `pnk budget` has the record.
+```
+
+**Citation numbers are per block, and are not renumbered.** Each round's `[n]` indexes the passages
+*that call* was shown; rewriting them into one global sequence would mean editing prose the model
+wrote, and a `[3]` inside a quotation would become a citation of something else. Sources are
+therefore printed under the text that cites them.
+
+`--json` adds an `answer` object beside the escalation block:
+
+| Key | Value |
+|---|---|
+| `text` | Every block's prose, joined |
+| `branch` | `synthesis`, `decomposition` or `unknown` — which branch ran |
+| `rounds_used`, `stopped_by` | How many rounds were paid for, and what ended it: `answered`, `sufficient`, `round-cap`, `no-new-subproblems`, `no-evidence`, `budget` |
+| `label` | The same sentence the human output prints |
+| `partial` | The run halted at a budget window with `on_exceed = "partial"` |
+| `calls`, `estimated_eur`, `spent_eur` | What it cost against what was reserved. Money as strings, at the cent |
+| `blocks[]` | Per answering call: `round`, `asked`, `text`, and `citations[]` of `{number, doc_id, path, citation}` |
+
+**Exit codes**: `0` when it answered, `1` when it did not — including a run that made calls and
+produced nothing, which is not an error (the money is accounted for) but is not a success either.
+
+### Two rules it will not bend
+
+**A subproblem is a query string.** Retrieved document text reaches a model whose output then
+drives further retrieval, so the decomposition schema has exactly one field — an array of plain
+strings — and every subproblem reaches `search()` over *this* KB with *your* filters. There is no
+code path by which one becomes a path, a filter or a KB selector.
+
+**A citation names a passage the call was shown.** The model never sees a document id, so it cannot
+invent one, and an index outside the range it was sent is refused rather than dropped — dropping it
+would leave prose whose support had silently disappeared while the remaining numbers still made it
+look sourced.
 
 ## `pnk doctor`
 
@@ -685,6 +780,9 @@ so a printed `>=x.y.z` would be a guess wearing a decimal point.
 Listed so the shape is known in advance; each names the increment that lands it
 ([STATUS](STATUS.md#v02-increment-ledger)).
 
+**`pnk ask --deep` left this table at E4** — it is documented [above](#pnk-ask---deep), built and
+spending. What remains is the second half of the write-back it makes possible.
+
 | Surface | Increment | Adds |
 |---|---|---|
-| `pnk ask --deep` | the deep release, E4 | Bounded, budgeted synthesis for CLI and cron use, where no agent is present. **The flag, not the command** — [`pnk ask`](#pnk-ask) itself is built and free. Until E4 lands, `--deep` is a usage error rather than an apology |
+| `pnk ask --deep --write-suggestions` | its own increment, deliberately outside the deep release's plan (D-25 option A) | Stages the sidecar additions a deep run **prints**. Separate because writing them changes the per-link sidecar shape (`origin: deep`) and adds to [INVARIANTS](INVARIANTS.md)' list of exceptions to *`docs/` belongs to the user* — an invariant-adjacent change deserves its own diff and its own review, not a ride on a new paid entry point |

@@ -66,10 +66,15 @@ def test_omitted_sections_take_the_documented_defaults(write_manifest: WriteMani
     assert manifest.rerank.model == "BAAI/bge-reranker-base"
     assert manifest.budget.on_exceed == "abort"
     assert manifest.budget.confirm_above_eur == Decimal("0.01")
-    assert manifest.budget.per_operation_eur == Decimal("0.30")
-    assert manifest.budget.daily_eur == Decimal("1.00")
+    # Raised from 0.30 and 1.00 by D-30 (E4): at the shipped `final_k` and `max_tokens`, a
+    # three-round deep loop prices at EUR 1.6872, so the old caps refused `pnk ask --deep` on every
+    # KB stamped from the template. The literals are spelled out rather than imported from
+    # `manifest.py` — a test reading the constant it checks passes whatever the constant becomes.
+    assert manifest.budget.per_operation_eur == Decimal("2.00")
+    assert manifest.budget.daily_eur == Decimal("6.00")
     assert manifest.budget.monthly_eur == Decimal("30.00")
     assert manifest.budget.max_price_age_days == 30
+    assert manifest.deep == manifest.deep.__class__("claude-opus-5", 3)
 
 
 def test_extraction_backend_must_be_registered(write_manifest: WriteManifest) -> None:

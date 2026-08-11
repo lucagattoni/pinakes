@@ -275,32 +275,46 @@ def test_a_branch_this_module_will_not_price_is_refused_and_names_why() -> None:
     assert SYNTHESIS in str(exc_info.value)
 
 
-def test_the_shipped_defaults_leave_the_loop_outside_the_default_operation_cap(
+def test_the_shipped_defaults_now_leave_the_whole_loop_inside_every_budget_window(
     write_manifest: Callable[[str], Path],
 ) -> None:
-    """A finding E4 inherits, pinned where it will be noticed rather than left in a plan.
+    """**E4 answered this, and the assertion is inverted rather than deleted** (D-30).
 
-    Read out of the *manifest defaults* rather than restated, so it tracks them: with no `[budget]`
-    section a KB gets `per_operation_eur = 0.30`, and with no `[retrieval]`/`[chunking]` sections
-    `final_k = 8` and `max_tokens = 510`. The cheap branch fits inside that cap; a five-round loop
-    is several times it. So a stock KB's `--deep` **loop** is refused at round 0 until the cap is
-    raised — which is D-23's territory, and the refusal `reserve_document` already knows how to
-    print.
+    E2 pinned the finding that at the shipped defaults a `--deep` loop priced *above*
+    `per_operation_eur`, so a stock KB would meet a refusal on the release's headline feature —
+    D-22 option A's outcome, explicitly rejected, arriving through the caps instead of through the
+    signal. D-30 raised the defaults until the loop fits: `per_operation_eur` 0.30 to 2.00,
+    `daily_eur` 1.00 to 6.00, and `[deep] max_rounds` fixed at 3 because six calls is what 2.00 has
+    to cover.
+
+    Every number is still read out of the *manifest defaults* rather than restated, so the day one
+    of them moves this fails instead of drifting. **Both windows are checked, and that is the
+    point**: raising `per_operation_eur` alone does nothing, because all three are checked before
+    every call and nothing warns that a lower one binds — `daily_eur` was the one that would have
+    bound silently.
     """
     manifest = load_manifest(write_manifest(DEFAULTS_MANIFEST.format(kb_id=mint_kb_id())))
-    cap = manifest.budget.per_operation_eur
     widths = {
         "final_k": manifest.retrieval.final_k,
         "chunk_max_tokens": manifest.chunking.max_tokens,
     }
 
     cheap = an_operation(branch=SYNTHESIS, **widths)
-    loop = an_operation(branch=DECOMPOSITION, max_rounds=5, **widths)
-    assert cheap.total_eur <= cap
-    assert loop.total_eur > cap
-    # Not a passing observation: the factor is what tells E4 whether raising the cap is a nudge or
-    # a different order of magnitude.
-    assert loop.total_eur / cap > 5
+    loop = an_operation(branch=DECOMPOSITION, max_rounds=manifest.deep.max_rounds, **widths)
+    for window in (manifest.budget.per_operation_eur, manifest.budget.daily_eur):
+        assert cheap.total_eur <= window
+        assert loop.total_eur <= window
+
+    # The `unknown` branch is the one a stock KB actually takes (M6) and it is priced identically —
+    # a missing signal changes when a run stops, never what a round costs. Asserted rather than
+    # assumed, because it is the branch D-30 was taken for.
+    uncalibrated = an_operation(branch=UNKNOWN, max_rounds=manifest.deep.max_rounds, **widths)
+    assert uncalibrated.total_eur == loop.total_eur
+
+    # Headroom, not merely fit: a cap a fraction of a cent above the estimate would satisfy every
+    # assertion above and still refuse the second question of the day.
+    assert manifest.budget.per_operation_eur - loop.total_eur > Decimal("0.30")
+    assert manifest.budget.daily_eur >= 3 * loop.total_eur
 
 
 # --- prices, staleness and the context window ----------------------------------------------------

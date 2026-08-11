@@ -7,7 +7,7 @@ The two files you edit by hand. Field-by-field, with defaults taken from `manife
 is in [GUIDE.md](GUIDE.md). This file is the reference — if a field's default is stated anywhere
 else in the repo, that copy is the stale one.
 
-- [`pinakes.toml`](#pinakestoml) — [`[kb]`](#kb) · [`[sources]`](#sources) · [`[embedding]`](#embedding) · [`[extraction]`](#extraction) · [`[chunking]`](#chunking) · [`[retrieval]`](#retrieval) · [`[rerank]`](#rerank) · [`[budget]`](#budget) · [`[[links.kb]]`](#linkskb)
+- [`pinakes.toml`](#pinakestoml) — [`[kb]`](#kb) · [`[sources]`](#sources) · [`[embedding]`](#embedding) · [`[extraction]`](#extraction) · [`[chunking]`](#chunking) · [`[retrieval]`](#retrieval) · [`[rerank]`](#rerank) · [`[budget]`](#budget) · [`[deep]`](#deep) · [`[[links.kb]]`](#linkskb)
 - [The sidecar](#the-sidecar--filepnkyaml)
 
 ## Validation rules that apply everywhere
@@ -194,22 +194,52 @@ breach refuses rather than overspends ([STATUS](STATUS.md#the-surface-you-can-us
 
 | Key | Default | Notes |
 |---|---|---|
-| `confirm_above_eur` | `0.01` | Prompt for confirmation (soft). Deliberately a *lower*, separate field from the hard caps, and evaluated **once per document**, never per request |
-| `per_operation_eur` | `0.30` | Hard ceiling for one invocation — never exceeded, never prompted past. Raised from `0.05` on 20260803: at bundled prices a single synthesis round reserves ~€0.21, so the old default refused the first call of any multi-call operation 4× over |
-| `daily_eur` | `1.00` | Hard ceiling per calendar day. A burst limiter between the per-operation and monthly caps: a per-operation cap alone bounds one run, not thirty of them |
-| `monthly_eur` | `30.00` | Hard ceiling per calendar month. Raised from `5.00` on 20260803 alongside `per_operation_eur`, preserving the ~100-operations-a-month allowance the old pair gave. **`daily_eur` is now the binding sequence limit** — 1.00/day over a 30-day month is 30.00, so the monthly ceiling is reached only by a 31-day month at full daily spend |
+| `confirm_above_eur` | `0.01` | Prompt for confirmation (soft). Deliberately a *lower*, separate field from the hard caps, and evaluated **once per run**, never per request. At this default every `pnk ask --deep` prompts, which is the posture — `--yes` is how cron answers it |
+| `per_operation_eur` | `2.00` | Hard ceiling for one invocation — never exceeded, never prompted past. **Raised from `0.30` on 20260811**, when `pnk ask --deep` shipped: at the shipped widths a three-round loop reserves €1.6872 worst case, so the old default refused the release's headline feature on every KB stamped from the template |
+| `daily_eur` | `6.00` | Hard ceiling per calendar day — three deep questions. **Raised from `1.00` in the same change, and not as an afterthought**: all three windows are checked before every call and nothing warns that a lower one binds, so raising `per_operation_eur` alone would have left `daily_eur` refusing the first run silently |
+| `monthly_eur` | `30.00` | Hard ceiling per calendar month — about 17 worst-case deep questions, and worst case is a ceiling rather than a bill (the extractor's first live call over-reserved 11.5×). Unchanged on 20260811 for that reason |
 | `max_price_age_days` | `30` | Refuse to estimate against bundled prices older than this. An estimate built on silently outdated prices is a liability |
 | `timezone` | `UTC` | Makes "daily"/"monthly" unambiguous. Any IANA zone; DST transitions are handled by conversion, not special-casing |
 | `on_exceed` | `abort` | `abort` or `partial` |
 
-**The three caps are independent and all three are checked**, in the order above — a run is refused
-by the first one it would breach, and a whole-document precheck names *every* blocked cap at once
+**The three caps are independent and all three are checked**, in the order above — a call is refused
+by the first one it would breach, and the whole-run precheck names *every* blocked cap at once
 rather than making you raise one, retry, and discover the next. Raising a cap is a permanent,
-ongoing exposure; a one-run `--extract=<backend>` override is not.
+ongoing exposure; a one-run `--extract=<backend>` override is not, and on the deep path there is no
+equivalent — the cheaper routes there are `[deep] max_rounds` and calibrating
+`[retrieval.confidence]`, which moves a confident question onto the one-call branch.
+
+**A default raise reaches new KBs only, and the 20260811 one is the case to know about.** The
+template *stamps* `per_operation_eur`, so a KB created before that change carries `0.30` in its own
+file and `pnk ask --deep` refuses on it until its owner edits the manifest. `pnk upgrade` reports
+the divergence and will not rewrite it — your manifest is yours (T8: every divergence in every real
+KB turned out to be a value someone chose). The refusal carries the whole remedy: the number, the
+key, and the value that would admit the run.
 
 Every euro value is parsed as an exact `Decimal`, never a float — a hard cap compared against a
 binary approximation of the number you typed is not actually hard. Write them as ordinary TOML
 numbers (`0.05`); the exactness is on Pinakes's side.
+
+## `[deep]`
+
+What `pnk ask --deep` may pay and how hard it tries ([CLI](CLI.md#pnk-ask---deep)). **Optional, and
+deliberately not stamped into the template** — the section ships commented out with these values
+written in.
+
+| Key | Default | Notes |
+|---|---|---|
+| `model` | `claude-opus-5` | The model the loop pays. It must be priceable: `budget/prices.toml` carries exactly one entry, and a name that is not there is refused when the run is estimated, not when the call is made. A second model is a priced entry with a measurement behind it, not a string |
+| `max_rounds` | `3` | How many rounds a loop may take before it stops and says so. Each round is two paid calls, so this is the multiplier on what the operation reserves: at the shipped widths, 3 rounds is €1.6872 worst case, which is what `per_operation_eur` above is set above. **No maximum is imposed** — the budget windows bound a large value, and a second ceiling here would refuse a run the budget would have admitted |
+
+**Why it is unstamped**, the same reason `[retrieval] adjacent_k` is: an unknown key is a hard error,
+so a manifest carrying `[deep]` cannot be read *at all* by a Pinakes built before this release.
+`[kb] requires_pinakes` is your own opt-in floor if you want one — it cannot help retroactively,
+because an older build fails on the key before it reaches the floor.
+
+**There is no key for the carried memory.** A round re-folds what it established to a fixed budget,
+declared beside the measurement that prices it in `deep/estimate.py`; a knob whose value moves the
+price in a way you cannot compute is one nobody could set correctly, and the loop *enforces* the
+bound rather than trimming to it, so a wrong value would be a refusal rather than a saving.
 
 ## `[[links.kb]]`
 

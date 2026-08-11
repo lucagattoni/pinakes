@@ -417,6 +417,27 @@ def test_the_free_path_and_the_mcp_server_never_load_the_deep_client(tmp_path: P
     _assert_no_deep_client(_free_path_modules(tmp_path))
 
 
+def test_the_free_path_reaches_the_estimator_and_still_not_the_client(tmp_path: Path) -> None:
+    """The two `deep` modules are separable, and the free path proves it by using **one** of them.
+
+    Since E4, `pnk ask` without `--deep` prices the run it offers, which imports
+    `pinakes.deep.estimate` on a path that must never spend. That is safe — the estimator holds no
+    client and reads a table shipped in the wheel — but "safe" is a claim, and this is the only
+    place it is observed: a fresh subprocess where one module is present and its sibling is not.
+
+    **The positive half is what makes it worth writing.** Asserting the client's absence alone
+    passes on a run that imported neither, and would go on passing if the free path stopped pricing
+    anything at all. `pinakes.deep` importing nothing in its `__init__` is what keeps the two
+    apart, and this is what would notice that changing.
+    """
+    modules = _free_path_modules(tmp_path)
+    assert "pinakes.deep.estimate" in modules, (
+        "the free `pnk ask` no longer reaches the estimator — either it stopped pricing the run it "
+        "offers, or this gate stopped covering `pnk ask`"
+    )
+    _assert_no_deep_client(modules)
+
+
 def test_the_deep_client_gate_fails_when_an_import_is_planted(tmp_path: Path) -> None:
     """The negative control, and the only thing that makes the assertion above non-vacuous.
 

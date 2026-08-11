@@ -423,6 +423,18 @@ def _billed_call(
                 # permanently consuming a monthly budget.
                 if not exc.retryable or attempt == TRANSPORT_ATTEMPTS:
                     raise
+            except BaseException:
+                # Everything `TransportError` does not name, and the reason it is `BaseException`
+                # rather than `Exception`: a **`KeyboardInterrupt`** while the request is in flight.
+                # The request was sent, so the server may have generated and billed; without this
+                # clause the exception falls through to the context manager's `finally`, which voids
+                # an unclosed call — EUR 0 recorded for money that may have left the account, which
+                # is the one direction a budget may never be wrong in (docs/INVARIANTS.md).
+                #
+                # Found by E4's review pass against the deep client, and fixed here in the same
+                # change because it is one invariant with two call sites, not two bugs.
+                call.may_have_billed()
+                raise
             else:
                 call.response_received()
                 input_tokens, output_tokens = usage_of(response)
@@ -643,7 +655,7 @@ def extract_document(
     # Evaluated **once, against the whole-document estimate** — never per call. A per-call reading
     # against a several-cent slice would prompt dozens of times for one multi-page document, which
     # is how a confirmation becomes something a user learns to hold `y` through.
-    if not accountant.confirm_document(upfront, estimate.total_eur):
+    if not accountant.confirm_run(upfront, estimate.total_eur):
         raise ExtractionError(
             f"{path.name}: not confirmed, so nothing was spent.",
             remedy="Re-run and answer `y`, or pass `--yes` to authorise the estimate up front.",

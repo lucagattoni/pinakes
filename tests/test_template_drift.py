@@ -33,6 +33,17 @@ REAL_TEMPLATES = REPO / "src" / "pinakes" / "templates"
 
 PDF_COMMENT = '# Add "**/*.pdf" to `include` above to index PDFs.'
 
+LIVE_NOTES = template.describe("notes").version
+"""The version `notes` currently declares, read rather than written down.
+
+Every test below that tampers with the *live* template's own archive needs the directory the live
+files are compared against, and that directory's name moves at every template bump: E4's `[budget]`
+raise moved it from `1.1` to `1.2` and turned nine tests here red at once, not one of which was
+about a version number. A literal belongs in `test_init.py`, which asserts what a KB is *stamped*
+with; here the version is only a coordinate, and hard-coding a coordinate is how a suite acquires
+maintenance that teaches nobody anything.
+"""
+
 
 def run(templates: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
@@ -141,14 +152,22 @@ def test_the_gate_says_which_history_mode_it_ran_in() -> None:
     assert "history leg" in result.stdout
 
 
-def test_the_gate_says_leg_two_is_vacuous_against_the_shipped_template() -> None:
-    """D-2b leaves `notes` with one archived version, so leg (ii) has nothing to compare. A gate
-    reporting a clean pass for a leg that has never run is the defect this release exists to fix,
-    reproduced in the gate itself — so it says so instead."""
+def test_leg_two_stopped_being_vacuous_when_the_second_version_was_archived() -> None:
+    """It ran for the first time at E4's `[budget]` bump, and the gate must stop saying otherwise.
+
+    D-2b left `notes` with one archived version, so leg (ii) — no two versions may share a content
+    hash — had no pair to compare, and the gate **said so**: reporting a clean pass for a leg that
+    has never run is the defect T1 exists to fix, reproduced inside the gate. Archiving `1.2` gave
+    it a pair.
+
+    Asserting the note is now *absent* is what keeps it trustworthy the next time it appears. A
+    caveat printed whatever the archive holds is a caveat nobody can act on, and this is the only
+    test that would notice it had become one.
+    """
     result = run(REAL_TEMPLATES)
     assert result.returncode == 0, result.stderr
-    assert "leg (ii)" in result.stdout
-    assert "vacuous" in result.stdout
+    assert "vacuous" not in result.stdout
+    assert "2 versions archived" in result.stdout
 
 
 # --------------------------------------------------------------------------------------------
@@ -166,7 +185,7 @@ def test_editing_a_consumed_file_without_bumping_the_version_fails_the_gate(tmp_
     )
     result = run(templates)
     assert result.returncode == 1
-    assert "differ from archived 1.1" in result.stderr
+    assert f"differ from archived {LIVE_NOTES}" in result.stderr
     assert "pinakes.toml.j2 differs" in result.stderr
 
 
@@ -222,7 +241,7 @@ def test_declaring_a_files_list_without_bumping_the_version_fails_the_gate(tmp_p
     )
     result = run(templates)
     assert result.returncode == 1
-    assert "differ from archived 1.1" in result.stderr
+    assert f"differ from archived {LIVE_NOTES}" in result.stderr
 
 
 def test_the_rest_of_template_toml_stays_outside_the_hash(tmp_path: Path) -> None:
@@ -264,7 +283,7 @@ def test_the_archive_itself_is_outside_the_hash(tmp_path: Path) -> None:
     templates = copy_real(tmp_path)
     live = content_hash(templates / "notes")
     shutil.copytree(
-        templates / "notes" / "_versions" / "1.1", templates / "notes" / "_versions" / "0.9"
+        templates / "notes" / "_versions" / LIVE_NOTES, templates / "notes" / "_versions" / "0.9"
     )
     assert content_hash(templates / "notes") == live
 
@@ -278,13 +297,20 @@ def test_a_bumped_version_with_no_archived_directory_fails(tmp_path: Path) -> No
     """Leg (v) — the archive can never fall behind the version that names it."""
     templates = copy_real(tmp_path)
     declaration = templates / "notes" / "template.toml"
+    # A version no bump could reach, rather than "the next one": this test declared `1.2` while
+    # `1.1` was live, and E4 archived `1.2` — at which point the assertion was about a version that
+    # *was* archived and the leg it names never ran.
+    unarchived = "9.9"
+    assert not (templates / "notes" / "_versions" / unarchived).exists()
     declaration.write_text(
-        declaration.read_text(encoding="utf-8").replace('version = "1.1"', 'version = "1.2"'),
+        declaration.read_text(encoding="utf-8").replace(
+            f'version = "{LIVE_NOTES}"', f'version = "{unarchived}"'
+        ),
         encoding="utf-8",
     )
     result = run(templates)
     assert result.returncode == 1
-    assert "notes@1.2 is the live version but is not archived" in result.stderr
+    assert f"notes@{unarchived} is the live version but is not archived" in result.stderr
 
 
 def test_a_version_bump_with_no_content_change_fails_the_gate(tmp_path: Path) -> None:
@@ -424,10 +450,10 @@ def coordinated_edit(repo: Path) -> None:
         "confirm_above_eur = 0.01", "confirm_above_eur = 0.02"
     )
     live.write_text(edited, encoding="utf-8")
-    (templates / "notes" / "_versions" / "1.1" / "pinakes.toml.j2").write_text(
+    (templates / "notes" / "_versions" / LIVE_NOTES / "pinakes.toml.j2").write_text(
         edited, encoding="utf-8"
     )
-    repoint(templates, "notes", "1.1")
+    repoint(templates, "notes", LIVE_NOTES)
     git(repo, "add", "-A")
     git(repo, "commit", "-qm", "three files, one commit, version untouched")
 
@@ -448,7 +474,7 @@ def test_a_three_file_edit_is_caught_by_the_history_leg(tmp_path: Path) -> None:
     result = run(repo / "templates", "--repo", str(repo))
     assert result.returncode == 1
     assert "edited after it shipped" in result.stderr
-    assert "notes/_versions/1.1" in result.stderr
+    assert f"notes/_versions/{LIVE_NOTES}" in result.stderr
     assert "differs from origin/main" in result.stderr
     assert "differ from archived" not in result.stderr
     assert "does not match its `_versions.toml` row" not in result.stderr
@@ -498,10 +524,10 @@ def test_adding_an_archive_then_correcting_it_before_landing_is_not_an_edit(
 
     readme = templates / "notes" / "README.md"
     readme.write_text(readme.read_text(encoding="utf-8") + "\nA review fix.\n", encoding="utf-8")
-    (templates / "notes" / "_versions" / "1.1" / "README.md").write_text(
+    (templates / "notes" / "_versions" / LIVE_NOTES / "README.md").write_text(
         readme.read_text(encoding="utf-8"), encoding="utf-8"
     )
-    repoint(templates, "notes", "1.1")
+    repoint(templates, "notes", LIVE_NOTES)
     git(repo, "add", "-A")
     git(repo, "commit", "-qm", "review fix, its own commit as BUILDING.md requires")
 
@@ -652,12 +678,18 @@ def test_a_valid_template_name_still_resolves() -> None:
 
 def test_archived_versions_lists_exactly_what_is_archived() -> None:
     """D-2b, as an assertion rather than a claim: `1.0` is never archived, because it denotes
-    eleven different template contents and any seed would be a guess for ten of them."""
+    eleven different template contents and any seed would be a guess for ten of them.
+
+    **The live version is the last entry, not the only one** — it stopped being the only one at
+    E4's bump. What D-2b actually fixes is the *seed*, so that is what is asserted: `1.0` absent,
+    the archive ordered, and the version the template declares present in it.
+    """
     from pinakes.template import archived_versions, describe
 
     versions = archived_versions("notes")
-    assert versions == [describe("notes").version]
     assert "1.0" not in versions
+    assert describe("notes").version in versions
+    assert versions[-1] == describe("notes").version
 
 
 def test_render_context_supplies_exactly_the_declared_union(kb_root: Path) -> None:
@@ -689,7 +721,7 @@ def test_render_archived_renders_the_archived_manifest() -> None:
         {
             "name": "kb",
             "kb_id": "01JZZZZZZZZZZZZZZZZZZZZZZZ",
-            "template": "notes@1.1",
+            "template": f"notes@{LIVE_NOTES}",
             "created": "20200101 00:00",
             "embedding_provider": provider,
             "embedding_model": model,
@@ -712,7 +744,7 @@ def test_render_archived_refuses_a_version_that_is_not_archived() -> None:
     with pytest.raises(TemplateError) as caught:
         render_archived("notes", "1.0", {})
     assert "notes@1.0 is not archived" in str(caught.value)
-    assert "1.1" in (caught.value.remedy or "")
+    assert LIVE_NOTES in (caught.value.remedy or "")
 
 
 @pytest.mark.parametrize("version", ["../../notes", "..", "a/b"])

@@ -664,7 +664,12 @@ def test_unknown_outcomes_past_a_quarter_of_a_window_say_which_one(kb: Path) -> 
     turns "there are some unknowns" into "this is about to lock you out"."""
     path = kb / "pinakes.toml"
     text = path.read_text(encoding="utf-8")
-    path.write_text(text.replace("[budget]", "[budget]\ndaily_eur = 1.00"), encoding="utf-8")
+    # The *stamped* line is rewritten rather than a second one prepended: the template has carried
+    # `daily_eur` since E4 raised it to 6.00 (D-30), and a duplicate key is a TOML error rather
+    # than an override — which is how this test would report "invalid manifest" for a threshold
+    # that was working perfectly.
+    assert "daily_eur         = 6.00" in text
+    path.write_text(text.replace("daily_eur         = 6.00", "daily_eur = 1.00"), encoding="utf-8")
     _reserve(kb, call_id="C1", cost_usd="0.30")
 
     status, detail = checks(kb)["unknown outcomes"]

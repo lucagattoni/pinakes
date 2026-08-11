@@ -277,8 +277,8 @@ pnk search "how are dense and lexical results combined" --kb my-kb
 
 confidence: unknown — no calibrated thresholds in the manifest ([retrieval.confidence])
 retrieval-only result. `pnk ask` prints the same evidence plus what answering the question would
-take; paid synthesis is planned for the deep release. Until then, narrowing the query or adding a
-filter is the lever you have.
+take and what it would cost, and `pnk ask --deep` pays to answer it. Narrowing the query or adding
+a filter is the free lever.
 ```
 
 Free, offline, and unlimited. The pipeline is BM25 (FTS5) + dense vectors, fused with reciprocal
@@ -344,12 +344,13 @@ pnk ask "who may assign catalogue numbers" --kb my-kb -k 2
 confidence: high — top rerank score 3.514 is above -3.5016
 no answer was synthesised — this is evidence, not a conclusion.
 answering this would take one synthesis call over the passages above.
-paid synthesis is what would turn this evidence into an answer, and it belongs to the deep release — this build cannot do it.
+`pnk ask --deep` pays to turn this evidence into an answer, estimated at €0.26 worst case — every call is reconciled to what it actually cost, which `pnk budget` shows.
 ```
 
-**There is no answer there, and there is not going to be one today.** `ask` is free, and nothing
-free can synthesise one. What it can do is say honestly whether the evidence above is enough — and,
-when it is not, that answering would take rather more than a single pass.
+**There is no answer there, and nothing free will produce one.** What `ask` can do is say honestly
+whether the evidence above is enough, what answering would take, and what that would cost — before
+you decide to spend anything. Nothing is spent working the price out: the table is shipped with
+Pinakes.
 
 On a KB you have **not** calibrated — which is every KB the template stamps — the closing lines
 read instead:
@@ -357,8 +358,8 @@ read instead:
 ```
 confidence: unknown — no calibrated thresholds in the manifest ([retrieval.confidence])
 no answer was synthesised — this is evidence, not a conclusion.
-how much answering this would take cannot be told from here: with no calibrated signal, a run would end at its caps rather than at sufficiency.
-paid synthesis is what would turn this evidence into an answer, and it belongs to the deep release — this build cannot do it.
+how much answering this would take cannot be told from here: with no calibrated signal, a run ends at its caps rather than at sufficiency.
+`pnk ask --deep` pays to turn this evidence into an answer, estimated at €1.69 worst case — every call is reconciled to what it actually cost, which `pnk budget` shows.
 fit [retrieval.confidence] with `python -m pinakes.calibrate <kb>` — with reranking on, and with the fitted reranker the one actually in use.
 ```
 
@@ -377,9 +378,85 @@ pnk ask "who may assign catalogue numbers" --path-prefix docs/policies/ --tag po
 pnk ask "who may assign catalogue numbers" --json      # answer: null, plus an escalation block
 ```
 
-`--json` returns `pnk search`'s payload with `answer` (always `null` here) and `escalation`
-beside it, so a script parses one shape whether or not a paid loop ever runs
+`--json` returns `pnk search`'s payload with `answer` (`null` until a paid run fills it) and
+`escalation` beside it, so a script parses one shape whether or not the loop ran
 ([CLI](CLI.md#pnk-ask)).
+
+## Paying for an answer
+
+`pnk ask --deep` is the one command in Pinakes that reasons, and the second of two that can spend.
+It runs the free retrieval above first — that is round 0, not a preamble — and then pays to turn it
+into an answer:
+
+```bash
+pnk ask "who may assign catalogue numbers" --kb my-kb --deep --yes
+```
+
+```
+answer — synthesised from the evidence above, and cited back into it:
+
+Volunteers may not assign catalogue numbers; they work on listing and repackaging alongside
+staff [1]. The numbers themselves are three letters and a running number, assigned once and
+never re-used [2].
+  [1] docs/volunteer-programme.md:0-176 (Volunteer programme)
+  [2] docs/catalogue-numbers-format.md:0-206 (Catalogue number format)
+
+answered in one synthesis call — the calibrated signal said the retrieved evidence was
+already enough, so no decomposition was paid for.
+1 paid call(s), €0.08 spent against an estimated €0.26 worst case. `pnk budget` has the record.
+```
+
+**The confidence decides the price, not whether you get an answer.** `--deep` is you asking to
+spend, so it always answers. A `high` or `medium` question costs one call, as above. A `low` one
+decomposes into subquestions, searches for each, answers from what they return, and asks whether
+that is now enough — stopping the moment it is. An **uncalibrated** KB runs the same loop with no
+early stop, because the step that would end it is the missing signal, and the last lines say so:
+
+```
+stopped at the round cap — 3 of 3 round(s) — not at sufficiency. `[deep] max_rounds` is what
+bounds it. There is no calibrated signal on this KB, so the run could not stop at sufficiency:
+it was bounded by the caps rather than by the evidence (`python -m pinakes.calibrate <kb>`).
+```
+
+That is the honest cost of not calibrating: the same question, answered, for up to six calls
+instead of one.
+
+### `--yes`, and the refusal you will probably meet first
+
+Every `--deep` run asks before it spends, because `confirm_above_eur` defaults to `0.01`. `--yes`
+answers that prompt — it is what cron wants, and it raises no cap. Without it and without a
+terminal, the run refuses rather than assuming consent.
+
+**On a KB you created before the deep release, the first thing you meet is a budget refusal.** The
+default caps were raised so a deep run fits, but your manifest stamped the old ones and Pinakes will
+not rewrite your manifest. The refusal is the remedy:
+
+```
+error: refused: answering this question with claude-opus-5 is estimated at €1.69 (the
+decomposition branch: 6 paid call(s) across 3 round(s), worst case), which exceeds 2 of the
+three budget windows:
+  - per_operation_eur: cap €0.30, already spent €0.00 this window, headroom €0.30 — this run
+    needs €1.69.
+  - daily_eur: cap €1.00, already spent €0.00 this window, headroom €1.00 — this run needs €1.69.
+The complete manifest edit that would admit this run:
+  [budget]
+  per_operation_eur = 1.69
+  daily_eur = 1.69
+Raising a cap is a permanent, ongoing exposure to every future run at that ceiling. Two cheaper
+routes exist first: lower `[deep] max_rounds`, which is what the estimate multiplies; or fit
+`[retrieval.confidence]` with `python -m pinakes.calibrate <kb>`, after which a confident question
+costs one call instead of a loop.
+```
+
+Every blocked window at once, with the exact edit — because raising one cap, retrying, and
+discovering the next is the experience that shape exists to avoid. `pnk upgrade` will show you the
+new defaults as a proposed change too, and will not apply it without `--apply`.
+
+**What it will not do.** A subproblem it writes is a search query against *your* KB with *your*
+filters — never a path, never another KB — so a document telling the model to go and read
+`/etc/passwd` produces a useless search and nothing else. And every citation names a passage the
+call was actually shown, because the model is never given a document identifier it could invent one
+from ([CLI](CLI.md#two-rules-it-will-not-bend)).
 
 ## Keeping the index fresh
 
