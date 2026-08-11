@@ -43,12 +43,15 @@ was dropped in the move.
 6. `make release-check` — prints `__version__` and the tag to push. **Run it before the tag, never
    after**: a tag publishes to PyPI, and PyPI does not allow re-uploading a version.
 7. `git tag -a vx.y.z`, push the tag. The workflow refuses a tag disagreeing with `__version__`.
-8. Create the GitHub release, notes drawn from that CHANGELOG section. **By hand, and that is
-   the design rather than a workaround**: no workflow in this repository has ever contained a
-   release-creating step, and `git log -S` confirms none ever did. `docs/STATUS.md` recorded doing
-   this as a *recurring workflow failure* six times before anyone read the workflow — so if the
-   release is missing after a green `Release` run, nothing is broken and there is nothing to
-   investigate. Create it.
+8. **The GitHub release is created by the workflow as of 0.22.0** — `gh release create
+   --verify-tag --notes-from-tag`, after the PyPI upload so a failure there can never cost the
+   release its version number. **Verify it exists anyway** (see below); that is this file's rule
+   for every artifact, and it applies most to the step that has just started existing.
+
+   Until 0.22.0 this was manual, and its absence was recorded as a *recurring workflow failure*
+   six times before anyone read the workflow — no release-creating step had ever existed, and
+   `git log -S` confirms it. If a release is missing after a green run now, that is new
+   information rather than the old pattern: read the step's log.
 
 ## Verify it happened — never assume
 
