@@ -40,6 +40,11 @@ MINIMUM = 25
 Version = tuple[int, int, int]
 
 
+class UnreadableError(Exception):
+    """A document the gate reads is missing or unreadable. Carries the operator line, not a
+    traceback."""
+
+
 class Sequence:
     """One ordered run of releases in one file."""
 
@@ -50,7 +55,13 @@ class Sequence:
         self.ascending = ascending
 
     def versions(self, root: Path) -> list[Version]:
-        text = (root / self.path).read_text(encoding="utf-8")
+        try:
+            text = (root / self.path).read_text(encoding="utf-8")
+        except OSError as exc:
+            # A renamed or unreadable document must fail as a gate, with the operator line every
+            # other failure here gets — never as a traceback. `paid_path_gate.py`'s gate 1 exists
+            # for the same reason: a check that cannot find what it guards has stopped guarding it.
+            raise UnreadableError(f"{self.path}: {exc}") from exc
         return [
             (int(a), int(b), int(c))
             for a, b, c in (m.group(1, 2, 3) for m in self.pattern.finditer(text))
@@ -107,7 +118,11 @@ def check(root: Path, *, report: list[str] | None = None) -> list[str]:
     # the set of them disagreeing — which no per-file check can see.
     if len(set(newest.values())) > 1:
         listed = ", ".join(f"{where} → {_show(v)}" for where, v in sorted(newest.items()))
-        failures.append(f"the newest release differs between sequences: {listed}")
+        failures.append(
+            f"the newest release differs between sequences: {listed}. A release adds a row to "
+            "every one of them in the same commit (docs/RELEASING.md), so the sequence naming an "
+            "older version is the one that was not swept."
+        )
 
     return failures
 
@@ -116,7 +131,11 @@ def main(argv: list[str] | None = None) -> int:
     args = argv if argv is not None else sys.argv[1:]
     root = Path(args[0]) if args else Path(__file__).resolve().parent.parent
     report: list[str] = []
-    failures = check(root, report=report)
+    try:
+        failures = check(root, report=report)
+    except UnreadableError as exc:
+        print(f"release-order: a document this gate reads is unreadable — {exc}", file=sys.stderr)
+        return 1
     if failures:
         print("release-order: the release history is out of order.", file=sys.stderr)
         for failure in failures:

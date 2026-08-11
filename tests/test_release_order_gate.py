@@ -136,6 +136,18 @@ def test_a_pattern_that_stops_matching_fails_rather_than_passing(tmp_path: Path)
     assert "docs/STATUS.md — the release roadmap table" in result.stderr
 
 
+def test_a_document_the_gate_cannot_read_fails_as_a_gate(tmp_path: Path) -> None:
+    """Not as a traceback. A check that cannot find what it guards has stopped guarding it, and
+    must say so in the same voice as every other failure here."""
+    root = _tree(tmp_path, versions=_versions())
+    (root / "docs" / "STATUS.md").unlink()
+    result = run(str(root))
+    assert result.returncode == 1
+    assert "a document this gate reads is unreadable" in result.stderr
+    assert "docs/STATUS.md" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_a_sweep_that_updates_one_document_and_not_another_is_caught(tmp_path: Path) -> None:
     """Every sequence internally sorted, and the set of them disagreeing — which no per-file
     ordering check can see."""
