@@ -417,21 +417,23 @@ def declared_files(name: str) -> tuple[str, ...]:
     return tuple(entries)
 
 
-def copy_extras(name: str, target: Path) -> tuple[list[Path], list[Path]]:
-    """Copy everything a KB should own: the template's README and its starter golden set.
+def validate_extras(name: str, target: Path) -> tuple[str, ...]:
+    """Every check `copy_extras` makes, with nothing written. Returns the validated entries.
 
-    Returns `(written, adopted)` — the second being files that were **already there and left
-    exactly as they are**. A directory worth adopting usually has a `README.md` already, and it is
-    the user's; replacing it with a template's would be destroying the thing they wrote to make
-    room for boilerplate.
+    **Separated so `pnk init` can run it before it creates anything** (open-corrections item 4,
+    D-18). `init` wrote `pinakes.toml`, `docs/` and `.gitignore` and *then* called `copy_extras`,
+    so a template whose declaration is refused left a directory that is almost a KB — and a second
+    `pnk init` then refuses it as one.
 
-    **Every entry is checked before any entry is written.** A template whose second declaration
-    escapes would otherwise leave the first one written into a KB that then fails to be created —
-    the partial state `pnk init` has no way to describe and no user has a reason to expect.
+    **`target` need not exist**, which is what makes the hoist possible at all and is worth stating
+    because the item it closes assumed the opposite. `lands_inside` resolves the *parent* and
+    Python's `resolve()` is non-strict, so containment is decidable against a directory that has
+    not been created: measured against a path never created, `README.md` lands inside and
+    `../escape.md` does not.
 
-    **A template is packaged data, which is not the same as trusted data.** `pnk init --template`
-    names whatever is installed, and that can have arrived from anywhere, so the declaration is
-    checked against the target it will actually be written into rather than assumed well-formed.
+    **This is "validated before writing", never "atomic".** A symlinked *ancestor* of the target
+    can change between this call and the write, and nothing here closes that. The guarantee is that
+    a refusal `init` can foresee happens before the first byte, not that the filesystem is frozen.
     """
     root = _root(name)
     anchor = target.resolve()
@@ -472,6 +474,35 @@ def copy_extras(name: str, target: Path) -> tuple[list[Path], list[Path]]:
                     "entry that walks out copies something the template does not own into the KB."
                 ),
             )
+    return entries
+
+
+def copy_extras(
+    name: str, target: Path, *, validated: Sequence[str] | None = None
+) -> tuple[list[Path], list[Path]]:
+    """Copy everything a KB should own: the template's README and its starter golden set.
+
+    Returns `(written, adopted)` — the second being files that were **already there and left
+    exactly as they are**. A directory worth adopting usually has a `README.md` already, and it is
+    the user's; replacing it with a template's would be destroying the thing they wrote to make
+    room for boilerplate.
+
+    **Every entry is checked before any entry is written**, and since D-18 the checking is
+    `validate_extras`, called from here when the caller has not already run it. A template whose
+    second declaration escapes would otherwise leave the first one written into a KB that then
+    fails to be created — the partial state `pnk init` has no way to describe.
+
+    **`validated` exists so `init` does not check twice, and defaults to checking anyway.** `init`
+    must validate long before it copies — that is the whole of D-18 — but a second caller that
+    simply calls `copy_extras` must not silently get an unchecked copy. One rule, one
+    implementation, and the only way to skip it is to have already run it.
+
+    **A template is packaged data, which is not the same as trusted data.** `pnk init --template`
+    names whatever is installed, and that can have arrived from anywhere, so the declaration is
+    checked against the target it will actually be written into rather than assumed well-formed.
+    """
+    root = _root(name)
+    entries = tuple(validated) if validated is not None else validate_extras(name, target)
 
     written: list[Path] = []
     adopted: list[Path] = []

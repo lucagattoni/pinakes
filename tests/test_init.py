@@ -155,6 +155,87 @@ def test_ci_refuses_an_existing_workflow_before_creating_anything(tmp_path: Path
     assert (root / WORKFLOW_PATH).read_text(encoding="utf-8") == "# mine\n"
 
 
+@pytest.mark.parametrize(
+    ("declared", "expected"),
+    [
+        (["_versions/1.0/README.md"], "names the version archive"),
+        (["../escaped.md"], "writes outside the KB"),
+    ],
+)
+def test_a_refused_declaration_creates_nothing_at_all(
+    tmp_path: Path,
+    synthetic_template: Callable[..., str],
+    declared: list[str],
+    expected: str,
+) -> None:
+    """D-18: `init` validates the template's `files` before it writes anything.
+
+    It used to write `pinakes.toml`, `docs/` and `.gitignore` and only then call `copy_extras`, so
+    a refused declaration left a directory that is *almost* a KB — and a second `pnk init` then
+    refuses it as one, leaving the user with a directory they can neither init nor were asked
+    whether they wanted.
+
+    **The assertion is on the whole tree, not on `pinakes.toml`.** Checking one file would pass
+    against an implementation that hoisted only the manifest write and still left `docs/` and
+    `.gitignore` behind — the half-fix D-18 rejected. `root` must not exist at all.
+
+    Both refusal kinds run, because different checks raise them: the archive rule needs no target
+    and containment does. A hoist that moved only the first satisfies one row and fails the other,
+    which is precisely the narrow version this decision turned down."""
+    name = synthetic_template("synth", versions={"1.0": "[kb]\n"}, current="1.0", files=declared)
+    root = tmp_path / "kb"
+
+    with pytest.raises(TemplateError) as exc_info:
+        init(root, template_name=name)
+
+    assert expected in exc_info.value.message
+    assert not root.exists(), "a refusal must leave no directory, not merely no manifest"
+
+
+def test_a_declaration_is_validated_against_a_target_that_does_not_exist_yet(
+    tmp_path: Path, synthetic_template: Callable[..., str]
+) -> None:
+    """The measurement D-18 turns on, pinned so nobody re-derives the wrong answer from it.
+
+    Open-corrections item 4 rejected the full hoist believing containment could not be judged
+    before the target existed — so only the declaration check could move, and the guarantee would
+    be half-true. `lands_inside` resolves the *parent* and `resolve()` is non-strict, so it can.
+
+    This asserts the **positive** half deliberately: the refusal tests above would all pass against
+    a `validate_extras` that raised for every input, existent target or not."""
+    name = synthetic_template(
+        "synth",
+        versions={"1.0": "[kb]\n"},
+        current="1.0",
+        files=["README.md", "eval/questions.yaml"],
+        extras={"README.md": "hi\n", "eval/questions.yaml": "questions: []\n"},
+    )
+    root = tmp_path / "not-created-yet"
+    assert not root.exists()
+
+    assert template.validate_extras(name, root) == ("README.md", "eval/questions.yaml")
+    assert not root.exists(), "validation must not create the thing it validates against"
+
+
+def test_copy_extras_still_validates_when_nobody_validated_for_it(
+    tmp_path: Path, synthetic_template: Callable[..., str]
+) -> None:
+    """`validated=` is an optimisation for `init`, never a way to skip the rule.
+
+    The split exists so `init` does not check twice; any other caller must still get the check.
+    Without this, the refactor quietly converts every other call site into an unchecked copy —
+    the standing failure mode of splitting a validate/apply pair."""
+    name = synthetic_template(
+        "synth", versions={"1.0": "[kb]\n"}, current="1.0", files=["../escaped.md"]
+    )
+    root = tmp_path / "kb"
+    root.mkdir()
+
+    with pytest.raises(TemplateError) as exc_info:
+        template.copy_extras(name, root)
+    assert "writes outside the KB" in exc_info.value.message
+
+
 def test_an_unknown_template_lists_the_known_ones(tmp_path: Path) -> None:
     with pytest.raises(TemplateError) as exc_info:
         init(tmp_path / "kb", template_name="nonexistent")

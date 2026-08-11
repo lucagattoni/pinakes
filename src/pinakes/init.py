@@ -62,6 +62,20 @@ def init(
     root = root.resolve()
     _check_target(root, ci=ci)
 
+    # **Everything that can be refused is refused here, before the first byte** (D-18,
+    # open-corrections item 4). `init` used to write `pinakes.toml`, `docs/` and `.gitignore` and
+    # only then call `copy_extras`, so a template whose `files` declaration is illegal — it names
+    # `_versions/`, writes outside the KB, or reads outside the template — raised against a
+    # directory that was already almost a KB, which a second `pnk init` then refuses *as* one.
+    #
+    # `root` does not exist yet and does not need to: `lands_inside` resolves the parent and
+    # `resolve()` is non-strict, so containment is decidable against a directory nobody has
+    # created. The item this closes assumed otherwise and rejected the fix on that basis.
+    #
+    # `--ci` has behaved this way since `test_ci_refuses_an_existing_workflow_before_creating_
+    # anything` moved its refusal; this makes the same guarantee uniform rather than inventing one.
+    declared = template.validate_extras(template_name, root)
+
     stamp = now or datetime.now(UTC).strftime("%Y%m%d %H:%M")
     kb_id = mint_kb_id()
     provider, model, dim = DEFAULT_EMBEDDING
@@ -96,7 +110,7 @@ def init(
     else:
         gitignore.write_text(GITIGNORE, encoding="utf-8")
 
-    extras, extras_adopted = template.copy_extras(template_name, root)
+    extras, extras_adopted = template.copy_extras(template_name, root, validated=declared)
     adopted.extend(extras_adopted)
 
     created = [manifest_path, root / "docs", *extras]
