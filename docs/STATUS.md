@@ -787,14 +787,20 @@ made the difference legible in a minute, and it turns out to cut both ways. **A 
 evidence in either direction.** What answered the question was `curl` against the published page and
 the deployment's own status history, neither of which depends on the run object being coherent.
 
-**One operational consequence, and it is the part that bites.**
+**The operational consequence it looked like it would have — and did not.**
 [`.github/workflows/docs.yml`](https://github.com/lucagattoni/pinakes/blob/main/.github/workflows/docs.yml)
-sets `concurrency: {group: pages, cancel-in-progress: false}` — deliberately, because a cancelled
-Pages deploy leaves the site on the previous commit with no failure shown. **A wedged run holds that
-group**, so the next push touching `docs/` queues behind it rather than deploying, and will not
-supersede it. The commit that added this section is the test: if the site updates, the group was
-released; if it queues, the group is held and the only levers are waiting for GitHub or changing the
-group name once.
+sets `concurrency: {group: pages, cancel-in-progress: false}`, deliberately, because a cancelled
+Pages deploy leaves the site on the previous commit with no failure shown. The obvious inference is
+that a run stuck at `in_progress` **holds** that group and the next `docs/` push queues behind it
+forever. **That inference was written here as fact, and the next push refuted it within four
+minutes**: the run that added this very section went `queued → in_progress → success` at 14:41 and
+its content is on the published site, while `31501008522` was still `in_progress` and still is.
+
+**So a wedged run does not hold the concurrency group** — at least not this one, and the mechanism
+is not visible from outside. The claim is corrected rather than deleted because the *shape* of the
+error is the reusable part: a plausible mechanism, stated as a consequence, in a note whose whole
+subject was the danger of trusting a status signal instead of checking. The check took one push and
+one `curl`.
 
 | | |
 |---|---|
