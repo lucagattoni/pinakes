@@ -79,6 +79,24 @@ MAX_INPUT_TOKENS: Final[dict[str, int]] = {
 }
 
 
+def assert_prices_fresh(*, prices: Prices, now: str, max_price_age_days: int) -> None:
+    """Refuse to estimate against a price table older than `max_price_age_days` (docs/DESIGN.md §5).
+
+    **Lives here, called by both estimators.** `deep/estimate.py` (E2) needs the identical refusal,
+    and a second copy of two lines of `strptime` arithmetic is a second thing that can disagree
+    about what "30 days old" means — the reason `Accountant.confirm_document` gives for living
+    where it does, applied to the one comparison `pnk doctor`'s staleness WARN also has to match.
+
+    `now` is an explicit `YYYYMMDD HH:MM` string, never the wall clock: staleness is checked against
+    whatever the caller supplies, which is what keeps every estimator pure and deterministic under
+    test.
+    """
+    as_of = datetime.strptime(prices.as_of, TIMESTAMP_FORMAT)
+    current = datetime.strptime(now, TIMESTAMP_FORMAT)
+    if (current - as_of).days > max_price_age_days:
+        raise StalePricesError(as_of=prices.as_of, max_age_days=max_price_age_days)
+
+
 @dataclass(frozen=True, slots=True)
 class Estimate:
     """A worst-case cost estimate for one document, at the request granularity decision 8 fixes."""
@@ -128,10 +146,7 @@ def estimate_document(
             f"estimate_document: pages_estimated={estimated} must be between 1 and pages={pages}"
         )
 
-    as_of = datetime.strptime(prices.as_of, TIMESTAMP_FORMAT)
-    current = datetime.strptime(now, TIMESTAMP_FORMAT)
-    if (current - as_of).days > max_price_age_days:
-        raise StalePricesError(as_of=prices.as_of, max_age_days=max_price_age_days)
+    assert_prices_fresh(prices=prices, now=now, max_price_age_days=max_price_age_days)
 
     model_price = prices.for_model(model)
 
