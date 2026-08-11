@@ -88,6 +88,12 @@ def _init_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--name", default=None, help="human-facing name (default: the directory)")
     parser.add_argument("--template", default="notes", help="blueprint to stamp from")
     parser.add_argument(
+        "--backend",
+        default="st",
+        choices=["st", "light"],
+        help="which install extra's models to stamp (default: st)",
+    )
+    parser.add_argument(
         "--ci",
         action="store_true",
         help="also write a GitHub Actions workflow that syncs with the free extractor",
@@ -98,7 +104,13 @@ def run_init(args: argparse.Namespace) -> int:
     from pinakes.hooks import FREE_BACKEND_NOTICE
     from pinakes.init import init
 
-    result = init(args.path, name=args.name, template_name=args.template, ci=args.ci)
+    result = init(
+        args.path,
+        name=args.name,
+        template_name=args.template,
+        ci=args.ci,
+        backend=args.backend,
+    )
     print(f"created {result.root} from {result.template}")
     print(f"  kb id: {result.kb_id}  (permanent — never edit it)")
     if result.workflow is not None:

@@ -267,6 +267,49 @@ def test_copy_extras_still_validates_when_nobody_validated_for_it(
     assert "writes outside the KB" in exc_info.value.message
 
 
+def test_backend_light_stamps_fastembed_in_both_blocks(tmp_path: Path) -> None:
+    """D-20. Every real KB stamped from `notes` edited the provider in **both** `[embedding]` and
+    `[rerank]`, for one reason — a `[light]` install — and `docs/GUIDE.md` documented doing it by
+    hand as the normal path. `--backend light` is that edit, made once and recorded as a choice.
+
+    **Both blocks asserted, because editing only one is the mistake the flag exists to prevent.** A
+    KB with `fastembed` embeddings and a `sentence-transformers` reranker pulls in the 2 GB
+    dependency the extra was chosen to avoid, and does it at query time rather than at install."""
+    manifest = load(init(tmp_path / "kb", backend="light").root)
+
+    assert manifest.embedding.provider == "fastembed"
+    assert manifest.rerank.provider == "fastembed"
+    assert manifest.embedding.dim == 384, "the dimension must match the model actually stamped"
+
+
+def test_the_default_backend_is_unchanged(tmp_path: Path) -> None:
+    """The negative control, and the compatibility promise. Omitting `--backend` must stamp exactly
+    what every release before this one stamped — otherwise the flag is a silent breaking change to
+    every scripted `pnk init` in existence."""
+    from pinakes.init import DEFAULT_EMBEDDING, DEFAULT_RERANK
+
+    manifest = load(init(tmp_path / "kb").root)
+
+    assert (
+        manifest.embedding.provider,
+        manifest.embedding.model,
+        manifest.embedding.dim,
+    ) == DEFAULT_EMBEDDING
+    assert (manifest.rerank.provider, manifest.rerank.model) == DEFAULT_RERANK
+
+
+def test_an_unknown_backend_is_refused_by_name(tmp_path: Path) -> None:
+    """`argparse` bounds the CLI, and this bounds the function — `init` is importable, and the API
+    is what a test or another tool calls. The refusal names the accepted values, because a message
+    that only says "no" sends the caller to read the source."""
+    with pytest.raises(InitError) as exc_info:
+        init(tmp_path / "kb", backend="torch")
+
+    assert "torch" in exc_info.value.message
+    assert "light" in exc_info.value.remedy and "st" in exc_info.value.remedy
+    assert not (tmp_path / "kb").exists(), "a refused backend must leave no directory"
+
+
 def test_an_unknown_template_lists_the_known_ones(tmp_path: Path) -> None:
     with pytest.raises(TemplateError) as exc_info:
         init(tmp_path / "kb", template_name="nonexistent")

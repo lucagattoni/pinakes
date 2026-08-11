@@ -132,11 +132,13 @@ conflicts. **It changes nothing for a KB recording `notes@1.0`** — there is st
 apply against, so that KB gets `cannot compare` and exit `3` under `--apply` too. Adoption starts
 working at the *next* template bump, for KBs stamped from `notes@1.1` onward.
 
-### Caveat: the `[light]` backend needs a manifest edit
+### The `[light]` backend is a flag on `pnk init`
 
-`pnk init` always stamps `provider = "sentence-transformers"` — it cannot see which extra you
-installed. On a `pinakes[light]` install, set `provider = "fastembed"` in **both** `[embedding]` and
-`[rerank]` before the first sync ([GUIDE](GUIDE.md#choosing-a-backend)).
+`pnk init --backend light` stamps `fastembed` in **both** `[embedding]` and `[rerank]`; the default
+is still `sentence-transformers`. **A flag rather than detection**, because `pinakes.toml` is
+portable and committed and stamping the machine's installed extra bakes one author's setup into a
+file their collaborators read. On an existing KB, or after omitting the flag, set `provider` in both
+blocks by hand before the first sync ([GUIDE](GUIDE.md#choosing-a-backend)).
 
 ---
 
