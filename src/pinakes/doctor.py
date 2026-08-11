@@ -699,8 +699,9 @@ def _chunking_drift(manifest: Manifest, connection: sqlite3.Connection) -> Check
     keys, and a check that fired on all of them would be noise on first upgrade — the same
     unclearable-warning failure the heading-coverage check has to answer for.
     """
+    meta = store.get_meta(connection)
     drift = store.chunking_drift(
-        store.get_meta(connection),
+        meta,
         store.chunking_identity(
             headings=manifest.chunking.headings,
             max_tokens=manifest.chunking.max_tokens,
@@ -708,7 +709,25 @@ def _chunking_drift(manifest: Manifest, connection: sqlite3.Connection) -> Check
             metadata=manifest.chunking.metadata,
         ),
     )
+    exceptions = meta.get("chunking_exceptions")
     if not drift:
+        if exceptions:
+            # **D-15: the index says its own claim has exceptions.** A `--rebuild` that met a paid
+            # document whose extracted text was no longer cached copied its chunks forward rather
+            # than paying to extract again — so the settings stamped over the index are not true of
+            # every document in it. Reported as OK-with-a-note rather than WARN, deliberately: it
+            # is not a fault, nothing is broken, and the only remedy costs money. An unclearable
+            # warning is how doctor output stops being read at all, which costs the actionable
+            # warnings too — the same reasoning that narrowed the heading-coverage check.
+            return Check(
+                "chunking coherence",
+                Status.OK,
+                f"index matches the configured chunking, except {exceptions} paid document(s) "
+                "carried forward with their previous chunking",
+                "Those documents' extracted text is no longer cached, so re-chunking them means "
+                "paying to extract again: `pnk sync --rebuild --force --extract=<backend>`. "
+                "Leaving them is fine — they are searchable at their last paid extraction.",
+            )
         return Check("chunking coherence", Status.OK, "index matches the configured chunking")
     moved = ", ".join(f"{key} {was} -> {now}" for key, (was, now) in sorted(drift.items()))
     return Check(

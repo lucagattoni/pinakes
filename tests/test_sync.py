@@ -838,6 +838,119 @@ def test_a_rebuild_preserves_paid_provenance(kb: Path, fake_paid: str) -> None:
         connection.close()
 
 
+class _FakePaidLongExtractor:
+    """A paid extractor whose output is long enough that `max_tokens` changes the chunk count.
+
+    `_FakePaidExtractor` returns one short line, which chunks to exactly one chunk under every
+    setting — so a re-chunk and a copy-forward are indistinguishable through it. D-15 is a claim
+    about chunk *boundaries* moving, and it needs a document that has some."""
+
+    def extract(self, path: Path, ctx: ExtractionContext) -> ExtractedText:
+        text = "".join(f"Paid extraction sentence number {n} of the document.\n" for n in range(60))
+        return ExtractedText(text=text, page_spans=((0, len(text)),))
+
+
+@pytest.fixture
+def fake_paid_long() -> Iterator[str]:
+    name = "test-paid-long"
+    entry = ExtractorEntry(
+        load=_FakePaidLongExtractor,
+        fingerprint_inputs=lambda _model=None: {"backend": name},
+        paid=True,
+    )
+    register_extractor(name, entry)
+    try:
+        yield name
+    finally:
+        unregister_extractor(name)
+
+
+def _chunk_count(kb: Path) -> int:
+    connection = store.connect_ro(kb / ".pinakes" / "index.db")
+    try:
+        return int(connection.execute("SELECT count(*) FROM chunks").fetchone()[0])
+    finally:
+        connection.close()
+
+
+def test_a_rebuild_rechunks_a_protected_paid_document_from_the_cache(
+    kb: Path, fake_paid_long: str
+) -> None:
+    """D-15, the warm half. A `[chunking]` edit reaches a paid document on `--rebuild`, for free.
+
+    The chunks used to be copied verbatim, so `headings`, `max_tokens` and `overlap` never reached
+    a paid-extracted document while `set_meta` stamped the current settings over the whole index —
+    an index claiming a chunking it did not have. The item stood open believing the fix needed the
+    extracted text and so cost money to obtain.
+
+    **It does not: the extraction cache lives under `.pinakes/` and `--rebuild` does not clear it**
+    — rebuild builds `index.db.new` beside the old one and swaps. So the text is read back with
+    `cache.peek`, which never calls an extractor, and the document is re-chunked like any other.
+
+    Asserted on the chunk *count*, which is what `max_tokens` actually moves; asserting the meta
+    key alone would pass against code that recorded the settings without applying them, which is
+    the exact defect being closed."""
+    _add_pdf_support(kb)
+    (kb / "docs" / "a.pdf").write_bytes(b"placeholder")
+    assert run(kb, extract=fake_paid_long).embedded == 1
+    before = _chunk_count(kb)
+    assert before > 1, "the fixture must produce a document with boundaries to move"
+    assert _cache_files(kb), "the cache must be warm for this half of the decision"
+
+    _set_chunking(kb, max_tokens="20")
+    report = run(kb, rebuild=True)
+
+    assert report.ok, report.failures
+    assert _chunk_count(kb) > before, "a smaller max_tokens must produce more chunks"
+    assert report.chunking_not_applied == (), "nothing was carried forward unchunked"
+    assert index(kb)[0]["extraction_backend"] == fake_paid_long, "the extraction is still paid"
+
+    connection = store.connect_ro(kb / ".pinakes" / "index.db")
+    try:
+        meta = store.get_meta(connection)
+    finally:
+        connection.close()
+    assert "chunking_exceptions" not in meta, "a fully re-chunked index has no exceptions"
+
+
+def test_a_rebuild_with_a_cold_cache_keeps_the_chunks_and_says_the_index_is_inhomogeneous(
+    kb: Path, fake_paid_long: str
+) -> None:
+    """D-15, the cold half — and the one that decides what honesty costs.
+
+    With no cache entry the extracted text is gone, and getting it back means paying. `--rebuild`
+    is the remedy `pnk doctor` prints, so a rebuild that can spend is not a remedy: the document
+    keeps its previous chunks, and **the index records that the settings stamped over it are not
+    true of every document in it**. That is the half the old code got wrong silently.
+
+    Three assertions because three things could each be dropped independently: the chunks survive,
+    the run names the document, and the *index itself* carries the exception — a report line is
+    gone the moment the terminal scrolls, and `pnk doctor` reads the index."""
+    _add_pdf_support(kb)
+    (kb / "docs" / "a.pdf").write_bytes(b"placeholder")
+    assert run(kb, extract=fake_paid_long).embedded == 1
+    before = _chunk_count(kb)
+
+    cleared = sync(load(kb), options=SyncOptions(clear_cache=True, clear_cache_paid=True, yes=True))
+    assert cleared.cache_cleared == 1
+    assert _cache_files(kb) == []
+
+    _set_chunking(kb, max_tokens="20")
+    report = run(kb, rebuild=True)
+
+    assert report.ok, report.failures
+    assert _chunk_count(kb) == before, "with no cached text the chunks must be carried forward"
+    assert report.chunking_not_applied == ("docs/a.pdf",)
+    assert "kept their previous chunking" in "\n".join(report.lines())
+
+    connection = store.connect_ro(kb / ".pinakes" / "index.db")
+    try:
+        meta = store.get_meta(connection)
+    finally:
+        connection.close()
+    assert meta["chunking_exceptions"] == "1"
+
+
 def test_a_rebuild_after_clear_cache_still_preserves_it(kb: Path, fake_paid: str) -> None:
     """The sequence a cache-based answer would have failed (plan text): if paid-extraction
     protection depended on `extract/cache.py` still holding the entry, `--clear-cache` immediately
