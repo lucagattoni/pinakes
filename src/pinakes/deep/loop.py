@@ -104,8 +104,8 @@ discriminates on a name this module owns rather than on a sentence written for a
 DEEP_CLOSING: Final = (
     "Raising a cap is a permanent, ongoing exposure to every future run at that ceiling. Two "
     "cheaper routes exist first: lower `[deep] max_rounds`, which is what the estimate multiplies; "
-    "or fit `[retrieval.confidence]` with `python -m pinakes.calibrate`, after which a confident "
-    "question costs one call instead of a loop."
+    "or fit `[retrieval.confidence]` with `python -m pinakes.calibrate <kb>`, after which a "
+    "confident question costs one call instead of a loop."
 )
 """The advice a budget refusal ends on — the deep path's counterpart to the extractor's
 `--extract=` override line, which has no equivalent here: there is no one-run way to make a
@@ -682,7 +682,7 @@ def _label(stopped_by: str, *, rounds_used: int, max_rounds: int, branch: str) -
         )
     uncalibrated = (
         " There is no calibrated signal on this KB, so the run could not stop at sufficiency: it "
-        "was bounded by the caps rather than by the evidence (`python -m pinakes.calibrate`)."
+        "was bounded by the caps rather than by the evidence (`python -m pinakes.calibrate <kb>`)."
         if branch == UNKNOWN
         else ""
     )

@@ -32,13 +32,14 @@ def entry(
     rate: str = "1.08",
     operation_id: str = "OP1",
     as_of: str = AS_OF,
+    operation: str = "sync",
 ) -> Record:
     return Record(
         kind=kind,
         at=at,
         operation_id=operation_id,
         call_id=call_id,
-        operation="sync",
+        operation=operation,
         kb_id=kb_id,
         model=MODEL,
         cost_usd=Decimal(cost_usd),
@@ -526,6 +527,54 @@ def test_recent_operations_are_shown_in_the_configured_timezone(
     assert main(["budget", "--kb", str(root)]) == EXIT_OK
     out = capsys.readouterr().out
     assert "20260716 08:30" in out
+
+
+def test_an_ask_operation_is_totalled_beside_a_sync_one_on_the_same_day(
+    make_fake_kb: Callable[..., Path], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`pnk budget` groups by `operation`, and `pnk ask --deep` writes `ask` (M9).
+
+    **Verified rather than assumed, which is what the plan asked for.** `operation` was already a
+    free-form string whose own docstring named this value, so the honest expectation was that the
+    deep release needed no ledger change at all — and an expectation like that is exactly the kind
+    this project has been wrong about before. It is true: the row appears, labelled, with its own
+    total, and nothing in `budget/` moved for it.
+
+    Written from ledger records rather than by running the loop, so it fails if the *reporting*
+    breaks even when the loop is fine — the two are separable and this test is about the second.
+    """
+    root = make_fake_kb()
+    kb_id = load(root).kb.id
+    when = datetime(2026, 8, 11, 12, 0, tzinfo=UTC)
+    for call_id, operation, operation_id, cost in (
+        ("S1", "sync", "OPSYNC", "0.02"),
+        ("A1", "ask", "OPASK", "0.05"),
+        ("A2", "ask", "OPASK", "0.03"),
+    ):
+        append(
+            ledger_of(root),
+            entry(
+                RecordKind.RESERVATION,
+                call_id=call_id,
+                kb_id=kb_id,
+                at=when,
+                cost_usd=cost,
+                operation=operation,
+                operation_id=operation_id,
+            ),
+        )
+
+    assert main(["budget", "--kb", str(root)]) == EXIT_OK
+    out = capsys.readouterr().out
+
+    rows = [line.strip() for line in out.splitlines() if " call(s)" in line]
+    assert len(rows) == 2, f"one row per operation, got {rows}"
+    ask = next(row for row in rows if " ask " in row)
+    sync_row = next(row for row in rows if " sync " in row)
+    assert "2 call(s)" in ask, "the two ask calls are one operation, not two rows"
+    assert "1 call(s)" in sync_row
+    # EUR at 1.08: the ask operation's two calls are 0.08 USD together.
+    assert "0.0741" in ask
 
 
 def test_the_operation_list_says_when_it_is_showing_only_the_recent_ones(

@@ -415,7 +415,7 @@ early stop, because the step that would end it is the missing signal, and the la
 ```
 stopped at the round cap — 3 of 3 round(s) — not at sufficiency. `[deep] max_rounds` is what
 bounds it. There is no calibrated signal on this KB, so the run could not stop at sufficiency:
-it was bounded by the caps rather than by the evidence (`python -m pinakes.calibrate`).
+it was bounded by the caps rather than by the evidence (`python -m pinakes.calibrate <kb>`).
 ```
 
 That is the honest cost of not calibrating: the same question, answered, for up to six calls
@@ -444,7 +444,7 @@ The complete manifest edit that would admit this run:
   daily_eur = 1.69
 Raising a cap is a permanent, ongoing exposure to every future run at that ceiling. Two cheaper
 routes exist first: lower `[deep] max_rounds`, which is what the estimate multiplies; or fit
-`[retrieval.confidence]` with `python -m pinakes.calibrate`, after which a confident question
+`[retrieval.confidence]` with `python -m pinakes.calibrate <kb>`, after which a confident question
 costs one call instead of a loop.
 ```
 

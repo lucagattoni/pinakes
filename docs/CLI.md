@@ -233,7 +233,7 @@ The work is sized by the confidence signal:
 |---|---|
 | `high`, `medium` | One synthesis call over the passages already retrieved |
 | `low` | Decomposition into subquestions, a search for each, and a synthesis over what they return — several calls |
-| `unknown` | **Cannot be told from here.** With no calibrated signal a run would end at its spending caps rather than at sufficiency, and the line above says which of the three causes applies. One remedy covers all three: fit `[retrieval.confidence]` with `python -m pinakes.calibrate <kb>`, with reranking on, and with the fitted reranker the one in use |
+| `unknown` | **Cannot be told from here.** With no calibrated signal a run ends at its spending caps rather than at sufficiency, and the line above says which of the three causes applies. One remedy covers all three: fit `[retrieval.confidence]` with `python -m pinakes.calibrate <kb>`, with reranking on, and with the fitted reranker the one in use |
 
 A question **nothing matches** gets none of that: it is told nothing matched, and is not sent off to
 calibrate a signal that was never the problem.
