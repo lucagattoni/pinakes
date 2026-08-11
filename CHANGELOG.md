@@ -10,6 +10,91 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.23.0] — 20260811 15:25
+
+**`pnk ask` exists.** The deep release's plan landed, its eight decisions were taken the same day,
+and its first increment is built: a question surface that costs nothing, prints the evidence and the
+confidence, and says **how much work answering would take** — without ever printing the `--deep`
+flag that would do it, because that flag is not built. Also here: the release-order gate, and two
+STATUS corrections about a wedged CI run.
+
+### Added
+
+- **The deep release has a plan.**
+  [`plans/20260811_1358-deep-release.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260811_1358-deep-release.md) —
+  `pnk ask` and `pnk ask --deep` in seven increments, with **eight open decisions, every one of
+  which blocks an increment** — all eight were taken later the same day (below). It had been
+  described as "planned" since `0.1.2` with no plan behind the word. Two of its measurements change
+  what the older documents imply: the budget machinery is **already built and proven by the paid
+  extractor**, so this release adds the loop and not the machinery; and `[retrieval.confidence]`
+  **ships commented out**, so the escalation gate DESIGN § 4.2 depends on exists on **no KB a user
+  creates** — which is what most of the open decisions are about. `CLAUDE.md`, `docs/README.md` and
+  `docs/ROADMAP.md` all said the deep release had no plan; all three now name it.
+
+- **`pnk ask` — the question surface, free and unable to spend.** It prints the cited evidence, the
+  confidence line, and **what answering the question would take**: one synthesis call when
+  retrieval is confident, decomposition into subquestions and a search for each when it is not, and
+  — on a KB with no fitted `[retrieval.confidence]`, which is every KB the template stamps — that
+  nothing can tell, with the one sentence that would fix it. It states plainly that **no answer was
+  synthesised**, because passages are not an answer and someone typing `ask` expects one. `--json`
+  returns `pnk search`'s payload plus `answer: null` and an `escalation` block, so a consumer parses
+  one schema whether or not a paid loop ever runs. It takes every filter `pnk search` takes
+  (`--tag`, `--path-prefix`, `--source-type`, `--modified-after/-before`, `-k`), since narrowing
+  retrieval is what narrows the work. E1 of the deep release; the paid `--deep` loop is E4, and
+  **nothing here prints a flag that does not exist yet.**
+- **The free-path gate covers `pnk ask` from the increment that creates it**, before any paid module
+  exists — and it matches on the command's own output rather than only calling it, because no
+  module row in `tests/test_paid_path.py` could tell that call from `pnk search`'s.
+
+### Changed
+
+- **All eight of the deep release's open decisions are taken** (D-21 to D-28, 20260811 14:17), so
+  its plan is now a build order rather than a question list and **E1 is buildable**. The two that
+  shape the rest: **confidence sizes the work, it does not authorise it** — `pnk ask --deep` always
+  answers, and a question the free path is already confident about costs **one** synthesis call
+  instead of a decomposition loop; and **an uncalibrated KB runs anyway**, bounded by the round cap
+  and `per_operation_eur` rather than by the absent signal, with the output naming which bound
+  ended the run. Also settled: bare `pnk ask` never spends, one model rather than two, a
+  budget-halted run follows the existing `[budget] on_exceed`, the transcript lives at
+  `.pinakes/deep/<operation_id>.json` protected like a paid cache entry, suggestions are printed
+  now and written later, and `--deep` accepts every `pnk search` filter.
+
+- **E1's spec now says what it must *not* build.** The deep-release plan gained three constraints
+  worked out while starting the increment: **E1 adds no `--deep` flag** — one that parses and then
+  refuses is the same defect `0.20.1` fixed, where `vector_tier = "sqlite-vec"` was accepted for a
+  tier that was not built — so its escalation block describes how much work answering would take
+  and never prints a command to run; **`pnk ask` must state plainly that no answer was
+  synthesised**, because passages are not an answer and someone typing `ask` expects one; and the
+  `unknown` remedy is **one sentence covering all three branches**, since `confidence_reason`
+  already discriminates them and re-checking the conditions in the CLI would be a second copy of
+  `_confidence`'s logic that can disagree with it.
+
+- **`pnk search`'s escalation notice now names a command that exists.** On `low` or `unknown`
+  confidence it pointed at `` `pnk ask --deep` `` — neither a command nor a flag anyone could type —
+  in the very sentence whose test is named for not doing that. It now names `pnk ask`, which is
+  built, and no flag of it, which is not.
+
+### Fixed
+
+- **A `docs` run that never reported success had already deployed the site**, recorded in
+  [STATUS](docs/STATUS.md) as the mirror of every earlier entry in that section. Both jobs
+  succeeded and the Pages deployment reached `success` at 14:21:20, while the run object froze at
+  `in_progress` twenty seconds earlier and stayed there; `gh run cancel` and the documented
+  `force-cancel` escalation both return **HTTP 500**, so it cannot be cleared from outside GitHub.
+  **The rule that made it legible cuts both ways** — verify the artifact, never the run's own
+  status — and the note names the operational cost: `docs.yml` serialises on
+  `concurrency: {group: pages, cancel-in-progress: false}`, so a wedged run holds that group and the
+  next `docs/` push queues behind it instead of superseding it. Also fixed: the *First upload* row
+  still said `12:32 UTC (0.22.1)` after 0.22.2 shipped at 13:53.
+
+- **Corrected a claim published twenty minutes earlier.** The note on the wedged `docs` run stated
+  as fact that a run stuck at `in_progress` **holds** `docs.yml`'s `concurrency: {group: pages}`, so
+  the next `docs/` push would queue behind it. **The next push refuted it in four minutes** — it ran
+  and deployed while the wedged run was, and still is, `in_progress`. The correction is kept in
+  place rather than deleted because the shape of the error is the reusable part: a plausible
+  mechanism stated as a consequence, inside a note whose own subject was the danger of trusting a
+  status signal instead of checking one.
+
 ## [0.22.2] — 20260811 13:48
 
 ### Fixed
@@ -3150,7 +3235,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.22.2...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.23.0
 [0.22.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.22.2
 [0.22.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.22.1
 [0.22.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.22.0

@@ -17,20 +17,22 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260811 13:48 UTC
+## Where things stand right now — 20260811 15:25 UTC
 
-- **35 releases in 17 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.22.2`](#0222--the-release-history-reads-in-order-and-a-gate-keeps-it-that-way--20260811-1348) on 20260811.
-- **Latest on PyPI: `0.22.2`**, confirmed by installing it from the index rather than by reading a
+- **36 releases in 17 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.23.0`](#0230--pnk-ask-exists-and-it-will-not-pretend-to-answer-you--20260811-1525) on 20260811.
+- **Latest on PyPI: `0.23.0`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)). Every release from
-  `0.2.2` on is published — twenty-eight.
-- **Two of the four named releases have shipped** — the links release across
+  `0.2.2` on is published — twenty-nine.
+- **Two of the four named releases have shipped, and a third has started.** The links release across
   [`0.5.0`](#050--links-you-can-walk--20260731-1127)–[`0.6.0`](#060--links-you-can-write--20260801-1051),
   the graph release in [`0.11.0`](#the-graph-release--shipped-0110). **The template release has
   shipped every increment it scheduled** — T1 to T5 and T7 across 0.17.0–0.21.0, cutting more than
   once by D-9 — **and both of its gated increments are now answered**, so what is left under that
-  name is a trigger rather than a queue. The deep release is unbuilt, and **as of 20260811 has a
-  plan whose eight decisions were all taken the same day**.
+  name is a trigger rather than a queue. **The deep release has cut its first release**: its plan
+  landed 20260811 with all eight decisions taken the same day, and **E1 — `pnk ask`, free — shipped
+  in [`0.23.0`](#0230--pnk-ask-exists-and-it-will-not-pretend-to-answer-you--20260811-1525)**. E2,
+  the round estimator, is next; the paid `--deep` loop is E4 and is not built.
 - **Is document metadata retrieval context? Measured, and the answer was no — on one corpus, through
   one channel**
   ([`plans/20260805_1721-metadata-as-retrieval-context.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260805_1721-metadata-as-retrieval-context.md),
@@ -131,9 +133,10 @@ number belongs to a release only when it is cut
 | **[0.22.0](#0220--eight-decisions-and-two-of-them-were-never-decisions--20260811-0826)** | 20260811 08:26 | Eight decisions, and two of them were never decisions | • **T8 closed as a no-go, T6 deferred behind a written trigger** — both gates of the template release answered<br>• **The open-corrections list is empty**, for the second time in its life<br>• `pnk init --backend st\|light`; `init` validates before it writes<br>• `--rebuild` re-chunks paid documents from the cache, and **never spends**<br>• The release workflow creates the release — the step it never had, misdiagnosed six times<br>• **Two of the four corrections were unchecked assumptions, not forks** |
 | **[0.22.1](#0221--a-release-sweep-is-table-shaped--20260811-1226)** | 20260811 12:26 | A release sweep is table-shaped | • **Documentation only — no code path changed**<br>• This file's two prose blocks said 0.21.0 while every table in it said 0.22.0<br>• `docs/README.md`'s plan table had **no row** for the plan `CLAUDE.md` calls live — a missing row has no wrong text to find<br>• `RELEASING.md` gains the two checks that catch the class: grep the *superseded* version, and read `ls plans/` against the routing table<br>• Recorded: the 20260807 audit's **40 corrections are untouched** |
 | **[0.22.2](#0222--the-release-history-reads-in-order-and-a-gate-keeps-it-that-way--20260811-1348)** | 20260811 13:48 | The release history reads in order, and a gate keeps it that way | • **A row can be complete, correct, and in the wrong place.** Five release rows were out of order across three sequences — `docs/ROADMAP.md`'s release table and its per-release sections both read `0.20.0, 0.22.0, 0.22.1, 0.21.1, 0.21.0, 0.20.1`, and `docs/STATUS.md` put `0.15.1` after `0.16.0` and `0.20.1` after `0.22.1`. Every one is wrong on **both** readings, SemVer and release time. Nothing could see it: ordering is a property of the *sequence*, not of any row, and every check here reads rows — the tables were complete, every anchor resolved and `mkdocs build --strict` was green. **`0.21.0`'s sweep inserted its section one position too early and the next three used that same slot**, so after the first error the tail read strictly newest-first and each following sweep matched the coherent pattern around its own edit. Only the join between the ascending head and the descending tail was wrong, and no sweep's diff touched that line. The `0.15.1` instance was already in the 20260807 audit, verified, and sat unworked for four days while three sweeps added three more. **`tools/release_order_gate.py` now gates all five sequences** in `check.sh` and CI — direction declared per sequence rather than inferred, since a scrambled file would otherwise elect its own answer, and a sequence below a count floor fails rather than passes, because an empty sequence is sorted by definition. Also: ROADMAP's Part 4 heading claimed it ends at `0.10.0` while holding every release through `0.22.1`. **No code path changed** — no `schema_version`, no rebuild |
+| **[0.23.0](#0230--pnk-ask-exists-and-it-will-not-pretend-to-answer-you--20260811-1525)** | 20260811 15:25 | `pnk ask` exists, and it will not pretend to answer you | • `pnk ask` — the same evidence and filters as `pnk search`, plus **what answering would take**: one call at `high`/`medium`, decomposition at `low`, *cannot be told* uncalibrated<br>• Every run says **no answer was synthesised** — passages are not an answer<br>• **Nothing prints `--deep`**, which is not built: it is a usage error, not a flag that parses and apologises<br>• `search`'s own notice had advertised `pnk ask --deep`, in the sentence whose test is named for not doing that<br>• `--json` adds `answer: null` and an `escalation` block — one schema whether or not a loop ever runs<br>• The free-path gate covers the command **from the increment that creates it**, by matching its output<br>• Also: the deep-release plan and its eight decisions, and `tools/release_order_gate.py`<br>• *The deep release, interim cut (D-9)* — E2 to E7 are still to come |
 | | | **[Open corrections](#open-corrections--none-live)** | • **None live** — six on 20260808, two closed in 0.21.1, four in 0.22.0<br>• **Two of the last four were never forks — they were unchecked assumptions**, refuted by running the code they described<br>• Five routes in: building, reading, shipping, generalising a fix, and reviewing a new surface — none finds the others'<br>• An empty list means nobody has run Pinakes lately |
 | | | **[The graph release, staged](#the-graph-release-staged--gates-only-not-scheduled)** | • PPR channel, the `[ner]` extra<br>• Gate-only: no implementation plan exists, by design<br>• Not scheduled |
-| | | **[The deep release](#the-deep-release)** | • `pnk ask --deep` — the budgeted agentic loop<br>• Only paid entry point still unbuilt |
+| | | **[The deep release](#the-deep-release)** | • `pnk ask --deep` — the budgeted agentic loop<br>• Only paid entry point still unbuilt<br>• **E1 shipped in 0.23.0** — `pnk ask`, free; E2 is next |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
 ---
@@ -1127,6 +1130,55 @@ that is there, found by reading it, never by repeating last time's position — 
 not the neighbourhood.**
 
 **No code path changed**: no `schema_version`, no rebuild, nothing different for any KB.
+
+## 0.23.0 — `pnk ask` exists, and it will not pretend to answer you · 20260811 15:25
+
+**The deep release's first cut.** Its plan landed earlier the same day, all eight of its decisions
+were taken the same day, and E1 — the free half of `pnk ask` — is built.
+
+**What the command is for.** `pnk search` answers *what is in the KB about this*. `pnk ask` answers
+*what it would take to answer this*: the same pipeline, the same filters, the same cited passages,
+plus the size of the job. One synthesis call when retrieval came back confident; decomposition into
+subquestions and a search for each when it did not; and, on a KB with no fitted
+`[retrieval.confidence]`, **nothing can tell** — with the one sentence that would fix it. That last
+case is not an edge case: it is **every KB the template stamps**, because thresholds fitted on
+someone else's corpus are not a calibration, so the block ships commented out. The decision taken
+for it (D-22) was to run anyway, bounded by the spending caps rather than by the signal, and to say
+which bound would end a run — rather than refuse the release's headline feature on the default
+template.
+
+**Every run says that no answer was synthesised.** Nothing free can synthesise one, and someone
+typing `ask` expects an answer — so the line that says *this is evidence, not a conclusion* is not
+decoration, it is the difference between an honest retrieval surface and one that invites a reader
+to mistake evidence for a conclusion.
+
+**And nothing printed anywhere names `--deep`.** The paid loop is E4 and does not exist. A flag that
+parses and then apologises is exactly the defect [`0.20.1`](#0201--a-tier-that-is-not-built-stops-being-accepted--20260808-0641)
+fixed for `vector_tier = "sqlite-vec"` — the fix there was to refuse the *value*, not to keep
+accepting it with an apology — and a flag merely advertised is the same lie one layer out. So
+`--deep` is a usage error until it works. The sharpest instance was in the code this increment
+replaced: `pnk search`'s escalation notice advertised `pnk ask --deep`, neither a command nor a
+flag, **in the very sentence whose test is named for not naming a command that does not exist**. It
+now names `pnk ask`, which you can type.
+
+**`--json` is `pnk search`'s payload plus `answer: null` and an `escalation` block** — `branch`,
+`work`, `cost_eur` (null until E2's estimator exists; a wrong number would be worse than none) and
+`remedy` — so a consumer parses one schema whether or not a paid loop ever runs.
+
+**The free-path gate covers the new command from the increment that creates it**, before any paid
+module exists, and covers it by *matching its output*: no module row in `tests/test_paid_path.py`
+could tell that call from `pnk search`'s, so a row would have stayed green with the call deleted.
+A test asserting no ledger is written after `pnk ask` cannot fail today and says so in its own
+docstring — it is a tripwire for E4, which adds a paid loop to this same command through the same
+`_retrieve`.
+
+Also in this release: the deep-release plan itself with its eight decisions, `tools/release_order_gate.py`
+(five ordered sequences, gated in `check.sh` and CI), and two STATUS corrections about a wedged CI
+run.
+
+**No `schema_version` bump, no rebuild, no paid code, no new dependency, and no allowlist entry** —
+E1 adds none. *The deep release, interim cut (D-9): the name stays in the unbuilt-work table until
+E7.*
 
 ---
 
