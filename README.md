@@ -89,6 +89,7 @@ has been spent.
 pnk init my-kb                        # stamp a KB
 pnk sync                              # index what changed (git-hook friendly)
 pnk search "hybrid retrieval"         # free: BM25 + vector + rerank
+pnk ask "how does fusion work?"       # the same evidence, plus what answering would take
 pnk doctor                            # environment, coherence, orphans, link coverage
 pnk upgrade                           # what your template changed; writes nothing
 
