@@ -10,6 +10,72 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.22.0] — 20260811 08:26
+
+### Added
+
+- **An eval artifact records both the vector tier that was *asked for* and the one that *ran*.**
+  `vector_tier` keeps its meaning — the manifest's own string — and `vector_tier_resolved` is added
+  beside it. A KB on the default wrote `"vector_tier": "auto"`, and `auto` is a request to choose
+  rather than a tier, so the header could not answer the question a measurement artifact exists to
+  answer: which tier produced these numbers? **No existing value changes**, so re-running a
+  committed artifact shows no movement where no measurement moved. `tools/reachable_ceiling_probe.py`
+  copies this block and is updated with it, with a test that fails if the two ever disagree — the
+  copy is why the field went stale there in the first place.
+
+- **`pnk init --backend st|light` stamps the matching embedding and rerank models in both blocks.**
+  Every real KB stamped from `notes` immediately edited `provider` in *both* `[embedding]` and
+  `[rerank]`, always for the same reason — a `[light]` install — and the GUIDE documented doing it
+  by hand as the normal path. The default is unchanged: omit the flag and you get
+  `sentence-transformers`, exactly as before.
+- **It is a flag rather than detection, and the docs no longer claim otherwise.** Three places said
+  `pnk init` "cannot see which extra you installed"; `importlib.util.find_spec` can, and `embed.py`
+  already uses it. Stamping what it sees was rejected anyway: `pinakes.toml` is portable and
+  committed, so writing a machine-local fact into it bakes one author's install into a file their
+  collaborators read, and the KB then fails for whoever has the other extra. A flag records a
+  choice; sniffing records an accident.
+
+- **The release workflow creates the GitHub release.** It never had a step that did — `git log -S`
+  confirms none ever existed — while `docs/RELEASING.md` step 8 said to create it by hand and
+  `docs/STATUS.md` recorded doing so as a *recurring workflow failure* six times running. The job's
+  `success` was honest each time; it did everything it was asked to. `gh release create
+  --verify-tag --notes-from-tag` now runs **after** the PyPI upload, so a failure there can never
+  cost a release its version number — PyPI refuses a version twice.
+
+### Fixed
+
+- **`pnk init` validates a template's declaration before it creates anything.** A template whose
+  `files = [...]` is refused — it names `_versions/`, writes outside the KB, or reads outside the
+  template — used to raise *after* `pinakes.toml`, `docs/` and `.gitignore` had been written,
+  leaving a directory that is almost a KB and that a second `pnk init` then refuses *as* one. All
+  three checks now run before the first byte, so a refusal leaves no directory at all. The
+  guarantee is **validated before writing, not atomic**: a symlinked ancestor of the target can
+  still change between the check and the write. `--ci` has behaved this way since its own refusal
+  was moved; this makes the guarantee uniform.
+
+- **`pnk upgrade --apply` records the new template reference when the two versions render an
+  identical manifest.** A template bump touching only files the manifest does not contain — its
+  README, its starter golden set — produces no hunks, and `--apply` used to do nothing at all on
+  that outcome, **the `[kb] template` restamp included**. The KB went on recording the old
+  reference, `pnk doctor` went on warning, and no command existed that could clear it. Reachable
+  rather than theoretical: of the ten commits between `notes@1.0` and `1.1`, five touched only the
+  golden set. `--apply` now records the reference and changes nothing else, and **says so before it
+  writes** — the same consent path a `[budget]` change already takes. `pnk upgrade` without
+  `--apply` still writes nothing, on this outcome as on every other.
+
+- **`pnk sync --rebuild` re-chunks a paid-extracted document instead of copying its chunks
+  verbatim, whenever its extracted text is still cached.** A `[chunking]` edit — `headings`,
+  `max_tokens`, `overlap` — never reached a paid document, while the run stamped the current
+  settings over the whole index: an index claiming a chunking it did not have. The extraction cache
+  lives under `.pinakes/` and **survives a rebuild**, so the text is read back and re-chunked
+  without paying to extract again.
+- **When the cached text is gone, the chunks are kept and the index says so.** Re-extracting costs
+  money and `--rebuild` is the remedy `pnk doctor` prints, so this path never spends: the run names
+  each document it could not re-chunk, the index records how many exceptions it carries, and
+  `pnk doctor` reports *"index matches the configured chunking, except N paid document(s) carried
+  forward"* — **OK with a note, not a warning**, because nothing is broken and the only remedy
+  costs money.
+
 ## [0.21.1] — 20260810 01:48
 
 ### Fixed
@@ -3045,7 +3111,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.21.1...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.22.0
 [0.21.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.21.1
 [0.21.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.21.0
 [0.20.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.20.1

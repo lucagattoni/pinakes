@@ -147,22 +147,15 @@ file" there ([`docs/README.md`](docs/README.md) tells them apart).
     - **A plan's open decision is what the *plan* has not settled — not what the *repository* has not settled.** D-4 sat open while `manifest.py` had already answered it one line below `VECTOR_TIERS`. Read the sibling key before the decision table.
     - **Read a plan's test list as part of its specification, not as an illustration of it.** Where a plan's prose and its test list disagree, the test list has been forced to be concrete and the prose has not — T7's containment rule named only the target while its test list required refusing a symlink in the template, and both layers were real.
 
-- **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) has four
-  live items as of 0.21.1, and every one of them needs a decision, not a correction**: whether
-  `--rebuild` re-chunks a protected paid document (or records the index as inhomogeneous); what
-  `--apply` does on the *same manifest* outcome; whether an eval header records the tier it was
-  configured with, the one that ran, or both; and whether `pnk init` is transactional. **That is
-  the state to read the list in** — it is waiting on its planner, and an implementer picking one of
-  these forks is exactly what *Never assume what the plans have not decided* forbids.
-  - **The two closed in 0.21.1 are the two that had a stated *required* text** — the chunking-blind
-    graph gate and the damaged-template traceback. What made them takeable is what the remaining
-    four lack, so the split is not a coincidence of effort.
-  - **The six arrived five different ways, and the list is described by content rather than number**
-    (closing two renumbered the rest): building 2d found two that reading the code cannot show,
-    T3's adversarial *reading* found one, T4 *created* one in the increment that closed its
-    predecessor, T5 found one by asking where else a defect it had just fixed still lives, and T7
-    found one by asking what a new surface *inherits*. **None of those routes finds the others'** —
-    add to the list when something bites.
+- **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) is empty
+  as of 0.22.0** — for the second time in its life. It emptied once before, on 20260805, and
+  **refilled twice within three days**, so read an empty list as *nobody has run Pinakes lately*,
+  never as *finished*. Add to it when something bites.
+  - **Two of the last four had stood behind premises that were simply false**, and that is the
+    reusable part: one called the full fix unavailable, one called a free operation a paid one, and
+    running the code refuted both. **An item that reads as a decision may only be an unchecked
+    assumption** — run the check before escalating one, and before believing one that is already
+    there.
 
 ## Landing work: always push, always release
 

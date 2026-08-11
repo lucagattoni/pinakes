@@ -352,8 +352,11 @@ in an ANN index. `sqlite-vec` is also pre-v1 with breaking changes expected — 
 the tier being unbuilt and unnameable (below), and once built, by only being reached above 50k
 chunks with `vector_tier = "numpy"` supported as a config override.
 
-**What is built:** the NumPy tier only, at *any* corpus size — the `sqlite-vec` tier lands in the
-template release (§8). NumPy does not fail above 50k, it just costs linear RAM (≈1.5 GB at 1M chunks × 384
+**What is built:** the NumPy tier only, at *any* corpus size. **The `sqlite-vec` tier is deferred,
+not scheduled** — its gate would license the tier on partial evidence, since equivalence between the
+tiers can only be measured at demo-kb scale while performance needs a 100k-chunk corpus, so a pass
+would never show the two agree where it matters. It returns when a KB that is actually queried
+crosses ~50 000 chunks *and* its latency is a felt problem. NumPy does not fail above 50k, it just costs linear RAM (≈1.5 GB at 1M chunks × 384
 dims); `pnk doctor` warns past the 50k threshold and names the tier that will fix it. Stating this
 matters because a table of three tiers reads as three *available* tiers.
 
