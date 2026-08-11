@@ -123,11 +123,11 @@ number belongs to a release only when it is cut
 | **[0.18.0](#0180--the-drift-warning-says-something-you-can-act-on--20260807-2237)** | 20260807 22:37 | The drift warning says something you can act on | • Drift reported as a **computed line count**, both sides rendered<br>• Template against template — your own tuning cannot appear<br>• `cannot compare` on every KB that exists, with an honest remedy<br>• `same manifest` instead of a misleading `0 lines differ`<br>• An unsupplied variable is a message, not a traceback<br>• *The template release, interim cut (D-9)* |
 | **[0.19.0](#0190--what-the-template-changed-in-your-own-file--20260808-0418)** | 20260808 04:18 | What the template changed, in your own file | • `pnk upgrade` — the diff itself, hunk by hunk<br>• **applies cleanly / already applied / conflicts**, and *already applied* is why a later `--apply` cannot duplicate a key<br>• Writes nothing; exit **`3`** is new and means *no baseline*<br>• `cannot compare` on every KB that exists, same wording as `pnk doctor`<br>• Five adversarial passes: 30 → 22 → 13 → 6 → 1<br>• *The template release, interim cut (D-9)* |
 | **[0.20.0](#0200--adopting-the-change-after-you-have-seen-it--20260808-0541)** | 20260808 05:41 | Adopting the change, after you have seen it | • `pnk upgrade --apply` — writes the hunks that fit, refuses the whole run if any conflicts<br>• The **only** thing that rewrites a `pinakes.toml` after `pnk init`<br>• A `[budget]` cap applies like any other change — and both commands print it first, with both values (D-10)<br>• Never writes `[kb] requires_pinakes`; it names the keys and leaves the floor to you (D-11)<br>• A conflict now carries two codes: `0` reporting, `1` applying<br>• Five adversarial passes: 5 → 2 → 2 → 3 → 0<br>• *The template release, interim cut (D-9)* |
+| **[0.20.1](#0201--a-tier-that-is-not-built-stops-being-accepted--20260808-0641)** | 20260808 06:41 | A tier that is not built stops being accepted | • `vector_tier = "sqlite-vec"` is **refused at load time** — it was accepted and silently ignored<br>• A KB setting it **stops loading entirely**, on every command; the fix is `vector_tier = "auto"` and changes nothing else<br>• Silent on all four surfaces before this: `sync`, `search`, the index's `meta`, `pnk doctor`<br>• A **PATCH with a documented config break**, deliberately (D-12), on 0.7.1's precedent<br>• The value returns when the tier does — D-4 taken as option A (T5)<br>• `meta`'s tier now comes from `search.resolve_tier()`, not a literal<br>• *The template release, interim cut (D-9)* |
+| **[0.21.0](#0210--a-template-says-what-it-installs--20260808-1015)** | 20260808 10:15 | A template says what it installs | • `pnk templates` — name, version, description, `--json`; **no `--kb`**, the answer is a property of the install<br>• **CLI-only, decided 20260808** — no `pinakes_*` tool: creation has no MCP surface, so it would list templates its caller cannot use<br>• `template.toml` gains `files = [...]`; **absent still means the historical two**<br>• An entry naming `_versions/`, writing outside the KB, or reading outside the template is refused — all checked before anything is written<br>• The drift gate folds `files` into its hash, closing a hole this increment opened; every hash published before 0.21.0 is unchanged<br>• A damaged template is an `unreadable` row, not a traceback<br>• *The template release, interim cut (D-9)* |
+| **[0.21.1](#0211--a-damaged-template-says-so-and-the-gate-reads-what-it-was-chunked-under--20260810-0148)** | 20260810 01:48 | A damaged template says so, and the gate reads what it was chunked under | • Two open corrections closed — the two of six that could be **taken** rather than decided<br>• `graph_gate.py` compares `chunking`: two legs chunked differently are two corpora<br>• A damaged template install is a message on **five** functions, not the two the record named<br>• `TemplateNotInstalledError` — *absent* and *damaged* had been merged into one wrong sentence by the fix itself<br>• A template read error no longer prints where pinakes is installed<br>• Five passes; the last two found only wrong *claims* |
 | **[0.22.0](#0220--eight-decisions-and-two-of-them-were-never-decisions--20260811-0826)** | 20260811 08:26 | Eight decisions, and two of them were never decisions | • **T8 closed as a no-go, T6 deferred behind a written trigger** — both gates of the template release answered<br>• **The open-corrections list is empty**, for the second time in its life<br>• `pnk init --backend st\|light`; `init` validates before it writes<br>• `--rebuild` re-chunks paid documents from the cache, and **never spends**<br>• The release workflow creates the release — the step it never had, misdiagnosed six times<br>• **Two of the four corrections were unchecked assumptions, not forks** |
 | **[0.22.1](#0221--a-release-sweep-is-table-shaped--20260811-1226)** | 20260811 12:26 | A release sweep is table-shaped | • **Documentation only — no code path changed**<br>• This file's two prose blocks said 0.21.0 while every table in it said 0.22.0<br>• `docs/README.md`'s plan table had **no row** for the plan `CLAUDE.md` calls live — a missing row has no wrong text to find<br>• `RELEASING.md` gains the two checks that catch the class: grep the *superseded* version, and read `ls plans/` against the routing table<br>• Recorded: the 20260807 audit's **40 corrections are untouched** |
-| **[0.21.1](#0211--a-damaged-template-says-so-and-the-gate-reads-what-it-was-chunked-under--20260810-0148)** | 20260810 01:48 | A damaged template says so, and the gate reads what it was chunked under | • Two open corrections closed — the two of six that could be **taken** rather than decided<br>• `graph_gate.py` compares `chunking`: two legs chunked differently are two corpora<br>• A damaged template install is a message on **five** functions, not the two the record named<br>• `TemplateNotInstalledError` — *absent* and *damaged* had been merged into one wrong sentence by the fix itself<br>• A template read error no longer prints where pinakes is installed<br>• Five passes; the last two found only wrong *claims* |
-| **[0.21.0](#0210--a-template-says-what-it-installs--20260808-1015)** | 20260808 10:15 | A template says what it installs | • `pnk templates` — name, version, description, `--json`; **no `--kb`**, the answer is a property of the install<br>• **CLI-only, decided 20260808** — no `pinakes_*` tool: creation has no MCP surface, so it would list templates its caller cannot use<br>• `template.toml` gains `files = [...]`; **absent still means the historical two**<br>• An entry naming `_versions/`, writing outside the KB, or reading outside the template is refused — all checked before anything is written<br>• The drift gate folds `files` into its hash, closing a hole this increment opened; every hash published before 0.21.0 is unchanged<br>• A damaged template is an `unreadable` row, not a traceback<br>• *The template release, interim cut (D-9)* |
-| **[0.20.1](#0201--a-tier-that-is-not-built-stops-being-accepted--20260808-0641)** | 20260808 06:41 | A tier that is not built stops being accepted | • `vector_tier = "sqlite-vec"` is **refused at load time** — it was accepted and silently ignored<br>• A KB setting it **stops loading entirely**, on every command; the fix is `vector_tier = "auto"` and changes nothing else<br>• Silent on all four surfaces before this: `sync`, `search`, the index's `meta`, `pnk doctor`<br>• A **PATCH with a documented config break**, deliberately (D-12), on 0.7.1's precedent<br>• The value returns when the tier does — D-4 taken as option A (T5)<br>• `meta`'s tier now comes from `search.resolve_tier()`, not a literal<br>• *The template release, interim cut (D-9)* |
 | | | **[Open corrections](#open-corrections--none-live)** | • **None live** — six on 20260808, two closed in 0.21.1, four in 0.22.0<br>• **Two of the last four were never forks — they were unchecked assumptions**, refuted by running the code they described<br>• Five routes in: building, reading, shipping, generalising a fix, and reviewing a new surface — none finds the others'<br>• An empty list means nobody has run Pinakes lately |
 | | | **[The graph release, staged](#the-graph-release-staged--gates-only-not-scheduled)** | • PPR channel, the `[ner]` extra<br>• Gate-only: no implementation plan exists, by design<br>• Not scheduled |
 | | | **[The deep release](#the-deep-release)** | • `pnk ask --deep` — the budgeted agentic loop<br>• Only paid entry point still unbuilt |
@@ -879,126 +879,33 @@ No `schema_version` bump, so no rebuild.
 
 ---
 
-## 0.22.1 — A release sweep is table-shaped · 20260811 12:26
+## 0.20.1 — A tier that is not built stops being accepted · 20260808 06:41
 
-**Documentation only — no code path changed.** With every plan built out and the open-corrections
-list empty, the first question of the next session was what the repo says about itself. **This file
-said `0.21.0`.**
+- **`vector_tier = "sqlite-vec"` is refused at load time.** It named a tier that does not exist in
+  any release, and was accepted anyway. What that bought a user who set it: `pnk sync` stamped
+  `numpy` into the index's `meta` whatever the manifest said, `search` never read the field at all,
+  and `pnk doctor` reported nothing — **silent on all four surfaces there were to check**.
+- **A KB setting it now stops loading entirely — every command, not only search.** That is the cost,
+  it is stated rather than softened, and it is why the release notes lead with it. The fix is one
+  line, `vector_tier = "auto"`, and it changes nothing about how that KB behaves: it was already
+  getting the NumPy tier. The error names the tiers that are built and points at `docs/STATUS.md`.
+- **A PATCH carrying a documented config break, deliberately** (D-12, taken 20260804), on this
+  project's own **0.7.1** precedent — a release that hard-errored a manifest which previously
+  loaded, on the reasoning that the previous behaviour *was* the defect. It holds exactly here.
+- **The value is not cancelled.** It returns in the increment that builds the tier; `VECTOR_TIERS`
+  says so where the removal is, so nobody reads the removal as a decision against `sqlite-vec`.
+- **D-4 taken as option A**, and the evidence was not in the plan that asked the question: three
+  lines below `VECTOR_TIERS`, `graph_channel` already refuses `"ppr"` for the same reason — *a
+  manifest that can ask for a mode the code does not implement is a setting that silently does
+  nothing*. A plan's open decision is what the *plan* has not settled, which is not the same as what
+  the repository has not settled.
+- **The index's `vector_tier` is written from a resolver, not a literal.** `search.resolve_tier()`
+  is now the single answer to which tier ran; `sync` had hardcoded `"numpy"` beside a parsed field
+  nothing consumed.
 
-- **Its tables were right and its prose was wrong, which is the worst arrangement.** The release
-  table carried a `0.22.0` row, Part 4 carried the full `0.22.0` write-up, and § *Open corrections*
-  said *none live*. But `## Where things stand right now` was stamped **20260808 06:41** — *30
-  releases in 14 days*, *latest on PyPI `0.21.0`*, the template release *part-shipped, T1 to T4* —
-  and § *The template release* still read **"T4 and T7 are still to come"** about increments that
-  had shipped on 20260808. A reader checking one claim against another would have found agreement
-  five places out of six.
-- **A release sweep is table-shaped, and that is why it missed.** The row being added points at
-  itself, so a table gets written every time. A paragraph summarising *all* releases has no row to
-  add, so nothing in the act of cutting a release makes it obvious — five consecutive sweeps updated
-  every enumeration in the file and left both summaries behind.
-- **The second instance had no wrong text to find at all.** `docs/README.md`'s plan-routing table —
-  the table whose entire job is to say which plan is live — had **no row** for
-  `plans/20260811_0720-decisions-gates-and-corrections.md`, the plan `CLAUDE.md` names as the live
-  build order and the authority for eight decisions. The plan was written, its six increments were
-  built and landed, and the index of plans never learned it existed. **A missing row is invisible to
-  every check that reads rows**; only asking *"is everything that exists listed here?"* finds it.
-- **Both fixed, and the class is now checked rather than remembered.**
-  [RELEASING.md](RELEASING.md)'s sweep table gains two steps: **grep the tree for the version you
-  just superseded** — which does not care whether the stale claim is in a table or a paragraph — and
-  **read `ls plans/` against the routing table**, which is the only thing that finds an absence.
-  `CLAUDE.md`'s live-plan pointer now says its build order is built out and names what the next body
-  of work needs, which is a plan.
-- **What the audit turned up on the way.** The 20260807 documentation audit's **40 corrections have
-  never been worked** — the file has one commit, the one that created it — and that audit explicitly
-  deferred a full review of `docs/ROADMAP.md` until after T2, which shipped in 0.18.0. Neither is
-  visible from any release's own sweep.
-
-Verified against the index rather than the CHANGELOG: **34 releases in 17 days**, 26 versions on
-PyPI, every one from `0.2.2` on.
+No `schema_version` bump, so no rebuild.
 
 ---
-
-## 0.22.0 — Eight decisions, and two of them were never decisions · 20260811 08:26
-
-**Both gates of the template release answered, and the open-corrections list emptied.** Six
-increments, each landed separately.
-
-**T8 is closed as a no-go and T6 is deferred behind a written trigger.** T8's gate was run and
-fails on leg 3: every divergence in every admissible KB is a manifest value, which the gate itself
-defines as a preset rather than a template. Waiting cannot move that — re-opening needs a different
-*kind* of KB — so the gate's own redirect was taken instead, and it became `pnk init --backend`.
-T6 defers because a passing gate could not answer what it would buy: performance is measured on an
-unlabelled 100k-chunk corpus and equivalence only at demo-kb scale, by the plan's own statement.
-The trigger is written down: a KB that is actually queried crossing ~50 000 chunks *with* felt
-latency.
-
-**Two of the four open corrections were never forks — they were unchecked assumptions**, and this
-is the durable finding. The `pnk init` item rejected the full fix as unavailable, believing
-containment could not be judged before the target existed; `lands_inside` resolves the parent and
-`resolve()` is non-strict, so it can. The paid-rebuild item called re-chunking a paid call; the
-extraction cache lives under `.pinakes/` and survives `--rebuild`, so the text is free. **Both were
-refuted by running the code they described**, after standing for days.
-
-| Decision | What shipped |
-|---|---|
-| D-18 | `pnk init` validates a template's declaration before it creates anything — a refusal leaves no directory, and for an *adopted* directory leaves the user's files untouched |
-| D-16 | `--apply` records the reference on the `same manifest` outcome and says so first — consent, the shape D-10 already took for `[budget]` |
-| D-17 | An eval header records the tier that *ran* beside the one that was *asked for*; no existing value changes |
-| D-15 | `--rebuild` re-chunks a paid document from the extraction cache, and when the cache is cold keeps its chunks and records the index as inhomogeneous. **A rebuild never spends** |
-| D-20 | `pnk init --backend st\|light`, and three copies of a false claim that `init` "cannot see which extra you installed" |
-| D-19 | The release workflow creates the GitHub release — the step it never had |
-
-**The release step is the sharpest of the six.** `docs/STATUS.md` recorded "the workflow failed to
-create the release" at six consecutive releases; no workflow in this repository's history ever
-contained a release-creating step, and `docs/RELEASING.md` step 8 had always said to create it by
-hand. One document's routine step was the other's anomaly for six releases, and each restatement
-re-confirmed the *symptom* — which is equally consistent with both explanations. Reading the
-workflow once settled it.
-
-**Three tests in this release were green for the wrong reason and were caught by mutation, not by
-reading**: a path-leak assertion satisfied because the code short-circuited before the leaking
-branch, a `-k` filter that selected nothing and printed "125 deselected", and a flag assertion
-satisfied by the shell comment explaining the flag.
-
-## 0.21.1 — A damaged template says so, and the gate reads what it was chunked under · 20260810 01:48
-
-**Two open corrections, and they are the two of six that could be *taken* rather than decided.**
-Both had a stated required text; the four left behind each need a fork picked, which is why they
-are still open (Part 5).
-
-**`tools/graph_gate.py` compares the `chunking` block.** It checked `k`, `embedding`, `rerank`,
-`ranking` and `retrieval` and not the block `eval.header` records so a leg can say what it was built
-under. Two legs chunked differently are not one corpus with noise — they are two corpora, so rows
-paired on `id` were produced by searching different texts, and the rechunk is reported as whatever
-was under test. Measured: `max_tokens` 510 against 480 moves 63 of 1 858 chunk texts on one RFC.
-This is the gate that licensed the graph channel's default. Nothing under `chunking` is excepted,
-which is the one place it differs from `tools/two_leg_gate.py` and differs deliberately: there
-`chunking.metadata` *is* the independent variable, here it is `graph_channel`.
-
-**A damaged template install is a message rather than a traceback — on five functions, not the two
-the record named.** `render_manifest`, `declared_files` and `copy_extras` held the identical
-unguarded read, so closing only `describe` and `render_archived` would have left the defect three
-functions away. `jinja2.TemplateSyntaxError` needed its own arm because it is raised by
-`Template(...)`, not by `render`, where the existing handler sat.
-
-**The fix then came within one handler of opening its own replacement.** Making the failure a
-`PinakesError` routed it into an `except` that `pnk doctor` and `pnk upgrade` already had — one
-answering *"is not installed here"*, which sends the owner of a present-but-damaged template to
-install what they already have. Nothing went red: both surfaces still returned WARN and exit 3, and
-the existing tests cover the absent case, which still worked. `TemplateNotInstalledError` splits
-them, with a test on each surface. **A traceback is loud and a wrong sentence is quiet**, so this
-was a downgrade that read as an upgrade.
-
-A third pass found the `OSError` arm printing the install's absolute path: `OSError.__str__` appends
-its `filename`, and doctor's de-homing cannot help because it strips the *KB* root, which a template
-is outside by construction. The same defect class as the closed home-directory leak, one module
-away.
-
-**Five review passes, and the last two found only claims rather than code** — a comment asserting a
-fixture discriminated a mutant one function after measuring that it does not, and a changelog
-fragment describing a subset of its own commit. The test for the path leak was green for the wrong
-reason twice before it could fail: first with an injected error carrying no `filename`, then with
-one whose `strerror` made the code short-circuit before ever reaching the leaking branch.
 
 ## 0.21.0 — A template says what it installs · 20260808 10:15
 
@@ -1045,31 +952,124 @@ No `schema_version` bump, so no rebuild.
 
 ---
 
-## 0.20.1 — A tier that is not built stops being accepted · 20260808 06:41
+## 0.21.1 — A damaged template says so, and the gate reads what it was chunked under · 20260810 01:48
 
-- **`vector_tier = "sqlite-vec"` is refused at load time.** It named a tier that does not exist in
-  any release, and was accepted anyway. What that bought a user who set it: `pnk sync` stamped
-  `numpy` into the index's `meta` whatever the manifest said, `search` never read the field at all,
-  and `pnk doctor` reported nothing — **silent on all four surfaces there were to check**.
-- **A KB setting it now stops loading entirely — every command, not only search.** That is the cost,
-  it is stated rather than softened, and it is why the release notes lead with it. The fix is one
-  line, `vector_tier = "auto"`, and it changes nothing about how that KB behaves: it was already
-  getting the NumPy tier. The error names the tiers that are built and points at `docs/STATUS.md`.
-- **A PATCH carrying a documented config break, deliberately** (D-12, taken 20260804), on this
-  project's own **0.7.1** precedent — a release that hard-errored a manifest which previously
-  loaded, on the reasoning that the previous behaviour *was* the defect. It holds exactly here.
-- **The value is not cancelled.** It returns in the increment that builds the tier; `VECTOR_TIERS`
-  says so where the removal is, so nobody reads the removal as a decision against `sqlite-vec`.
-- **D-4 taken as option A**, and the evidence was not in the plan that asked the question: three
-  lines below `VECTOR_TIERS`, `graph_channel` already refuses `"ppr"` for the same reason — *a
-  manifest that can ask for a mode the code does not implement is a setting that silently does
-  nothing*. A plan's open decision is what the *plan* has not settled, which is not the same as what
-  the repository has not settled.
-- **The index's `vector_tier` is written from a resolver, not a literal.** `search.resolve_tier()`
-  is now the single answer to which tier ran; `sync` had hardcoded `"numpy"` beside a parsed field
-  nothing consumed.
+**Two open corrections, and they are the two of six that could be *taken* rather than decided.**
+Both had a stated required text; the four left behind each need a fork picked, which is why they
+are still open (Part 5).
 
-No `schema_version` bump, so no rebuild.
+**`tools/graph_gate.py` compares the `chunking` block.** It checked `k`, `embedding`, `rerank`,
+`ranking` and `retrieval` and not the block `eval.header` records so a leg can say what it was built
+under. Two legs chunked differently are not one corpus with noise — they are two corpora, so rows
+paired on `id` were produced by searching different texts, and the rechunk is reported as whatever
+was under test. Measured: `max_tokens` 510 against 480 moves 63 of 1 858 chunk texts on one RFC.
+This is the gate that licensed the graph channel's default. Nothing under `chunking` is excepted,
+which is the one place it differs from `tools/two_leg_gate.py` and differs deliberately: there
+`chunking.metadata` *is* the independent variable, here it is `graph_channel`.
+
+**A damaged template install is a message rather than a traceback — on five functions, not the two
+the record named.** `render_manifest`, `declared_files` and `copy_extras` held the identical
+unguarded read, so closing only `describe` and `render_archived` would have left the defect three
+functions away. `jinja2.TemplateSyntaxError` needed its own arm because it is raised by
+`Template(...)`, not by `render`, where the existing handler sat.
+
+**The fix then came within one handler of opening its own replacement.** Making the failure a
+`PinakesError` routed it into an `except` that `pnk doctor` and `pnk upgrade` already had — one
+answering *"is not installed here"*, which sends the owner of a present-but-damaged template to
+install what they already have. Nothing went red: both surfaces still returned WARN and exit 3, and
+the existing tests cover the absent case, which still worked. `TemplateNotInstalledError` splits
+them, with a test on each surface. **A traceback is loud and a wrong sentence is quiet**, so this
+was a downgrade that read as an upgrade.
+
+A third pass found the `OSError` arm printing the install's absolute path: `OSError.__str__` appends
+its `filename`, and doctor's de-homing cannot help because it strips the *KB* root, which a template
+is outside by construction. The same defect class as the closed home-directory leak, one module
+away.
+
+**Five review passes, and the last two found only claims rather than code** — a comment asserting a
+fixture discriminated a mutant one function after measuring that it does not, and a changelog
+fragment describing a subset of its own commit. The test for the path leak was green for the wrong
+reason twice before it could fail: first with an injected error carrying no `filename`, then with
+one whose `strerror` made the code short-circuit before ever reaching the leaking branch.
+
+## 0.22.0 — Eight decisions, and two of them were never decisions · 20260811 08:26
+
+**Both gates of the template release answered, and the open-corrections list emptied.** Six
+increments, each landed separately.
+
+**T8 is closed as a no-go and T6 is deferred behind a written trigger.** T8's gate was run and
+fails on leg 3: every divergence in every admissible KB is a manifest value, which the gate itself
+defines as a preset rather than a template. Waiting cannot move that — re-opening needs a different
+*kind* of KB — so the gate's own redirect was taken instead, and it became `pnk init --backend`.
+T6 defers because a passing gate could not answer what it would buy: performance is measured on an
+unlabelled 100k-chunk corpus and equivalence only at demo-kb scale, by the plan's own statement.
+The trigger is written down: a KB that is actually queried crossing ~50 000 chunks *with* felt
+latency.
+
+**Two of the four open corrections were never forks — they were unchecked assumptions**, and this
+is the durable finding. The `pnk init` item rejected the full fix as unavailable, believing
+containment could not be judged before the target existed; `lands_inside` resolves the parent and
+`resolve()` is non-strict, so it can. The paid-rebuild item called re-chunking a paid call; the
+extraction cache lives under `.pinakes/` and survives `--rebuild`, so the text is free. **Both were
+refuted by running the code they described**, after standing for days.
+
+| Decision | What shipped |
+|---|---|
+| D-18 | `pnk init` validates a template's declaration before it creates anything — a refusal leaves no directory, and for an *adopted* directory leaves the user's files untouched |
+| D-16 | `--apply` records the reference on the `same manifest` outcome and says so first — consent, the shape D-10 already took for `[budget]` |
+| D-17 | An eval header records the tier that *ran* beside the one that was *asked for*; no existing value changes |
+| D-15 | `--rebuild` re-chunks a paid document from the extraction cache, and when the cache is cold keeps its chunks and records the index as inhomogeneous. **A rebuild never spends** |
+| D-20 | `pnk init --backend st\|light`, and three copies of a false claim that `init` "cannot see which extra you installed" |
+| D-19 | The release workflow creates the GitHub release — the step it never had |
+
+**The release step is the sharpest of the six.** `docs/STATUS.md` recorded "the workflow failed to
+create the release" at six consecutive releases; no workflow in this repository's history ever
+contained a release-creating step, and `docs/RELEASING.md` step 8 had always said to create it by
+hand. One document's routine step was the other's anomaly for six releases, and each restatement
+re-confirmed the *symptom* — which is equally consistent with both explanations. Reading the
+workflow once settled it.
+
+**Three tests in this release were green for the wrong reason and were caught by mutation, not by
+reading**: a path-leak assertion satisfied because the code short-circuited before the leaking
+branch, a `-k` filter that selected nothing and printed "125 deselected", and a flag assertion
+satisfied by the shell comment explaining the flag.
+
+## 0.22.1 — A release sweep is table-shaped · 20260811 12:26
+
+**Documentation only — no code path changed.** With every plan built out and the open-corrections
+list empty, the first question of the next session was what the repo says about itself. **This file
+said `0.21.0`.**
+
+- **Its tables were right and its prose was wrong, which is the worst arrangement.** The release
+  table carried a `0.22.0` row, Part 4 carried the full `0.22.0` write-up, and § *Open corrections*
+  said *none live*. But `## Where things stand right now` was stamped **20260808 06:41** — *30
+  releases in 14 days*, *latest on PyPI `0.21.0`*, the template release *part-shipped, T1 to T4* —
+  and § *The template release* still read **"T4 and T7 are still to come"** about increments that
+  had shipped on 20260808. A reader checking one claim against another would have found agreement
+  five places out of six.
+- **A release sweep is table-shaped, and that is why it missed.** The row being added points at
+  itself, so a table gets written every time. A paragraph summarising *all* releases has no row to
+  add, so nothing in the act of cutting a release makes it obvious — five consecutive sweeps updated
+  every enumeration in the file and left both summaries behind.
+- **The second instance had no wrong text to find at all.** `docs/README.md`'s plan-routing table —
+  the table whose entire job is to say which plan is live — had **no row** for
+  `plans/20260811_0720-decisions-gates-and-corrections.md`, the plan `CLAUDE.md` names as the live
+  build order and the authority for eight decisions. The plan was written, its six increments were
+  built and landed, and the index of plans never learned it existed. **A missing row is invisible to
+  every check that reads rows**; only asking *"is everything that exists listed here?"* finds it.
+- **Both fixed, and the class is now checked rather than remembered.**
+  [RELEASING.md](RELEASING.md)'s sweep table gains two steps: **grep the tree for the version you
+  just superseded** — which does not care whether the stale claim is in a table or a paragraph — and
+  **read `ls plans/` against the routing table**, which is the only thing that finds an absence.
+  `CLAUDE.md`'s live-plan pointer now says its build order is built out and names what the next body
+  of work needs, which is a plan.
+- **What the audit turned up on the way.** The 20260807 documentation audit's **40 corrections have
+  never been worked** — the file has one commit, the one that created it — and that audit explicitly
+  deferred a full review of `docs/ROADMAP.md` until after T2, which shipped in 0.18.0. Neither is
+  visible from any release's own sweep.
+
+Verified against the index rather than the CHANGELOG: **34 releases in 17 days**, 26 versions on
+PyPI, every one from `0.2.2` on.
 
 ---
 
