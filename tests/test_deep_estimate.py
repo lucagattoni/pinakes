@@ -234,6 +234,17 @@ def test_the_passage_ceiling_stays_above_its_own_measurement() -> None:
     assert reserved >= widest_chars / pessimistic_chars_per_vendor_token
 
 
+def test_the_citation_envelope_stays_above_its_own_measurement() -> None:
+    """The same command reports the longest `path — heading_path` a passage is wrapped in: **220
+    characters** (20260811 16:17). At 2 characters per vendor token — pessimistic, because a path
+    fragments into more tokens than prose — that is ~110 tokens. The first draft asserted "under
+    120 characters" without running it and sized the constant at 100, which was a ceiling below a
+    measurement nobody had taken."""
+    longest_envelope_chars = 220
+    needed = longest_envelope_chars / 2
+    assert needed <= PASSAGE_ENVELOPE_TOKENS
+
+
 # --- the operation ------------------------------------------------------------------------------
 
 

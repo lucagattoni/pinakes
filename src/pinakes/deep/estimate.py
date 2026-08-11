@@ -65,10 +65,11 @@ CALLS_PER_ROUND: Final = 2
 #:
 #: **Measured 20260811 16:17** over 2,424 chunks at the template default `max_tokens = 510`: the
 #: widest real chunk holds **4.27 chars per embedding token** (2,131 chars at 499 tokens), and the
-#: worst ratio anywhere is 7.07 on a 15-token block no full-size chunk could sustain. English prose
-#: runs ~3.5-4 characters per vendor token; at a deliberately pessimistic **3**, the widest real
-#: chunk converts at 1.42x and even the 7.07 outlier at 2.36x. **3 is above both, and is not
-#: lowered to either** — a ceiling below a measurement is not a ceiling (`PAGE_TOKEN_CEILING`
+#: worst ratio anywhere is 7.07 on a 15-token block no full-size chunk could sustain. **The other
+#: half of the conversion is assumed, not measured** — English prose is commonly quoted at ~3.5-4
+#: characters per vendor token, and nothing here has counted one. At a pessimistic **3**, the
+#: widest real chunk converts at 1.42x and even the 7.07 outlier at 2.36x. **3 is above both, and
+#: is lowered to neither** — a ceiling below a measurement is not a ceiling (`PAGE_TOKEN_CEILING`
 #: records the same refusal, and E6 measures the vendor half rather than assuming it).
 VENDOR_TOKENS_PER_CHUNK_TOKEN: Final = 3
 

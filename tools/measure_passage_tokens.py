@@ -8,10 +8,12 @@ vendor tokens without a network call to a paid API, so the conversion cannot be 
 can be measured — exactly, offline, over the committed corpora — is the **character** width of a
 chunk at a given `max_tokens`, which is the term both tokenizers are a function of.
 
-**How the number is used.** `chars_per_chunk_token` measured here, divided by an assumed
-characters-per-vendor-token, is the multiplier `deep/estimate.py` applies to `[chunking]
-max_tokens`. The estimator's constant is set *above* that quotient at a pessimistic assumption,
-because a ceiling below a measurement is not a ceiling (`budget/estimate.py`'s
+**Two numbers, one for each half of a priced passage.** The chars-per-chunk-token ratio, divided by
+an assumed characters-per-vendor-token, is the multiplier `deep/estimate.py` applies to `[chunking]
+max_tokens` (`VENDOR_TOKENS_PER_CHUNK_TOKEN`). The longest `path — heading_path` is what the
+per-passage citation line has to fit inside (`PASSAGE_ENVELOPE_TOKENS`) — a number that was guessed
+before it was run, and the guess was wrong by nearly 2x. Both estimator constants are set *above*
+what this reports, because a ceiling below a measurement is not a ceiling (`budget/estimate.py`'s
 `PAGE_TOKEN_CEILING` records the same trade, and refused the same shortcut).
 
 **E6 replaces the assumed half, never this half.** The measurement run counts real vendor tokens
