@@ -177,9 +177,20 @@ so running it on every commit costs nothing.
 
 ## Choosing a backend
 
-`pnk init` always stamps `sentence-transformers`, because it cannot see which extra you installed.
-**On a `[light]` install, edit `pinakes.toml` before your first sync** — set `provider` in *both*
-blocks:
+**Tell `pnk init` which extra you installed**, and it stamps the matching models in both blocks:
+
+```bash
+pnk init my-kb --backend light     # fastembed, the [light] install
+pnk init my-kb                     # sentence-transformers, the default
+```
+
+**It is a flag rather than detection, deliberately.** `pinakes.toml` is portable and committed, so
+stamping whatever happens to be installed on the machine that ran `init` bakes one author's install
+into a file their collaborators read — and the KB then fails for whoever has the other extra. A flag
+records a choice; sniffing records an accident.
+
+**If you already have a KB, or you omitted the flag on a `[light]` install**, set `provider` in
+*both* blocks by hand before your first sync:
 
 ```toml
 [embedding]
@@ -211,8 +222,9 @@ garbage, and `pnk doctor` names the mismatch. `pnk sync --rebuild` fixes it, and
 ## Indexing PDFs
 
 Needs `pinakes[pdf]`. **PDFs are not indexed by default** — the shipped template does not include
-them, because `init` cannot see which extras you installed. `pnk sync` says so rather than leaving
-you to guess:
+them: whether a PDF extractor is installed is a fact about the machine, and a glob stamped without
+one turns every PDF into a failed document. (`--backend` chooses *embedding* models, and says
+nothing about PDF support.) `pnk sync` names what it skipped rather than leaving you to guess:
 
 ```
 0 indexed, 0 renamed, 0 metadata-only, 0 unchanged, 0 removed

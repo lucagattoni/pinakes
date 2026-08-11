@@ -179,9 +179,10 @@ An audit against the shipped CLI found the README was the only surface overclaim
 - The headline diagram showed a `.pdf` — the one file type v0.1 could not read.
 
 This is where the rule *"verify docs by running the commands they show"* comes from. The
-`[light]`-install trap it found is
-[still a caveat](STATUS.md#caveat-the-light-backend-needs-a-manifest-edit) today, and the
-[GUIDE](GUIDE.md#choosing-a-backend) leads with it.
+`[light]`-install trap it found stayed a caveat for eleven releases and is
+[a flag as of 0.22.0](STATUS.md#the-light-backend-is-a-flag-on-pnk-init) — `pnk init --backend
+light`, after two of the two real KBs stamped from `notes` made the same manual edit for the same
+reason. The [GUIDE](GUIDE.md#choosing-a-backend) leads with it.
 
 ## 0.1.3 — The first retrospective · 20260727 15:40
 

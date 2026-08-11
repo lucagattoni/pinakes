@@ -25,6 +25,30 @@ GITIGNORE = """\
 DEFAULT_EMBEDDING = ("sentence-transformers", "BAAI/bge-small-en-v1.5", 384)
 DEFAULT_RERANK = ("sentence-transformers", "BAAI/bge-reranker-base")
 
+BACKENDS: dict[str, tuple[tuple[str, str, int], tuple[str, str]]] = {
+    "st": (DEFAULT_EMBEDDING, DEFAULT_RERANK),
+    "light": (
+        ("fastembed", "BAAI/bge-small-en-v1.5", 384),
+        ("fastembed", "BAAI/bge-reranker-base"),
+    ),
+}
+"""What `--backend` stamps into `[embedding]` and `[rerank]` — one entry per install extra (D-20).
+
+**Both blocks together, because that is the edit users were making by hand.** Every real KB stamped
+from `notes` changed the provider in *both*, for one reason (a `[light]` install), and
+`docs/GUIDE.md` documents doing it manually as the normal path. Two of two is not a sample, but it
+is the whole population that exists.
+
+**An explicit flag, never detection.** `importlib.util.find_spec` can see which extra is installed
+— `embed.py` already uses it to name an alternative — and the GUIDE's claim that `init` "cannot see"
+is simply false. Stamping what it sees was rejected anyway: `pinakes.toml` is portable and
+committed, so writing a machine-local fact into it bakes the author's install into a file
+collaborators read, and the KB then fails for whoever has the other extra. A flag records a
+*choice*; sniffing records an *accident*.
+
+The default is unchanged: omit `--backend` and you get `st`, exactly as before.
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class InitResult:
@@ -57,6 +81,7 @@ def init(
     template_name: str = template.DEFAULT_TEMPLATE,
     now: str | None = None,
     ci: bool = False,
+    backend: str = "st",
 ) -> InitResult:
     info = template.describe(template_name)
     root = root.resolve()
@@ -78,8 +103,12 @@ def init(
 
     stamp = now or datetime.now(UTC).strftime("%Y%m%d %H:%M")
     kb_id = mint_kb_id()
-    provider, model, dim = DEFAULT_EMBEDDING
-    rerank_provider, rerank_model = DEFAULT_RERANK
+    if backend not in BACKENDS:
+        raise InitError(
+            f"{backend!r} is not a backend this build can stamp.",
+            remedy=f"Choose one of: {', '.join(sorted(BACKENDS))}.",
+        )
+    (provider, model, dim), (rerank_provider, rerank_model) = BACKENDS[backend]
 
     rendered = template.render_manifest(
         template_name,
