@@ -762,10 +762,44 @@ step, not an investigation** — `gh release create` needs `contents: write`, wh
 request, so it is a small change to a path that runs only on a tag. Proposed rather than taken:
 automating it is a decision about the release path, and the manual step is working.
 
+### The same rule, inverted: a run that never reported success had already shipped — 20260811 14:21
+
+**The `docs` run for `2f13ddd` finished both its jobs and deployed the site, and then sat at
+`in_progress` indefinitely.** Not slow — **wedged**: `updated_at` froze at `14:21:00`, twenty
+seconds *before* the deployment it was waiting on succeeded, and it had not moved 15 minutes later.
+
+| What | State | When |
+|---|---|---|
+| `build` job | success | 14:20:55 |
+| `deploy` job | success | 14:21:19 |
+| Pages deployment `5852282213` | `waiting → queued → in_progress → **success**` | 14:21:20 |
+| The published site | serves the new content, checked with `curl` | — |
+| **The run object** | **`in_progress`, `updated_at` 14:21:00** | still, at 14:36 |
+
+**Neither `gh run cancel` nor the documented `force-cancel` escalation could clear it** — both
+return **HTTP 500**. GitHub cannot finalise or cancel its own run, so there is nothing to do from
+here but wait for it.
+
+**Every earlier entry in this section is about a green run that had not shipped. This is the
+mirror**: a run that never went green, over work that shipped correctly. The rule
+[`RELEASING.md`](RELEASING.md) states — *verify the artifact, never the run's own status* — is what
+made the difference legible in a minute, and it turns out to cut both ways. **A run's status is not
+evidence in either direction.** What answered the question was `curl` against the published page and
+the deployment's own status history, neither of which depends on the run object being coherent.
+
+**One operational consequence, and it is the part that bites.**
+[`.github/workflows/docs.yml`](https://github.com/lucagattoni/pinakes/blob/main/.github/workflows/docs.yml)
+sets `concurrency: {group: pages, cancel-in-progress: false}` — deliberately, because a cancelled
+Pages deploy leaves the site on the previous commit with no failure shown. **A wedged run holds that
+group**, so the next push touching `docs/` queues behind it rather than deploying, and will not
+supersede it. The commit that added this section is the test: if the site updates, the group was
+released; if it queues, the group is held and the only levers are waiting for GitHub or changing the
+group name once.
+
 | | |
 |---|---|
 | Published versions | **0.2.2, 0.3.0, 0.4.0, 0.4.1, 0.5.0, 0.6.0, 0.7.0, 0.7.1, 0.8.0, 0.9.0, 0.10.0, 0.11.0, 0.12.0, 0.13.0, 0.14.0, 0.15.0, 0.15.1, 0.16.0, 0.17.0, 0.18.0, 0.19.0, 0.20.0, 0.20.1, 0.21.0, 0.21.1, 0.22.0, 0.22.1 and 0.22.2** — twenty-eight. **0.22.2 is documentation and one new developer gate** — it changes nothing for any KB: no code path, no `schema_version`, no rebuild. **0.22.1 is documentation only** and changes nothing for any KB: no code path, no `schema_version`, no rebuild. **0.22.0 adds `pnk init --backend st|light`** and a field to the eval artifact's header; everything else in it is a fix, and nothing changes for an existing KB — no `schema_version` bump, no rebuild. A `--rebuild` now re-chunks paid documents from the extraction cache and says so when it could not. **0.21.1 is fixes only** — a damaged template install reports rather than raising, `pnk doctor` and `pnk upgrade` stop calling a present-but-damaged template uninstalled, and a template read error no longer prints where pinakes is installed; nothing about a working KB changes. **0.21.0 adds `pnk templates`** and lets a template declare the files it writes; both are additive, and a KB created by an earlier release is unaffected. **0.20.1 refuses `vector_tier = "sqlite-vec"`**, a value that was accepted and silently ignored: a KB whose `pinakes.toml` sets it **stops loading entirely** on this release, on every command. The fix is one line — `vector_tier = "auto"` — and changes nothing about how that KB behaves, since it was already getting the NumPy tier. This is the one upgrade in this list that can stop a working KB, and it is a PATCH deliberately (D-12). **0.20.0 adds `pnk upgrade --apply`**, the only thing in Pinakes that rewrites a `pinakes.toml` after `pnk init` — it writes the hunks that fit after printing them, backs the file up to `pinakes.toml.orig`, and refuses the whole run if any hunk conflicts. It changes nothing for a KB recording `notes@1.0`, which still gets `cannot compare` and exit `3`. **0.19.0 adds `pnk upgrade`**, which prints what a template changed and wrote nothing; on every KB that predates the version archive it says `cannot compare` and exits `3`. **0.17.0 bumps the `notes` template to 1.1**, so `pnk doctor` WARNs on every KB created before it: a report, not a fault, and `pnk upgrade` (0.19.0) is what reads it — though on a KB recording `notes@1.0` it says `cannot compare` too, because that content was never archived. **0.18.0 makes that WARN say `cannot compare`** with a remedy naming the manual comparison, because `1.0`'s content was never archived — the message is the whole of what changed for an existing KB. **0.11.0 bumps `schema_version` to 3**, so the first `pnk sync` after upgrading rebuilds the whole index — free, and `pnk sync --rebuild` is what the refusal prints. 0.9.0's upload was refused on first attempt — renaming the repository broke PyPI trusted publishing, which matches on the exact repository name — and succeeded once the publisher was corrected. **0.8.0 renames the paid extractor's API key** to `PINAKES_ANTHROPIC_API_KEY`, so a KB driving the paid path from an older `.env` refuses until the variable is renamed. 0.2.0 and 0.2.1 predate publishing and are **not** on PyPI, so pinning either fails. **0.4.0 and earlier can destroy a sidecar's permanent ULID** (see 0.4.1) — 0.4.1 is the first release without it |
-| First upload | 20260728 17:16 UTC · latest 20260811 12:32 UTC (0.22.1) |
+| First upload | 20260728 17:16 UTC · latest 20260811 13:53 UTC (0.22.2) |
 | Extras available | `st`, `light`, `pdf`, `claude` — all four |
 | `requires-python` | `>=3.13` |
 
