@@ -17,13 +17,13 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260811 12:18 UTC
+## Where things stand right now — 20260811 12:26 UTC
 
-- **33 releases in 17 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.22.0`](#0220--eight-decisions-and-two-of-them-were-never-decisions--20260811-0826) on
-  20260811.
-- **Latest on PyPI: `0.22.0`.** Every release from `0.2.2` on is published
-  ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)).
+- **34 releases in 17 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.22.1`](#0221--a-release-sweep-is-table-shaped--20260811-1226) on 20260811.
+- **Latest on PyPI: `0.22.0`; `0.22.1` publishes with its tag** and is confirmed against the index
+  rather than assumed ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)). Every release
+  from `0.2.2` on is published.
 - **Two of the four named releases have shipped** — the links release across
   [`0.5.0`](#050--links-you-can-walk--20260731-1127)–[`0.6.0`](#060--links-you-can-write--20260801-1051),
   the graph release in [`0.11.0`](#the-graph-release--shipped-0110). **The template release has
@@ -124,6 +124,7 @@ number belongs to a release only when it is cut
 | **[0.19.0](#0190--what-the-template-changed-in-your-own-file--20260808-0418)** | 20260808 04:18 | What the template changed, in your own file | • `pnk upgrade` — the diff itself, hunk by hunk<br>• **applies cleanly / already applied / conflicts**, and *already applied* is why a later `--apply` cannot duplicate a key<br>• Writes nothing; exit **`3`** is new and means *no baseline*<br>• `cannot compare` on every KB that exists, same wording as `pnk doctor`<br>• Five adversarial passes: 30 → 22 → 13 → 6 → 1<br>• *The template release, interim cut (D-9)* |
 | **[0.20.0](#0200--adopting-the-change-after-you-have-seen-it--20260808-0541)** | 20260808 05:41 | Adopting the change, after you have seen it | • `pnk upgrade --apply` — writes the hunks that fit, refuses the whole run if any conflicts<br>• The **only** thing that rewrites a `pinakes.toml` after `pnk init`<br>• A `[budget]` cap applies like any other change — and both commands print it first, with both values (D-10)<br>• Never writes `[kb] requires_pinakes`; it names the keys and leaves the floor to you (D-11)<br>• A conflict now carries two codes: `0` reporting, `1` applying<br>• Five adversarial passes: 5 → 2 → 2 → 3 → 0<br>• *The template release, interim cut (D-9)* |
 | **[0.22.0](#0220--eight-decisions-and-two-of-them-were-never-decisions--20260811-0826)** | 20260811 08:26 | Eight decisions, and two of them were never decisions | • **T8 closed as a no-go, T6 deferred behind a written trigger** — both gates of the template release answered<br>• **The open-corrections list is empty**, for the second time in its life<br>• `pnk init --backend st\|light`; `init` validates before it writes<br>• `--rebuild` re-chunks paid documents from the cache, and **never spends**<br>• The release workflow creates the release — the step it never had, misdiagnosed six times<br>• **Two of the four corrections were unchecked assumptions, not forks** |
+| **[0.22.1](#0221--a-release-sweep-is-table-shaped--20260811-1226)** | 20260811 12:26 | A release sweep is table-shaped | • **Documentation only — no code path changed**<br>• This file's two prose blocks said 0.21.0 while every table in it said 0.22.0<br>• `docs/README.md`'s plan table had **no row** for the plan `CLAUDE.md` calls live — a missing row has no wrong text to find<br>• `RELEASING.md` gains the two checks that catch the class: grep the *superseded* version, and read `ls plans/` against the routing table<br>• Recorded: the 20260807 audit's **40 corrections are untouched** |
 | **[0.21.1](#0211--a-damaged-template-says-so-and-the-gate-reads-what-it-was-chunked-under--20260810-0148)** | 20260810 01:48 | A damaged template says so, and the gate reads what it was chunked under | • Two open corrections closed — the two of six that could be **taken** rather than decided<br>• `graph_gate.py` compares `chunking`: two legs chunked differently are two corpora<br>• A damaged template install is a message on **five** functions, not the two the record named<br>• `TemplateNotInstalledError` — *absent* and *damaged* had been merged into one wrong sentence by the fix itself<br>• A template read error no longer prints where pinakes is installed<br>• Five passes; the last two found only wrong *claims* |
 | **[0.21.0](#0210--a-template-says-what-it-installs--20260808-1015)** | 20260808 10:15 | A template says what it installs | • `pnk templates` — name, version, description, `--json`; **no `--kb`**, the answer is a property of the install<br>• **CLI-only, decided 20260808** — no `pinakes_*` tool: creation has no MCP surface, so it would list templates its caller cannot use<br>• `template.toml` gains `files = [...]`; **absent still means the historical two**<br>• An entry naming `_versions/`, writing outside the KB, or reading outside the template is refused — all checked before anything is written<br>• The drift gate folds `files` into its hash, closing a hole this increment opened; every hash published before 0.21.0 is unchanged<br>• A damaged template is an `unreadable` row, not a traceback<br>• *The template release, interim cut (D-9)* |
 | **[0.20.1](#0201--a-tier-that-is-not-built-stops-being-accepted--20260808-0641)** | 20260808 06:41 | A tier that is not built stops being accepted | • `vector_tier = "sqlite-vec"` is **refused at load time** — it was accepted and silently ignored<br>• A KB setting it **stops loading entirely**, on every command; the fix is `vector_tier = "auto"` and changes nothing else<br>• Silent on all four surfaces before this: `sync`, `search`, the index's `meta`, `pnk doctor`<br>• A **PATCH with a documented config break**, deliberately (D-12), on 0.7.1's precedent<br>• The value returns when the tier does — D-4 taken as option A (T5)<br>• `meta`'s tier now comes from `search.resolve_tier()`, not a literal<br>• *The template release, interim cut (D-9)* |
@@ -875,6 +876,45 @@ first two fixes unfinished; pass 4 found nothing in the code and three false cla
 increment never opened.
 
 No `schema_version` bump, so no rebuild.
+
+---
+
+## 0.22.1 — A release sweep is table-shaped · 20260811 12:26
+
+**Documentation only — no code path changed.** With every plan built out and the open-corrections
+list empty, the first question of the next session was what the repo says about itself. **This file
+said `0.21.0`.**
+
+- **Its tables were right and its prose was wrong, which is the worst arrangement.** The release
+  table carried a `0.22.0` row, Part 4 carried the full `0.22.0` write-up, and § *Open corrections*
+  said *none live*. But `## Where things stand right now` was stamped **20260808 06:41** — *30
+  releases in 14 days*, *latest on PyPI `0.21.0`*, the template release *part-shipped, T1 to T4* —
+  and § *The template release* still read **"T4 and T7 are still to come"** about increments that
+  had shipped on 20260808. A reader checking one claim against another would have found agreement
+  five places out of six.
+- **A release sweep is table-shaped, and that is why it missed.** The row being added points at
+  itself, so a table gets written every time. A paragraph summarising *all* releases has no row to
+  add, so nothing in the act of cutting a release makes it obvious — five consecutive sweeps updated
+  every enumeration in the file and left both summaries behind.
+- **The second instance had no wrong text to find at all.** `docs/README.md`'s plan-routing table —
+  the table whose entire job is to say which plan is live — had **no row** for
+  `plans/20260811_0720-decisions-gates-and-corrections.md`, the plan `CLAUDE.md` names as the live
+  build order and the authority for eight decisions. The plan was written, its six increments were
+  built and landed, and the index of plans never learned it existed. **A missing row is invisible to
+  every check that reads rows**; only asking *"is everything that exists listed here?"* finds it.
+- **Both fixed, and the class is now checked rather than remembered.**
+  [RELEASING.md](RELEASING.md)'s sweep table gains two steps: **grep the tree for the version you
+  just superseded** — which does not care whether the stale claim is in a table or a paragraph — and
+  **read `ls plans/` against the routing table**, which is the only thing that finds an absence.
+  `CLAUDE.md`'s live-plan pointer now says its build order is built out and names what the next body
+  of work needs, which is a plan.
+- **What the audit turned up on the way.** The 20260807 documentation audit's **40 corrections have
+  never been worked** — the file has one commit, the one that created it — and that audit explicitly
+  deferred a full review of `docs/ROADMAP.md` until after T2, which shipped in 0.18.0. Neither is
+  visible from any release's own sweep.
+
+Verified against the index rather than the CHANGELOG: **34 releases in 17 days**, 26 versions on
+PyPI, every one from `0.2.2` on.
 
 ---
 

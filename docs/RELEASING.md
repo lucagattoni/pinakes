@@ -67,7 +67,7 @@ with no tag, no release and nothing published (`RETROSPECTIVES.md`, 20260727).
 | `docs/STATUS.md` — *Published on PyPI* | The published-version list. It is a fact about the **index**, not about this repo |
 | `docs/STATUS.md` — *Release roadmap* | Tick the row, and drop the name from the unbuilt-work table above it — **only at a release's final cut**, never at an interim one |
 | `README.md` | The install lines, if the release added an extra or a capability a new user would look for |
-| `docs/ROADMAP.md` | **Three places, and it was missed the first time this table was used against it.** The summary table needs a row; Part 4 needs a `## x.y.z — <title> · <stamp>` section (the table's row links to its anchor, so the two are written together or the link dies); and Part 5's *Open corrections* heading carries its own **item count in the anchor** — closing an item there changes the anchor and silently breaks every in-page link to it. Added 20260805 18:02, after 0.12.0's sweep found the list naming three items that had closed and repeating a diagnosis the plan had already withdrawn |
+| `docs/ROADMAP.md` | **Five places, and the last two were missed by five consecutive sweeps.** The summary table needs a row; Part 4 needs a `## x.y.z — <title> · <stamp>` section (the table's row links to its anchor, so the two are written together or the link dies); Part 5's *Open corrections* heading carries its own **item count in the anchor** — closing an item there changes the anchor and silently breaks every in-page link to it. **Then the two prose blocks: `## Where things stand right now` — its stamp, its release count and its per-release-name state — and `## The template release`.** Added 20260805 18:02 after 0.12.0's sweep; the prose blocks added 20260811 12:26 after they sat three releases behind while every table in the same file was current |
 
 **Also grep the whole tree for claims the release just falsified** — the class a checklist of
 *sections* cannot catch, found eight times on 20260803, in three docs contradicting a fourth:
@@ -76,6 +76,22 @@ with no tag, no release and nothing published (`RETROSPECTIVES.md`, 20260727).
 
 Re-judge every hit against what this release shipped. Most are fine (historical records, generic
 instructions); the ones that are not are exactly the ones nothing else will ever flag.
+
+**And grep for the *previous* version number, not only for those phrases:**
+
+    grep -rn "0\.22\.0" docs/ plans/ README.md CLAUDE.md    # ← the version you just superseded
+
+**A release sweep is table-shaped**, and that is why it misses prose: the row being added points at
+itself, so a table gets written every time, while a paragraph summarising *all* releases has no row
+to add and nothing in the act of cutting a release makes it obvious. `grep` for the superseded
+number does not care which shape the claim is in. Added 20260811 12:26.
+
+**Last, ask what is *missing* rather than what is wrong** — `ls plans/` read against
+[`docs/README.md`](https://github.com/lucagattoni/pinakes/blob/main/docs/README.md)'s plan-routing
+table, and its live rows against `CLAUDE.md`'s. On 20260811 that table had **no row at all** for the
+plan `CLAUDE.md` named as the live build order: the plan was written, its six increments were built
+and landed, and the index of plans never learned it existed. **A missing row has no wrong text to
+find**, so no diff review and no grep can reach it — only the question does.
 
 **Verify by querying the index and installing what the docs show, not by reading them**
 (`curl -s https://pypi.org/pypi/pinakes/json`). **Three separate caches will tell you a successful
