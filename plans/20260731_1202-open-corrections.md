@@ -34,7 +34,8 @@ and that no increment had reason to look at until one added a new way to trigger
 reading, shipping, generalising from a fix, and reviewing what a new surface inherits each find a
 different class, and none of them finds the others'.
 
-**Four live as of 0.21.1 (20260810 01:48), and all four were answered on 20260811 07:20.** Each
+**Three live. Four were live at 0.21.1 (20260810 01:48), all four were answered on 20260811
+07:20, and `pnk init` (D-18) is built and closed below.** Each
 had stalled on the same thing — its *required* text was "choose between these two defensible
 answers", which an implementer may not do — so the list had converged on decisions rather than
 fixes. [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md) takes all four, and every item below now carries a
@@ -141,51 +142,13 @@ to move when nothing did is the cost that decided it.
 **Recorded 20260808 by T5's first review pass**, which found it by asking where else the same
 defect class lives.
 
-
-### 4 · `pnk init` writes the manifest before it knows the template's files are legal
-
-**File:** `src/pinakes/init.py` — `pinakes.toml` is written at line 88, `copy_extras` is called at
-line 99.
-**Current:** a template whose `files = [...]` declaration is refused — it names `_versions/`, writes
-outside the KB, or reads outside the template — raises after the manifest, `docs/` and `.gitignore`
-already exist. The user is left with a directory that is *almost* a KB, and a second `pnk init`
-then refuses it as one.
-
-**Required: a decision, not a correction.** Two defensible answers. Validate everything before
-writing anything, which `init` already does for one case —
-`test_ci_refuses_an_existing_workflow_before_creating_anything` pins exactly that property for
-`--ci`, and its docstring records that the refusal *"left a half-made KB"* until it was moved. Or
-accept it and say so in the error, since the remedy is `rm -rf` on a directory the user just asked
-to have created.
-
-**Decided 20260811 (D-18, [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md)): yes — hoist the *full* validation before any write.**
-
-**This item's objection rested on a false premise.** It assumed containment could not be checked
-before the target exists, so only the narrow hoist was available and the guarantee would be
-half-true. Measured: `lands_inside` resolves the *parent*, and a non-strict `resolve()` needs no
-existing directory — against a path never created, `README.md` → `True` and `../escape.md` →
-`False`. So declaration shape, the `_versions` rule, target containment **and** template-source
-containment all run before `mkdir`. The narrow hoist stays rejected for this item's own reason.
-
-`init` already guarantees exactly this for `--ci`
-(`test_ci_refuses_an_existing_workflow_before_creating_anything`, whose docstring records that the
-refusal *"left a half-made KB"* until it was moved), so this makes one guarantee uniform rather than
-inventing one. **Claim "validated before writing", never "atomic"** — a symlinked ancestor of the
-target can still change between check and write.
-
-It is still not T7's defect: **any** failure after the manifest write produces the same state, and
-that has been true since `init` existed.
-
-**Recorded 20260808 by T7's third review pass**, which found it by asking what a new surface
-inherits rather than what it introduces.
-
-
 ---
 
 ## Closed — recorded so nobody reopens them
 
 | Was | Closed by |
 |---|---|
+| `pnk init` wrote `pinakes.toml`, `docs/` and `.gitignore` before it knew the template's `files` declaration was legal, so a refusal left a directory that is *almost* a KB — which a second `pnk init` then refuses **as** one. Pre-existing: any failure after that write did it, and T7 only added a new way to reach it | 0.22.0 (D-18). All three checks — declaration shape, the `_versions` rule, and both containment layers — run before the first byte. **The item had rejected this as unavailable**, believing containment could not be judged before the target existed; `lands_inside` resolves the *parent* and `resolve()` is non-strict, so against a path never created `README.md` lands inside and `../escape.md` does not. The narrow hoist stayed rejected for the item's own reason. `copy_extras` split into `validate_extras` and a copy, with `validated=` defaulting to checking anyway so no other caller silently gets an unchecked copy. Guarantee stated as **validated before writing, never atomic** — a symlinked ancestor can still change between check and write. The review pass added the case every test was blind to: a refusal against a directory being *adopted*, where the property is not "root does not exist" but "the user's files are untouched" |
 | `graph_gate.check_identity` was blind to `chunking` — it compared `k`, `embedding`, `rerank`, `ranking` and `retrieval` and not the block `5993521` added to `eval.header` so a leg could say what it was built under. Two legs chunked differently are two corpora, so rows paired on `id` were produced by searching different texts and the rechunk was reported as whatever was under test — on the gate that licensed the graph channel's default | 0.21.1. The whole block, with **nothing excepted** — which is the one place it differs from `tools/two_leg_gate.py`, and deliberately: there `chunking.metadata` *is* the independent variable, here it is `graph_channel`. Both tests are built so that copying two_leg_gate's exception list across fails. A block absent from all three legs still compares equal and passes, as the five fields beside it do: the gate already refuses legs not produced by the binary under test, and requiring it would refuse the graph release's own archived artifacts |
 | A damaged template install escaped as a traceback, on two surfaces | 0.21.1, and on **five** functions rather than the two this item named — `render_manifest`, `declared_files` and `copy_extras` held the identical unguarded read, so fixing only `describe` and `render_archived` would have left the defect three functions away. `jinja2.TemplateSyntaxError` needed its own arm because it is raised by `Template(...)` and not by `render`, where the existing `UndefinedError` handler sits. **The fix then nearly opened its own replacement**: making the failure a `PinakesError` routed it into `doctor` and `upgrade`'s existing `except`, which answers *"is not installed here"* — advice that sends the owner of a *present but damaged* template to install what they already have. `TemplateNotInstalledError` splits them, with a test on each surface. A third pass found the `OSError` arm printing the install's absolute path, since `OSError.__str__` appends its `filename` and doctor's de-homing strips the *KB* root, which a template is outside by construction |
 | CRLF was invisible to the placement predicate, and only `--apply` could be hurt by it — `Path.read_text` opens with universal newlines, so a CRLF manifest is already `\n`-only by the time `hunks` sees it, which is right for a *report* and would have written LF lines into a CRLF file | 20260808, in T4, and the fork it named resolves to **both**. A **uniform** convention is preserved, because a CRLF manifest is an ordinary Windows file and rewriting it is a change nobody asked for; a **mixed** one is refused, because it is already two tools disagreeing and picking a winner silently rewrites lines the user never touched. The report path is unaffected either way, since reporting reads. **A third case the item had not named turned up in review**: `str.splitlines()` also breaks on `\u2028`, `\u2029` and `\x85`, all three legal in a TOML comment — so the report and the writer would disagree about *which lines the file has*. Refused, for the same reason |
