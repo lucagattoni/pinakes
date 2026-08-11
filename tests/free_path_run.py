@@ -12,9 +12,9 @@ Deliberately *not* named `test_*`: pytest must not collect it. It is a script, r
 
     python tests/free_path_run.py <modules.json>
 
-The run covers every free surface the design has: `pnk init`, `pnk sync`, `pnk search`, `pnk link`,
-`pnk links`, `pnk budget`, `pnk upgrade`, `pnk doctor`, and an MCP handshake — through `cli.main`,
-so CLI dispatch is in the graph too, not only the libraries beneath it.
+The run covers every free surface the design has: `pnk init`, `pnk sync`, `pnk search`, `pnk ask`,
+`pnk link`, `pnk links`, `pnk budget`, `pnk upgrade`, `pnk doctor`, and an MCP handshake — through
+`cli.main`, so CLI dispatch is in the graph too, not only the libraries beneath it.
 
 **Two KBs, and the second is the point.** The first is an ordinary free KB. The second is
 configured for `claude-vision` and gets a `pnk doctor`, because that is the combination where the
@@ -38,7 +38,7 @@ from tempfile import TemporaryDirectory
 
 import numpy as np
 
-from pinakes.cli import main
+from pinakes.cli import NO_ANSWER_SYNTHESISED, main
 from pinakes.embed import ModelInfo, Vectors, register_embedding_backend, register_reranker
 from pinakes.extract import CLAUDE_VISION
 from pinakes.manifest import load
@@ -205,6 +205,27 @@ def _run_free_surfaces(root: Path) -> None:
         raise SystemExit(f"free-path run: `pnk sync` wrote no index under {root}")
     if main(["search", "retrieval", "--kb", str(root)]) != 0:
         raise SystemExit(f"free-path run: `pnk search` failed on {root}")
+    # `pnk ask` (E1) — the free half of the command whose *other* half is the second paid entry
+    # point this project will ever have. It belongs in this gate from the increment that creates it,
+    # before any paid module exists: the two halves share `_retrieve`, and the free one is what a
+    # user gets by default, so the leak this gate exists to catch would arrive by that route.
+    #
+    # **Captured and matched, not merely called.** No surface row in `test_paid_path.py` could
+    # discriminate this call — `run_ask` lives in `pinakes.cli` and reaches `pinakes.search`, both
+    # already in the list — so deleting the line would leave every assertion there green. Matching
+    # the one sentence `pnk ask` always prints is what makes its coverage real, and it is the same
+    # remedy the paid KB's `claude-vision` echo below uses for the same failure mode.
+    asked = io.StringIO()
+    with redirect_stdout(asked):
+        code = main(["ask", "what does retrieval fuse?", "--kb", str(root)])
+    print(asked.getvalue(), end="")
+    if code != 0:
+        raise SystemExit(f"free-path run: `pnk ask` failed on {root}")
+    if NO_ANSWER_SYNTHESISED not in asked.getvalue():
+        raise SystemExit(
+            "free-path run: `pnk ask` printed no answer-synthesised line, so the surface this "
+            "gate claims to cover did not actually run"
+        )
     # `pnk budget` reads the spend ledger and the price table (I6b). It can never spend — which is
     # exactly why it belongs here: a money-shaped command is the most plausible future home for an
     # accidental paid import, and it is on the free path by definition.

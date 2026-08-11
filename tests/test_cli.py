@@ -21,8 +21,12 @@ DESIGN_V01_COMMANDS = frozenset({"init", "sync", "search", "doctor", "install-ho
 # `templates` in T7, on the same footing as `upgrade`: its declaration is docs/CLI.md's row, added
 # when decision O-1 accepted the surface (20260804 10:30) and **before** the command existed, so
 # that the repository never held a command with no prior decision record.
+# `ask` in E1 of the deep release, declared by docs/DESIGN.md §1 and §4.2-4.3, which name it as a
+# paid entry point and specify its free half — "on CLI: returns retrieval-only and prints how to
+# escalate". Listed here rather than only in IMPLEMENTED for exactly that reason: DESIGN names the
+# command, so dropping it must fail loudly.
 DESIGN_COMMANDS = DESIGN_V01_COMMANDS | frozenset(
-    {"budget", "links", "link", "upgrade", "templates"}
+    {"budget", "links", "link", "upgrade", "templates", "ask"}
 )
 
 
@@ -58,11 +62,13 @@ IMPLEMENTED = frozenset(
         "links",
         "link",
         "upgrade",
-        # T7. Deliberately **not** added to `DESIGN_COMMANDS` above: that set is docs/DESIGN.md
-        # §8's list, hard-coded so a dropped command fails loudly, and §8 does not name this one —
-        # `pnk templates` was decided by O-1 of the template release plan and is carried by
-        # docs/CLI.md. Adding it here says it is built; adding it there would claim §8 says so.
+        # T7, whose declaration is docs/CLI.md's row rather than docs/DESIGN.md §8 — added when
+        # decision O-1 accepted the surface (20260804 10:30) and before the command existed, so the
+        # repository never held a command with no prior decision record.
         "templates",
+        # E1. Its **free** half is built: cited evidence, the confidence line, and what answering
+        # would take. The paid `--deep` loop is E4, so no flag of it parses yet.
+        "ask",
     }
 )
 
