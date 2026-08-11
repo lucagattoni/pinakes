@@ -85,8 +85,8 @@ precision nobody measured.
   [`plans/20260811_1358-deep-release.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260811_1358-deep-release.md),
   written 20260811 13:58, **all eight of its decisions taken the same day**. Seven increments;
   **E1, E2 and E3 have landed** — `pnk ask` free and unable to spend, the round estimator, and the
-  paid client with the second allowlist entry. **E4, the loop, is next and is blocked on `[deep]`'s
-  manifest keys.**
+  paid client with the second allowlist entry. **E4, the loop, is next and is unblocked** — D-29 and D-30
+  (20260811 20:08) settled `[deep]`'s keys and the default caps a loop needs.
 
 ---
 
@@ -138,7 +138,7 @@ number belongs to a release only when it is cut
 | **[0.23.0](#0230--pnk-ask-exists-and-it-will-not-pretend-to-answer-you--20260811-1525)** | 20260811 15:25 | `pnk ask` exists, and it will not pretend to answer you | • `pnk ask` — the same evidence and filters as `pnk search`, plus **what answering would take**: one call at `high`/`medium`, decomposition at `low`, *cannot be told* uncalibrated<br>• Every run says **no answer was synthesised** — passages are not an answer<br>• **Nothing prints `--deep`**, which is not built: it is a usage error, not a flag that parses and apologises<br>• `search`'s own notice had advertised `pnk ask --deep`, in the sentence whose test is named for not doing that<br>• `--json` adds `answer: null` and an `escalation` block — one schema whether or not a loop ever runs<br>• The free-path gate covers the command **from the increment that creates it**, by matching its output<br>• Also: the deep-release plan and its eight decisions, and `tools/release_order_gate.py`<br>• *The deep release, interim cut (D-9)* — E2 to E7 are still to come |
 | | | **[Open corrections](#open-corrections--none-live)** | • **None live** — six on 20260808, two closed in 0.21.1, four in 0.22.0<br>• **Two of the last four were never forks — they were unchecked assumptions**, refuted by running the code they described<br>• Five routes in: building, reading, shipping, generalising a fix, and reviewing a new surface — none finds the others'<br>• An empty list means nobody has run Pinakes lately |
 | | | **[The graph release, staged](#the-graph-release-staged--gates-only-not-scheduled)** | • PPR channel, the `[ner]` extra<br>• Gate-only: no implementation plan exists, by design<br>• Not scheduled |
-| | | **[The deep release](#the-deep-release)** | • `pnk ask --deep` — the budgeted agentic loop<br>• The last paid entry point; **its client is built and the allowlist is complete at two**<br>• **E1 shipped in 0.23.0** — `pnk ask`, free<br>• **E2 and E3 are on `main`, unreleased** — the round estimator and the paid client, neither reachable<br>• **E4 is next, and blocked on `[deep]`'s manifest keys** |
+| | | **[The deep release](#the-deep-release)** | • `pnk ask --deep` — the budgeted agentic loop<br>• The last paid entry point; **its client is built and the allowlist is complete at two**<br>• **E1 shipped in 0.23.0** — `pnk ask`, free<br>• **E2 and E3 are on `main`, unreleased** — the round estimator and the paid client, neither reachable<br>• **E4 is next and unblocked** — D-29/D-30 settled `[deep]`'s keys and the default caps |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
 ---
