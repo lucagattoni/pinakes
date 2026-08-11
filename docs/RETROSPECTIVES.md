@@ -5566,6 +5566,250 @@ vocabulary in a third place — and the decision that actually mattered (*never 
 question nothing matched*) lived in none of them. Both fixed: the constants throughout, and the
 notice carried on the value rather than re-derived at the print site.
 
+## E2 — The deep release's round estimator (20260811 16:15)
+
+**HIGH — the worst case left out the one input the user controls: the question itself.** The plan's
+formula prices carried memory, `final_k` passages and a prompt constant, and the first draft
+implemented exactly that, with the question folded into `PROMPT_TOKENS`. But a question arrives as
+an argv string — `pnk ask "<question>"` — with no length limit anywhere in the CLI, and it is
+carried into *every* call of a run, so a 50,000-token question would have been reserved for at
+1,500 tokens. Fixed by pricing it separately (`QUESTION_TOKENS`) against a stated ceiling
+(`QUESTION_CHAR_CEILING`) that E4 must enforce, since this module refuses nothing but a stale price
+table and an oversized request. *Lesson: when a worked example pins an estimate to the cent, it
+also silently fixes the size of every input the example did not vary. The question was the one term
+with no bound anywhere in the system, and the arithmetic looked right because the example never
+made it big. Ask what is in a call's input that the formula does not name — not whether the formula
+was implemented correctly.*
+
+**HIGH — the second review pass found a ceiling below its own measurement, in a module written to
+refuse exactly that.** `PASSAGE_ENVELOPE_TOKENS` carried the comment *"the longest `path —
+heading_path` pair is under 120 characters"*, asserted without running anything, and 100 tokens was
+sized from it. Running it — by extending `tools/measure_passage_tokens.py` to report the envelope
+as well as the chunk — returned **220 characters**, about 110 vendor tokens at the pessimistic
+conversion the module's other constants use. The constant was under-reserving against a number
+nobody had taken; it is now 250, with the measurement and its date beside it. *Lesson: the review
+question that found it was "which of these numbers did I measure, and which did I merely write?" —
+asked of a file whose every other constant carries a command. A measured neighbour makes an
+asserted one look measured too, and prose like "measured from the corpora above" is how the two
+become indistinguishable.*
+
+**MEDIUM — a total divided by its call count and multiplied back was not the total.** `Decimal`
+division is exact to 28 significant digits and no further, so `per_call_eur * calls` landed one
+digit above `total_eur` at the shipped defaults — meaning, in the other direction, a per-call
+reservation could sum to less than the operation it belongs to. Caught by a test asserting the two
+were equal. Fixed by deriving the total *from* the per-call price rather than the per-call price
+from the total, which removes the class rather than the instance: no set of constants can
+reintroduce it. *Lesson: `Decimal` fixes base-10 representation, not associativity — money code
+should multiply a unit price up, never divide a total down, and the direction of the last digit is
+chosen by nothing.*
+
+**MEDIUM — a "measured" docstring falsified by the fix in its own increment.** The docstring above
+cited the two 28-digit values it was measured at; the fix changed the arithmetic that produced
+them, so re-running the same comparison now round-trips exactly and the cited numbers describe code
+that no longer exists. Rewritten to say what was observed *and when it stopped being reproducible*,
+rather than left reading as a claim about the shipped module. *Lesson: the measurement most likely
+to go stale in a docstring is the one that motivated the change in the same diff — grep your own
+increment's fixed defects for the numbers that justified them.*
+
+**LOW — a purity test written as a denylist, in a repository that had already learned not to.** The
+first version asserted `deep/estimate.py` imports no `anthropic`, `sqlite3`, `httpx`, `requests` —
+a list that is never finished, and whose next omission is always the one that matters.
+`check.sh`'s NUL scan records the same lesson about file suffixes ("a denylist of binary formats is
+never finished"), one file away. Rewritten as an allowlist of what the module may import, so a new
+import has to be argued for in the test. *Lesson: for "this module stays pure", enumerate what is
+allowed. The repository's existing gates are worth reading for the shape of the assertion, not only
+for the rule.*
+
+**A finding handed to E4 rather than solved here.** At the shipped defaults (`final_k = 8`,
+`[chunking] max_tokens = 510`, `[budget] per_operation_eur = 0.30`) the cheap branch prices at
+EUR 0.2627 and fits inside the cap; a five-round loop prices at EUR 2.81 and is 9.4x it. So on a
+stock KB, `pnk ask --deep` would answer a *confident* question and refuse an uncalibrated one at
+round 0 — which is precisely the combination D-22 option E was chosen to avoid, arrived at through
+the caps instead of through the signal. E2 declines to fix it by lowering a ceiling: that is the
+trade `PAGE_TOKEN_CEILING` refused, and the numbers are conservative by design until E6 measures
+them. It is pinned as
+`tests/test_deep_estimate.py::test_the_shipped_defaults_leave_the_loop_outside_the_default_operation_cap`,
+reading both sides out of the manifest defaults so it tracks them rather than restating them.
+
+## E3 — The deep client, and four rules that were about to be copied (20260811 17:12)
+
+**HIGH — a second paid entry point is where a "one home" rule quietly becomes two.** E3's section of
+the plan says the key is `PINAKES_ANTHROPIC_API_KEY` and never an `ANTHROPIC_API_KEY` fallback,
+"enforced the same way here" — a sentence that reads equally as *reuse it* and as *write it again*.
+Writing it again would have been the smaller diff, and it would have produced two copies of four
+rules that each fail **silently** when they drift: the key's name, `max_retries=0`, whether a failed
+call billed, and how a reconciliation is computed. `CLAUDE.md` calls an `ANTHROPIC_API_KEY` fallback
+"the same defect, one layer apart"; a second copy of the rule forbidding it is the same defect one
+*file* apart. So `src/pinakes/paid.py` exists, holding all four with no client in it, and
+`extract/claude.py` now imports what it used to declare. What made the move safe rather than brave
+was that its 1,606-line suite is unchanged: the only test that failed was the allowlist count, which
+is the gate refusing the widening until it was declared.
+
+The module is deliberately **not** allowlisted, and that is the interesting part: `classify` is
+handed the caller's already-imported SDK module rather than importing one, so gate 2 scans it like
+any other file and would refuse an `import anthropic` added to it. The allowlist stays two entries —
+`extract/claude.py` and `deep/client.py` — which is the complete list DESIGN §1 describes.
+
+**HIGH — the shared classifier had no direct test, and it decides void versus unknown outcome.**
+Moving it surfaced that every branch of `_classify` had only ever been reached through a fixture
+that raised an *already classified* error: the replayer constructs `TransportError` itself, so the
+mapping from an SDK exception to a billability had never been executed by a test in either suite.
+The relationship it turns on is the one `stubs/anthropic.pyi` warns is easy to get wrong from
+memory — `APITimeoutError` is a **subclass** of `APIConnectionError`, so checking the parent first
+classifies every timeout as not-billed and voids a reservation for a call that may have been
+charged. It now has five tests against a fake SDK whose hierarchy is held against the stub's, and
+against the real package where it happens to be installed.
+
+**MEDIUM — the renderer was spending 90% of a ceiling on an identifier the model never emits.** The
+first draft of `render_passages` mirrored `cli.py`'s printed block exactly, citation line included —
+which carries the path *and* the heading a second time. E2 measured `PASSAGE_ENVELOPE_TOKENS`
+against **one** copy (220 characters, the widest real passage in the corpora) and set it at 250 with
+2.3x headroom; two copies came to 452 characters, **226 of the 250 reserved tokens**, leaving
+nothing for a KB whose headings run deeper than the two corpora measured. Found by writing the test
+that pins the arithmetic, not by reading the code. The fix was to drop the citation line rather than
+raise the constant — E2's own rule, and `PAGE_TOKEN_CEILING`'s: a ceiling that close to its own
+measurement is not a ceiling. The test now asserts the envelope stays under **half** the constant,
+because "inside it" was true of the draft too.
+
+**MEDIUM — three smaller findings from the same pass, each a disagreement between two halves of one
+bound.** The subproblem cap was computed twice, once for the request's schema and once for the
+parser that re-checks the response — the shape where the second check silently becomes about a
+different limit than the first, at which point one of them is decoration (now `subproblem_cap`, one
+function, driven through both users by one test). `answer_schema` wrote `max(passages, 1)`, so a
+call over zero passages would have declared citation `[1]` legal to the API and had every index
+refused by the parser — prose with nothing behind it, paid for; both halves now refuse
+(`NoEvidenceError`), which is E2's reason for not pricing the `none` branch, arriving one layer
+down. And `billed_call` voided on any exception the transport did not classify — but a defect is
+not *proof* the call never billed, and proof is what INVARIANTS requires before a void, so an
+unclassified failure is now left unresolved instead.
+
+**LOW — a test that asserted its own base class.** The first version of "every error carries a
+remedy" checked `issubclass(..., PinakesError)`, which is true by construction and would have passed
+for a subclass that omitted the keyword entirely. It reads the `super().__init__` call out of the
+parsed source now. Worth recording because it is the third time in this repo a safety check has been
+written in the shape that cannot fail; the tell each time was that it passed the moment it was
+written.
+
+**What E4 inherits from this increment**, beyond what the plan already names: the three bounds E2
+prices against are enforced in the client — the question ceiling, the carried-memory ceiling
+(`CARRIED_MEMORY_CHAR_CEILING`, added beside the token constant it derives from), and `final_k`
+passages per answering call — and each **refuses** rather than trimming. E4 should refuse earlier
+and more kindly, with a sentence about the command; what it must not do is assume the client will
+quietly cope. Citations arrive as passage *numbers*, so E4 owns the mapping back to documents, and
+E7's rule that a suggestion's endpoints must be documents this run retrieved is already a property
+of the wire format rather than a check to add.
+
+**Second review pass — the knob nobody would have passed, and a version nothing checked.** Two more,
+both found by reading the module as a stranger would rather than as its author:
+
+* **`max_tokens` was a parameter on both request builders**, defaulting to the estimator's constant.
+  Harmless as written and a hole by construction: output bills at five times the input rate and is
+  two thirds of a round's whole price, so a caller passing a larger ceiling is billed for output no
+  reservation covered — the *same* hole the question, memory and passage bounds had just been closed
+  for, sitting one line above them. It is gone; `_request` always sends `MAX_TOKENS`. Unlike the
+  extractor, this client never re-asks a truncation at a raised ceiling, so nothing wanted it.
+* **`PROMPT_VERSION` and `SCHEMA_VERSION` were decoration.** They existed for E5's transcript and E6's
+  measurement, and nothing read them — which is exactly T1's failure with a template version: `pnk
+  doctor` compared a version against the installed one for ten releases while the files that version
+  denoted changed underneath it, and every KB recorded a reference that matched and meant something
+  different. So the prompts and both schemas are now hashed and pinned to their version, and a
+  reworded prompt fails the suite until the digest and the version move with it. E6's numbers are
+  about a specific wording; without this, the record of which wording would be a guess.
+
+The pass also promoted `DeepCallFailedError`'s three kinds to constants, for the reason E1 gives for
+carrying its escalation value rather than re-deriving it: E4 has to tell a refusal from a truncation
+in order to label a run, and a caller matching a string literal puts the vocabulary in two places.
+
+**And a note on the mutation testing itself.** The first attempt at mutating `max_tokens` back into
+`_request` reported *"54 passed"* and I nearly recorded it as a test gap — the edit had silently
+matched nothing, because `ruff format` had collapsed the signature onto one line after the change.
+A `str.replace` that matches nothing returns the string unchanged and tells no one, which is the
+defect `conftest._rewrite` exists to prevent, reappearing in a throwaway script. Every mutation in
+this increment now asserts its target matched exactly once before running the suite; the retried
+mutation failed the right test immediately.
+
+**Third review pass — two findings, both about what a reader would look for and not find.** The
+shared-rule tests had landed inside `tests/test_deep_client.py`, so `src/pinakes/paid.py` — a module
+both paid entry points depend on — had no test file bearing its name, and the nearest match,
+`tests/test_paid_path.py`, is about something else entirely (which modules may import a client, not
+what they must then do). Split into `tests/test_paid.py`, with each file's docstring saying which
+question it answers, and VERIFICATION gains a section of its own for the rules rather than filing
+them under the client that happens to use them.
+
+The second: `AnthropicTransport.max_retries` was a property nothing asserted. `build_client_kwargs()
+== {"max_retries": 0}` is tested, and says nothing about this transport *passing* it — the same gap
+in a smaller frame as the classifier's. Constructing the client is offline, so the test is not
+`paid`-marked; it skips with a reason where `[claude]` is absent.
+
+**Fourth review pass — the sentence this increment falsified was in the file it edited.**
+`extract/claude.py`'s first line read *"the only module in `src/` permitted to import `anthropic`"*,
+and `AnthropicTransport`'s docstring said *"the only place `anthropic` is constructed"*. Both were
+true when written, both became false in the same commit that added the second entry to the
+allowlist, and neither is reachable by grepping for what changed — the words `deep`, `client` and
+`allowlist` do not appear in either sentence. Found by grepping for the *claim shape* ("only
+module", "the only place") rather than for the diff, which is the same move that turned up
+`docs/ROADMAP.md:139` at E2's handover: a stale pointer has no wrong text to search for, only a
+claim that is no longer true.
+
+---
+category: lesson
+---
+
+## A Ctrl-C voided a call that may have billed — in both paid clients, for as long as either existed
+
+**Found by working an exit criterion nobody had tested.** E4's plan asks that *"interrupting
+mid-loop leaves a reservation `pnk budget` reports as `unknown outcome`, never a lost record"*.
+Nothing asserted it, so it was probed with a transport that raises `KeyboardInterrupt`, and the
+ledger came back `voided` — EUR 0 recorded for a request that had already been sent.
+
+**Why it was invisible.** Every deliberate branch was right. `billed_call` classifies a timeout as
+billable-unknown, voids a 429 that never billed, and — in the deep client — catches `Exception` for
+anything unclassified and leaves it unresolved. A `KeyboardInterrupt` is not an `Exception`, so it
+fell past all of it into `ledger.paid_call`'s `finally`, whose job is to close an unfinished call
+and whose default is to void. **Every layer behaved as written.** The extractor was worse and had
+been since I7b: no catch-all at all, so an ordinary defect voided too.
+
+**Three things worth keeping:**
+
+* **The likely interrupt is the one nobody models.** A paid run is slow, visible and cancellable;
+  Ctrl-C during one is the *normal* way it ends when a user changes their mind. It was the only
+  exit path with no test.
+* **A safe default one layer down is not a safe default.** `close_unfinished` voids because most
+  unclosed calls never billed. That is correct there and wrong here, and the caller is the only
+  place that knows which. `except BaseException` is what says so.
+* **The sibling had it too, and fixing one would have been the defect surviving.** One invariant,
+  two call sites, two identical clauses — so both moved in the same change, and both tests raise a
+  `BaseException` rather than a `RuntimeError`, because a narrower one passes against broken code.
+
+---
+category: lesson
+---
+
+## The same GUIDE block quoted a retired sentence twice — so the second time it became a gate
+
+E1 rewrote `pnk search`'s escalation notice and left `docs/GUIDE.md` displaying the sentence it had
+just replaced. Its retrospective recorded that nothing in the repo could have caught it. **E4
+rewrote the same sentence and left the same block stale again**, caught only because someone grepped
+for the old wording before shipping.
+
+**Why every existing check is blind to it.** The prose is well-formed. Every link resolves.
+`mkdocs build --strict` is green. `tests/test_verification.py` checks that named tests exist, not
+that quoted output is current. A fenced block showing a previous build's output is *correct
+Markdown describing a program that no longer exists*, and nothing in this repo reads it as anything
+else.
+
+**The checkable half is the negative one.** Diffing a fenced block against real output would need
+the command, its models and a corpus. "Every printed constant must appear in the docs" is simply
+false — most should not. But **a sentence this build can no longer print must appear nowhere**, and
+that is a grep. `tests/test_docs_quote_the_shipped_sentences.py` holds the retirement list, one row
+per retired sentence with what replaced it; retiring a sentence is a deliberate act, so adding the
+row is part of it.
+
+**Two things that make the gate honest rather than decorative.** It searches `src/` as well as
+`docs/`, because a retired sentence surviving in a docstring is the same defect one layer in — and
+this project's docstrings are where its reasoning lives. And it was run against the pre-E4 tree,
+where all four rows fail: a gate never observed failing is a gate nobody has tested.
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings

@@ -74,22 +74,27 @@ unmeasured is worse than one whose cost is known.
 uv add "pinakes[st]"                  # default backend
 uv add "pinakes[light]"               # fastembed, no torch
 uv add "pinakes[light,pdf]"           # + PDF ingest, free and local
-uv add "pinakes[light,pdf,claude]"    # + the opt-in paid extractor for scanned PDFs
+uv add "pinakes[light,pdf,claude]"    # + the two opt-in paid paths: scanned PDFs, and `ask --deep`
 ```
 
-`[claude]` installs a path that can spend money, and nothing spends without you asking: the default
-extractor is free, and reaching the paid one takes `--extract=claude-vision` (or a manifest key)
-**and** a real API key in the environment. When you do ask, the run is priced before the first call
-and refused if it would breach any of the three `[budget]` caps — `per_operation_eur`, `daily_eur`
-or `monthly_eur`. Raising one and hitting the next is the discovery path those caps exist to
-prevent, so a refusal names every window that binds, not just the first. `pnk budget` reports what
-has been spent.
+`[claude]` installs the two paths that can spend money, and neither spends without you asking.
+**Transcribing a scanned PDF** takes `--extract=claude-vision` (or a manifest key); **answering a
+question** takes `pnk ask --deep`. Both also take a real API key in the environment, under a name
+only Pinakes reads. Everything else — search, sync, and `pnk ask` without the flag — is free and
+offline.
+
+When you do ask, the whole run is priced before the first call and refused if it would breach any of
+the three `[budget]` caps — `per_operation_eur`, `daily_eur` or `monthly_eur`. Raising one and
+hitting the next is the discovery path those caps exist to prevent, so a refusal names every window
+that binds, not just the first, and prints the manifest edit that would admit the run. Every call is
+then reconciled to what it actually cost, and `pnk budget` reports it.
 
 ```bash
 pnk init my-kb                        # stamp a KB
 pnk sync                              # index what changed (git-hook friendly)
 pnk search "hybrid retrieval"         # free: BM25 + vector + rerank
-pnk ask "how does fusion work?"       # the same evidence, plus what answering would take
+pnk ask "how does fusion work?"       # the same evidence, plus what answering would cost
+pnk ask "…" --deep                    # ...and this one pays to answer it, under [budget]
 pnk doctor                            # environment, coherence, orphans, link coverage
 pnk upgrade                           # what your template changed; writes nothing
 
