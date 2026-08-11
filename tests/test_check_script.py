@@ -201,3 +201,39 @@ def test_ci_compares_per_question_outcomes_across_two_operating_systems() -> Non
     assert compare is not None, "the two legs are recorded and never compared"
     assert "diff" in compare.group("body")
     assert "needs: eval-cross-machine" in compare.group("body")
+
+
+RELEASE_WORKFLOW = Path(__file__).parent.parent / ".github" / "workflows" / "release.yml"
+
+
+def test_the_release_workflow_creates_the_github_release_after_publishing() -> None:
+    """D-19. **The step this workflow never had, and whose absence was misdiagnosed six times.**
+
+    `docs/STATUS.md` recorded "the workflow failed to create the release" at every release from
+    0.20.1 to 0.21.1, while `git log -S` shows no workflow in this repository's history had ever
+    contained a release-creating step and `docs/RELEASING.md` step 8 had always said to create it
+    by hand. The job's `success` was honest. Checking the symptom harder — `gh release view` says
+    *not found* — could never distinguish an absent feature from a broken one, because it is
+    equally consistent with both.
+
+    **Parsed, not grepped, and the ordering is the assertion.** PyPI refuses a version twice, so
+    the upload is the irreversible step: anything able to fail must come after it, or a failure
+    here costs the release its version number. A test that merely found `gh release create`
+    somewhere in the file would pass with the step first.
+    """
+    import yaml
+
+    document = yaml.safe_load(RELEASE_WORKFLOW.read_text(encoding="utf-8"))
+    steps = document["jobs"]["publish"]["steps"]
+    names = [str(step.get("name", "")) for step in steps]
+
+    publish = names.index("Publish to PyPI")
+    release = next(i for i, step in enumerate(steps) if "gh release create" in str(step.get("run")))
+    assert publish < release, "a step that can fail must not run in front of the PyPI upload"
+
+    assert "contents: write" in RELEASE_WORKFLOW.read_text(encoding="utf-8"), (
+        "gh release create needs it, and the job requested only id-token: write"
+    )
+    assert "--verify-tag" in str(steps[release]["run"]), (
+        "without it the step would invent a release for a tag that was never pushed"
+    )

@@ -20,6 +20,7 @@ jobs:
     environment: release
     permissions:
       id-token: write        # trusted publishing; no API token is stored anywhere
+      contents: write        # the GitHub release below, and nothing else in this job
     steps:
       - uses: actions/checkout@v4
 
@@ -55,3 +56,25 @@ jobs:
         run: |
           echo "::notice::PUBLISH_TO_PYPI is not 'true' — the wheel was built and smoke-tested but not uploaded."
           echo "Configure PyPI trusted publishing, then: gh variable set PUBLISH_TO_PYPI --body true"
+
+      # **After the upload, never before.** PyPI refuses a version twice, so the upload is the
+      # irreversible step and nothing may be able to fail in front of it. A failure here leaves a
+      # published package with no GitHub release — recoverable by hand in one command, which is
+      # exactly what happened for the twenty-five releases before this step existed.
+      #
+      # **This step did not exist until 0.22.0, and its absence was misdiagnosed six times.**
+      # `docs/STATUS.md` recorded "the workflow failed to create the release" at every release from
+      # 0.20.1 on; `git log -S` shows no workflow in this repository's history ever contained a
+      # release-creating step, and `docs/RELEASING.md` step 8 had always said to create it by hand.
+      # The job's `success` was honest — it did everything it was asked to. Checking harder could
+      # never have distinguished an absent feature from a broken one; reading the workflow did.
+      - name: Create the GitHub release
+        if: vars.PUBLISH_TO_PYPI == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          # `--verify-tag` refuses to invent a release for a tag that is not pushed, and
+          # `--notes-from-tag` uses the annotation the maintainer already wrote rather than
+          # generating a diff nobody reviewed.
+          gh release create "$GITHUB_REF_NAME" --verify-tag --notes-from-tag --title "$GITHUB_REF_NAME"
