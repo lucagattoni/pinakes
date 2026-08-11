@@ -940,6 +940,37 @@ def test_a_failure_after_the_response_arrives_is_not_voided_either(
     assert [call.state for call in ledger_calls(accountant)] == [CallState.UNKNOWN]
 
 
+def test_a_keyboard_interrupt_mid_request_is_not_voided_either(accountant: Accountant) -> None:
+    """**Ctrl-C while a request is in flight, which is how this is actually met.**
+
+    The request was sent, so the server may have generated a response and billed for it. Until E4
+    measured it, a `KeyboardInterrupt` fell past every `except Exception` into the ledger context
+    manager's `finally`, which voids an unclosed call — EUR 0 recorded for money that may have left
+    the account. That is the one direction a budget may never be wrong in (docs/INVARIANTS.md), and
+    it is exactly the case an interrupted paid run makes likely rather than exotic.
+
+    A `BaseException` and not an `Exception`, deliberately: catching the narrower class is what left
+    the hole, so a test raising a `RuntimeError` would pass against the broken code.
+    """
+
+    class Interrupted:
+        def create(self, request: Mapping[str, Any]) -> Mapping[str, Any]:
+            raise KeyboardInterrupt("the user pressed Ctrl-C while the request was in flight")
+
+    with pytest.raises(KeyboardInterrupt):
+        deep_client.billed_call(
+            transport=Interrupted(),
+            accountant=accountant,
+            request={"model": MODEL},
+            model=MODEL,
+            reserved_eur=RESERVED,
+            price=load_prices().for_model(MODEL),
+            tally=CallTally(),
+            sleep=never_sleeps,
+        )
+    assert [call.state for call in ledger_calls(accountant)] == [CallState.UNKNOWN]
+
+
 # --- a version number means the bytes it denotes -------------------------------------------------
 
 #: The digest of everything `PROMPT_VERSION` and `SCHEMA_VERSION` name, at the versions below.

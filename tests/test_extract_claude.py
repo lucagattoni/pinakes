@@ -40,6 +40,7 @@ from pinakes.extract.claude import (
     BudgetRefusedError,
     CallTally,
     SchemaFailureError,
+    Transport,
     TransportError,
     assemble_pages,
     build_client_kwargs,
@@ -166,7 +167,9 @@ def never_sleeps(_seconds: float) -> None:
 
 def run_slice(
     accountant: Accountant,
-    transport: RecordedTransport,
+    # The **protocol**, not the replayer: the seam exists so anything answering `create` can drive
+    # a slice, and a stand-in that only raises is exactly what the interrupt case needs.
+    transport: Transport,
     *,
     pages: int = 5,
     tally: CallTally | None = None,
@@ -509,6 +512,34 @@ def test_a_timeout_leaves_an_unknown_outcome_rather_than_a_void(accountant: Acco
     calls = ledger_calls(accountant)
     assert [call.state for call in calls] == [CallState.UNKNOWN]
     assert accountant.spent().day == Decimal("0.04"), "it still consumes headroom"
+
+
+def test_a_keyboard_interrupt_mid_request_is_not_voided_either(accountant: Accountant) -> None:
+    """**Ctrl-C while a request is in flight, which is how this is actually met.**
+
+    The request was sent, so the server may have generated a response and billed for it. Until E4
+    measured it, a `KeyboardInterrupt` fell past every `except Exception` into the ledger context
+    manager's `finally`, which voids an unclosed call — EUR 0 recorded for money that may have left
+    the account. That is the one direction a budget may never be wrong in (docs/INVARIANTS.md), and
+    it is exactly the case an interrupted paid run makes likely rather than exotic.
+
+    A `BaseException` and not an `Exception`, deliberately: catching the narrower class is what left
+    the hole, so a test raising a `RuntimeError` would pass against the broken code.
+    """
+
+    class Interrupted:
+        def create(self, request: Mapping[str, Any]) -> Mapping[str, Any]:
+            raise KeyboardInterrupt("the user pressed Ctrl-C while the request was in flight")
+
+        def count_tokens(self, request: Mapping[str, Any]) -> int:
+            # The other half of this transport's protocol. `extract_slice` never reaches it here —
+            # `--estimate-only` is a different path — but a stand-in that satisfies the seam is
+            # what keeps this test driving the shipped code rather than a widened signature.
+            raise AssertionError("the interrupt case never counts tokens")
+
+    with pytest.raises(KeyboardInterrupt):
+        run_slice(accountant, Interrupted())
+    assert [call.state for call in ledger_calls(accountant)] == [CallState.UNKNOWN]
 
 
 def test_every_call_takes_its_own_reservation_and_ledger_pair(accountant: Accountant) -> None:

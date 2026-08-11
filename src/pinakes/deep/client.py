@@ -680,11 +680,18 @@ def billed_call(
                     raise
                 if not exc.retryable or attempt == TRANSPORT_ATTEMPTS:
                     raise
-            except Exception:
+            except BaseException:
                 # Anything the transport did **not** classify. `AnthropicTransport.create` wraps
                 # every exception, so reaching this means a defect — and a defect is not proof the
                 # call never billed, which is the only thing that may void a reservation. Left
                 # unresolved rather than voided, in the direction a budget is allowed to be wrong.
+                #
+                # **`BaseException`, not `Exception`, and that is the whole point of the widening.**
+                # A `KeyboardInterrupt` is the most likely way this branch is ever reached: a user
+                # pressing Ctrl-C while a request is in flight. The request was sent, so the server
+                # may have generated and billed — and until E4 measured it, that case fell past this
+                # clause into the context manager's `finally`, which voids an unclosed call and
+                # recorded EUR 0 for it. `SystemExit` and `GeneratorExit` are the same fact.
                 call.may_have_billed()
                 raise
             else:
