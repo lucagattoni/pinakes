@@ -1,11 +1,16 @@
 """`pnk ask` end to end through the real CLI, with a registered fake backend.
 
-**E1 of `plans/20260811_1358-deep-release.md`: the free half only.** There is no paid code in this
-build, so every promise here is about what the command *says* — the evidence, the confidence, and
-how much work answering the question would take. Two of them are the increment's whole point:
+**Both halves, since E4 gave the command its paid one.** The free half is E1's and is most of this
+file: the evidence, the confidence, what answering would take and — since E4 — what it would cost,
+with nothing spent. The `--deep` half at the bottom drives the whole loop through a scripted
+transport, so it runs with `anthropic` absent like every other test on this path.
 
-* the output never prints a flag nobody can type (`--deep` lands in E4), and
-* it never lets a reader mistake evidence for a conclusion.
+Two promises hold across both halves and are what the file is really for:
+
+* **`pnk ask` without `--deep` never spends**, on any confidence value. The two halves share
+  `_retrieval`, so that is a property of a code path and not of an intention.
+* it never lets a reader mistake evidence for a conclusion — which is a *different* line depending
+  on whether a paid run happened, and both are asserted.
 
 The fake reranker returns a **constant** score, so which confidence branch a KB takes is decided by
 the thresholds this file writes into the manifest rather than by anything the retrieval does. That
@@ -20,7 +25,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from pinakes.cli import CALIBRATE_REMEDY, DEEP_OFFER, NO_ANSWER_SYNTHESISED, main
+from pinakes.cli import (
+    CALIBRATE_REMEDY,
+    DEEP_OFFER,
+    NO_ANSWER_FROM_A_PAID_RUN,
+    NO_ANSWER_SYNTHESISED,
+    main,
+)
 from pinakes.embed import (
     ModelInfo,
     Vectors,
@@ -622,3 +633,58 @@ def test_every_filter_still_narrows_the_paid_run(
     scripted("answer-cited")
     assert main(["ask", "sourdough", "--kb", str(confident_kb), "--deep", "--yes", "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["answer"]["estimated_eur"] > narrowed
+
+
+@pytest.mark.parametrize("fixture_name", ["kb", "confident_kb", "unconfident_kb"])
+def test_the_free_command_spends_nothing_on_any_confidence_value(
+    fixture_name: str, request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """E4's exit criterion, and the one promise this increment could have broken.
+
+    The free and paid halves share `_retrieval`, and the branch that decides between them is one
+    `if`. So both directions are asserted on every confidence value: **no transport is ever built**
+    — `default_transport` is replaced with something that raises — and no ledger is written, which
+    is what spending looks like on disk.
+    """
+    from pinakes.deep import client as deep_client
+
+    def refuse() -> object:
+        raise AssertionError("the free path built a paid transport")
+
+    monkeypatch.setattr(deep_client, "default_transport", refuse)
+    root: Path = request.getfixturevalue(fixture_name)
+
+    assert main(["ask", "sourdough", "--kb", str(root)]) == 0
+    assert main(["ask", "sourdough", "--kb", str(root), "--json"]) == 0
+    assert not (root / ".pinakes" / "ledger.jsonl").exists()
+
+
+def test_a_paid_run_that_produced_no_answer_exits_non_zero_and_says_so(
+    kb: Path, scripted: Callable[..., _Script], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A round can decompose into nothing, and then there is no answer to print.
+
+    The calls were made, billed and reconciled, so this is not an error — but a command that was
+    asked a question and produced no answer must not report success to a script. The label says
+    what stopped it; the exit code says it did not finish.
+    """
+    scripted("decompose-empty")
+
+    assert main(["ask", "sourdough", "--kb", str(kb), "--deep", "--yes"]) == 1
+    out = capsys.readouterr().out
+    assert NO_ANSWER_FROM_A_PAID_RUN in out
+    assert "1 paid call(s)" in out
+    assert (kb / ".pinakes" / "ledger.jsonl").exists()
+
+
+def test_the_json_surface_reports_the_same_outcome_as_the_human_one(
+    kb: Path, scripted: Callable[..., _Script], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--json` is where a script reads the outcome, so its exit code must not be the cheerful
+    one while the human surface reports a failure."""
+    scripted("decompose-empty")
+
+    assert main(["ask", "sourdough", "--kb", str(kb), "--deep", "--yes", "--json"]) == 1
+    answer = json.loads(capsys.readouterr().out)["answer"]
+    assert answer["blocks"] == []
+    assert answer["stopped_by"] == "no-new-subproblems"

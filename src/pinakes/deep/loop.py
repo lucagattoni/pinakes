@@ -46,6 +46,7 @@ from typing import Final
 
 from pinakes.budget.accountant import Accountant
 from pinakes.budget.prices import ModelPrice
+from pinakes.budget.reserve import display_eur
 from pinakes.deep.client import (
     SUBANSWER,
     SYNTHESIS,
@@ -314,7 +315,7 @@ def run_deep(
     final_k: int,
     retrieve: Retrieve,
     sufficiency: Sufficiency,
-    transport: Transport,
+    transport: Callable[[], Transport],
     accountant: Accountant,
     now: str,
     sleep: Callable[[float], None] = time.sleep,
@@ -331,6 +332,13 @@ def run_deep(
     the price table — is read off `accountant`, which already holds the manifest whose caps it
     enforces. Passing a second copy of any of them would be a second thing that can disagree with
     the numbers the reservation was checked against.
+
+    **`transport` is a factory, called only once the run is authorised**, and that ordering is the
+    whole reason for the extra parentheses. Building one constructs a vendor client and therefore
+    demands `PINAKES_ANTHROPIC_API_KEY` — so an eager call would answer *"no key"* to every user
+    whose real problem is that their KB stamps `per_operation_eur = 0.30`. That is **every KB that
+    exists today** (D-30's stated limit), and the cap refusal is the one carrying the manifest edit
+    they need. A refusal a user can act on without first configuring a key is worth a callable.
     """
     manifest = accountant.manifest
     if branch not in BRANCHES:
@@ -360,7 +368,7 @@ def run_deep(
     _authorise(accountant, estimate)
 
     caller = _Caller(
-        transport=transport,
+        transport=transport(),
         accountant=accountant,
         model=manifest.deep.model,
         reserved_eur=estimate.per_call_eur,
@@ -396,8 +404,8 @@ def _authorise(accountant: Accountant, estimate: OperationEstimate) -> None:
         total_eur=estimate.total_eur,
         headline=(
             f"answering this question with {estimate.model} is estimated at "
-            f"€{estimate.total_eur:.2f} (the {estimate.branch} branch: {estimate.calls} paid "
-            f"call(s) across {estimate.rounds} round(s), worst case)"
+            f"€{display_eur(estimate.total_eur)} (the {estimate.branch} branch: "
+            f"{estimate.calls} paid call(s) across {estimate.rounds} round(s), worst case)"
         ),
         closing=DEEP_CLOSING,
     )

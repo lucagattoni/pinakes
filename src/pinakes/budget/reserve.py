@@ -37,12 +37,22 @@ from pinakes.budget.window import WindowTotals
 _CENT = Decimal("0.01")
 
 
-def _display(amount: Decimal) -> str:
+def display_eur(amount: Decimal) -> str:
     """Round-half-up to the cent for a human-facing message only — the comparisons above run at
     full `Decimal` precision throughout; quantisation for *storage* happens once, at ledger-write
     time (I6b), and this is a separate, display-only rounding that never feeds back into a
-    decision."""
+    decision.
+
+    **Public since E4, because a refusal is now assembled from two modules.** The window rows come
+    from here and the headline from `deep/loop.py`; an f-string `:.2f` in the caller would round
+    half-to-even against this half-up, and one message would quote two different cents for the same
+    number. Every euro Pinakes prints goes through this.
+    """
     return str(amount.quantize(_CENT, rounding=ROUND_HALF_UP))
+
+
+_display = display_eur
+"""The name this had while it was private. Kept so the module reads unchanged below."""
 
 
 #: (attribute on `Caps`, attribute on `WindowTotals`, display name) — one row per window, checked

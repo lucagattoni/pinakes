@@ -631,9 +631,11 @@ def _deep_notice(cost_eur: "Decimal | None") -> str:
     """The offer, always carrying its price or the reason there is none."""
     if cost_eur is None:
         return f"{DEEP_OFFER}; {UNPRICEABLE_NOTICE}."
+    from pinakes.budget.reserve import display_eur
+
     return (
-        f"{DEEP_OFFER}, estimated at €{cost_eur:.2f} worst case — every call is reconciled to "
-        "what it actually cost, which `pnk budget` shows."
+        f"{DEEP_OFFER}, estimated at €{display_eur(cost_eur)} worst case — every call is "
+        "reconciled to what it actually cost, which `pnk budget` shows."
     )
 
 
@@ -716,7 +718,9 @@ def run_ask(args: argparse.Namespace) -> int:
             "remedy": escalation.remedy,
         }
         print(json_module.dumps(payload, indent=2))
-        return EXIT_OK
+        # The same exit code as the human surface: a paid run that produced no answer is not a
+        # success, and `--json` is the surface a script actually reads that from.
+        return EXIT_OK if deep is None or deep.answered else EXIT_FAILURE
 
     if result.passages:
         _print_passages(result)
@@ -726,7 +730,7 @@ def run_ask(args: argparse.Namespace) -> int:
     print(f"confidence: {result.confidence} — {result.confidence_reason}")
     if deep is not None:
         _print_answer(deep)
-        return EXIT_OK
+        return EXIT_OK if deep.answered else EXIT_FAILURE
 
     print(NO_ANSWER_SYNTHESISED)
     print(escalation.work)
@@ -780,7 +784,9 @@ def _run_deep(
         final_k=pipeline.final_k,
         retrieve=pipeline.search,
         sufficiency=pipeline.confidence,
-        transport=default_transport(),
+        # Unbuilt: `run_deep` calls it after the caps have admitted the run, so a KB whose
+        # `[budget]` refuses says so instead of demanding an API key first.
+        transport=default_transport,
         accountant=accountant,
         now=datetime.now(UTC).strftime(TIMESTAMP_FORMAT),
     )
@@ -792,9 +798,12 @@ def _money(amount: "Decimal | None") -> str | None:
     A string because JSON has no decimal type and a float would reintroduce exactly the
     representation error `Decimal` is used to avoid (INVARIANTS). Two places, because that is what
     the ledger stores and what `pnk budget` reports — a machine consumer reconciling the two should
-    not have to notice that one of them was rendered at a different precision.
+    not have to notice one of them was rendered at a different precision. Through
+    `budget.reserve.display_eur` for the same reason: every euro Pinakes prints rounds the one way.
     """
-    return None if amount is None else f"{amount:.2f}"
+    from pinakes.budget.reserve import display_eur
+
+    return None if amount is None else display_eur(amount)
 
 
 def _answer_payload(deep: "DeepAnswer") -> dict[str, object]:
@@ -840,8 +849,23 @@ def _answer_text(deep: "DeepAnswer") -> str:
     return "\n\n".join(block.text for block in deep.blocks)
 
 
+NO_ANSWER_FROM_A_PAID_RUN = (
+    "the run was paid for and produced no answer — the label above says what stopped it."
+)
+"""Printed when a `--deep` run made calls and came back with nothing to show.
+
+**Reachable, and it exits non-zero.** A round can decompose into subproblems that match nothing, or
+into nothing at all; both stop the loop before any answering call. The run is not a *failure* in the
+sense an exception is — the calls were made, reconciled and are in the ledger — but a command that
+asked a question and produced no answer must not report success to a script. `NO_ANSWER_SYNTHESISED`
+is the free path's line and says something different: *nothing was even attempted*.
+"""
+
+
 def _print_answer(deep: "DeepAnswer") -> None:
     """The paid run's own output, under the free evidence that produced it."""
+    from pinakes.budget.reserve import display_eur
+
     print(f"\n{deep.label}")
     for block in deep.blocks:
         print()
@@ -851,9 +875,12 @@ def _print_answer(deep: "DeepAnswer") -> None:
         print(block.text)
         for citation in block.citations:
             print(f"  [{citation.number}] {citation.locator}")
+    if not deep.answered:
+        print(NO_ANSWER_FROM_A_PAID_RUN)
     print(
-        f"\n{deep.tally.calls} paid call(s), €{deep.spent_eur:.2f} spent against an estimated "
-        f"€{deep.estimate.total_eur:.2f} worst case. `pnk budget` has the record."
+        f"\n{deep.tally.calls} paid call(s), €{display_eur(deep.spent_eur)} spent against an "
+        f"estimated €{display_eur(deep.estimate.total_eur)} worst case. `pnk budget` has the "
+        "record."
     )
 
 

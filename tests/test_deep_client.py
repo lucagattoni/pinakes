@@ -26,7 +26,7 @@ import pytest
 
 from pinakes.budget.accountant import Accountant
 from pinakes.budget.ledger import CallState, ledger_path, read, resolve
-from pinakes.budget.prices import Prices, load_prices
+from pinakes.budget.prices import ModelPrice, Prices, load_prices
 from pinakes.deep import client as deep_client
 from pinakes.deep.client import (
     ANSWER_PROMPT,

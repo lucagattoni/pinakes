@@ -258,7 +258,10 @@ def a_run(
         final_k=final_k,
         retrieve=(index or FakeIndex()).retrieve,
         sufficiency=sufficiency or FakeSufficiency(LOW),
-        transport=transport,
+        # A factory, unbuilt: `run_deep` constructs the transport only once the caps have admitted
+        # the run, so a refusal never demands an API key first. `NeverCalled` below is what proves
+        # a refusing test made no call; this is what proves it built no client either.
+        transport=lambda: transport,
         accountant=accountant,
         now=NOW,
         sleep=never_sleeps,
