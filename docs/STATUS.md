@@ -1,6 +1,6 @@
 # Status — what ships today
 
-**Latest release: 0.24.0** · last reviewed 20260811 22:24
+**Latest release: 0.24.0** · last reviewed 20260811 22:40
 
 > **This file is the only place in the repo that says what is built.** Every other doc describes
 > *how* something works or *why* it was designed that way, and links here for whether you can use it
@@ -748,6 +748,20 @@ and `Uploading pinakes-0.23.0.tar.gz (2.1MiB)`, which no cache can fabricate;
 `uvx --no-cache --refresh --from "pinakes[light]==0.23.0" pnk --version` returned **`pinakes
 0.23.0`** on the *first* attempt, unlike the last three releases. `git merge-base --is-ancestor
 v0.23.0 main` passes.
+
+**0.24.0, 20260811 22:40 — the lag came back, and the artifact check earned its place.** The
+publish step's own log prints `Publishing 2 files`, `Uploading pinakes-0.24.0-py3-none-any.whl
+(417.0KiB)` and `Uploading pinakes-0.24.0.tar.gz (2.2MiB)`; `gh release view v0.24.0` reports
+non-draft, created 22:34:01Z by `github-actions[bot]`, the workflow's own step; and
+`git merge-base --is-ancestor v0.24.0 main` passes. `uvx --no-cache --refresh --from
+"pinakes==0.24.0" pnk --version` was `unsatisfiable` on the first attempt and returned **`pinakes
+0.24.0`** on a retry — the resolver lag 0.22.1 and 0.22.2 recorded, absent at 0.23.0 and back here,
+which settles it as *variable* rather than fixed. **Waiting is the remedy; nothing was re-pushed.**
+
+**Then the check that actually matters for this release**, on a second retry after the same lag
+under the extra: `uvx --no-cache --refresh --from "pinakes[light]==0.24.0" pnk ask --help` prints
+`--deep` and `--yes` **from the index**. That is the release's whole subject, and a matching version
+string would have said nothing about whether it was inside the wheel.
 
 **And one check this list had never made: does the published artifact contain the thing the release
 is named for?** `uvx --no-cache --from "pinakes[light]==0.23.0" pnk ask --help` prints `pnk ask`'s
