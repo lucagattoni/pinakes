@@ -64,18 +64,23 @@ class Widest:
         )
 
 
-def measure(roots: list[Path]) -> tuple[int, Widest, Widest]:
-    """Chunk every Markdown file under `roots` and return (count, worst ratio, widest chunk).
+def measure(roots: list[Path]) -> tuple[int, Widest, Widest, tuple[int, str]]:
+    """Chunk every Markdown file under `roots`; return count, worst ratio, widest chunk, envelope.
 
     Two worsts, deliberately. The **widest** chunk is the one that bounds a full-size passage; the
     **worst ratio** is usually a short block whose ratio no full-size chunk could sustain, and
     reporting only the first would hide that the two disagree by nearly 2x on this corpus.
+
+    The fourth number is the longest `path — heading_path` a passage is *wrapped* in, which is what
+    `PASSAGE_ENVELOPE_TOKENS` has to clear: the citation line scales with `final_k`, not with the
+    text, so it is charged per passage.
     """
     backend = load_backend(
         EmbeddingSection(provider="fastembed", model=MODEL, dim=DIM, revision=None)
     )
     worst_ratio = Widest(0.0, 0, 0, "")
     widest = Widest(0.0, 0, 0, "")
+    envelope = (0, "")
     total = 0
     for root in roots:
         for path in sorted(root.rglob("*.md")):
@@ -102,7 +107,10 @@ def measure(roots: list[Path]) -> tuple[int, Widest, Widest]:
                     worst_ratio = found
                 if found.chars > widest.chars:
                     widest = found
-    return total, worst_ratio, widest
+                citation = f"{path} — {chunk.heading_path or ''}"
+                if len(citation) > envelope[0]:
+                    envelope = (len(citation), citation)
+    return total, worst_ratio, widest, envelope
 
 
 def main(argv: list[str]) -> int:
@@ -115,10 +123,11 @@ def main(argv: list[str]) -> int:
         print(f"not a directory: {', '.join(str(root) for root in missing)}", file=sys.stderr)
         return 2
 
-    total, worst_ratio, widest = measure(roots)
+    total, worst_ratio, widest, envelope = measure(roots)
     print(f"chunks measured: {total}  (max_tokens={MAX_TOKENS}, overlap={OVERLAP}, model={MODEL})")
     print(f"worst ratio:   {worst_ratio.describe()}")
     print(f"widest chunk:  {widest.describe()}")
+    print(f"longest citation envelope: {envelope[0]} chars — {envelope[1]}")
     return 0
 
 

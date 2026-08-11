@@ -192,25 +192,25 @@ def test_the_shipped_defaults_price_to_the_cent() -> None:
     """Worked by hand at $5.00/$25.00 per MTok and 1.08 USD/EUR, `final_k = 8`,
     `[chunking] max_tokens = 510`:
 
-    * a passage is `510 * 3 + 100 = 1,630` tokens, so eight are `13,040`;
-    * a synthesis call is `13,040 + 1,000 + 1,500 = 15,540` in and `8,000` out
-      -> `$0.0777 + $0.2000 = $0.2777` -> **EUR 0.2571**;
-    * a round is two calls of `4,000 + 13,040 + 1,000 + 1,500 = 19,540` in and `8,000` out
-      -> `$0.0977 + $0.2000 = $0.2977` a call -> **EUR 0.5513**.
+    * a passage is `510 * 3 + 250 = 1,780` tokens, so eight are `14,240`;
+    * a synthesis call is `14,240 + 1,000 + 1,500 = 16,740` in and `8,000` out
+      -> `$0.0837 + $0.2000 = $0.2837` -> **EUR 0.2627**;
+    * a round is two calls of `4,000 + 14,240 + 1,000 + 1,500 = 20,740` in and `8,000` out
+      -> `$0.1037 + $0.2000 = $0.3037` a call -> **EUR 0.5624**.
 
     Pinned to the cent *and* to four places: the cent is what a user sees, the four places are what
     catch a constant that moves a call by less than a cent and an operation by euros.
     """
     synthesis = a_synthesis()
-    assert synthesis.input_tokens_per_call == 15_540
+    assert synthesis.input_tokens_per_call == 16_740
     assert synthesis.output_tokens_per_call == MAX_TOKENS
     assert synthesis.total_eur.quantize(Decimal("0.01")) == Decimal("0.26")
-    assert synthesis.total_eur.quantize(Decimal("0.0001")) == Decimal("0.2571")
+    assert synthesis.total_eur.quantize(Decimal("0.0001")) == Decimal("0.2627")
 
     est = a_round()
-    assert est.input_tokens_per_call == 19_540
-    assert est.total_eur.quantize(Decimal("0.01")) == Decimal("0.55")
-    assert est.total_eur.quantize(Decimal("0.0001")) == Decimal("0.5513")
+    assert est.input_tokens_per_call == 20_740
+    assert est.total_eur.quantize(Decimal("0.01")) == Decimal("0.56")
+    assert est.total_eur.quantize(Decimal("0.0001")) == Decimal("0.5624")
 
 
 def test_a_passage_is_priced_from_the_manifest_not_from_a_fixed_constant() -> None:
@@ -324,7 +324,7 @@ def test_the_context_window_precheck_names_the_keys_a_user_can_actually_turn(
     monkeypatch.setitem(budget_estimate.MAX_INPUT_TOKENS, MODEL, 1_000)
     with pytest.raises(ContextWindowExceededError) as exc_info:
         a_round()
-    assert "19,540" in exc_info.value.message
+    assert "20,740" in exc_info.value.message
     assert "1,000" in exc_info.value.message
     assert "final_k" in exc_info.value.remedy
     assert "max_tokens" in exc_info.value.remedy
@@ -333,16 +333,16 @@ def test_the_context_window_precheck_names_the_keys_a_user_can_actually_turn(
 
 def test_a_manifest_alone_can_reach_the_context_window_check() -> None:
     """Unlike the PDF estimator's, this pre-check is reachable without monkeypatching anything:
-    397 passages of 800 tokens is 999,000 vendor tokens against a documented 1,000,000, and three
-    more passages cross it. That is why the remedy names two keys rather than calling it a defect
+    374 passages of 800 tokens is 997,600 vendor tokens against a documented 1,000,000, and one
+    more passage crosses it. That is why the remedy names two keys rather than calling it a defect
     to report."""
     import pinakes.budget.estimate as budget_estimate
 
     assert budget_estimate.MAX_INPUT_TOKENS[MODEL] == 1_000_000
-    inside = a_round(final_k=397, chunk_max_tokens=800)
+    inside = a_round(final_k=374, chunk_max_tokens=800)
     assert inside.input_tokens_per_call < 1_000_000
     with pytest.raises(ContextWindowExceededError):
-        a_round(final_k=400, chunk_max_tokens=800)
+        a_round(final_k=375, chunk_max_tokens=800)
 
 
 def test_a_model_with_no_documented_window_skips_the_check() -> None:
@@ -395,7 +395,7 @@ def test_every_money_field_is_decimal_end_to_end() -> None:
         operation.per_round.total_eur,
     ):
         assert isinstance(value, Decimal)
-    # Unquantised: 0.5512962962... per round, not 0.55.
+    # Unquantised: 0.5624074074... per round, not 0.56.
     assert operation.per_round.total_eur != operation.per_round.total_eur.quantize(Decimal("0.01"))
 
 

@@ -13,6 +13,18 @@ with no bound anywhere in the system, and the arithmetic looked right because th
 made it big. Ask what is in a call's input that the formula does not name — not whether the formula
 was implemented correctly.*
 
+**HIGH — the second review pass found a ceiling below its own measurement, in a module written to
+refuse exactly that.** `PASSAGE_ENVELOPE_TOKENS` carried the comment *"the longest `path —
+heading_path` pair is under 120 characters"*, asserted without running anything, and 100 tokens was
+sized from it. Running it — by extending `tools/measure_passage_tokens.py` to report the envelope
+as well as the chunk — returned **220 characters**, about 110 vendor tokens at the pessimistic
+conversion the module's other constants use. The constant was under-reserving against a number
+nobody had taken; it is now 250, with the measurement and its date beside it. *Lesson: the review
+question that found it was "which of these numbers did I measure, and which did I merely write?" —
+asked of a file whose every other constant carries a command. A measured neighbour makes an
+asserted one look measured too, and prose like "measured from the corpora above" is how the two
+become indistinguishable.*
+
 **MEDIUM — a total divided by its call count and multiplied back was not the total.** `Decimal`
 division is exact to 28 significant digits and no further, so `per_call_eur * calls` landed one
 digit above `total_eur` at the shipped defaults — meaning, in the other direction, a per-call
@@ -42,7 +54,7 @@ for the rule.*
 
 **A finding handed to E4 rather than solved here.** At the shipped defaults (`final_k = 8`,
 `[chunking] max_tokens = 510`, `[budget] per_operation_eur = 0.30`) the cheap branch prices at
-EUR 0.2571 and fits inside the cap; a five-round loop prices at EUR 2.76 and is 9.2x it. So on a
+EUR 0.2627 and fits inside the cap; a five-round loop prices at EUR 2.81 and is 9.4x it. So on a
 stock KB, `pnk ask --deep` would answer a *confident* question and refuse an uncalibrated one at
 round 0 — which is precisely the combination D-22 option E was chosen to avoid, arrived at through
 the caps instead of through the signal. E2 declines to fix it by lowering a ceiling: that is the

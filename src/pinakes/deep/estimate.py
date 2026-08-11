@@ -16,8 +16,8 @@ counts the round's input once — `(carried_memory + final_k x chunk + prompt) x
 round makes *two* calls, each of which carries its own input, so counting it once under-prices a
 round by everything the second call also carries: the memory, the question and the prompt.
 Under-counting is the one direction a budget may never be wrong in (INVARIANTS), so every call in a
-round is priced at the full worst case instead. It
-costs an over-reservation on the decompose call, which sends no passages, and it buys the property
+round is priced at the full worst case instead. It costs an over-reservation on the decompose call,
+which sends no passages, and it buys the property
 `budget/estimate.py` already relies on: **every call costs the same**, so one `per_call_eur` bounds
 the per-call reservation `Accountant.paid_call` makes, whichever of the two it is about to make.
 
@@ -63,7 +63,7 @@ CALLS_PER_ROUND: Final = 2
 #:     uv run --frozen python3 tools/measure_passage_tokens.py \
 #:         tests/demo-kb/docs tests/partner-kb/docs docs
 #:
-#: **Measured 20260811 15:55** over 2,424 chunks at the template default `max_tokens = 510`: the
+#: **Measured 20260811 16:17** over 2,424 chunks at the template default `max_tokens = 510`: the
 #: widest real chunk holds **4.27 chars per embedding token** (2,131 chars at 499 tokens), and the
 #: worst ratio anywhere is 7.07 on a 15-token block no full-size chunk could sustain. English prose
 #: runs ~3.5-4 characters per vendor token; at a deliberately pessimistic **3**, the widest real
@@ -72,11 +72,17 @@ CALLS_PER_ROUND: Final = 2
 #: records the same refusal, and E6 measures the vendor half rather than assuming it).
 VENDOR_TOKENS_PER_CHUNK_TOKEN: Final = 3
 
-#: Per passage, on top of its text: the citation header, the path, the heading path and the
-#: numbering the prompt wraps each passage in. Measured from the corpora above, the longest
-#: `path — heading_path` pair is under 120 characters; 100 tokens is comfortably past that and is
-#: charged per passage rather than per call, so `final_k` scales it the way the text scales.
-PASSAGE_ENVELOPE_TOKENS: Final = 100
+#: Per passage, on top of its text: the citation line the prompt wraps it in — the path, the
+#: heading path and the numbering. Charged per passage rather than per call, because `final_k`
+#: scales it the way the text scales.
+#:
+#: **The measurement refuted the first guess, which is why it is a measured number now.** The same
+#: command reports the longest `path — heading_path` in the corpora: **220 characters** (20260811
+#: 16:17, `docs/graph/GRAPH_RAG.md` with a three-level heading path), against a first draft that
+#: asserted "under 120" without running anything. At the pessimistic 2 characters per vendor token
+#: that is ~110 tokens, so 100 would have been a ceiling *below* its own measurement — the exact
+#: failure this module's other constants are written to avoid. 250 clears it by 2.3x.
+PASSAGE_ENVELOPE_TOKENS: Final = 250
 
 #: The carried-memory bound: what a round may hand the next one after §5's re-fold.
 #:
@@ -116,9 +122,10 @@ PROMPT_TOKENS: Final = 1_500
 #: response text *together* on `claude-opus-5`, so it is the correct and only safe per-call output
 #: bound, and the same value the extractor reserves for the same reason.
 #:
-#: **This dominates a round's price** (~80% of it under the shipped defaults), because output is
-#: five times the input rate and a round makes two calls. E6 measures what the two calls actually
-#: produce; until then a bound that cannot be exceeded is worth more than one that is close.
+#: **This dominates a round's price** — two thirds of it under the shipped defaults (EUR 0.1852 of
+#: EUR 0.2812 a call), because output bills at five times the input rate. E6 measures what the two
+#: calls actually produce; until then a bound that cannot be exceeded is worth more than one that
+#: is close.
 MAX_TOKENS: Final = 8_000
 
 #: The cheap branch: one synthesis call over round 0's passages (D-28 option B).
