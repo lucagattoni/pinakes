@@ -398,6 +398,8 @@ def run_search(args: argparse.Namespace) -> int:
     """`pnk search`. Prints cited passages and an honest confidence line."""
     import json as json_module
 
+    from pinakes.search import LOW, UNKNOWN
+
     result = _retrieve(args)
 
     if args.json:
@@ -412,7 +414,10 @@ def run_search(args: argparse.Namespace) -> int:
     _print_passages(result)
 
     print(f"confidence: {result.confidence} — {result.confidence_reason}")
-    if result.confidence in ("low", "unknown"):
+    # The constants, not `("low", "unknown")` as this read until E1: `_escalation` two functions
+    # below compares against the same values, and two spellings of one vocabulary in one file is
+    # how they come to disagree.
+    if result.confidence in (LOW, UNKNOWN):
         # Names `pnk ask`, which exists (E1), and no flag of it, which does not. The sentence this
         # replaced advertised `pnk ask --deep` — a command *and* a flag that could not be typed,
         # in the very line whose test is named for not doing that.
@@ -470,6 +475,14 @@ class _Escalation:
     work: str
     """One sentence: how much work answering would take."""
 
+    notice: str | None
+    """`DEEP_RELEASE_NOTICE`, or `None` when naming paid synthesis would be beside the point.
+
+    Carried rather than decided by the renderer: `if branch != "none"` at the print site would put
+    the branch vocabulary in two places, and the one that matters — *do not offer to answer a
+    question nothing matched* — would live in neither of them.
+    """
+
     remedy: str | None
     """What the user could do about an `unknown`, or `None` when there is nothing to fix."""
 
@@ -480,17 +493,24 @@ def _escalation(result: "SearchResult") -> _Escalation:
     The branches are the ones §5 of the deep-release plan names: a confident retrieval needs one
     synthesis call, a low-confidence one needs decomposition and repeated search, and an
     uncalibrated KB cannot tell which — it is bounded by the caps rather than by the signal (D-22).
+
+    **Anything that is not `high`, `medium` or `low` falls through to `unknown`**, which is the safe
+    direction: a value this function has never heard of is precisely one it cannot size.
     """
     from pinakes.search import HIGH, LOW, MEDIUM
 
     if not result.passages:
         # Not an `unknown`: nothing matched, so no amount of reasoning has anything to reason
-        # over. Telling this user to calibrate would answer a question they did not ask.
-        return _Escalation("none", "nothing matched, so there is nothing to answer from.", None)
+        # over. Telling this user to calibrate would answer a question they did not ask, and
+        # offering paid synthesis would offer to reason over nothing.
+        return _Escalation(
+            "none", "nothing matched, so there is nothing to answer from.", None, None
+        )
     if result.confidence in (HIGH, MEDIUM):
         return _Escalation(
             "synthesis",
             "answering this would take one synthesis call over the passages above.",
+            DEEP_RELEASE_NOTICE,
             None,
         )
     if result.confidence == LOW:
@@ -498,12 +518,14 @@ def _escalation(result: "SearchResult") -> _Escalation:
             "decomposition",
             "answering this would take decomposition into subquestions, a search for each, and a "
             "synthesis over what they return — several calls.",
+            DEEP_RELEASE_NOTICE,
             None,
         )
     return _Escalation(
         "unknown",
         "how much answering this would take cannot be told from here: with no calibrated signal, "
         "a run would end at its caps rather than at sufficiency.",
+        DEEP_RELEASE_NOTICE,
         CALIBRATE_REMEDY,
     )
 
@@ -548,10 +570,9 @@ def run_ask(args: argparse.Namespace) -> int:
     print(f"confidence: {result.confidence} — {result.confidence_reason}")
     print(NO_ANSWER_SYNTHESISED)
     print(escalation.work)
-    if escalation.branch != "none":
-        print(DEEP_RELEASE_NOTICE)
-    if escalation.remedy is not None:
-        print(escalation.remedy)
+    for line in (escalation.notice, escalation.remedy):
+        if line is not None:
+            print(line)
     return EXIT_OK
 
 
