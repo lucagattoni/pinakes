@@ -442,6 +442,24 @@ def test_the_transport_passes_api_key_explicitly_never_omitting_it() -> None:
         assert "api_key" in keywords, f"line {call.lineno} omits api_key: {sorted(keywords)}"
 
 
+@pytest.mark.skipif(
+    find_spec("anthropic") is None,
+    reason="pinakes[claude] not installed — constructing the real client is the whole assertion, "
+    "and CI's [light,pdf,claude] leg is where it runs",
+)
+def test_the_constructed_client_really_carries_max_retries_zero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`build_client_kwargs()` returning `{"max_retries": 0}` is asserted in `tests/test_paid.py`;
+    that says nothing about this transport *passing* it. Constructing the client is offline — no
+    request is made and the key is a stand-in — so this is not a `paid` test, and it is what turns
+    "the SDK's retries are off" from a claim about a dict into a claim about the object that spends.
+    """
+    monkeypatch.setenv("PINAKES_ANTHROPIC_API_KEY", "sk-not-a-real-key")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    assert deep_client.AnthropicTransport().max_retries == 0
+
+
 def test_anthropic_is_imported_inside_the_transport_and_nowhere_else() -> None:
     """The allowlist permits this module to import `anthropic`; it does not permit it to import it
     *eagerly*. A module-scope import would make `pinakes.deep.client` unimportable on a `[light]`
@@ -885,105 +903,6 @@ def test_an_exception_the_transport_did_not_classify_is_not_voided(
             sleep=never_sleeps,
         )
     assert [call.state for call in ledger_calls(accountant)] == [CallState.UNKNOWN]
-
-
-# --- the shared classifier, driven against the hierarchy it claims -------------------------------
-
-
-class _FakeSdk:
-    """The four exception classes `classify` reads, in the **real** inheritance relationship —
-    `APITimeoutError` under `APIConnectionError`, and `APIConnectionError` a *sibling* of
-    `APIStatusError`. `stubs/anthropic.pyi` states the same shape, and the test below holds the two
-    against each other so this stand-in cannot quietly describe a hierarchy the SDK does not have.
-    """
-
-    class APIError(Exception): ...
-
-    class APIStatusError(APIError):
-        # Declared here and deliberately **not** in `stubs/anthropic.pyi`: the stub is a claim
-        # about a library, and `classify` reads this through `getattr` with an `isinstance` check
-        # rather than trusting a shape this project wrote down itself. The fake declares it because
-        # a test has to be able to set it.
-        status_code: object
-
-    class APIConnectionError(APIError): ...
-
-    class APITimeoutError(APIConnectionError): ...
-
-
-def _status_error(status: object) -> Exception:
-    exc = _FakeSdk.APIStatusError("boom")
-    exc.status_code = status
-    return exc
-
-
-def test_a_timeout_is_classified_before_the_connection_error_it_is_a_subclass_of() -> None:
-    """The single most consequential ordering in the paid path, and it had **no direct test** until
-    E3 made the classifier shared code: every branch of it was reached only through a fixture that
-    raised an already-classified error.
-
-    A timeout *is* an `APIConnectionError`, so checking the parent first classifies every timeout as
-    not-billed — which voids a reservation for a call the server may have generated and charged for.
-    """
-    from pinakes.paid import classify
-
-    timeout = classify(_FakeSdk.APITimeoutError("slow"), sdk=_FakeSdk)
-    assert timeout.billability is Billability.UNKNOWN
-    assert timeout.retryable is False
-
-    connection = classify(_FakeSdk.APIConnectionError("refused"), sdk=_FakeSdk)
-    assert connection.billability is Billability.NOT_BILLED
-    assert connection.retryable is True
-
-
-def test_the_stub_states_the_hierarchy_the_classifier_depends_on() -> None:
-    """`stubs/anthropic.pyi` is what pyright reads on a `[light]` install, and `_FakeSdk` above is
-    what this suite reads. Both are claims about a library neither of them is — so they are held
-    against each other, and against the real package when it happens to be installed."""
-    stub = (Path(__file__).parent.parent / "stubs" / "anthropic.pyi").read_text(encoding="utf-8")
-    assert "class APITimeoutError(APIConnectionError)" in stub
-    assert "class APIConnectionError(APIError)" in stub
-    assert "class APIStatusError(APIError)" in stub
-
-    if find_spec("anthropic") is not None:  # pragma: no cover - the [light] leg skips this half
-        import anthropic
-
-        assert issubclass(anthropic.APITimeoutError, anthropic.APIConnectionError)
-        assert not issubclass(anthropic.APIConnectionError, anthropic.APIStatusError)
-
-
-@pytest.mark.parametrize(
-    ("status", "retryable"), [(429, True), (500, True), (503, True), (400, False), (404, False)]
-)
-def test_a_status_error_is_never_billed_and_retries_only_where_retrying_can_help(
-    status: int, retryable: bool
-) -> None:
-    from pinakes.paid import classify
-
-    failure = classify(_status_error(status), sdk=_FakeSdk)
-    assert failure.billability is Billability.NOT_BILLED
-    assert failure.retryable is retryable
-    assert failure.status == status
-
-
-def test_a_status_arriving_as_something_other_than_an_int_does_not_crash_the_comparison() -> None:
-    """`>= 500` against a string raises, and it would raise on the failure path — where a crash
-    replaces a classified failure with a traceback and an open reservation."""
-    from pinakes.paid import classify
-
-    failure = classify(_status_error("500"), sdk=_FakeSdk)
-    assert failure.status is None
-    assert failure.retryable is False
-    assert failure.billability is Billability.NOT_BILLED
-
-
-def test_an_exception_the_hierarchy_does_not_cover_is_billable_unknown() -> None:
-    """The safe default: something nobody classified may have billed."""
-    from pinakes.paid import classify
-
-    failure = classify(ValueError("who knows"), sdk=_FakeSdk)
-    assert failure.billability is Billability.UNKNOWN
-    assert failure.retryable is False
 
 
 # --- a version number means the bytes it denotes -------------------------------------------------

@@ -452,6 +452,20 @@ caller cannot check for itself, on both the CLI and the MCP surface.
 | neither the free CLI nor the MCP server loads the deep client — a server-side loop would spend the *operator's* money on the *caller's* question (DESIGN §4.3) | E3 | `tests/test_paid_path.py::test_the_free_path_and_the_mcp_server_never_load_the_deep_client` |
 | …and that gate can fail, which is the only thing that makes "the name is absent" mean anything | E3 | `tests/test_paid_path.py::test_the_deep_client_gate_fails_when_an_import_is_planted` |
 
+## What every paid client obeys (E3)
+
+`src/pinakes/paid.py` — the rules shared by the two allowlisted modules. Not the allowlist itself,
+which is the section above; this is what a module that *may* import a client then has to do.
+
+| What must be true | Increment | Where it is checked |
+|---|---|---|
+| the key is `PINAKES_ANTHROPIC_API_KEY`, stripped, and an ambient `ANTHROPIC_API_KEY` is not enough | E3 | `tests/test_paid.py::test_the_key_is_read_from_the_pinakes_variable_and_stripped`, `tests/test_paid.py::test_an_ambient_anthropic_api_key_is_not_enough`, `tests/test_paid.py::test_a_blank_key_refuses_rather_than_being_sent` |
+| a refusal names the **surface** that wanted to spend, so two entry points cannot report each other's | E3 | `tests/test_paid.py::test_the_refusal_names_the_surface_that_wanted_to_spend` |
+| the SDK's own retries are off — its default of 2 turns one call into up to three billed requests | E3 | `tests/test_paid.py::test_the_sdk_retries_are_off` |
+| a timeout is classified **before** the connection error it subclasses — the ordering that decides void versus unknown outcome, and the one `stubs/anthropic.pyi` warns is easy to get wrong from memory | E3 | `tests/test_paid.py::test_a_timeout_is_classified_before_the_connection_error_it_is_a_subclass_of`, `tests/test_paid.py::test_the_stub_states_the_hierarchy_the_classifier_depends_on` |
+| a status error is never billed, and retries only where retrying can help — including a status arriving as something other than an int, which would otherwise crash the comparison on the failure path | E3 | `tests/test_paid.py::test_a_status_error_is_never_billed_and_retries_only_where_retrying_can_help`, `tests/test_paid.py::test_a_status_arriving_as_something_other_than_an_int_does_not_crash_the_comparison` |
+| anything the hierarchy does not cover is **billable-unknown** — the safe default, because something nobody classified may have billed | E3 | `tests/test_paid.py::test_an_exception_the_hierarchy_does_not_cover_is_billable_unknown` |
+
 ## The paid extractor
 
 | What must be true | Increment | Where it is checked |
@@ -966,6 +980,6 @@ Every row below is driven by `tests/fixtures/deep/`, with `anthropic` **not inst
 | the injection rule is in **both** prompts — the decompose call sees carried memory, which is prose an answer call wrote from those same passages | E3 | `tests/test_deep_client.py::test_the_injection_rule_is_in_every_prompt_that_carries_untrusted_text` |
 | `max_tokens` is not a knob a caller can raise — it is two thirds of a round's price, and a settable ceiling is a caller-supplied under-reservation | E3 | `tests/test_deep_client.py::test_max_tokens_is_not_a_knob_a_caller_can_raise` |
 | an unclassified exception leaves the reservation **open** — a defect is not proof the call never billed, and proof is what a void requires | E3 | `tests/test_deep_client.py::test_an_exception_the_transport_did_not_classify_is_not_voided` |
-| the classifier's own branches, against the SDK hierarchy `stubs/anthropic.pyi` states — timeout before the connection error it subclasses, a non-int status not crashing the comparison, and anything unrecognised billable-unknown | E3 | `tests/test_deep_client.py::test_a_timeout_is_classified_before_the_connection_error_it_is_a_subclass_of`, `tests/test_deep_client.py::test_the_stub_states_the_hierarchy_the_classifier_depends_on`, `tests/test_deep_client.py::test_a_status_error_is_never_billed_and_retries_only_where_retrying_can_help`, `tests/test_deep_client.py::test_a_status_arriving_as_something_other_than_an_int_does_not_crash_the_comparison`, `tests/test_deep_client.py::test_an_exception_the_hierarchy_does_not_cover_is_billable_unknown` |
+| the constructed client really carries `max_retries=0` — the dict is asserted elsewhere, which says nothing about this transport passing it | E3 | `tests/test_deep_client.py::test_the_constructed_client_really_carries_max_retries_zero` |
 | the rendered passage envelope stays inside **half** what `PASSAGE_ENVELOPE_TOKENS` reserves — the first draft repeated the path and heading inside a citation line and spent 226 of 250 | E3 | `tests/test_deep_client.py::test_the_rendered_envelope_fits_the_constant_that_prices_it` |
 | every fixture says why it exists and where its body came from — the whole set is authored until E6 spends, and only the provenance separates "the branch behaves as the plan says" from "this is what the API returns" | E3 | `tests/test_deep_client.py::test_every_fixture_says_why_it_exists_and_where_its_body_came_from`, `tests/test_deep_client.py::test_the_fixture_set_covers_every_branch` |
