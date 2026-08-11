@@ -117,7 +117,7 @@ number belongs to a release only when it is cut
 | | | **[Open corrections](#open-corrections--four-live)** | • **Four live** — six on 20260808, two closed in 0.21.1<br>• **Every one of the four needs a decision, not a correction** — which is what made the other two takeable<br>• Five routes in: building, reading, shipping, generalising a fix, and reviewing a new surface — none finds the others'<br>• None blocking |
 | | | **[The graph release, staged](#the-graph-release-staged--gates-only-not-scheduled)** | • PPR channel, the `[ner]` extra<br>• Gate-only: no implementation plan exists, by design<br>• Not scheduled |
 | | | **[The deep release](#the-deep-release)** | • `pnk ask --deep` — the budgeted agentic loop<br>• Only paid entry point still unbuilt |
-| | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• ✅ Plan written and reviewed, decisions taken<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• Only the gated T6 (`sqlite-vec`) and T8 (a second template) remain, neither scheduled<br>• Cuts more than once (D-9), so the name stays here |
+| | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
 ---
 
@@ -998,12 +998,16 @@ what it inherited: the manifest is written before the template's declared files 
 refused declaration leaves a directory holding a manifest and no extras. It is pre-existing — *any*
 failure after that write does it — and T7 only added one more way to reach it.
 
-**What remains is four decisions, not four fixes**, and that is the fact worth carrying out of this
-section. An implementer can close an item whose *required* text is stated; it cannot close one
-whose required text is *choose between these two defensible answers*, and both items closed in
-0.21.1 were of the first kind. The four left — re-chunking a protected paid document, `--apply` on
-the `same manifest` outcome, what an eval header should record, and whether `pnk init` is
-transactional — are each a fork someone has to pick, so the list is now waiting on its planner.
+**All four were answered on 20260811** ([the decision record](https://github.com/lucagattoni/pinakes/blob/main/plans/20260811_0720-decisions-gates-and-corrections.md)), so the list is
+executable again rather than waiting on its planner: re-chunk a protected paid document from the
+extraction cache when warm; `--apply` restamps `[kb] template` on the `same manifest` outcome and
+says so; an eval header records both the configured tier and the resolved one; and `pnk init`
+validates everything before it writes anything.
+
+**Two of the four were not forks at all — they were unchecked assumptions.** The `init` item called
+the full fix unavailable and the paid-rebuild item called re-chunking a paid call, and running the
+code refuted both: `lands_inside` works against a target that does not exist, and the extraction
+cache survives `--rebuild`. **An item that reads as a decision may only be something nobody ran.**
 
 **Closing one of the two nearly opened its replacement.** Guarding the template reads turned a raw
 `OSError` into a `PinakesError`, which routed the failure into an `except` that `pnk doctor` and

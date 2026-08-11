@@ -34,14 +34,18 @@ and that no increment had reason to look at until one added a new way to trigger
 reading, shipping, generalising from a fix, and reviewing what a new surface inherits each find a
 different class, and none of them finds the others'.
 
-**Four live as of 0.21.1 (20260810 01:48).** The chunking-blind gate and the damaged-template
-traceback closed there, and the residue is the part worth reading: **every one of the four that
-remain needs a decision rather than a correction.** That is not a coincidence of which two were
-taken — it is what made them takeable. An implementer can close an item whose *required* text is
-stated; it cannot close one whose required text is *"choose between these two defensible answers"*,
-and CLAUDE.md's rule against assuming what the plans have not decided is exactly the wall those
-four stand behind. **A list converging on nothing but decisions is waiting on its planner, not on
-its implementer** — so the next thing this file needs is four answers, not four fixes.
+**Four live as of 0.21.1 (20260810 01:48), and all four were answered on 20260811 07:20.** Each
+had stalled on the same thing — its *required* text was "choose between these two defensible
+answers", which an implementer may not do — so the list had converged on decisions rather than
+fixes. [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md) takes all four, and every item below now carries a
+**Decided** line naming its answer. **They are executable again**; the wall is gone.
+
+**Two of the four were stalled behind a false premise rather than a genuine fork**, which is worth
+more than the decisions themselves: item 4 called the full fix unavailable and item 1 called
+re-chunking a paid call, and *both were refuted by running the code they describe* —
+`lands_inside` works against a target that does not exist, and the extraction cache survives
+`--rebuild`. **An item that reads as a decision may only be an unchecked assumption**, so run the
+check before escalating one here.
 
 Closing the traceback item also came within one handler of opening the next one. The fix turned a
 raw `OSError` into a `PinakesError`, which routed the failure into an `except` two other commands
@@ -70,10 +74,16 @@ while `set_meta` stamps the current settings over the whole index.
 **Required:** either re-chunk such a document on a rebuild, or record that the index is
 inhomogeneous so the drift report can say so.
 
-**Why it is not simply fixed:** re-chunking needs the extracted *text*, and for this class of
-document that text is exactly what may cost money to obtain again — which is the reason the
-copy-forward path exists. Any fix has to get the text without re-extracting (the extraction cache,
-when it is warm) or accept a paid call, and that is a decision rather than a correction.
+**Decided 20260811 (D-15, [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md)): re-chunk from the extraction cache when it is warm;
+when it is cold, copy forward as today and record the index as inhomogeneous. Never a paid call on
+a rebuild.**
+
+**The "or accept a paid call" half was a false premise, and measuring it is what unblocked this.**
+The cache lives at `manifest.state_dir / "cache" / "extract"` and **survives `--rebuild`** — rebuild
+builds `index.db.new` beside the old and swaps atomically, and nothing deletes the cache directory.
+So `cache.peek(...)` returns the extracted text for free in the common case. A rebuild that spends
+money is refused on its own ground: `--rebuild` is the remedy `pnk doctor` prints, and a remedy that
+can cost money is not a remedy.
 
 **The `metadata` half of this was closed in 0.16.0** — vectors are now recomputed rather than
 copied, since embedding is free and the chunk texts are already in hand. The chunking half is what
@@ -95,10 +105,15 @@ none.** Writing the reference anyway would be behaviour the plan does not descri
 conservative reading was taken deliberately and pinned by
 `tests/test_cli_upgrade.py::test_same_manifest_under_apply_writes_nothing`.
 
-**Required: a decision, not a correction.** Either `--apply` restamps `[kb] template` when the
-outcome is `same manifest` — which means it writes to a manifest with no hunk to justify it, and
-the printed report must then say so — or `pnk upgrade` gains a way to record a reference without
-applying anything, or the case is accepted and documented. This is the planner's to take.
+**Decided 20260811 (D-16, [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md)): `--apply` restamps `[kb] template` on this outcome,
+and the printed report says it wrote the reference with no hunks to show.** Consent rather than
+refusal — the same shape D-10 already took for `[budget]`: the write is announced before it happens.
+The alternative leaves a KB recording a stale reference, warning forever, with no command that can
+fix it.
+
+⚠️ **`tests/test_cli_upgrade.py::test_same_manifest_under_apply_writes_nothing` pins the opposite.**
+It is replaced by a test of the new property, not deleted quietly, and the commit names the
+behaviour that changed.
 
 **Recorded 20260808 by T4's third review pass**, in the increment that created it.
 
@@ -116,12 +131,12 @@ literal is now `search.resolve_tier(manifest)`'s return.
 at ≥ 100k chunks. Two such runs on a manifest set to `auto` would produce headers identical in the
 one field that distinguishes them.
 
-**Required: a decision, and it is small but genuinely two-sided.** Recording the *configuration* is
-a defensible thing for a header to do — it is what the user wrote — and switching to the resolved
-tier makes a re-run of an existing artifact show a changed field where no measurement moved
-(`rfc_corpus/outcomes.json` would go `auto` → `numpy`). The alternative is recording both. Not
-fixed inside T5 because it is a choice rather than a correction, and because nothing reads the
-field today — verified: no test asserts it and no tool consumes it.
+**Decided 20260811 (D-17, [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md)): record both.** `vector_tier` keeps its meaning — what
+the manifest asked for — and the resolver's return is recorded beside it, in `eval.py` and in
+`tools/reachable_ceiling_probe.py`, which copies the line. **No existing value changes**, so
+re-running a committed artifact shows no movement where no measurement moved. Recording only the
+resolved tier is defensible and simpler, since nothing consumes the field; an artifact that appears
+to move when nothing did is the cost that decided it.
 
 **Recorded 20260808 by T5's first review pass**, which found it by asking where else the same
 defect class lives.
@@ -143,12 +158,23 @@ writing anything, which `init` already does for one case —
 accept it and say so in the error, since the remedy is `rm -rf` on a directory the user just asked
 to have created.
 
-**Why it is an item rather than something T7 fixed.** It is not T7's defect: **any** failure after
-line 88 produces the same state, and that has been true since `init` existed. T7 only adds one more
-way to reach it. Fixing it properly means deciding whether `init` is transactional, which is a
-question about `init` rather than about templates — and the narrow version (hoist only the
-declaration check, which needs no target) would leave the containment checks behind and make the
-guarantee half-true, which is worse than the current honest failure.
+**Decided 20260811 (D-18, [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md)): yes — hoist the *full* validation before any write.**
+
+**This item's objection rested on a false premise.** It assumed containment could not be checked
+before the target exists, so only the narrow hoist was available and the guarantee would be
+half-true. Measured: `lands_inside` resolves the *parent*, and a non-strict `resolve()` needs no
+existing directory — against a path never created, `README.md` → `True` and `../escape.md` →
+`False`. So declaration shape, the `_versions` rule, target containment **and** template-source
+containment all run before `mkdir`. The narrow hoist stays rejected for this item's own reason.
+
+`init` already guarantees exactly this for `--ci`
+(`test_ci_refuses_an_existing_workflow_before_creating_anything`, whose docstring records that the
+refusal *"left a half-made KB"* until it was moved), so this makes one guarantee uniform rather than
+inventing one. **Claim "validated before writing", never "atomic"** — a symlinked ancestor of the
+target can still change between check and write.
+
+It is still not T7's defect: **any** failure after the manifest write produces the same state, and
+that has been true since `init` existed.
 
 **Recorded 20260808 by T7's third review pass**, which found it by asking what a new surface
 inherits rather than what it introduces.

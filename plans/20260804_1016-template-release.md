@@ -2131,7 +2131,21 @@ point, and if part 1 also goes red the injection is not doing what it claims.
 
 ---
 
-### T6 — The `sqlite-vec` tier 🚫 gated
+### T6 — The `sqlite-vec` tier 🚫 gated · **DEFERRED 20260811**
+
+> ✅ **DECIDED 20260811 07:20 — deferred with a named trigger, not abandoned** (D-13, [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md)).
+> **Do not start this increment, and do not re-argue the precondition.** Two of its assumptions are
+> already measured: `tools/build_rfc_corpus.py --count 300` satisfies precondition 1 with no new
+> generator, and this interpreter loads SQLite extensions. **The reason to defer is the gate's own
+> stated bound**: performance is measured on an unlabelled ≥100k-chunk corpus and *equivalence*
+> only on `tests/demo-kb` at ~30 documents, so a passing gate never shows the tiers agree at 100k.
+> A pass would license the tier on partial evidence.
+>
+> **The trigger — a KB that is actually queried crosses ~50 000 chunks *and* its latency is a felt
+> problem.** Not "a corpus above the threshold exists": the 300-RFC corpus already is one, and it is
+> an instrument nobody searches interactively. 0.20.1 already made the config surface honest, so
+> nothing user-facing waits on this.
+
 
 **Do not start this increment until its precondition is measured and passed.** The precondition is
 stated here so that failing it is a cheap outcome rather than a discovered one — the same ordering
@@ -2361,7 +2375,20 @@ nothing and confirm the historical-two test fails.
 
 ---
 
-### T8 — A second template 🚫 gated
+### T8 — A second template 🚫 gated · **CLOSED 20260811, no-go**
+
+> ✅ **DECIDED 20260811 07:20 — the gate was run on 20260808 and fails on leg 3** (D-14, [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md)).
+> **Do not write this increment.** Leg 1 passes, but via `pinakes-corpus-rfc` rather than
+> `pinakes-kb` — the dogfooding KB this gate names has one commit, an empty `docs/` and no
+> `.pinakes/`. Leg 2 fails: the only owner-chosen divergences are the two provider keys, one reason
+> between them. Leg 3 fails: **every divergence in every admissible KB is a manifest value**, which
+> this gate defines as a preset rather than a template.
+>
+> **Waiting cannot help** — more KBs of the same kind cannot move leg 3; re-opening needs a
+> different *kind* of KB, which is why this is closed rather than left gated. **The gate's own
+> redirect is taken instead**: both KBs stamped from `notes` immediately edited the same two
+> provider keys, so the answer is an explicit `pnk init --backend` (D-20), not a second template.
+
 
 **Do not write this increment until the gate passes.** Per D-7, and per `docs/DESIGN.md:1164` —
 *"Generalisation, once real usage has shaped one template well."*
