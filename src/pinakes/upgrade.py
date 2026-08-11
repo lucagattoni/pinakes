@@ -141,6 +141,25 @@ class Outcome(Enum):
     NO_BASELINE = "no-baseline"
 
 
+APPLIABLE = frozenset({Outcome.DRIFTED, Outcome.SAME_MANIFEST})
+"""The outcomes `--apply` acts on — a diff to write, or a reference to record (D-16).
+
+**`SAME_MANIFEST` is here even though it has no hunks, and that is the decision.** A template
+version covers four consumed files and this command reads one, so a bump touching only the starter
+golden set renders a byte-identical manifest: no hunks, nothing to splice. `--apply` used to do
+*nothing at all* on it — including the `[kb] template` restamp — so the KB went on recording the old
+reference, `pnk doctor` went on warning, and no command existed that could clear it. Reachable
+rather than theoretical: of the ten commits between `notes@1.0` and `1.1`, five touched only the
+golden set.
+
+The objection it was left open for — writing to a manifest with no hunk to justify the write — is
+answered the way D-10 answered it for `[budget]`: by consent, not by refusal. The write is
+announced in the report before it happens, and `applied_lines` says the reference was recorded with
+no hunks to show. `UP_TO_DATE` and `NO_BASELINE` stay out: the first has nothing to record and the
+second cannot know what to record.
+"""
+
+
 @dataclass(frozen=True, slots=True)
 class Hunk:
     """One region the template changed, and whether it still fits `theirs`.
@@ -783,6 +802,19 @@ def lines(report: Report, *, applying: bool = False) -> list[str]:
     """
     if report.outcome is not Outcome.DRIFTED:
         out = [report.detail]
+        if applying and report.outcome is Outcome.SAME_MANIFEST:
+            # **The consent line, and it is printed before the write like every other one** (D-16).
+            # There is no diff to show here — that is what `same manifest` means — so without this
+            # the user is told the two versions stamp an identical file and then, with no sentence
+            # in between, that something was written to it.
+            out += [
+                "",
+                fill(
+                    f"`--apply` will record {report.installed} in `[kb] template`. That is the "
+                    f"only change: there are no hunks, because the two versions render the same "
+                    f"{MANIFEST_NAME}. Your settings are untouched."
+                ),
+            ]
         if report.remedy:
             # Wrapped here and nowhere else: `as_json` hands a consumer the string it was given.
             # On this path the remedy *is* the output — a KB recording an unarchived version has
@@ -1109,7 +1141,7 @@ def apply(manifest: Manifest, report: Report) -> Applied:
     called — and not a special case here. A later reader who adds one has reversed a decision.
     """
     reference = report.installed
-    if report.outcome is not Outcome.DRIFTED or reference is None:  # pragma: no cover
+    if report.outcome not in APPLIABLE or reference is None:  # pragma: no cover
         raise UpgradeError(  # the CLI never gets here: it prints and returns on every other outcome
             f"cannot apply: {report.detail}",
             remedy="`--apply` writes the hunks of a template diff, and this KB has no diff.",
@@ -1188,10 +1220,20 @@ def applied_lines(result: Applied) -> list[str]:
     a backup was written — which is the moment the write begins. Anchoring on a word like
     *applied* instead would fire against the *already applied* count printed further up.
     """
-    counted = [f"{len(result.written)} applied"]
-    if result.skipped:
-        counted.append(f"{len(result.skipped)} already applied and skipped")
-    out = ["", ", ".join(counted) + ".", ""]
+    if not result.written and not result.skipped:
+        # **The `same manifest` outcome under `--apply`** (D-16). "0 applied." is true and tells the
+        # user nothing about why a backup exists and their manifest changed, so this path says what
+        # was written instead of counting what was not.
+        out = [
+            "",
+            f"no hunks — the two versions render an identical {MANIFEST_NAME}.",
+            "",
+        ]
+    else:
+        counted = [f"{len(result.written)} applied"]
+        if result.skipped:
+            counted.append(f"{len(result.skipped)} already applied and skipped")
+        out = ["", ", ".join(counted) + ".", ""]
     out.append(f"{result.backup_shown} holds your previous {MANIFEST_NAME}, byte for byte.")
     out.append(
         fill(

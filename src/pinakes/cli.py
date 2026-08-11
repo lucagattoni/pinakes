@@ -443,11 +443,15 @@ def run_upgrade(args: argparse.Namespace) -> int:
 
     from pinakes import manifest as manifest_module
     from pinakes.errors import UpgradeError
-    from pinakes.upgrade import Outcome, applied_lines, apply, as_json, lines, plan
+    from pinakes.upgrade import APPLIABLE, Outcome, applied_lines, apply, as_json, lines, plan
 
     loaded = manifest_module.discover(args.kb)
     report = plan(loaded)
-    applying = args.apply and report.outcome is Outcome.DRIFTED
+    # `APPLIABLE`, not `is DRIFTED`: the `same manifest` outcome has no hunks and still has a
+    # reference to record (D-16). The set lives beside `Outcome` so this predicate and `apply`'s
+    # own guard cannot disagree about which outcomes are writable — two copies of that rule is how
+    # the CLI ends up calling a function that then refuses.
+    applying = args.apply and report.outcome in APPLIABLE
 
     if not args.json:
         for line in lines(report, applying=applying):
