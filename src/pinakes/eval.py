@@ -640,6 +640,16 @@ def header(
             #
             # It bites at T6 and not before: two runs comparing the tiers on a manifest left at
             # `auto` would produce headers identical in the one field meant to distinguish them.
+            #
+            # **Adding a field here makes older artifacts un-comparable, and that is correct.**
+            # `two_leg_gate` compares the *union* of flattened header paths and `graph_gate`
+            # compares `retrieval` whole, so a leg written before this release has no
+            # `vector_tier_resolved` and a leg written after has one — the gates refuse the pair.
+            # They should: the two were produced by different binaries, which is the premise those
+            # gates exist to enforce. There is precedent and it resolved the same way — `2c`'s
+            # committed before-leg predates `chunking.metadata`, so 2d's screen captured a fresh
+            # before-leg rather than comparing across the change. Expect to do that again, and read
+            # the gate's own refusal message, which names the field.
             "vector_tier": settings.vector_tier,
             "vector_tier_resolved": resolve_tier(manifest),
             "adjacent_k": settings.adjacent_k,
