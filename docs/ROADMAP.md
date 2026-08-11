@@ -17,17 +17,19 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260808 06:41 UTC
+## Where things stand right now — 20260811 12:18 UTC
 
-- **30 releases in 14 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.21.0`](#0210--a-template-says-what-it-installs--20260808-1015) on 20260808.
-- **Latest on PyPI: `0.21.0`.** Every release from `0.2.2` on is published
+- **33 releases in 17 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.22.0`](#0220--eight-decisions-and-two-of-them-were-never-decisions--20260811-0826) on
+  20260811.
+- **Latest on PyPI: `0.22.0`.** Every release from `0.2.2` on is published
   ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)).
 - **Two of the four named releases have shipped** — the links release across
   [`0.5.0`](#050--links-you-can-walk--20260731-1127)–[`0.6.0`](#060--links-you-can-write--20260801-1051),
-  the graph release in [`0.11.0`](#the-graph-release--shipped-0110). The template release is
-  **part-shipped** — T1 to T4 across 0.17.0–0.20.0, cutting more than once by D-9. The deep
-  release is unbuilt.
+  the graph release in [`0.11.0`](#the-graph-release--shipped-0110). **The template release has
+  shipped every increment it scheduled** — T1 to T5 and T7 across 0.17.0–0.21.0, cutting more than
+  once by D-9 — **and both of its gated increments are now answered**, so what is left under that
+  name is a trigger rather than a queue. The deep release is unbuilt, and has no plan.
 - **Is document metadata retrieval context? Measured, and the answer was no — on one corpus, through
   one channel**
   ([`plans/20260805_1721-metadata-as-retrieval-context.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260805_1721-metadata-as-retrieval-context.md),
@@ -56,20 +58,29 @@ precision nobody measured.
 - ⚠️ **`0.11.0`'s verdict is narrower than it reads** — three of the seven edge kinds derived
   **zero** edges on the corpus it was gated against. **0.12.0 ships the check that reports it**, so a
   future corpus cannot repeat it silently.
-- **[The template release](#the-template-release--t1-shipped-in-0170) has started** — plan written,
-  reviewed, four decisions taken, **T1 shipped as `0.17.0`** and **T2 as `0.18.0`**: template
-  versions now mean something, a gate keeps them meaning it, and `pnk doctor` reports how far a KB
-  has drifted rather than only that it has, **T3 shipped `pnk upgrade` as `0.19.0`**, which prints the
-  lines themselves, **T4 shipped `--apply` as `0.20.0`**, which writes the ones that fit, and **T5
-  shipped as `0.20.1`**, refusing a vector tier that is not built rather than accepting it silently.
-  **T7 remains**; `main` has moved far enough that the plan's Baseline block must be re-run before
-  any `file:line` in it is trusted.
+- **[The template release](#the-template-release--t1-shipped-in-0170) has shipped everything it
+  scheduled** — plan written, reviewed, four decisions taken, then **T1 as `0.17.0`** and **T2 as
+  `0.18.0`**: template versions now mean something, a gate keeps them meaning it, and `pnk doctor`
+  reports how far a KB has drifted rather than only that it has; **T3 as `0.19.0`**, `pnk upgrade`
+  printing the lines themselves; **T4 as `0.20.0`**, `--apply` writing the ones that fit; **T5 as
+  `0.20.1`**, refusing a vector tier that is not built rather than accepting it silently; and **T7 as
+  `0.21.0`**, `pnk templates` and a template declaring its own `files`. **Its two gated increments
+  were answered on 20260811**: **T8 is a no-go** — the gate was run and fails leg 3, because every
+  divergence in every admissible KB is a manifest value — and **T6 is deferred behind a written
+  trigger**, not abandoned. `main` has moved far enough that the plan's Baseline block must be re-run
+  before any `file:line` in it is trusted.
 - **[No open corrections](#open-corrections--none-live)** — empty for the second time, after all
   four were decided and built in 0.22.0. It emptied once before, on 20260805, and refilled twice
   within three days. It refills from *use*, and by five different routes: two
   entries came from **building** 2d and are invisible from reading the code, one from **reading**
   under adversarial review, one was **created** by the increment that closed another, and one came
   from **generalising a fix** — asking where else the defect just repaired still lives.
+- **Nothing is scheduled.** Every plan in
+  [`plans/`](https://github.com/lucagattoni/pinakes/tree/main/plans) is built out, the
+  open-corrections list is empty, and what is left is gated rather than queued: T6 waits on a
+  **trigger** (a queried KB past ~50 000 chunks *with* felt latency), the staged graph channels wait
+  on a **corpus**. **[The deep release](#the-deep-release) is the only remaining body of work with
+  work in it — and it has no plan**, which is the next thing to write.
 
 ---
 
@@ -1217,11 +1228,17 @@ placeholder in the CLI: [CLI § Planned — not built yet](CLI.md#planned--not-b
 
 ## The template release — T1 shipped in 0.17.0
 
-▶ **Started.** T1 shipped as
-[`0.17.0`](#0170--a-template-version-that-means-something--20260807-2055) and T2 as
-[`0.18.0`](#0180--the-drift-warning-says-something-you-can-act-on--20260807-2237), with **T3
-merged**; **T4 and T7 are still to come.** Per D-9 the release cuts more than once, so the name stays here until the final
-cut. *(The heading above still says T1 because renaming it would move this section's anchor, which
+▶ **Every scheduled increment has shipped, and both gates are answered.** T1 as
+[`0.17.0`](#0170--a-template-version-that-means-something--20260807-2055), T2 as
+[`0.18.0`](#0180--the-drift-warning-says-something-you-can-act-on--20260807-2237), T3 as
+[`0.19.0`](#0190--what-the-template-changed-in-your-own-file--20260808-0418), T4 as
+[`0.20.0`](#0200--adopting-the-change-after-you-have-seen-it--20260808-0541), T5 as
+[`0.20.1`](#0201--a-tier-that-is-not-built-stops-being-accepted--20260808-0641) and T7 as
+[`0.21.0`](#0210--a-template-says-what-it-installs--20260808-1015) — then **T8 closed as a no-go and
+T6 deferred behind a written trigger**, both in
+[`0.22.0`](#0220--eight-decisions-and-two-of-them-were-never-decisions--20260811-0826). Per D-9 the
+release cuts more than once, so the name stays here until the final cut — **which T6 could still
+be.** *(The heading above still says T1 because renaming it would move this section's anchor, which
 three links and the published site resolve.)*
 
 **What it adds:** the template ecosystem, `pnk upgrade`, and the `sqlite-vec` tier.
@@ -1243,9 +1260,25 @@ will be until the next template bump.
 is written, adversarially reviewed (36 findings), and its four open decisions were taken by the user
 on 20260804. **T1 to T5 and T7 are done** — T5 shipped in 0.20.1, refusing `vector_tier = "sqlite-vec"`
 instead of accepting and ignoring it and taking D-4 as option A; T7 shipped in 0.21.0 with
-`pnk templates` and a template's own `files = [...]`. **Only the two gated increments remain — T6
-(the `sqlite-vec` tier) and T8 (a second template) — and neither is scheduled**, so the release name
-stays in the unbuilt-work table.
+`pnk templates` and a template's own `files = [...]`.
+
+**Both gated increments were answered on 20260811** (D-13 and D-14 in
+[`plans/20260811_0720-decisions-gates-and-corrections.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260811_0720-decisions-gates-and-corrections.md)).
+**T8 — a second template — is closed as a no-go.** Its gate was run and fails leg 3: every
+divergence in every admissible KB is a manifest value. Leg 2 fails too — the only owner-chosen
+divergences are `[embedding] provider` and `[rerank] provider`, two settings for **one** reason (a
+`[light]` install). More KBs of the same kind cannot move leg 3, so it is closed rather than left
+gated, and **the gate's own redirect was taken instead** — a divergence that is a missing default in
+`notes` means changing `notes`, not forking it, which is `pnk init --backend st|light` in 0.22.0.
+**T6 — the `sqlite-vec` tier — is deferred rather than abandoned, and the reason is the gate, not
+the cost.** Nothing blocks it technically (the precondition corpus already exists, and this
+interpreter loads extensions). But performance is measured on an unlabelled ≥100k-chunk corpus while
+*equivalence* is measured on `tests/demo-kb` at ~30 documents, so **nothing in a passing gate shows
+the two tiers agree at 100k** — a pass would license the tier on half the evidence. Its trigger,
+written before the fact so it is a trigger and not a mood: **a KB that is actually queried crosses
+~50 000 chunks *and* its search latency is a felt problem.** A corpus above the threshold is not
+enough; one exists and nobody searches it interactively. So the release name stays in the
+unbuilt-work table.
 T4 in turn left two things behind: it **created** an open correction — `--apply` writes nothing on
 the *same manifest* outcome, so that KB can never record the new reference — and it found two of the
 plan's own test specifications unable to measure what they named. T5 found an eighth: the plan asks
