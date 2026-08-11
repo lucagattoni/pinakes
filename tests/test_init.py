@@ -192,6 +192,37 @@ def test_a_refused_declaration_creates_nothing_at_all(
     assert not root.exists(), "a refusal must leave no directory, not merely no manifest"
 
 
+def test_a_refused_declaration_adds_nothing_to_a_directory_being_adopted(
+    tmp_path: Path, synthetic_template: Callable[..., str]
+) -> None:
+    """The adoption case, where "leaves nothing behind" means something different.
+
+    `init` deliberately has no emptiness test — pointing it at a repository that already holds a
+    `.git`, a `README.md` and a `pyproject.toml` is the normal way to adopt one. So for that
+    directory the property cannot be *"root does not exist"*: it is **the user's files are
+    untouched and nothing new was added.** The sibling tests above assert the create case and are
+    blind to this one, because their `root` is a path `init` would have made itself.
+
+    Worth its own test rather than a parametrisation: a refusal that deleted the directory it was
+    adopting would pass every assertion in this file except these."""
+    name = synthetic_template(
+        "synth", versions={"1.0": "[kb]\n"}, current="1.0", files=["../escaped.md"]
+    )
+    root = tmp_path / "existing-repo"
+    root.mkdir()
+    (root / "README.md").write_text("mine\n", encoding="utf-8")
+    (root / "notes.md").write_text("also mine\n", encoding="utf-8")
+    before = sorted(path.name for path in root.iterdir())
+
+    with pytest.raises(TemplateError):
+        init(root, template_name=name)
+
+    assert sorted(path.name for path in root.iterdir()) == before, "a refusal added a file"
+    assert (root / "README.md").read_text(encoding="utf-8") == "mine\n"
+    assert not (root / "pinakes.toml").exists()
+    assert not (root / "docs").exists()
+
+
 def test_a_declaration_is_validated_against_a_target_that_does_not_exist_yet(
     tmp_path: Path, synthetic_template: Callable[..., str]
 ) -> None:
