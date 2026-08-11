@@ -125,6 +125,53 @@ ON_EXCEED = ("abort", "partial")
 EXTRACTION_BACKEND_DEFAULT = "pypdfium2"
 EXTRACTION_MODEL_DEFAULT = "claude-opus-5"
 
+DEEP_MODEL_DEFAULT = "claude-opus-5"
+"""`[deep] model` — the only model `budget/prices.toml` can price (M5 of the deep release's plan).
+
+A second model is a priced entry with a measurement behind it, not a string: `Prices.for_model`
+raises `UnknownModelPriceError` for anything else, so a manifest naming one is refused at the
+estimate rather than at the call.
+"""
+
+DEEP_MAX_ROUNDS_DEFAULT = 3
+"""`[deep] max_rounds` — how hard `pnk ask --deep` tries before it stops and says so.
+
+**Three because of what three costs** (D-30, measured 20260811 20:04 at the shipped `final_k = 8`
+and `[chunking] max_tokens = 510`): six paid calls, worst case EUR 1.6872, which is what
+`DEFAULT_PER_OPERATION_EUR` below is set above. Five rounds was illustrative in the plan's §5 and
+was never measured. **No maximum is imposed here**: what bounds a large value is the three budget
+windows, checked against the whole operation before round 0, and a second ceiling in this file
+would refuse a run the budget would have admitted.
+"""
+
+#: The three enforced caps and the confirmation threshold, as a KB stamping none of them gets them
+#: (`[budget]`, docs/DESIGN.md §5).
+#:
+#: Named rather than inlined because each appears twice in `_budget` below — once for a manifest
+#: with no `[budget]` table at all, once as a key's default — and **D-30 moved two of them**, which
+#: is exactly the edit a duplicated literal survives by half.
+#:
+#: **`per_operation_eur` rose from 0.30 and `daily_eur` from 1.00 on 20260811 20:08, because the
+#: loop did not fit under them.** At the shipped `final_k = 8` and `[chunking] max_tokens = 510` a
+#: one-round loop prices at EUR 0.5624 and a three-round one at EUR 1.6872, so 0.30 refused
+#: `pnk ask --deep` on every KB stamped from the template — D-22 option A's outcome, which was
+#: explicitly rejected, arriving through the caps instead of through the signal.
+#:
+#: **Raising `per_operation_eur` alone does nothing**: all three windows are checked before every
+#: call and nothing warns that a lower one binds, so `daily_eur` moves with it — 6.00 is three deep
+#: questions a day. `monthly_eur` stays at 30.00 (~17 worst-case questions, and worst case is a
+#: ceiling rather than a bill), and `confirm_above_eur` stays at 0.01, so every `--deep` run
+#: prompts and cron is where `--yes` belongs.
+#:
+#: **A raise here reaches new KBs only**, which is the part that is not obvious: the template
+#: *stamps* `per_operation_eur`, so every KB that exists today keeps 0.30 and meets a refusal. The
+#: refusal message carries the whole remedy there — the number, the key, and the value that would
+#: admit the run (`budget/reserve.py`).
+DEFAULT_CONFIRM_ABOVE_EUR = Decimal("0.01")
+DEFAULT_PER_OPERATION_EUR = Decimal("2.00")
+DEFAULT_DAILY_EUR = Decimal("6.00")
+DEFAULT_MONTHLY_EUR = Decimal("30.00")
+
 
 @dataclass(frozen=True, slots=True)
 class KbSection:
@@ -215,6 +262,24 @@ class BudgetSection:
 
 
 @dataclass(frozen=True, slots=True)
+class DeepSection:
+    """`[deep]` — what `pnk ask --deep` may pay, and how hard it tries (D-29).
+
+    **Two keys, both things a user has a real preference about**: which model to pay for, and how
+    many rounds to allow. Everything else a round costs is a constant in `deep/estimate.py`, where
+    it is declared beside the measurement that justifies it — a third knob whose value moves the
+    price in a way the user cannot compute is what D-29 option B was rejected for.
+
+    **Settable but deliberately unstamped**, the precedent `adjacent_k` sets a few fields above:
+    `_toml.py` hard-errors on an unknown key, so a manifest carrying `[deep]` cannot be read at all
+    by a Pinakes built before this release. `[kb] requires_pinakes` is the user's own opt-in floor.
+    """
+
+    model: str
+    max_rounds: int
+
+
+@dataclass(frozen=True, slots=True)
 class LinkedKb:
     name: str
     id: KbId
@@ -232,6 +297,7 @@ class Manifest:
     retrieval: RetrievalSection
     rerank: RerankSection
     budget: BudgetSection
+    deep: DeepSection
     links: tuple[LinkedKb, ...]
 
     @property
@@ -297,6 +363,7 @@ def load(root: Path) -> Manifest:
         retrieval=_retrieval(root_table, path),
         rerank=_rerank(root_table, path),
         budget=_budget(root_table, path),
+        deep=_deep(root_table),
         links=_links(root_table, path),
     )
     root_table.done()
@@ -806,23 +873,23 @@ def _budget(root_table: Table, path: Path) -> BudgetSection:
     table = _optional_table(root_table, "budget")
     if table is None:
         return BudgetSection(
-            confirm_above_eur=Decimal("0.01"),
-            per_operation_eur=Decimal("0.30"),
-            daily_eur=Decimal("1.00"),
-            monthly_eur=Decimal("30.00"),
+            confirm_above_eur=DEFAULT_CONFIRM_ABOVE_EUR,
+            per_operation_eur=DEFAULT_PER_OPERATION_EUR,
+            daily_eur=DEFAULT_DAILY_EUR,
+            monthly_eur=DEFAULT_MONTHLY_EUR,
             max_price_age_days=30,
             timezone="UTC",
             on_exceed="abort",
         )
     section = BudgetSection(
         confirm_above_eur=table.decimal(
-            "confirm_above_eur", default=Decimal("0.01"), minimum=Decimal("0")
+            "confirm_above_eur", default=DEFAULT_CONFIRM_ABOVE_EUR, minimum=Decimal("0")
         ),
         per_operation_eur=table.decimal(
-            "per_operation_eur", default=Decimal("0.30"), minimum=Decimal("0")
+            "per_operation_eur", default=DEFAULT_PER_OPERATION_EUR, minimum=Decimal("0")
         ),
-        daily_eur=table.decimal("daily_eur", default=Decimal("1.00"), minimum=Decimal("0")),
-        monthly_eur=table.decimal("monthly_eur", default=Decimal("30.00"), minimum=Decimal("0")),
+        daily_eur=table.decimal("daily_eur", default=DEFAULT_DAILY_EUR, minimum=Decimal("0")),
+        monthly_eur=table.decimal("monthly_eur", default=DEFAULT_MONTHLY_EUR, minimum=Decimal("0")),
         max_price_age_days=table.integer("max_price_age_days", default=30, minimum=1),
         timezone=table.string_or("timezone", "UTC"),
         on_exceed=table.choice("on_exceed", ON_EXCEED, default="abort"),
@@ -850,6 +917,25 @@ def _budget(root_table: Table, path: Path) -> BudgetSection:
             message=f"`timezone` {section.timezone!r} is not a known IANA zone",
             remedy="Daily and monthly budget windows are computed in it, so it must be resolvable.",
         ) from exc
+    return section
+
+
+def _deep(root_table: Table) -> DeepSection:
+    """`[deep]` — `pnk ask --deep`'s two settings, or their defaults (D-29).
+
+    No cross-key invariant of its own, so it takes no `path`: `model` is checked against the price
+    table when a run is estimated, which is where an unpriceable name can be reported with the
+    entry it would need, and `max_rounds` is bounded by the budget windows rather than by a
+    constant here.
+    """
+    table = _optional_table(root_table, "deep")
+    if table is None:
+        return DeepSection(model=DEEP_MODEL_DEFAULT, max_rounds=DEEP_MAX_ROUNDS_DEFAULT)
+    section = DeepSection(
+        model=table.string_or("model", DEEP_MODEL_DEFAULT),
+        max_rounds=table.integer("max_rounds", default=DEEP_MAX_ROUNDS_DEFAULT, minimum=1),
+    )
+    table.done()
     return section
 
 

@@ -760,19 +760,19 @@ def test_a_confirmation_is_owed_once_for_a_document_not_once_per_call(
     )
     decision = accountant.check_document(estimate)
     assert decision.needs_confirmation
-    assert accountant.confirm_document(decision, estimate.total_eur)
+    assert accountant.confirm_run(decision, estimate.total_eur)
     assert len(asked) == 1, "one question for the whole document"
 
 
 def test_yes_answers_the_documents_confirmation(make_fake_kb: Callable[..., Path]) -> None:
-    from pinakes.budget.reserve import DocumentDecision
+    from pinakes.budget.reserve import RunDecision
 
     root = make_fake_kb(extraction_backend=CLAUDE_VISION)
     accountant = Accountant(
         load(root), prices=prices(), now=datetime.now(UTC), interactive=False, yes=True
     )
-    decision = DocumentDecision(allowed=True, needs_confirmation=True)
-    assert accountant.confirm_document(decision, Decimal("0.40"))
+    decision = RunDecision(allowed=True, needs_confirmation=True)
+    assert accountant.confirm_run(decision, Decimal("0.40"))
 
 
 def test_the_cap_is_rechecked_before_every_transport_attempt(

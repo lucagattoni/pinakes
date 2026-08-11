@@ -19,13 +19,19 @@ nothing (plans/20260725_1317-v0.1.md, decisions table).
 
 import argparse
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Generator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # `sync` pulls numpy and the store; the CLI stays fast to start
-    from pinakes.search import SearchResult
+    import sqlite3
+    from decimal import Decimal
+
+    from pinakes.deep.loop import DeepAnswer
+    from pinakes.embed import EmbeddingBackend, Reranker
+    from pinakes.search import Filters, Passage, SearchResult
     from pinakes.sync import SyncReport
 
 from pinakes import __version__
@@ -291,6 +297,19 @@ def _search_arguments(parser: argparse.ArgumentParser) -> None:
 
 def _ask_arguments(parser: argparse.ArgumentParser) -> None:
     _retrieval_arguments(parser, query_help="the question to answer")
+    parser.add_argument(
+        "--deep",
+        action="store_true",
+        help="answer it with paid reasoning, bounded by [deep] and [budget] (costs money)",
+    )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help=(
+            "answer this run's confirmation prompt (cron use). Raises no cap — a run over a "
+            "[budget] window is refused whether or not this is given"
+        ),
+    )
 
 
 def _as_timestamp(value: str | None) -> float | None:
@@ -306,16 +325,74 @@ def _as_timestamp(value: str | None) -> float | None:
         ) from exc
 
 
-def _retrieve(args: argparse.Namespace) -> "SearchResult":
-    """The §4.1 pipeline, run for whichever command asked. Free, and identical for both.
+@dataclass(frozen=True, slots=True)
+class _Retrieval:
+    """One KB opened once: the manifest, the models and the index a command searches through.
+
+    **Opened once because `pnk ask --deep` searches many times.** `pnk search` retrieves a single
+    query and closes; the loop retrieves once per subproblem, several times a round. Until E4 this
+    was one function that loaded the embedding backend, loaded the reranker and opened the index on
+    every call — which for the loop would mean reloading two models per subproblem, on a path where
+    the models are the slowest thing there is.
+
+    The filters and the limit belong here rather than to each call, because §5 requires a
+    subproblem's retrieval to inherit the caller's filters exactly: a per-call parameter is a
+    parameter something could pass differently, and the one thing that must never differ between
+    round 0 and a subproblem's search is which documents are in scope.
+    """
+
+    manifest: Manifest
+    connection: "sqlite3.Connection"
+    backend: "EmbeddingBackend"
+    reranker: "Reranker | None"
+    filters: "Filters"
+    limit: int | None
+
+    @property
+    def final_k(self) -> int:
+        """How many passages a search here may return — `-k` when given, else the manifest's.
+
+        The number `deep/estimate.py` prices a call at and `deep/client.py` caps one to, so it is
+        read from the one place that decides it rather than recomputed beside each of them.
+        """
+        return self.limit or self.manifest.retrieval.final_k
+
+    def search(self, query: str) -> "SearchResult":
+        from pinakes.search import search
+
+        return search(
+            self.connection,
+            self.manifest,
+            query,
+            backend=self.backend,
+            reranker=self.reranker,
+            filters=self.filters,
+            limit=self.limit,
+        )
+
+    def confidence(self, passages: "Sequence[Passage]") -> tuple[str, str]:
+        """§4.2's signal over an arbitrary passage set — the loop's sufficiency step (§5).
+
+        The same function `search()` reports its own confidence with, against the same manifest and
+        the same reranker instance, so a run cannot stop early on a threshold reading that
+        `pnk search` would have disagreed with.
+        """
+        from pinakes.search import confidence_of
+
+        return confidence_of(self.manifest, self.reranker, passages)
+
+
+@contextmanager
+def _retrieval(args: argparse.Namespace) -> "Generator[_Retrieval]":
+    """Open the §4.1 pipeline for whichever command asked. Free, and identical for all of them.
 
     `pnk search` and `pnk ask` differ in what they *say* about a result, never in how they get one
-    (D-21). Two copies of this function would be two retrieval pipelines wearing one name.
+    (D-21). Two copies of this would be two retrieval pipelines wearing one name.
     """
     from pinakes import manifest as manifest_module
     from pinakes import store
     from pinakes.embed import load_backend, load_reranker
-    from pinakes.search import Filters, search
+    from pinakes.search import Filters
 
     loaded = manifest_module.discover(args.kb)
     backend = load_backend(loaded.embedding, offline=args.offline)
@@ -327,10 +404,9 @@ def _retrieve(args: argparse.Namespace) -> "SearchResult":
 
     connection = store.connect_ro(loaded.index_path)
     try:
-        return search(
-            connection,
-            loaded,
-            args.query,
+        yield _Retrieval(
+            manifest=loaded,
+            connection=connection,
             backend=backend,
             reranker=reranker,
             filters=Filters(
@@ -344,6 +420,12 @@ def _retrieve(args: argparse.Namespace) -> "SearchResult":
         )
     finally:
         connection.close()
+
+
+def _retrieve(args: argparse.Namespace) -> "SearchResult":
+    """One query through the pipeline, for a command that asks exactly one."""
+    with _retrieval(args) as pipeline:
+        return pipeline.search(args.query)
 
 
 def _retrieval_payload(result: "SearchResult") -> dict[str, object]:
@@ -418,13 +500,14 @@ def run_search(args: argparse.Namespace) -> int:
     # below compares against the same values, and two spellings of one vocabulary in one file is
     # how they come to disagree.
     if result.confidence in (LOW, UNKNOWN):
-        # Names `pnk ask`, which exists (E1), and no flag of it, which does not. The sentence this
-        # replaced advertised `pnk ask --deep` — a command *and* a flag that could not be typed,
-        # in the very line whose test is named for not doing that.
+        # Names `pnk ask`, and — since E4 — its `--deep`, which now exists. The sentence this
+        # replaced advertised a command *and* a flag that could not be typed, in the very line
+        # whose test is named for not doing that; the rule was never "say less", it was "name
+        # only what this build can do".
         print(
             "retrieval-only result. `pnk ask` prints the same evidence plus what answering the "
-            "question would take; paid synthesis is planned for the deep release. Until then, "
-            "narrowing the query or adding a filter is the lever you have."
+            "question would take and what it would cost, and `pnk ask --deep` pays to answer it. "
+            "Narrowing the query or adding a filter is the free lever."
         )
     return EXIT_OK
 
@@ -438,15 +521,16 @@ between an honest retrieval surface and one that lets a reader mistake evidence 
 `pnk ask` at all rather than assuming it.
 """
 
-DEEP_RELEASE_NOTICE = (
-    "paid synthesis is what would turn this evidence into an answer, and it belongs to the deep "
-    "release — this build cannot do it."
-)
-"""Names the release, never a command line.
+DEEP_OFFER = "`pnk ask --deep` pays to turn this evidence into an answer"
+"""The offer, naming the flag — which exists as of E4, and did not until it did.
 
-A flag that parses and then apologises is the defect `0.20.1` fixed for `vector_tier`: the fix was
-to refuse the value, not to keep accepting it. So nothing here prints a `--deep` a user could type
-until the increment that implements it (E1's spec, `plans/20260811_1358-deep-release.md`).
+E1 printed the release's name and no command line, because a `--deep` that parses and then
+apologises is the defect `0.20.1` fixed for `vector_tier`: the fix was to refuse the value, not to
+keep accepting it. The rule was never *say less*, it was **name only what this build can do**, so
+the increment that implements the flag is the increment that prints it.
+
+Never printed alone: `_deep_notice` below always attaches what the run would cost, or why it cannot
+say — an offer to spend with no number is the half of this sentence that would be worth doubting.
 """
 
 CALIBRATE_REMEDY = (
@@ -455,9 +539,21 @@ CALIBRATE_REMEDY = (
 )
 """One sentence covering all three ways confidence comes back `unknown`.
 
-`SearchResult.confidence_reason` already discriminates them (`search.py`'s `_confidence`) and is
+`SearchResult.confidence_reason` already discriminates them (`search.py`'s `confidence_of`) and is
 printed on the line above, so the remedy does not branch. Re-checking the three conditions here
 would be a second copy of that logic, and a second copy can disagree with the first.
+"""
+
+UNPRICEABLE_NOTICE = (
+    "what it would cost cannot be computed here — see the reason `pnk doctor` gives for the price "
+    "table, and note `--deep` itself refuses rather than guessing"
+)
+"""What replaces the estimate when the estimator refuses.
+
+**The free path degrades and the paid path refuses, deliberately.** `pnk ask` without `--deep`
+spends nothing, so a stale price table or an unpriceable `[deep] model` must not turn a free
+retrieval into a failed command; `--deep` inherits the refusal instead, because there the number is
+what a reservation is made of (DESIGN §5).
 """
 
 
@@ -470,13 +566,15 @@ class _Escalation:
     """
 
     branch: str
-    """`synthesis`, `decomposition`, `unknown` or `none` — what a consumer discriminates on."""
+    """`synthesis`, `decomposition`, `unknown` or `none` — what a consumer discriminates on, and
+    what `deep/estimate.py` prices. `none` is the one it will not price."""
 
     work: str
     """One sentence: how much work answering would take."""
 
     notice: str | None
-    """`DEEP_RELEASE_NOTICE`, or `None` when naming paid synthesis would be beside the point.
+    """The `--deep` offer and its price, or `None` when offering to answer would be beside the
+    point.
 
     Carried rather than decided by the renderer: `if branch != "none"` at the print site would put
     the branch vocabulary in two places, and the one that matters — *do not offer to answer a
@@ -486,8 +584,60 @@ class _Escalation:
     remedy: str | None
     """What the user could do about an `unknown`, or `None` when there is nothing to fix."""
 
+    cost_eur: "Decimal | None"
+    """What `--deep` would cost on this branch, worst case, or `None` when it cannot be priced.
 
-def _escalation(result: "SearchResult") -> _Escalation:
+    The estimator this reads is E2's, and it is the same call `run_deep` makes before round 0 — so
+    the number printed here and the number a reservation is checked against come from one place.
+    """
+
+
+def _estimated_cost(
+    manifest: Manifest, *, branch: str, final_k: int, now: str | None = None
+) -> "Decimal | None":
+    """Price the branch this question falls in, or return `None` rather than fail.
+
+    **The free path must never fail on the price of something it is not buying.** A stale price
+    table, an unpriceable `[deep] model` or a context window a huge `final_k` would overflow are all
+    real refusals — but they are refusals `--deep` owes, not refusals a free retrieval owes, and
+    turning `pnk ask` into a failed command over the cost of a run nobody asked for would be the
+    strictness in exactly the wrong place. `run_deep` re-runs the same estimate and lets every one
+    of them through.
+    """
+    from datetime import UTC, datetime
+
+    from pinakes.budget.estimate import TIMESTAMP_FORMAT
+    from pinakes.budget.prices import load_prices
+    from pinakes.deep.estimate import BRANCHES, estimate_operation
+
+    if branch not in BRANCHES:
+        return None
+    try:
+        return estimate_operation(
+            branch=branch,
+            max_rounds=manifest.deep.max_rounds,
+            final_k=final_k,
+            chunk_max_tokens=manifest.chunking.max_tokens,
+            model=manifest.deep.model,
+            prices=load_prices(),
+            now=now or datetime.now(UTC).strftime(TIMESTAMP_FORMAT),
+            max_price_age_days=manifest.budget.max_price_age_days,
+        ).total_eur
+    except PinakesError:
+        return None
+
+
+def _deep_notice(cost_eur: "Decimal | None") -> str:
+    """The offer, always carrying its price or the reason there is none."""
+    if cost_eur is None:
+        return f"{DEEP_OFFER}; {UNPRICEABLE_NOTICE}."
+    return (
+        f"{DEEP_OFFER}, estimated at €{cost_eur:.2f} worst case — every call is reconciled to "
+        "what it actually cost, which `pnk budget` shows."
+    )
+
+
+def _escalation(result: "SearchResult", *, manifest: Manifest, final_k: int) -> _Escalation:
     """Size the work from the confidence signal — never authorise it, and never spend (D-28).
 
     The branches are the ones §5 of the deep-release plan names: a confident retrieval needs one
@@ -497,66 +647,72 @@ def _escalation(result: "SearchResult") -> _Escalation:
     **Anything that is not `high`, `medium` or `low` falls through to `unknown`**, which is the safe
     direction: a value this function has never heard of is precisely one it cannot size.
     """
+    from pinakes.deep.estimate import DECOMPOSITION, SYNTHESIS, UNKNOWN
     from pinakes.search import HIGH, LOW, MEDIUM
 
     if not result.passages:
         # Not an `unknown`: nothing matched, so no amount of reasoning has anything to reason
         # over. Telling this user to calibrate would answer a question they did not ask, and
-        # offering paid synthesis would offer to reason over nothing.
+        # offering paid synthesis would offer to reason over nothing — which is also why
+        # `estimate_operation` refuses to price this branch at all.
         return _Escalation(
-            "none", "nothing matched, so there is nothing to answer from.", None, None
+            "none", "nothing matched, so there is nothing to answer from.", None, None, None
         )
+
+    # The estimator's own constants, never four string literals here: `run_deep` is handed this
+    # value and prices it, so a spelling that differed would be a branch nothing could price.
+    remedy: str | None = None
     if result.confidence in (HIGH, MEDIUM):
-        return _Escalation(
-            "synthesis",
-            "answering this would take one synthesis call over the passages above.",
-            DEEP_RELEASE_NOTICE,
-            None,
-        )
-    if result.confidence == LOW:
-        return _Escalation(
-            "decomposition",
+        branch = SYNTHESIS
+        work = "answering this would take one synthesis call over the passages above."
+    elif result.confidence == LOW:
+        branch = DECOMPOSITION
+        work = (
             "answering this would take decomposition into subquestions, a search for each, and a "
-            "synthesis over what they return — several calls.",
-            DEEP_RELEASE_NOTICE,
-            None,
+            "synthesis over what they return — several calls."
         )
-    return _Escalation(
-        "unknown",
-        "how much answering this would take cannot be told from here: with no calibrated signal, "
-        "a run would end at its caps rather than at sufficiency.",
-        DEEP_RELEASE_NOTICE,
-        CALIBRATE_REMEDY,
-    )
+    else:
+        branch = UNKNOWN
+        work = (
+            "how much answering this would take cannot be told from here: with no calibrated "
+            "signal, a run ends at its caps rather than at sufficiency."
+        )
+        remedy = CALIBRATE_REMEDY
+
+    cost_eur = _estimated_cost(manifest, branch=branch, final_k=final_k)
+    return _Escalation(branch, work, _deep_notice(cost_eur), remedy, cost_eur)
 
 
 def run_ask(args: argparse.Namespace) -> int:
-    """`pnk ask`. The question surface: the evidence, the confidence, and what answering would take.
+    """`pnk ask`. The question surface — and, with `--deep`, the one paid answer Pinakes gives.
 
-    **It never synthesises an answer and it never spends** — nothing free can, and this build has no
-    paid loop at all. What it adds over `pnk search` is the third thing: `search` answers *what is
-    in the KB about this*, `ask` answers *what it would take to answer this* (D-21).
+    **Without `--deep` it never synthesises an answer and it never spends.** What it adds over
+    `pnk search` is the third thing: `search` answers *what is in the KB about this*, `ask` answers
+    *what it would take to answer this*, and now *what that would cost* (D-21). The escalation block
+    prints on **every** confidence value, not only below the threshold, because the branch — and so
+    the price — differs by confidence (D-28).
 
-    The escalation block prints on **every** confidence value, not only below the threshold: the
-    work differs by confidence, so the useful thing to show is which branch this question falls in
-    (D-28).
+    **With `--deep` the free retrieval still runs first, and always.** It is round 0: its passages
+    are the cheap branch's whole evidence, and its confidence is what decides which branch runs.
+    Nothing about the paid path replaces it, which is why the same output appears above the answer.
     """
     import json as json_module
 
-    result = _retrieve(args)
-    escalation = _escalation(result)
+    with _retrieval(args) as pipeline:
+        result = pipeline.search(args.query)
+        escalation = _escalation(result, manifest=pipeline.manifest, final_k=pipeline.final_k)
+        # Inside the block: the loop retrieves once per subproblem, through this same open index.
+        deep = _run_deep(args, pipeline, result, escalation) if args.deep else None
 
     if args.json:
         payload = _retrieval_payload(result)
-        # `answer` is `null` here and stays a key in every future form of this command, so a
-        # consumer parses one schema whether or not a paid loop ever ran.
-        payload["answer"] = None
+        # `answer` is a key in every form of this command — `null` when nothing was paid for, an
+        # object when a run produced one — so a consumer parses one schema either way (E1).
+        payload["answer"] = _answer_payload(deep) if deep is not None else None
         payload["escalation"] = {
             "branch": escalation.branch,
             "work": escalation.work,
-            # The estimator that fills this in is E2; until it exists the sentence carries no
-            # number, and a wrong number would be worse than none.
-            "cost_eur": None,
+            "cost_eur": _money(escalation.cost_eur),
             "remedy": escalation.remedy,
         }
         print(json_module.dumps(payload, indent=2))
@@ -568,12 +724,137 @@ def run_ask(args: argparse.Namespace) -> int:
         print("no passages matched.")
 
     print(f"confidence: {result.confidence} — {result.confidence_reason}")
+    if deep is not None:
+        _print_answer(deep)
+        return EXIT_OK
+
     print(NO_ANSWER_SYNTHESISED)
     print(escalation.work)
     for line in (escalation.notice, escalation.remedy):
         if line is not None:
             print(line)
     return EXIT_OK
+
+
+def _run_deep(
+    args: argparse.Namespace,
+    pipeline: _Retrieval,
+    result: "SearchResult",
+    escalation: _Escalation,
+) -> "DeepAnswer":
+    """Build one operation's accountant and run the loop (E4).
+
+    **Imported here and nowhere higher.** `pinakes.deep.client` is one of the two modules in this
+    package permitted to construct a vendor client, and `tests/test_paid_path.py` runs the whole
+    free path in a fresh subprocess asserting it never reaches `sys.modules`. A module-scope import
+    would put it there for every `pnk search`, `pnk sync` and `pnk serve` in the process.
+
+    `operation="ask"` needs no ledger change: `operation` is already a free-form string whose own
+    docstring names this value (M9).
+    """
+    from datetime import UTC, datetime
+
+    from pinakes.budget.accountant import Accountant
+    from pinakes.budget.estimate import TIMESTAMP_FORMAT
+    from pinakes.budget.prices import load_prices
+    from pinakes.deep.client import default_transport
+    from pinakes.deep.loop import NothingToAnswerError, run_deep
+
+    if escalation.branch == "none":
+        raise NothingToAnswerError
+
+    accountant = Accountant(
+        pipeline.manifest,
+        prices=load_prices(),
+        operation="ask",
+        # The terminal facts belong to the caller, as they do for `pnk sync`: nothing below this
+        # line probes for a tty, it is told whether one is attached.
+        interactive=sys.stdin.isatty(),
+        ask=input,
+        yes=args.yes,
+    )
+    return run_deep(
+        question=args.query,
+        round0=result,
+        branch=escalation.branch,
+        final_k=pipeline.final_k,
+        retrieve=pipeline.search,
+        sufficiency=pipeline.confidence,
+        transport=default_transport(),
+        accountant=accountant,
+        now=datetime.now(UTC).strftime(TIMESTAMP_FORMAT),
+    )
+
+
+def _money(amount: "Decimal | None") -> str | None:
+    """Cents, as a string. `null` stays `null`.
+
+    A string because JSON has no decimal type and a float would reintroduce exactly the
+    representation error `Decimal` is used to avoid (INVARIANTS). Two places, because that is what
+    the ledger stores and what `pnk budget` reports — a machine consumer reconciling the two should
+    not have to notice that one of them was rendered at a different precision.
+    """
+    return None if amount is None else f"{amount:.2f}"
+
+
+def _answer_payload(deep: "DeepAnswer") -> dict[str, object]:
+    """`--json`'s `answer` object: the prose, the blocks it came in, and what it cost."""
+    return {
+        "text": _answer_text(deep),
+        "branch": deep.branch,
+        "rounds_used": deep.rounds_used,
+        "stopped_by": deep.stopped_by,
+        "label": deep.label,
+        "partial": deep.partial,
+        "calls": deep.tally.calls,
+        "estimated_eur": _money(deep.estimate.total_eur),
+        "spent_eur": _money(deep.spent_eur),
+        "blocks": [
+            {
+                "round": block.round_number,
+                "asked": list(block.asked),
+                "text": block.text,
+                "citations": [
+                    {
+                        "number": citation.number,
+                        "doc_id": citation.doc_id,
+                        "path": citation.path,
+                        "citation": citation.locator,
+                    }
+                    for citation in block.citations
+                ],
+            }
+            for block in deep.blocks
+        ],
+    }
+
+
+def _answer_text(deep: "DeepAnswer") -> str:
+    """Every block's prose in order — the answer as one piece of text.
+
+    **Blocks are joined, never renumbered.** Each block's `[n]` indexes the passages *its own* call
+    was handed, and rewriting those numbers into a single global sequence would mean editing prose
+    the model wrote: a `[3]` inside a quotation would be rewritten into a citation of something
+    else. So the sources are printed per block, right under the text that cites them.
+    """
+    return "\n\n".join(block.text for block in deep.blocks)
+
+
+def _print_answer(deep: "DeepAnswer") -> None:
+    """The paid run's own output, under the free evidence that produced it."""
+    print(f"\n{deep.label}")
+    for block in deep.blocks:
+        print()
+        if block.asked:
+            for asked in block.asked:
+                print(f"round {block.round_number} asked: {asked}")
+        print(block.text)
+        for citation in block.citations:
+            print(f"  [{citation.number}] {citation.locator}")
+    print(
+        f"\n{deep.tally.calls} paid call(s), €{deep.spent_eur:.2f} spent against an estimated "
+        f"€{deep.estimate.total_eur:.2f} worst case. `pnk budget` has the record."
+    )
 
 
 def _doctor_arguments(parser: argparse.ArgumentParser) -> None:

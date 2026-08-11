@@ -12,7 +12,7 @@ from pinakes.budget.accountant import Accountant, caps_of, resolve_confirmation
 from pinakes.budget.estimate import Estimate
 from pinakes.budget.ledger import Record, RecordKind, append, ledger_path
 from pinakes.budget.prices import Prices, load_prices
-from pinakes.budget.reserve import DocumentDecision
+from pinakes.budget.reserve import RunDecision
 from pinakes.budget.summary import summarise
 from pinakes.cli import EXIT_FAILURE, EXIT_OK, main
 from pinakes.errors import BudgetConfirmationError
@@ -322,7 +322,7 @@ def estimate(total_eur: str) -> Estimate:
 def test_a_non_interactive_run_with_nothing_to_confirm_proceeds() -> None:
     """The scope that matters. Read broadly, "abort with no TTY" would abort every hook-driven
     sync this project's freshness model depends on."""
-    decision = DocumentDecision(allowed=True, needs_confirmation=False)
+    decision = RunDecision(allowed=True, needs_confirmation=False)
     outcome = resolve_confirmation(
         decision,
         estimate_eur=Decimal("0.001"),
@@ -335,7 +335,7 @@ def test_a_non_interactive_run_with_nothing_to_confirm_proceeds() -> None:
 
 
 def test_a_confirmation_owed_with_no_tty_and_no_yes_aborts_with_a_remedy() -> None:
-    decision = DocumentDecision(allowed=True, needs_confirmation=True)
+    decision = RunDecision(allowed=True, needs_confirmation=True)
     with pytest.raises(BudgetConfirmationError) as exc_info:
         resolve_confirmation(
             decision,
@@ -350,7 +350,7 @@ def test_a_confirmation_owed_with_no_tty_and_no_yes_aborts_with_a_remedy() -> No
 
 
 def test_yes_answers_the_prompt_and_nothing_else() -> None:
-    decision = DocumentDecision(allowed=True, needs_confirmation=True)
+    decision = RunDecision(allowed=True, needs_confirmation=True)
     outcome = resolve_confirmation(
         decision,
         estimate_eur=Decimal("0.04"),
@@ -363,7 +363,7 @@ def test_yes_answers_the_prompt_and_nothing_else() -> None:
 
 
 def test_an_interactive_run_asks_and_honours_the_answer() -> None:
-    decision = DocumentDecision(allowed=True, needs_confirmation=True)
+    decision = RunDecision(allowed=True, needs_confirmation=True)
     asked: list[str] = []
 
     def say(answer: str) -> Callable[[str], str]:

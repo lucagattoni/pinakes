@@ -643,7 +643,7 @@ def extract_document(
     # Evaluated **once, against the whole-document estimate** — never per call. A per-call reading
     # against a several-cent slice would prompt dozens of times for one multi-page document, which
     # is how a confirmation becomes something a user learns to hold `y` through.
-    if not accountant.confirm_document(upfront, estimate.total_eur):
+    if not accountant.confirm_run(upfront, estimate.total_eur):
         raise ExtractionError(
             f"{path.name}: not confirmed, so nothing was spent.",
             remedy="Re-run and answer `y`, or pass `--yes` to authorise the estimate up front.",

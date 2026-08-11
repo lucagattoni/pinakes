@@ -1,0 +1,26 @@
+{
+ "name": "loop-repeats-a-subproblem",
+ "branch": "loop",
+ "why": "One decompose call returning round 1's own subproblems back — re-cased and re-spaced, which is the form the cursor has to survive. The published artifact this loop's shape comes from measured ~35% of its tokens going to exactly this, so the cursor drops them and the run stops with nothing new to ask rather than paying to search twice for one answer.",
+ "provenance": {
+  "kind": "authored",
+  "why_not_recorded": "Nothing on this path has been called for real yet: E6 is the increment that spends, under docs/MEASUREMENT-RUN.md, and it is the one that may replace these bodies with recordings. A model repeating itself is also not something a recording can be relied on to contain — it is a behaviour to be robust to, not one to be provoked."
+ },
+ "responses": [
+  {
+   "kind": "response",
+   "stop_reason": "end_turn",
+   "model": "claude-opus-5",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"subproblems\": [\"What does the confidence signal measure\", \"  how is   the confidence threshold fitted \"]}"
+    }
+   ],
+   "usage": {
+    "input_tokens": 17000,
+    "output_tokens": 60
+   }
+  }
+ ]
+}

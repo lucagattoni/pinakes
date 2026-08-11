@@ -1,0 +1,71 @@
+{
+ "name": "loop-costly-rounds",
+ "branch": "loop",
+ "why": "The same two rounds, reconciling at EUR 0.4352 a call — well *above* the EUR 0.2812 each one reserved. That is the only way a mid-loop budget halt is reachable at all: the whole operation is checked before round 0, so a run whose calls each cost at most what was reserved for them can never breach the operation window it was already admitted against. What produces this in the field is E2's own stated risk — `VENDOR_TOKENS_PER_CHUNK_TOKEN` is an assumed conversion, not a measured one — plus another process spending against the same day or month.",
+ "provenance": {
+  "kind": "authored",
+  "why_not_recorded": "Nothing on this path has been called for real yet: E6 is the increment that spends, under docs/MEASUREMENT-RUN.md, and it is the one that may replace these bodies with recordings. The usage block here is chosen arithmetic rather than an observation — it is what makes the halt land on round 3 with rounds 1 and 2 reconciled, which is the case D-23 decides the behaviour of."
+ },
+ "responses": [
+  {
+   "kind": "response",
+   "stop_reason": "end_turn",
+   "model": "claude-opus-5",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"subproblems\": [\"what does the confidence signal measure\", \"how is the confidence threshold fitted\"]}"
+    }
+   ],
+   "usage": {
+    "input_tokens": 86000,
+    "output_tokens": 1600
+   }
+  },
+  {
+   "kind": "response",
+   "stop_reason": "end_turn",
+   "model": "claude-opus-5",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"answer\": \"The signal is a threshold on the top reranker score, fitted against a golden set.\", \"citations\": [1]}"
+    }
+   ],
+   "usage": {
+    "input_tokens": 86000,
+    "output_tokens": 1600
+   }
+  },
+  {
+   "kind": "response",
+   "stop_reason": "end_turn",
+   "model": "claude-opus-5",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"subproblems\": [\"which reranker were the thresholds fitted for\", \"what happens when the reranker changes\"]}"
+    }
+   ],
+   "usage": {
+    "input_tokens": 86000,
+    "output_tokens": 1600
+   }
+  },
+  {
+   "kind": "response",
+   "stop_reason": "end_turn",
+   "model": "claude-opus-5",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"answer\": \"Thresholds name the reranker they were fitted for, and a mismatch reports unknown.\", \"citations\": [2]}"
+    }
+   ],
+   "usage": {
+    "input_tokens": 86000,
+    "output_tokens": 1600
+   }
+  }
+ ]
+}

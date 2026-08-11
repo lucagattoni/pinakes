@@ -89,14 +89,21 @@ def test_an_uncalibrated_kb_says_so_without_naming_a_command_that_does_not_exist
     """The escalation notice may name only what a user can actually type.
 
     Until E1 this line advertised `pnk ask --deep`, which was neither a command nor a flag — in the
-    sentence whose test is named for not doing that. `pnk ask` now exists and `--deep` still does
-    not, so the notice names the first and not the second.
+    sentence whose test is named for not doing that. E1 made `pnk ask` real and the notice named
+    it; **E4 made `--deep` real and the notice names that too.** The rule was never *say less*, it
+    was *name only what this build can do* — so this asserts both spellings resolve, and asks the
+    parser rather than trusting the sentence.
     """
     main(["search", "sourdough", "--kb", str(kb)])
     out = capsys.readouterr().out
-    assert "planned for the deep release" in out
     assert "`pnk ask`" in out
-    assert "--deep" not in out
+    assert "`pnk ask --deep`" in out
+    assert "planned for the deep release" not in out
+
+    with pytest.raises(SystemExit) as exit_info:
+        main(["ask", "--help"])
+    assert exit_info.value.code == 0
+    assert "--deep" in capsys.readouterr().out
 
 
 def test_json_output_has_a_stable_shape(kb: Path, capsys: pytest.CaptureFixture[str]) -> None:
