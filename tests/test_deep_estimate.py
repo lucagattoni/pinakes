@@ -20,6 +20,8 @@ from pinakes.deep.estimate import (
     MAX_TOKENS,
     PASSAGE_ENVELOPE_TOKENS,
     PROMPT_TOKENS,
+    QUESTION_CHAR_CEILING,
+    QUESTION_TOKENS,
     SYNTHESIS,
     UNKNOWN,
     VENDOR_TOKENS_PER_CHUNK_TOKEN,
@@ -147,15 +149,33 @@ def test_the_cheap_branch_is_one_call_over_the_passages_with_no_carried_memory()
     assert est.carried_memory_tokens == 0
     assert (
         est.input_tokens_per_call
+        == passage_tokens(final_k=FINAL_K, chunk_max_tokens=CHUNK_MAX_TOKENS)
+        + QUESTION_TOKENS
+        + PROMPT_TOKENS
+    )
+
+
+def test_the_question_is_priced_and_not_folded_into_the_prompt() -> None:
+    """A question arrives as an argv string with no length limit and is carried into *every* call.
+    Folding it into `PROMPT_TOKENS` would price a 50,000-token question at 1,500 tokens; pricing it
+    separately makes `QUESTION_CHAR_CEILING` the thing E4 has to enforce, and names it."""
+    assert QUESTION_TOKENS > 0
+    # 2 characters per vendor token is the pessimistic conversion the ceiling is derived at.
+    assert QUESTION_TOKENS >= QUESTION_CHAR_CEILING / 2
+    est = a_synthesis()
+    without_question = est.input_tokens_per_call - QUESTION_TOKENS
+    assert (
+        without_question
         == passage_tokens(final_k=FINAL_K, chunk_max_tokens=CHUNK_MAX_TOKENS) + PROMPT_TOKENS
     )
 
 
 def test_a_round_prices_both_of_its_calls_at_the_full_worst_case_input() -> None:
     """The plan's formula counts a round's input **once**; a round makes two calls, so counting it
-    once under-prices a round by one carried memory plus one prompt — the direction a budget may
-    never be wrong in. Pricing both calls alike also buys what `per_call_eur` needs: whichever of
-    the two `Accountant.paid_call` is about to make, one number bounds it."""
+    once under-prices a round by everything the second call also carries — the memory, the question
+    and the prompt — which is the direction a budget may never be wrong in. Pricing both calls
+    alike also buys what `per_call_eur` needs: whichever of the two `Accountant.paid_call` is about
+    to make, one number bounds it."""
     est = a_round()
     assert est.calls == CALLS_PER_ROUND
     assert est.carried_memory_tokens == CARRIED_MEMORY_TOKENS
@@ -173,24 +193,24 @@ def test_the_shipped_defaults_price_to_the_cent() -> None:
     `[chunking] max_tokens = 510`:
 
     * a passage is `510 * 3 + 100 = 1,630` tokens, so eight are `13,040`;
-    * a synthesis call is `13,040 + 1,500 = 14,540` in and `8,000` out
-      -> `$0.0727 + $0.2000 = $0.2727` -> **EUR 0.2525**;
-    * a round is two calls of `4,000 + 13,040 + 1,500 = 18,540` in and `8,000` out
-      -> `$0.1854 + $0.4000 = $0.5854` -> **EUR 0.5420**.
+    * a synthesis call is `13,040 + 1,000 + 1,500 = 15,540` in and `8,000` out
+      -> `$0.0777 + $0.2000 = $0.2777` -> **EUR 0.2571**;
+    * a round is two calls of `4,000 + 13,040 + 1,000 + 1,500 = 19,540` in and `8,000` out
+      -> `$0.0977 + $0.2000 = $0.2977` a call -> **EUR 0.5513**.
 
     Pinned to the cent *and* to four places: the cent is what a user sees, the four places are what
     catch a constant that moves a call by less than a cent and an operation by euros.
     """
     synthesis = a_synthesis()
-    assert synthesis.input_tokens_per_call == 14_540
+    assert synthesis.input_tokens_per_call == 15_540
     assert synthesis.output_tokens_per_call == MAX_TOKENS
-    assert synthesis.total_eur.quantize(Decimal("0.01")) == Decimal("0.25")
-    assert synthesis.total_eur.quantize(Decimal("0.0001")) == Decimal("0.2525")
+    assert synthesis.total_eur.quantize(Decimal("0.01")) == Decimal("0.26")
+    assert synthesis.total_eur.quantize(Decimal("0.0001")) == Decimal("0.2571")
 
     est = a_round()
-    assert est.input_tokens_per_call == 18_540
-    assert est.total_eur.quantize(Decimal("0.01")) == Decimal("0.54")
-    assert est.total_eur.quantize(Decimal("0.0001")) == Decimal("0.5420")
+    assert est.input_tokens_per_call == 19_540
+    assert est.total_eur.quantize(Decimal("0.01")) == Decimal("0.55")
+    assert est.total_eur.quantize(Decimal("0.0001")) == Decimal("0.5513")
 
 
 def test_a_passage_is_priced_from_the_manifest_not_from_a_fixed_constant() -> None:
@@ -304,7 +324,7 @@ def test_the_context_window_precheck_names_the_keys_a_user_can_actually_turn(
     monkeypatch.setitem(budget_estimate.MAX_INPUT_TOKENS, MODEL, 1_000)
     with pytest.raises(ContextWindowExceededError) as exc_info:
         a_round()
-    assert "18,540" in exc_info.value.message
+    assert "19,540" in exc_info.value.message
     assert "1,000" in exc_info.value.message
     assert "final_k" in exc_info.value.remedy
     assert "max_tokens" in exc_info.value.remedy
@@ -313,7 +333,7 @@ def test_the_context_window_precheck_names_the_keys_a_user_can_actually_turn(
 
 def test_a_manifest_alone_can_reach_the_context_window_check() -> None:
     """Unlike the PDF estimator's, this pre-check is reachable without monkeypatching anything:
-    397 passages of 800 tokens is 998,000 vendor tokens against a documented 1,000,000, and three
+    397 passages of 800 tokens is 999,000 vendor tokens against a documented 1,000,000, and three
     more passages cross it. That is why the remedy names two keys rather than calling it a defect
     to report."""
     import pinakes.budget.estimate as budget_estimate
@@ -375,7 +395,7 @@ def test_every_money_field_is_decimal_end_to_end() -> None:
         operation.per_round.total_eur,
     ):
         assert isinstance(value, Decimal)
-    # Unquantised: 0.5420370370... per round, not 0.54.
+    # Unquantised: 0.5512962962... per round, not 0.55.
     assert operation.per_round.total_eur != operation.per_round.total_eur.quantize(Decimal("0.01"))
 
 
@@ -412,13 +432,33 @@ def _imported_names(path: Path) -> set[str]:
     return names
 
 
-def test_the_estimator_imports_no_client_and_nothing_that_does_io() -> None:
-    """E2's whole claim is "pure, no client, no I/O". Once E3 adds `deep/client.py` beside it, the
-    cheapest way to break that is an import added here for convenience."""
-    imports = _imported_names(DEEP_DIR / "estimate.py")
-    forbidden = {"anthropic", "pinakes.deep.client", "sqlite3", "httpx", "requests", "pathlib"}
-    assert not (imports & forbidden), imports & forbidden
-    assert not any("anthropic" in name for name in imports)
+#: What `deep/estimate.py` may import, module by module. **An allowlist, not a denylist of
+#: clients**: a denylist of the ways a module can reach a network, a clock or a disk is never
+#: finished, and the one that matters next is always the one nobody listed (`check.sh`'s NUL scan
+#: records the same lesson about file suffixes).
+ESTIMATOR_IMPORTS = {
+    "dataclasses",
+    "dataclasses.dataclass",
+    "decimal",
+    "decimal.Decimal",
+    "typing",
+    "typing.Final",
+    "pinakes.budget.estimate",
+    "pinakes.budget.estimate.MAX_INPUT_TOKENS",
+    "pinakes.budget.estimate.assert_prices_fresh",
+    "pinakes.budget.prices",
+    "pinakes.budget.prices.Prices",
+    "pinakes.errors",
+    "pinakes.errors.ContextWindowExceededError",
+}
+
+
+def test_the_estimator_imports_only_what_a_pure_module_needs() -> None:
+    """E2's whole claim is "pure, no client, no I/O, no wall clock". Once E3 adds `deep/client.py`
+    beside it, the cheapest way to break that is an import added here for convenience — so a new
+    import has to be added to this list on purpose, where it can be argued with."""
+    unexpected = _imported_names(DEEP_DIR / "estimate.py") - ESTIMATOR_IMPORTS
+    assert not unexpected, unexpected
 
 
 def test_the_deep_package_init_imports_nothing_at_all() -> None:

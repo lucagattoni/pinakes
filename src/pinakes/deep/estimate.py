@@ -14,8 +14,9 @@ no bound on how much it retrieves into itself, which is why the shape is not neg
 **Both calls are priced at the same worst-case input, and that is deliberate.** The plan's formula
 counts the round's input once — `(carried_memory + final_k x chunk + prompt) x input_price` — but a
 round makes *two* calls, each of which carries its own input, so counting it once under-prices a
-round by one carried memory plus one prompt. Under-counting is the one direction a budget may never
-be wrong in (INVARIANTS), so every call in a round is priced at the full worst case instead. It
+round by everything the second call also carries: the memory, the question and the prompt.
+Under-counting is the one direction a budget may never be wrong in (INVARIANTS), so every call in a
+round is priced at the full worst case instead. It
 costs an over-reservation on the decompose call, which sends no passages, and it buys the property
 `budget/estimate.py` already relies on: **every call costs the same**, so one `per_call_eur` bounds
 the per-call reservation `Accountant.paid_call` makes, whichever of the two it is about to make.
@@ -27,10 +28,14 @@ one synthesis call over round 0's passages, priced by `estimate_synthesis` — a
 here (`estimate_operation(branch=…)`), never recomputed: two places deciding which branch runs is
 two places that can disagree about which one was priced.
 
-**What binds `deep/loop.py` (E4).** The round price assumes at most `final_k` passages reach the
-answering call, however many subproblems the round retrieved for. A round that decomposes into
-three subproblems and feeds all three retrievals in whole spends three times what was reserved for
-it. Merge and cut to `final_k`; the estimate is not a suggestion.
+**What binds `deep/loop.py` (E4), because the price assumes it.** Two things, and the estimate is
+not a suggestion about either:
+
+* **At most `final_k` passages reach the answering call**, however many subproblems the round
+  retrieved for. A round that decomposes into three subproblems and feeds all three retrievals in
+  whole spends three times what was reserved for it. Merge and cut to `final_k`.
+* **A question longer than `QUESTION_CHAR_CEILING` is refused**, because it is carried into every
+  call of the run and nothing else bounds it — argv has no length limit.
 
 Money is `Decimal` end to end and **never quantised here** — quantisation to the cent happens at
 exactly one point, when a reservation or reconciliation is written to the ledger (I6b).
@@ -81,8 +86,24 @@ PASSAGE_ENVELOPE_TOKENS: Final = 100
 #: module that prices it so the two cannot disagree — E4 imports it rather than declaring its own.
 CARRIED_MEMORY_TOKENS: Final = 4_000
 
+#: The question's own tokens, and the ceiling `deep/loop.py` (E4) must enforce to make them a
+#: bound at all.
+#:
+#: **Found in this increment's own review, and it is a real under-count without the pair.** A
+#: question arrives as an argv string — `pnk ask "<question>"` — with no length limit anywhere in
+#: the CLI, and it is carried into *every* call of the run. Folding it into `PROMPT_TOKENS` would
+#: price a 50,000-token question at the same 1,500 tokens as a one-line one, so it is priced
+#: separately and **bounded**: 2,000 characters is a generous CLI question (~300 words), and at a
+#: deliberately pessimistic 2 characters per vendor token that is 1,000 tokens.
+#:
+#: The ceiling is not enforced here — this module refuses nothing but a stale price table and an
+#: oversized request. **E4 refuses a longer question**, and until it does, a question past the
+#: ceiling is the one input that can cost more than was reserved for it.
+QUESTION_TOKENS: Final = 1_000
+QUESTION_CHAR_CEILING: Final = 2_000
+
 #: The fixed cost of a call: instructions, the structured-output schema, and the envelope around
-#: the question — everything that does not scale with the passages.
+#: the question — everything that does not scale with the passages or with the question.
 #:
 #: **Not yet measured, and above the only measurement this repository has.** The prompts are
 #: written in E3/E4, so nothing here can count them; the nearest datum is the paid extractor's
@@ -152,11 +173,16 @@ class RoundEstimate:
         """**The per-call price multiplied up, never a total divided down.**
 
         `Decimal` division is exact to 28 significant digits and no further, so a total divided by
-        its call count and multiplied back does not always return the total — measured here at
-        EUR 0.5420370370370370370370370371 against a doubled EUR 0.5420370370370370370370370372.
-        The direction of that last digit is not chosen by anything, and a per-call reservation that
-        sums to less than the operation it belongs to is an under-count. Deriving the total from
-        the per-call price makes `calls * per_call_eur == total_eur` true by construction.
+        its call count and multiplied back does not always return the total. This module's first
+        draft totalled the doubled token counts and divided for the per-call price, and at the
+        shipped defaults that produced EUR 0.5420370370370370370370370371 against a doubled
+        0.5420370370370370370370370372 — caught by a test asserting they were equal, on the third
+        run of the suite.
+
+        Which way that last digit falls is chosen by nothing, and a per-call reservation summing to
+        less than the operation it belongs to is an under-count. Deriving the total from the
+        per-call price makes `calls * per_call_eur == total_eur` true by construction, so the class
+        is gone rather than the one instance: no set of constants can reintroduce it.
         """
         return self.calls * self.per_call_eur
 
@@ -268,8 +294,10 @@ def estimate_operation(
     `UNKNOWN`), read once at round 0 and passed in — never recomputed from the confidence here, or
     the branch that was priced and the branch that runs could differ.
 
-    `max_rounds` bounds the loop branches only; the cheap branch is one call and reports
-    `rounds == 1` whatever is passed.
+    `max_rounds` bounds the loop branches only: the cheap branch is one call and reports
+    `rounds == 1` whatever is passed. A cap below 1 is still rejected on either branch — a round
+    cap of zero is a mistake wherever it came from, and silently ignoring it on one branch would
+    let it reach the other.
     """
     if branch not in BRANCHES:
         raise ValueError(
@@ -320,11 +348,13 @@ def _estimate(
     max_price_age_days: int,
 ) -> RoundEstimate:
     """The one place a `RoundEstimate`'s arithmetic happens — both public estimators route here."""
+    # Widths first, prices second: a `final_k` of zero is a defect in the caller whatever the price
+    # table's age, and reporting the stale table instead would send the reader to the wrong file.
+    evidence = passage_tokens(final_k=final_k, chunk_max_tokens=chunk_max_tokens)
     assert_prices_fresh(prices=prices, now=now, max_price_age_days=max_price_age_days)
     model_price = prices.for_model(model)
 
-    evidence = passage_tokens(final_k=final_k, chunk_max_tokens=chunk_max_tokens)
-    input_per_call = carried_memory_tokens + evidence + PROMPT_TOKENS
+    input_per_call = carried_memory_tokens + evidence + QUESTION_TOKENS + PROMPT_TOKENS
 
     max_input = MAX_INPUT_TOKENS.get(model)
     if max_input is not None and input_per_call > max_input:
