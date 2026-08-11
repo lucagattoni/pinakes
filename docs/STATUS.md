@@ -723,6 +723,16 @@ aggregate JSON is a summary and lags. **A first `unsatisfiable` is not a failed 
 recorded the same thing) — check the simple index before concluding anything, and re-run the
 install rather than re-running the release.
 
+**0.22.2, same standard, 20260811 13:54 — and the same lag, resolved by waiting rather than by
+doing anything.** `gh release view v0.22.2` reports non-draft, 13:53:00Z, created by
+`github-actions[bot]` — the workflow's own step for the third release running. The simple index
+listed `pinakes-0.22.2-py3-none-any.whl` and `pinakes-0.22.2.tar.gz` immediately, while
+`uvx --no-cache --refresh --from "pinakes==0.22.2" pnk --version` was still `unsatisfiable`; one
+retry a minute later returned **`pinakes 0.22.2`**. Exactly what 0.22.1 recorded, now confirmed as
+the normal shape rather than an incident: **the simple index answers *is it published*, and the
+installer's own resolver is the thing that lags.** `git merge-base --is-ancestor v0.22.2 main`
+passes, so the tag names a commit on `main` rather than one off it.
+
 **The manual-release step recurred a sixth time, and on the sixth someone finally read the
 workflow. It is not a failure at all: there is no step that creates a release.**
 `.github/workflows/release.yml` validates the tag against `__version__`, builds, smoke-tests the
