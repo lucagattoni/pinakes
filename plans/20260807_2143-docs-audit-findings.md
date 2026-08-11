@@ -456,6 +456,12 @@ inbound links: museum 6
 
 **Fix.** Move the `0.15.1` row above the `0.16.0` row.
 
+**FIXED 20260811 13:27** — the first finding in this file to be worked. Done, together with four
+*later* misplacements this finding predates: `0.21.0`, `0.21.1`, `0.22.0` and `0.22.1` all sit
+after `0.20.1` in both of `docs/ROADMAP.md`'s sequences, added by the release sweeps that ran while
+this finding sat unworked for four days. `tools/release_order_gate.py` now gates all five
+sequences in `check.sh` and CI, so the class cannot return.
+
 ## `docs/VERIFICATION.md:27` — stale · ADJUSTED
 
 **Claims.** "The scope began as `plans/20260727_1543-v0.2.md`'s promises … and has since taken in the links release, G1–G6, 0.7.1, and 0.12.0's five heading-coverage rows … **It stopped there: 0.13.0 through 0.16.0 added no rows.**"

@@ -179,6 +179,34 @@ def test_ci_runs_the_status_header_gate_and_proves_it_can_fail() -> None:
     ), "the negative check no longer requires the stated reason, so a crash would satisfy it"
 
 
+def test_check_sh_declares_the_release_order_gate() -> None:
+    """Five ordered release sequences drifted while every other gate stayed green, because
+    ordering is a property of the sequence and everything else here reads rows (docs/RELEASING.md).
+    Same pinning as its siblings: match the real invocation, never a substring an explanatory
+    comment would also satisfy."""
+    text = CHECK_SH.read_text(encoding="utf-8")
+    assert re.search(r"^python3 tools/release_order_gate\.py\s*$", text, re.MULTILINE), (
+        "check.sh no longer invokes the release-order gate"
+    )
+
+
+def test_ci_runs_the_release_order_gate_and_proves_it_can_fail() -> None:
+    """In the `build` job, beside `paid_path_gate.py`, for the same reason: stdlib-only and no
+    install. Both halves matched as *commands* — a line whose first non-space character is not
+    `#` — so a comment quoting the phrase cannot stand in for a deleted one.
+    """
+    workflow = _workflow()
+    assert re.search(r"^\s*[^#\s].*tools/release_order_gate\.py\s*$", workflow, re.MULTILINE), (
+        "ci.yml no longer invokes the release-order gate"
+    )
+    assert re.search(
+        r"^\s*[^#\s].*release_order_gate\.py \"\$RUNNER_TEMP", workflow, re.MULTILINE
+    ), "the negative check is gone — nothing proves it gates"
+    assert re.search(r"^\s*[^#\s].*grep -q \"reads ascending, but\"", workflow, re.MULTILINE), (
+        "the negative check no longer requires the stated reason, so a crash would satisfy it"
+    )
+
+
 def test_ci_compares_per_question_outcomes_across_two_operating_systems() -> None:
     """The half a single machine cannot answer (G1).
 

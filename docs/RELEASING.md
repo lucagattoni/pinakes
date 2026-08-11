@@ -68,6 +68,7 @@ with no tag, no release and nothing published (`RETROSPECTIVES.md`, 20260727).
 | `docs/STATUS.md` — *Release roadmap* | Tick the row, and drop the name from the unbuilt-work table above it — **only at a release's final cut**, never at an interim one |
 | `README.md` | The install lines, if the release added an extra or a capability a new user would look for |
 | `docs/ROADMAP.md` | **Five places, and the last two were missed by five consecutive sweeps.** The summary table needs a row; Part 4 needs a `## x.y.z — <title> · <stamp>` section (the table's row links to its anchor, so the two are written together or the link dies); Part 5's *Open corrections* heading carries its own **item count in the anchor** — closing an item there changes the anchor and silently breaks every in-page link to it. **Then the two prose blocks: `## Where things stand right now` — its stamp, its release count and its per-release-name state — and `## The template release`.** Added 20260805 18:02 after 0.12.0's sweep; the prose blocks added 20260811 12:26 after they sat three releases behind while every table in the same file was current |
+| **Where** the new row and section go | **After the newest one that is already there — found by reading it, never by repeating last time's position.** Both of ROADMAP's sequences and STATUS's roadmap table read oldest-first; `CHANGELOG.md` reads newest-first, headings and link definitions both. `python3 tools/release_order_gate.py` decides it, and `./check.sh` runs it. Added 20260811 13:27 — see below |
 
 **Also grep the whole tree for claims the release just falsified** — the class a checklist of
 *sections* cannot catch, found eight times on 20260803, in three docs contradicting a fourth:
@@ -85,6 +86,26 @@ instructions); the ones that are not are exactly the ones nothing else will ever
 itself, so a table gets written every time, while a paragraph summarising *all* releases has no row
 to add and nothing in the act of cutting a release makes it obvious. `grep` for the superseded
 number does not care which shape the claim is in. Added 20260811 12:26.
+
+**A row can be complete, correct, and in the wrong place.** Ordering is a property of the
+*sequence*, not of any row in it, so nothing that reads rows can see a misordering: the table is
+complete, every link resolves, `mkdocs build --strict` is green, and every individual row checks
+out. Found 20260811 in three sequences at once — `0.15.1` after `0.16.0` in STATUS, and
+`0.20.1`/`0.21.0`/`0.21.1` scrambled after `0.22.1` in both of ROADMAP's.
+
+**How it happened, from the six release commits:** `0.20.1` was appended correctly (`2da0e07`).
+`0.21.0` (`96b3b35`) then inserted its section **one position too early** — after `0.20.0`'s
+instead of after `0.20.1`'s — and the next three sweeps (`c83e877`, `df832fe`, `93c20ab`) each put
+theirs in that same slot. **The tail was locally self-consistent at every step**: after the first
+error it read strictly newest-first, so each following sweep saw a coherent pattern around its own
+edit and matched it. Only the join between the ascending head and the descending tail was wrong,
+and that join is a single line no sweep's diff ever touched. The `0.15.1` instance had already been
+found by the 20260807 documentation audit and sat unworked for four days.
+
+**The rule, in one line: read the sequence, not the neighbourhood.** Which is what
+`tools/release_order_gate.py` does — it declares each sequence's direction rather than inferring
+one, since a scrambled file would otherwise elect its own answer, and it fails when a pattern stops
+matching, because an empty sequence is sorted by definition.
 
 **Last, ask what is *missing* rather than what is wrong** — `ls plans/` read against
 [`docs/README.md`](https://github.com/lucagattoni/pinakes/blob/main/docs/README.md)'s plan-routing

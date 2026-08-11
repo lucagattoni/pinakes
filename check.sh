@@ -136,6 +136,18 @@ uv run --frozen python3 tools/eval_reproducibility_gate.py
 # commit (docs/RELEASING.md step 2 + sweep table), and between releases neither moves.
 uv run --frozen python3 tools/status_header_gate.py
 
+# release-order: the five ordered release sequences in CHANGELOG.md, docs/ROADMAP.md and
+# docs/STATUS.md read in release order. A sweep adds one row to each, and a row added in the wrong
+# position is invisible to everything else here — the table is complete, every link resolves and
+# mkdocs is green, because ordering is a property of the sequence and not of any row. Four
+# consecutive sweeps put their section in the same slot while the correct slot moved (docs/
+# RELEASING.md), and one instance sat in the 20260807 audit unworked for four days, which is this
+# project's threshold for turning a convention into a gate.
+#
+# Plain `python3`, not `uv run`: stdlib only and imports nothing from this project, so CI's build
+# job can run it without installing the package.
+python3 tools/release_order_gate.py
+
 # changelog/retrospective fragments are well-formed. Cheap, offline, and it fails *here* rather
 # than at release time — `--apply` deletes the fragments it consumed, so a malformed one found then
 # would be found with the evidence already gone.

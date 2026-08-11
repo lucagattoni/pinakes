@@ -484,6 +484,37 @@ jobs:
       - name: The free path stays free — no paid-API client imported in src/
         run: python3 tools/paid_path_gate.py
 
+      # Same reasoning and the same job: stdlib-only, imports nothing from this project, and needs
+      # no install. A release sweep adds one row to each of five ordered sequences, and a row added
+      # in the wrong position is invisible to every other gate here — the table is complete, the
+      # links resolve, mkdocs is green. Four consecutive sweeps did exactly that (docs/RELEASING.md).
+      - name: The release history reads in release order
+        run: python3 tools/release_order_gate.py
+
+      - name: The gate can still fail
+        # A gate nobody has watched fail is a gate nobody knows works. Scrambles a *copy* — the two
+        # newest sections in ROADMAP swapped — and asserts a non-zero exit AND the stated reason;
+        # a crash or a missing file satisfies a bare non-zero exit too.
+        run: |
+          mkdir -p "$RUNNER_TEMP/scrambled/docs"
+          cp CHANGELOG.md "$RUNNER_TEMP/scrambled/"
+          cp docs/ROADMAP.md docs/STATUS.md "$RUNNER_TEMP/scrambled/docs/"
+          python3 - "$RUNNER_TEMP/scrambled/docs/ROADMAP.md" <<'PY'
+          import re, sys
+          path = sys.argv[1]
+          text = open(path, encoding="utf-8").read()
+          heads = re.findall(r"^## (\d+\.\d+\.\d+) — .*$", text, re.MULTILINE)
+          a, b = heads[-2], heads[-1]
+          text = text.replace(f"## {a} — ", "## 99.99.99 — ").replace(f"## {b} — ", f"## {a} — ")
+          open(path, "w", encoding="utf-8").write(text.replace("## 99.99.99 — ", f"## {b} — "))
+          PY
+          if python3 tools/release_order_gate.py "$RUNNER_TEMP/scrambled"; then
+            echo "release-order passed over a scrambled tree — it is not gating" >&2
+            exit 1
+          fi
+          python3 tools/release_order_gate.py "$RUNNER_TEMP/scrambled" 2>&1 \
+            | grep -q "reads ascending, but"
+
       - uses: actions/upload-artifact@v4
         with:
           name: dist
