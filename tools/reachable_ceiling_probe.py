@@ -131,7 +131,7 @@ from pinakes.embed import (
 )
 from pinakes.eval import Question, load_questions
 from pinakes.manifest import Manifest, load
-from pinakes.search import Filters, fused_candidates, search, unit_vectors
+from pinakes.search import Filters, fused_candidates, resolve_tier, search, unit_vectors
 from pinakes.sync import SyncOptions, sync
 
 REPO = Path(__file__).resolve().parent.parent
@@ -1144,7 +1144,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             "fusion_top_k": settings.fusion_top_k,
             "final_k": settings.final_k,
             "rerank": settings.rerank,
+            # Both, and the same pair `eval.header` writes (D-17) — this block is a copy of that
+            # one, and the copy is exactly why the field went stale here when T5 fixed `meta`.
             "vector_tier": settings.vector_tier,
+            "vector_tier_resolved": resolve_tier(manifest),
             "adjacent_k": settings.adjacent_k,
         },
         "depth": DEPTH,

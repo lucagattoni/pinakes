@@ -1577,6 +1577,58 @@ def test_the_artifact_header_records_the_chunking_a_leg_was_produced_under(demo:
     }
 
 
+def test_the_artifact_header_records_both_the_requested_tier_and_the_one_that_ran(
+    demo: Path,
+) -> None:
+    """D-17. The header recorded only the manifest's string, so a KB on the default wrote
+    `"vector_tier": "auto"` — and `auto` is a *request to choose*, not a tier. Alone it cannot
+    answer the question a measurement artifact exists to answer: which tier produced these numbers?
+
+    **Both fields, and the pairing is the assertion.** Checking the resolved one alone would pass
+    against an implementation that replaced `vector_tier` outright — the rejected option, because
+    re-running a committed artifact would then show `auto` → `numpy`, a field moving where no
+    measurement did.
+
+    **`auto` is constructed here rather than taken from the fixture.** `tests/demo-kb` names
+    `numpy` explicitly, so its two values are identical and the test would pass against code that
+    wrote one string into both fields — measured: the first draft asserted the fixture was on
+    `auto` and went red, which is the only reason this is not that weaker test.
+
+    Both cases run, because they fail differently: on `auto` the fields must *differ*, and on an
+    explicit tier they must *agree* — an implementation resolving the request in the wrong
+    direction passes one and fails the other."""
+    on_auto = load(demo)
+    on_auto = replace(on_auto, retrieval=replace(on_auto.retrieval, vector_tier="auto"))
+    retrieval = header(on_auto, k=5)["retrieval"]
+
+    assert retrieval["vector_tier"] == "auto", "the request must survive unchanged"
+    assert retrieval["vector_tier_resolved"] == "numpy"
+    assert retrieval["vector_tier"] != retrieval["vector_tier_resolved"], (
+        "with the request set to `auto` the two must differ, or one field is being written twice"
+    )
+
+    named = load(demo)
+    assert named.retrieval.vector_tier == "numpy"
+    both = header(named, k=5)["retrieval"]
+    assert both["vector_tier"] == both["vector_tier_resolved"] == "numpy", (
+        "an explicitly named tier is honoured, not re-derived into something else"
+    )
+
+
+def test_the_probe_and_the_eval_header_agree_on_the_tier_fields() -> None:
+    """The probe copies `header`'s retrieval block, and that copy is why this field went stale
+    there when T5 fixed the same defect in the index's `meta`.
+
+    Asserted against the source text rather than by running the probe, which needs a built index:
+    what is under test is that the copy was updated. The drift is silent — both files keep working
+    and only their artifacts disagree, which is precisely how the defect arrived the first time."""
+    probe = Path(__file__).resolve().parent.parent / "tools" / "reachable_ceiling_probe.py"
+
+    text = probe.read_text(encoding="utf-8")
+    assert '"vector_tier": settings.vector_tier,' in text
+    assert '"vector_tier_resolved": resolve_tier(manifest),' in text
+
+
 def test_eval_refuses_an_index_the_manifest_no_longer_describes(demo: Path) -> None:
     """**The artifact labels a leg from the manifest, not from the index.** Every `[chunking]`
     value in the header — including `metadata`, which is what says whether a leg is the injected

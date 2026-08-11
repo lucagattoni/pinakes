@@ -34,8 +34,8 @@ and that no increment had reason to look at until one added a new way to trigger
 reading, shipping, generalising from a fix, and reviewing what a new surface inherits each find a
 different class, and none of them finds the others'.
 
-**Two live. Four were live at 0.21.1 (20260810 01:48), all four were answered on 20260811
-07:20, and `pnk init` (D-18) and `--apply`'s `same manifest` gap (D-16) are built and closed below.** Each
+**One live. Four were live at 0.21.1 (20260810 01:48), all four were answered on 20260811
+07:20, and `pnk init` (D-18) `--apply`'s `same manifest` gap (D-16) and the eval header's tier (D-17) are built and closed below.** Each
 had stalled on the same thing — its *required* text was "choose between these two defensible
 answers", which an implementer may not do — so the list had converged on decisions rather than
 fixes. [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md) takes all four, and every item below now carries a
@@ -90,37 +90,13 @@ can cost money is not a remedy.
 copied, since embedding is free and the chunk texts are already in hand. The chunking half is what
 remains, and it predates the injection option by three releases.
 
-
-### 2 · An eval outcome records the vector tier it was *configured* with, not the one that ran
-
-**File:** `src/pinakes/eval.py` (`"vector_tier": settings.vector_tier` in the outcomes header) and
-`tools/reachable_ceiling_probe.py`, which copies the line.
-**Current:** the header records the manifest's string, so a KB on the default writes
-`"vector_tier": "auto"` — which `tools/rfc_corpus/outcomes.json` does today. `auto` is a request to
-choose, not a tier, so the field does not answer the question a measurement artifact exists to
-answer: *which tier produced these numbers?* T5 fixed exactly this in the index's `meta`, where the
-literal is now `search.resolve_tier(manifest)`'s return.
-
-**It bites at T6, not now.** T6's gate compares NumPy-tier and `sqlite-vec`-tier latency and memory
-at ≥ 100k chunks. Two such runs on a manifest set to `auto` would produce headers identical in the
-one field that distinguishes them.
-
-**Decided 20260811 (D-17, [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md)): record both.** `vector_tier` keeps its meaning — what
-the manifest asked for — and the resolver's return is recorded beside it, in `eval.py` and in
-`tools/reachable_ceiling_probe.py`, which copies the line. **No existing value changes**, so
-re-running a committed artifact shows no movement where no measurement moved. Recording only the
-resolved tier is defensible and simpler, since nothing consumes the field; an artifact that appears
-to move when nothing did is the cost that decided it.
-
-**Recorded 20260808 by T5's first review pass**, which found it by asking where else the same
-defect class lives.
-
 ---
 
 ## Closed — recorded so nobody reopens them
 
 | Was | Closed by |
 |---|---|
+| An eval outcome recorded the vector tier it was *configured* with, not the one that ran — a KB on the default wrote `"vector_tier": "auto"`, and `auto` is a request to choose rather than a tier, so the artifact could not say which tier produced its numbers | 0.22.0 (D-17). **Both**: `vector_tier` keeps the request and `vector_tier_resolved` records the resolver's return. Replacing the one field was simpler and was rejected because re-running a committed artifact would show `auto` → `numpy`, a value moving where no measurement did. `tools/reachable_ceiling_probe.py` copies the block — the copy is why this went stale there when T5 fixed `meta` — and a test now fails if the two drift. **A known consequence, recorded rather than worked around**: both comparison gates read the header, so a leg written before this release is no longer comparable with one written after. That is correct — different binaries — and it has precedent in `chunking.metadata` at 2d, which was resolved by capturing a fresh before-leg |
 | `--apply` wrote nothing on the *same manifest* outcome — including the `[kb] template` restamp — so a KB whose template bumped without changing its manifest kept recording the old reference, `pnk doctor` kept warning, and no command could clear it. Reachable: of the ten commits between `notes@1.0` and `1.1`, five touched only the starter golden set | 0.22.0 (D-16). `--apply` records the reference and changes nothing else, **announced before the write** — consent rather than refusal, the answer D-10 already gave for `[budget]`. `APPLIABLE` sits beside `Outcome` so the CLI's predicate and `apply`'s own guard cannot disagree. **`test_same_manifest_under_apply_writes_nothing` pinned the opposite and was replaced rather than deleted**, and its untouched half — that a *report* writes nothing — is now its own test, without which this could have been implemented by making the report restamp. `docs/CLI.md` stated the old behaviour outright and was corrected in the same change |
 | `pnk init` wrote `pinakes.toml`, `docs/` and `.gitignore` before it knew the template's `files` declaration was legal, so a refusal left a directory that is *almost* a KB — which a second `pnk init` then refuses **as** one. Pre-existing: any failure after that write did it, and T7 only added a new way to reach it | 0.22.0 (D-18). All three checks — declaration shape, the `_versions` rule, and both containment layers — run before the first byte. **The item had rejected this as unavailable**, believing containment could not be judged before the target existed; `lands_inside` resolves the *parent* and `resolve()` is non-strict, so against a path never created `README.md` lands inside and `../escape.md` does not. The narrow hoist stayed rejected for the item's own reason. `copy_extras` split into `validate_extras` and a copy, with `validated=` defaulting to checking anyway so no other caller silently gets an unchecked copy. Guarantee stated as **validated before writing, never atomic** — a symlinked ancestor can still change between check and write. The review pass added the case every test was blind to: a refusal against a directory being *adopted*, where the property is not "root does not exist" but "the user's files are untouched" |
 | `graph_gate.check_identity` was blind to `chunking` — it compared `k`, `embedding`, `rerank`, `ranking` and `retrieval` and not the block `5993521` added to `eval.header` so a leg could say what it was built under. Two legs chunked differently are two corpora, so rows paired on `id` were produced by searching different texts and the rechunk was reported as whatever was under test — on the gate that licensed the graph channel's default | 0.21.1. The whole block, with **nothing excepted** — which is the one place it differs from `tools/two_leg_gate.py`, and deliberately: there `chunking.metadata` *is* the independent variable, here it is `graph_channel`. Both tests are built so that copying two_leg_gate's exception list across fails. A block absent from all three legs still compares equal and passes, as the five fields beside it do: the gate already refuses legs not produced by the binary under test, and requiring it would refuse the graph release's own archived artifacts |
