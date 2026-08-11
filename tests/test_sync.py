@@ -951,6 +951,54 @@ def test_a_rebuild_with_a_cold_cache_keeps_the_chunks_and_says_the_index_is_inho
     assert meta["chunking_exceptions"] == "1"
 
 
+def test_neither_rebuild_path_ever_calls_the_paid_extractor(kb: Path) -> None:
+    """**The promise the whole decision rests on: a rebuild never spends.**
+
+    Both halves of D-15 are defensible only because neither pays. The warm half reads the text back
+    with `cache.peek`, which never calls an extractor; the cold half keeps the old chunks rather
+    than re-extracting. Nothing above asserts that — the sibling tests check chunk counts and meta
+    keys, and a re-chunk that quietly re-extracted would satisfy every one of them while charging
+    the user.
+
+    Counted rather than reasoned about, because `--rebuild` is the remedy `pnk doctor` prints: a
+    remedy that can spend is not a remedy, and that is a property of the code rather than of the
+    docstring claiming it."""
+    calls: list[Path] = []
+
+    class _Counting:
+        def extract(self, path: Path, ctx: ExtractionContext) -> ExtractedText:
+            calls.append(path)
+            text = "".join(f"Paid line {n}.\n" for n in range(60))
+            return ExtractedText(text=text, page_spans=((0, len(text)),))
+
+    name = "test-paid-counting"
+    register_extractor(
+        name,
+        ExtractorEntry(
+            load=_Counting, fingerprint_inputs=lambda _model=None: {"backend": name}, paid=True
+        ),
+    )
+    try:
+        _add_pdf_support(kb)
+        (kb / "docs" / "a.pdf").write_bytes(b"placeholder")
+        assert run(kb, extract=name).embedded == 1
+        assert len(calls) == 1, "the first extraction is the one the user paid for"
+
+        _set_chunking(kb, max_tokens="20")
+        assert run(kb, rebuild=True).ok
+        assert len(calls) == 1, "the warm rebuild re-extracted instead of reading its cache"
+
+        cleared = sync(
+            load(kb), options=SyncOptions(clear_cache=True, clear_cache_paid=True, yes=True)
+        )
+        assert cleared.cache_cleared == 1
+        _set_chunking(kb, max_tokens="30")
+        assert run(kb, rebuild=True).ok
+        assert len(calls) == 1, "the cold rebuild paid to extract rather than carrying forward"
+    finally:
+        unregister_extractor(name)
+
+
 def test_a_rebuild_after_clear_cache_still_preserves_it(kb: Path, fake_paid: str) -> None:
     """The sequence a cache-based answer would have failed (plan text): if paid-extraction
     protection depended on `extract/cache.py` still holding the entry, `--clear-cache` immediately
