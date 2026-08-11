@@ -1,0 +1,26 @@
+{
+ "name": "decompose-three-subproblems",
+ "branch": "decompose",
+ "why": "The happy decompose call: three plain-string subproblems inside the cap.",
+ "provenance": {
+  "kind": "authored",
+  "why_not_recorded": "Nothing on this path has been called for real yet: E6 is the increment that spends, under docs/MEASUREMENT-RUN.md, and it is the one that may replace these bodies with recordings. Until then every body here is constructed, and proves that the branch exists and behaves as the plan says when reached \u2014 never anything about what the API returns."
+ },
+ "responses": [
+  {
+   "kind": "response",
+   "stop_reason": "end_turn",
+   "model": "claude-opus-5",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"subproblems\": [\"what does the confidence signal measure\", \"how is the confidence threshold fitted\", \"which commands report confidence\"]}"
+    }
+   ],
+   "usage": {
+    "input_tokens": 17000,
+    "output_tokens": 60
+   }
+  }
+ ]
+}

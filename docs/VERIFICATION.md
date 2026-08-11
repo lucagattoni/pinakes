@@ -449,6 +449,22 @@ caller cannot check for itself, on both the CLI and the MCP surface.
 | that gate can actually fail | I7a | `tests/test_paid_path.py::test_the_free_path_gate_fails_when_an_import_is_planted` |
 | …and says so rather than passing when it cannot run | I7a | `tests/test_paid_path.py::test_the_free_path_gate_says_so_when_it_cannot_run` |
 | the two paid-client lists agree | I7a | `tests/test_paid_path.py::test_the_two_paid_client_lists_agree` |
+| neither the free CLI nor the MCP server loads the deep client — a server-side loop would spend the *operator's* money on the *caller's* question (DESIGN §4.3) | E3 | `tests/test_paid_path.py::test_the_free_path_and_the_mcp_server_never_load_the_deep_client` |
+| …and that gate can fail, which is the only thing that makes "the name is absent" mean anything | E3 | `tests/test_paid_path.py::test_the_deep_client_gate_fails_when_an_import_is_planted` |
+
+## What every paid client obeys (E3)
+
+`src/pinakes/paid.py` — the rules shared by the two allowlisted modules. Not the allowlist itself,
+which is the section above; this is what a module that *may* import a client then has to do.
+
+| What must be true | Increment | Where it is checked |
+|---|---|---|
+| the key is `PINAKES_ANTHROPIC_API_KEY`, stripped, and an ambient `ANTHROPIC_API_KEY` is not enough | E3 | `tests/test_paid.py::test_the_key_is_read_from_the_pinakes_variable_and_stripped`, `tests/test_paid.py::test_an_ambient_anthropic_api_key_is_not_enough`, `tests/test_paid.py::test_a_blank_key_refuses_rather_than_being_sent` |
+| a refusal names the **surface** that wanted to spend, so two entry points cannot report each other's | E3 | `tests/test_paid.py::test_the_refusal_names_the_surface_that_wanted_to_spend` |
+| the SDK's own retries are off — its default of 2 turns one call into up to three billed requests | E3 | `tests/test_paid.py::test_the_sdk_retries_are_off` |
+| a timeout is classified **before** the connection error it subclasses — the ordering that decides void versus unknown outcome, and the one `stubs/anthropic.pyi` warns is easy to get wrong from memory | E3 | `tests/test_paid.py::test_a_timeout_is_classified_before_the_connection_error_it_is_a_subclass_of`, `tests/test_paid.py::test_the_stub_states_the_hierarchy_the_classifier_depends_on` |
+| a status error is never billed, and retries only where retrying can help — including a status arriving as something other than an int, which would otherwise crash the comparison on the failure path | E3 | `tests/test_paid.py::test_a_status_error_is_never_billed_and_retries_only_where_retrying_can_help`, `tests/test_paid.py::test_a_status_arriving_as_something_other_than_an_int_does_not_crash_the_comparison` |
+| anything the hierarchy does not cover is **billable-unknown** — the safe default, because something nobody classified may have billed | E3 | `tests/test_paid.py::test_an_exception_the_hierarchy_does_not_cover_is_billable_unknown` |
 
 ## The paid extractor
 
@@ -939,3 +955,31 @@ that runs against `notes` says so.
 | the two surfaces render one retrieval — same confidence, same citations, same sizing sentence | E1 | `tests/test_cli_ask.py::test_json_and_the_human_output_agree_on_confidence_and_citations` |
 | every filter `pnk search` takes, `pnk ask` takes (D-27) — asserted in **both** directions, because a filter wired to nothing narrows everything to nothing | E1 | `tests/test_cli_ask.py::test_every_filter_reaches_the_pipeline`, `tests/test_cli_ask.py::test_the_tag_filter_keeps_a_document_that_carries_the_tag`, `tests/test_cli_ask.py::test_k_bounds_how_many_passages_come_back` |
 | the free-path gate covers `pnk ask` from the increment that creates it, and covers it by **matching its output** — no module row in `test_paid_path.py` could tell that call from `pnk search`'s, so deleting the line would leave every row green | E1 | `tests/free_path_run.py` (asserted inside `_run_free_surfaces`), driven by `tests/test_paid_path.py::test_the_free_path_never_imports_the_paid_client` |
+
+## The deep client, and what it will not let a caller get wrong (E3)
+
+Every row below is driven by `tests/fixtures/deep/`, with `anthropic` **not installed** — the seam
+`extract/claude.py` proved, reused rather than reinvented.
+
+| What must be true | Increment | Test |
+|---|---|---|
+| a fixture transport drives a whole round — decompose, then answer — and the ledger closes a reconciled pair for each call | E3 | `tests/test_deep_client.py::test_a_fixture_transport_drives_a_whole_round` |
+| the key is `PINAKES_ANTHROPIC_API_KEY`, and an ambient `ANTHROPIC_API_KEY` is **not** enough — asserted again on the second entry point, because "the extractor refuses it" says nothing about a new module | E3 | `tests/test_deep_client.py::test_an_ambient_anthropic_api_key_is_not_enough`, `tests/test_deep_client.py::test_the_key_is_read_from_the_pinakes_variable` |
+| a missing key names **this** command, not the extractor — someone who typed `pnk ask --deep` and is sent to `[extraction]` has been sent to the wrong file | E3 | `tests/test_deep_client.py::test_a_missing_key_refuses_naming_this_command_not_the_extractor` |
+| `api_key=` is passed explicitly, and `anthropic` is imported inside the transport rather than at module scope | E3 | `tests/test_deep_client.py::test_the_transport_passes_api_key_explicitly_never_omitting_it`, `tests/test_deep_client.py::test_anthropic_is_imported_inside_the_transport_and_nowhere_else` |
+| a refusal and a truncation **billed**, so both are reconciled rather than voided — and a truncation is named before the body is parsed, because a truncated response is also invalid JSON | E3 | `tests/test_deep_client.py::test_a_refusal_is_billed_reconciled_and_reported`, `tests/test_deep_client.py::test_a_truncation_is_billed_and_named_before_the_body_is_parsed` |
+| a 429 never billed, so it is **voided** and re-sent under a fresh reservation; exhausted attempts leave every reservation released at zero | E3 | `tests/test_deep_client.py::test_a_not_billed_failure_is_voided_and_retried`, `tests/test_deep_client.py::test_transport_attempts_are_bounded_and_every_one_is_voided` |
+| a timeout is billable-unknown, so its reservation is left **open** for `pnk budget --resolve` rather than voided | E3 | `tests/test_deep_client.py::test_a_timeout_is_left_unresolved_rather_than_voided` |
+| a cap refuses **before** the call, so the transport is never touched and no reservation is written | E3 | `tests/test_deep_client.py::test_the_budget_refuses_before_any_call_is_made` |
+| the decomposition schema has one field, an array of plain strings — a steered model has nowhere to put a path, a filter or a KB selector (§5's structural half; the behavioural half is E4's) | E3 | `tests/test_deep_client.py::test_the_decomposition_schema_gives_a_model_nowhere_to_put_a_path`, `tests/test_deep_client.py::test_an_injected_subproblem_arrives_as_nothing_but_a_search_string` |
+| a citation naming a passage the call never saw is **refused, not dropped** — dropping leaves prose whose support has silently disappeared while the remaining numbers still make it look sourced | E3 | `tests/test_deep_client.py::test_a_citation_naming_a_passage_the_call_never_saw_is_refused`, `tests/test_deep_client.py::test_every_out_of_range_citation_is_refused`, `tests/test_deep_client.py::test_a_boolean_citation_is_not_passage_one` |
+| the three bounds E2's price assumes are enforced where the request is built, not left to the caller: the question ceiling, the carried-memory ceiling, and `final_k` passages per answering call | E3 | `tests/test_deep_client.py::test_a_question_over_the_ceiling_is_refused_before_anything_is_sent`, `tests/test_deep_client.py::test_carried_memory_over_what_a_round_reserved_is_refused`, `tests/test_deep_client.py::test_more_passages_than_the_call_reserved_for_is_refused` |
+| the request carries the pinned output shape — `EFFORT` and `THINKING` together, `max_tokens` from the estimator, and none of the three sampling parameters that 400 | E3 | `tests/test_deep_client.py::test_the_request_carries_the_pinned_output_shape` |
+| the model is shown the evidence the user reads, numbered the same way — and no document id, which is an identifier it could compose one of | E3 | `tests/test_deep_client.py::test_the_answer_call_shows_the_model_the_evidence_the_user_reads` |
+| a reworded prompt or a reshaped schema bumps the version that names it — E6 measures against these, and a transcript naming a version whose text has since moved records nothing (T1's lesson, one module down) | E3 | `tests/test_deep_client.py::test_a_prompt_change_bumps_the_version_that_names_it` |
+| the injection rule is in **both** prompts — the decompose call sees carried memory, which is prose an answer call wrote from those same passages | E3 | `tests/test_deep_client.py::test_the_injection_rule_is_in_every_prompt_that_carries_untrusted_text` |
+| `max_tokens` is not a knob a caller can raise — it is two thirds of a round's price, and a settable ceiling is a caller-supplied under-reservation | E3 | `tests/test_deep_client.py::test_max_tokens_is_not_a_knob_a_caller_can_raise` |
+| an unclassified exception leaves the reservation **open** — a defect is not proof the call never billed, and proof is what a void requires | E3 | `tests/test_deep_client.py::test_an_exception_the_transport_did_not_classify_is_not_voided` |
+| the constructed client really carries `max_retries=0` — the dict is asserted elsewhere, which says nothing about this transport passing it | E3 | `tests/test_deep_client.py::test_the_constructed_client_really_carries_max_retries_zero` |
+| the rendered passage envelope stays inside **half** what `PASSAGE_ENVELOPE_TOKENS` reserves — the first draft repeated the path and heading inside a citation line and spent 226 of 250 | E3 | `tests/test_deep_client.py::test_the_rendered_envelope_fits_the_constant_that_prices_it` |
+| every fixture says why it exists and where its body came from — the whole set is authored until E6 spends, and only the provenance separates "the branch behaves as the plan says" from "this is what the API returns" | E3 | `tests/test_deep_client.py::test_every_fixture_says_why_it_exists_and_where_its_body_came_from`, `tests/test_deep_client.py::test_the_fixture_set_covers_every_branch` |

@@ -1,0 +1,21 @@
+{
+ "name": "context-window-exceeded",
+ "branch": "context-window",
+ "why": "`stop_reason: model_context_window_exceeded` \u2014 unreachable unless a token constant in deep/estimate.py is wrong, which is why it is a defect report and never a retry.",
+ "provenance": {
+  "kind": "authored",
+  "why_not_recorded": "`deep/estimate.py` refuses an oversized request offline before any call is made, so the API can never be asked for this on a shipped path. The branch guards a pinakes defect, not an API behaviour."
+ },
+ "responses": [
+  {
+   "kind": "response",
+   "stop_reason": "model_context_window_exceeded",
+   "model": "claude-opus-5",
+   "content": [],
+   "usage": {
+    "input_tokens": 1000000,
+    "output_tokens": 0
+   }
+  }
+ ]
+}

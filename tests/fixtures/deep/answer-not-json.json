@@ -1,0 +1,26 @@
+{
+ "name": "answer-not-json",
+ "branch": "schema-invalid",
+ "why": "A text block that is not JSON at all \u2014 structured output constrains the response, and this is what it looks like when that constraint does not hold.",
+ "provenance": {
+  "kind": "authored",
+  "why_not_recorded": "The API cannot be asked to return something its own `output_config.format` forbids, so this body is constructed to prove the parser reports a schema failure rather than raising a `JSONDecodeError` out of a paid call."
+ },
+ "responses": [
+  {
+   "kind": "response",
+   "stop_reason": "end_turn",
+   "model": "claude-opus-5",
+   "content": [
+    {
+     "type": "text",
+     "text": "Here is the answer you asked for."
+    }
+   ],
+   "usage": {
+    "input_tokens": 17000,
+    "output_tokens": 12
+   }
+  }
+ ]
+}

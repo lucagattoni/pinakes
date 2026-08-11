@@ -16,5 +16,12 @@
 #
 # Adding an entry point here edits CLAUDE.md's paid-path allowlist and docs/DESIGN.md §1 in the
 # same commit.
+#
+# E3 adds the second line the same way: `src/pinakes/deep/client.py`, in the commit that creates the
+# module. The rules those two files obey — the key's name, the SDK's retries, whether a failure
+# billed, how a reconciliation is computed — live in `src/pinakes/paid.py`, which is deliberately
+# NOT listed here. It imports no client (it is handed the caller's already-imported module), so gate
+# 2 scans it like any other file and would refuse an `import anthropic` added to it.
 
 src/pinakes/extract/claude.py
+src/pinakes/deep/client.py

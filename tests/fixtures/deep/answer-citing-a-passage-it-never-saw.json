@@ -1,0 +1,26 @@
+{
+ "name": "answer-citing-a-passage-it-never-saw",
+ "branch": "citation-out-of-range",
+ "why": "An answer citing [9] when two passages were sent \u2014 evidence this call never had, refused rather than dropped.",
+ "provenance": {
+  "kind": "authored",
+  "why_not_recorded": "This is the model disobeying a `maximum` the request's schema declared, which cannot be requested from a live API. It is the most important authored body in this set: the check it drives is what stops invented evidence being printed with a citation beside it."
+ },
+ "responses": [
+  {
+   "kind": "response",
+   "stop_reason": "end_turn",
+   "model": "claude-opus-5",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"answer\": \"Everything is documented in the manual.\", \"citations\": [9]}"
+    }
+   ],
+   "usage": {
+    "input_tokens": 17000,
+    "output_tokens": 30
+   }
+  }
+ ]
+}

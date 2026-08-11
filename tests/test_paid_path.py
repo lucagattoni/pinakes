@@ -74,7 +74,12 @@ def _make_root(tmp_path: Path, *, allowlist: str, files: dict[str, str]) -> Path
 
 #: Exactly the modules permitted to import a paid client, hard-coded rather than read from the
 #: allowlist: a test that reads the same file it checks would pass on any content at all.
-EXPECTED_ALLOWLIST = ("src/pinakes/extract/claude.py",)
+#:
+#: **Two, and the second one is the last.** E3 adds `deep/client.py` — `pnk ask --deep` is the final
+#: paid entry point the design has (docs/DESIGN.md §1). `src/pinakes/paid.py`, which both of them
+#: use, is deliberately absent: it holds the rules a paid call obeys and imports no client, so gate
+#: 2 scans it like any other file.
+EXPECTED_ALLOWLIST = ("src/pinakes/extract/claude.py", "src/pinakes/deep/client.py")
 
 
 def test_the_allowlist_matches_the_source_tree() -> None:
@@ -377,3 +382,48 @@ def test_the_free_path_gate_says_so_when_it_cannot_run() -> None:
     """
     assert "true by construction" in _SKIP_REASON
     assert "light,pdf,claude" in _SKIP_REASON
+
+
+# --------------------------------------------------------------------------------------------
+# The deep client, and the MCP surface (E3)
+# --------------------------------------------------------------------------------------------
+
+#: The module `pnk ask --deep` spends through. Named as a string rather than imported: the whole
+#: assertion is that this name never reaches `sys.modules` on a surface that must not spend, and a
+#: test that imported it would put it there itself.
+DEEP_CLIENT = "pinakes.deep.client"
+
+
+def _assert_no_deep_client(modules: set[str]) -> None:
+    """The checker, named so the negative control has something to make fail."""
+    if DEEP_CLIENT in modules:
+        raise AssertionError(f"a free surface imported the deep client: {DEEP_CLIENT}")
+
+
+def test_the_free_path_and_the_mcp_server_never_load_the_deep_client(tmp_path: Path) -> None:
+    """DESIGN §4.3: an MCP caller composes `pinakes_search` -> `pinakes_get` on reasoning it has
+    already paid for. A server-side loop would spend the **operator's** money on the *caller's*
+    question, so `pnk serve` must never reach `pinakes.deep.client` — enforced by a gate, not by a
+    convention (§1 of the deep release's plan).
+
+    The free-path run builds the MCP server, lists its tools and calls one, and runs every free CLI
+    command including `pnk ask` — so this covers both surfaces at once. It lands in E3 rather than
+    E5 because an assertion cannot name a module that does not exist; that ordering is the opposite
+    of the allowlist gate's, and is acceptable only because this is the **second** line of defence.
+    The first, `test_the_free_path_never_imports_the_paid_client`, catches the leak whatever the
+    module is called — but it needs `pinakes[claude]` installed to mean anything, and this one runs
+    on every leg.
+    """
+    _assert_no_deep_client(_free_path_modules(tmp_path))
+
+
+def test_the_deep_client_gate_fails_when_an_import_is_planted(tmp_path: Path) -> None:
+    """The negative control, and the only thing that makes the assertion above non-vacuous.
+
+    "`pinakes.deep.client` is not in this set" is also true of a run that imported nothing at all,
+    or of a checker that never looks. Planting the import in the prelude proves the module *can*
+    appear in the list the harness collects, and that the checker sees it when it does.
+    """
+    modules = _free_path_modules(tmp_path, prelude=f"import {DEEP_CLIENT}")
+    with pytest.raises(AssertionError, match="imported the deep client"):
+        _assert_no_deep_client(modules)

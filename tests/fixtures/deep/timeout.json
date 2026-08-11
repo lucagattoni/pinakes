@@ -1,0 +1,15 @@
+{
+ "name": "timeout",
+ "branch": "timeout",
+ "why": "A timeout: billable-unknown, so the reservation is left open for `pnk budget --resolve` rather than voided.",
+ "provenance": {
+  "kind": "authored",
+  "why_not_recorded": "A timeout cannot be induced against a healthy service, and the classification it drives is asserted directly against the SDK hierarchy in stubs/anthropic.pyi."
+ },
+ "responses": [
+  {
+   "kind": "error",
+   "class": "timeout"
+  }
+ ]
+}
