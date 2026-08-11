@@ -47,7 +47,7 @@ from pinakes.errors import EvalError
 from pinakes.graph.channel import GATED_RANKING, Ranking
 from pinakes.graph.edges import ALL_KINDS, select_kinds
 from pinakes.manifest import Manifest
-from pinakes.search import HIGH, LOW, UNKNOWN, Filters, search
+from pinakes.search import HIGH, LOW, UNKNOWN, Filters, resolve_tier, search
 
 DEFAULT_K = 5
 
@@ -627,7 +627,21 @@ def header(
             "fusion_top_k": settings.fusion_top_k,
             "final_k": settings.final_k,
             "rerank": settings.rerank,
+            # **Both, and which is which is the point** (D-17). `vector_tier` is what the manifest
+            # *asked for* and keeps that meaning; `vector_tier_resolved` is what actually ran. A KB
+            # on the default writes `"auto"` here, and `auto` is a request to choose rather than a
+            # tier — so alone it cannot answer the question a measurement artifact exists to
+            # answer: *which tier produced these numbers?*
+            #
+            # Recording only the resolved tier was simpler and was rejected for one reason:
+            # re-running a committed artifact would show `auto` → `numpy`, a field moving where no
+            # measurement did. Nothing consumes either field today — no test asserts it and no tool
+            # reads it — so this is a decision about what the artifact *says*, not compatibility.
+            #
+            # It bites at T6 and not before: two runs comparing the tiers on a manifest left at
+            # `auto` would produce headers identical in the one field meant to distinguish them.
             "vector_tier": settings.vector_tier,
+            "vector_tier_resolved": resolve_tier(manifest),
             "adjacent_k": settings.adjacent_k,
         },
     }
