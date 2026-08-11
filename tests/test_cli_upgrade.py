@@ -2208,30 +2208,103 @@ def test_splices_refuses_a_hunk_that_no_longer_places_uniquely() -> None:
         splices(twice, ["a", "b", "a"])
 
 
-def test_same_manifest_under_apply_writes_nothing(
+def test_same_manifest_under_apply_records_the_reference_and_nothing_else(
     tmp_path: Path, synthetic_template: Callable[..., str]
 ) -> None:
-    """A version bump that leaves the manifest byte-identical has no hunks, so `--apply` has nothing
-    to apply and writes nothing — **including the `[kb] template` restamp**.
+    """D-16. **This replaces `test_same_manifest_under_apply_writes_nothing`, which pinned the
+    opposite** — the behaviour changed by decision, so the test it contradicted is rewritten here
+    rather than deleted somewhere nobody would notice it had gone.
 
-    That is the plan's reading taken literally rather than extended: `--apply` is specified in terms
-    of hunks. The consequence is real and is recorded in `plans/20260731_1202-open-corrections.md`
-    rather than silently fixed — a KB on this path keeps reporting drift with no way to record the
-    new reference, and deciding otherwise is a change to what the command does, not a detail.
-    """
+    A version bump leaving the manifest byte-identical has no hunks, so `--apply` used to do
+    nothing at all — *including* the `[kb] template` restamp. The KB then went on recording the old
+    reference, `pnk doctor` went on warning, and no command could clear it. Reachable rather than
+    theoretical: of the ten commits between `notes@1.0` and `1.1`, five touched only the starter
+    golden set.
+
+    **The two properties are a pair and neither alone is the decision.** The reference *is*
+    recorded, and it is the **only** thing that changed — every other byte identical, which is what
+    stops this becoming a licence to rewrite a file with no diff behind it."""
     name = synthetic_template(
         "synth",
         versions={"1.0": _source(), "2.0": _source()},
         current="2.0",
     )
     root = _stamp(tmp_path / "kb", name, "1.0")
-    before = _tree(root)
+    manifest = root / "pinakes.toml"
+    before = manifest.read_text(encoding="utf-8")
+    assert 'template = "synth@1.0"' in before
 
     code, out, err = _run2(root, "--apply")
 
     assert code == 0, err
+    after = manifest.read_text(encoding="utf-8")
+    assert 'template = "synth@2.0"' in after
+    assert "no hunks" in out, "the output must say why nothing was applied"
+    assert after.replace('template = "synth@2.0"', 'template = "synth@1.0"') == before
+
+
+def test_same_manifest_under_apply_announces_the_write_before_making_it(
+    tmp_path: Path, synthetic_template: Callable[..., str]
+) -> None:
+    """The consent path, which is the whole reason D-16 is defensible.
+
+    Writing to a manifest with no hunk to justify it is acceptable only because the user is told
+    first — the same answer D-10 gave for `[budget]`, where the objection was also *"it writes
+    something the diff did not show"*. Asserted **by line position**, never by both strings merely
+    being present: an announcement printed after the write is not consent, and a test that greps
+    for two substrings cannot tell the two orders apart."""
+    name = synthetic_template("synth", versions={"1.0": _source(), "2.0": _source()}, current="2.0")
+    root = _stamp(tmp_path / "kb", name, "1.0")
+
+    code, out, err = _run2(root, "--apply")
+
+    assert code == 0, err
+    printed = out.splitlines()
+    announcement = next(i for i, line in enumerate(printed) if "will record" in line)
+    written = next(i for i, line in enumerate(printed) if ".orig" in line)
+    assert announcement < written, "the write was announced after it had already happened"
+
+
+def test_same_manifest_under_apply_json_reports_the_write(
+    tmp_path: Path, synthetic_template: Callable[..., str]
+) -> None:
+    """D-16 opened a new *writing* path, and a writing path with no machine-readable coverage is
+    how a consumer learns about a change from its side effects.
+
+    `--json --apply` emits one document after the attempt on every other outcome; this asserts it
+    does so here too, and that the document says the reference was recorded. Found by asking what
+    the new path inherits rather than what it introduces — the same question that produced
+    open-corrections item 4."""
+    import json as json_module
+
+    name = synthetic_template("synth", versions={"1.0": _source(), "2.0": _source()}, current="2.0")
+    root = _stamp(tmp_path / "kb", name, "1.0")
+
+    code, out, err = _run2(root, "--apply", "--json")
+
+    assert code == 0, err
+    payload = json_module.loads(out)
+    assert payload["outcome"] == "same-manifest"
+    assert 'template = "synth@2.0"' in (root / "pinakes.toml").read_text(encoding="utf-8")
+
+
+def test_same_manifest_without_apply_still_writes_nothing(
+    tmp_path: Path, synthetic_template: Callable[..., str]
+) -> None:
+    """The half of the replaced test that did **not** change, kept because D-16 moved the other.
+
+    `pnk upgrade` reports and writes nothing on every outcome — the promise T3 shipped, untouched
+    here. Without this, D-16 could have been implemented by making the *report* restamp, and every
+    assertion in the two tests above would still pass."""
+    name = synthetic_template("synth", versions={"1.0": _source(), "2.0": _source()}, current="2.0")
+    root = _stamp(tmp_path / "kb", name, "1.0")
+    before = _tree(root)
+
+    code, out, err = _run2(root)
+
+    assert code == 0, err
     assert "stamp an identical pinakes.toml" in out
-    assert _tree(root) == before
+    assert _tree(root) == before, "a report wrote to the KB"
 
 
 def test_the_backup_is_named_by_its_full_path_when_it_leaves_the_kb(
