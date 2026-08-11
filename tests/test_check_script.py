@@ -234,6 +234,16 @@ def test_the_release_workflow_creates_the_github_release_after_publishing() -> N
     assert "contents: write" in RELEASE_WORKFLOW.read_text(encoding="utf-8"), (
         "gh release create needs it, and the job requested only id-token: write"
     )
-    assert "--verify-tag" in str(steps[release]["run"]), (
+    # **The command line, not the whole `run` block.** The block includes the comment explaining
+    # the flag, so `"--verify-tag" in run` is satisfied by the explanation with the flag deleted
+    # from the command — measured: that version of this assertion survived the mutation that
+    # removed it. Assert on the line that actually invokes `gh`.
+    invocation = next(
+        line for line in str(steps[release]["run"]).splitlines() if "gh release create" in line
+    )
+    assert "--verify-tag" in invocation, (
         "without it the step would invent a release for a tag that was never pushed"
+    )
+    assert "--notes-from-tag" in invocation, (
+        "the notes are the maintainer's tag annotation, not a generated diff nobody reviewed"
     )
