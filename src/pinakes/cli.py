@@ -786,7 +786,7 @@ def _run_deep(
         sufficiency=pipeline.confidence,
         # Unbuilt: `run_deep` calls it after the caps have admitted the run, so a KB whose
         # `[budget]` refuses says so instead of demanding an API key first.
-        transport=default_transport,
+        open_transport=default_transport,
         accountant=accountant,
         now=datetime.now(UTC).strftime(TIMESTAMP_FORMAT),
     )

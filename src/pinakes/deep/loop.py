@@ -81,6 +81,14 @@ Sufficiency = Callable[[Sequence[Passage]], tuple[str, str]]
 ANSWERED: Final = "answered"
 """The cheap branch: one synthesis call, because the free signal said the evidence was there."""
 
+ANSWERED_LABEL: Final = (
+    "answered in one synthesis call — the calibrated signal said the retrieved evidence was "
+    "already enough, so no decomposition was paid for."
+)
+"""What `ANSWERED` reads as. A constant rather than a branch of `label_for`, because the cheap
+branch has no round cap to name, and passing one a fabricated number is how an unused wrong value
+becomes a used wrong value."""
+
 SUFFICIENT: Final = "sufficient"
 """The loop's early stop — the accumulated evidence cleared §4.2's threshold. The step an
 uncalibrated KB cannot take (D-22 option E), which is why an `unknown` run costs more."""
@@ -315,7 +323,7 @@ def run_deep(
     final_k: int,
     retrieve: Retrieve,
     sufficiency: Sufficiency,
-    transport: Callable[[], Transport],
+    open_transport: Callable[[], Transport],
     accountant: Accountant,
     now: str,
     sleep: Callable[[float], None] = time.sleep,
@@ -333,8 +341,8 @@ def run_deep(
     enforces. Passing a second copy of any of them would be a second thing that can disagree with
     the numbers the reservation was checked against.
 
-    **`transport` is a factory, called only once the run is authorised**, and that ordering is the
-    whole reason for the extra parentheses. Building one constructs a vendor client and therefore
+    **`open_transport` is a factory, called only once the run is authorised**, and that ordering is
+    the whole reason for the extra parentheses. Building one constructs a vendor client and so
     demands `PINAKES_ANTHROPIC_API_KEY` — so an eager call would answer *"no key"* to every user
     whose real problem is that their KB stamps `per_operation_eur = 0.30`. That is **every KB that
     exists today** (D-30's stated limit), and the cap refusal is the one carrying the manifest edit
@@ -368,7 +376,7 @@ def run_deep(
     _authorise(accountant, estimate)
 
     caller = _Caller(
-        transport=transport(),
+        transport=open_transport(),
         accountant=accountant,
         model=manifest.deep.model,
         reserved_eur=estimate.per_call_eur,
@@ -438,7 +446,7 @@ def _cheap_branch(
         blocks=(_block(0, (), result, passages),),
         rounds_used=1,
         stopped_by=ANSWERED,
-        label=_label(ANSWERED, rounds_used=1, max_rounds=1, branch=estimate.branch),
+        label=ANSWERED_LABEL,
         estimate=estimate,
         tally=caller.tally,
         spent_eur=caller.spent_eur,
@@ -529,7 +537,7 @@ def _loop_branch(
         blocks=tuple(blocks),
         rounds_used=rounds_used,
         stopped_by=stopped_by,
-        label=_label(stopped_by, rounds_used=rounds_used, max_rounds=max_rounds, branch=branch),
+        label=label_for(stopped_by, rounds_used=rounds_used, max_rounds=max_rounds, branch=branch),
         estimate=estimate,
         tally=caller.tally,
         spent_eur=caller.spent_eur,
@@ -668,18 +676,23 @@ def refold(blocks: Sequence[AnswerBlock]) -> str:
     return "\n\n".join(reversed(kept))
 
 
-def _label(stopped_by: str, *, rounds_used: int, max_rounds: int, branch: str) -> str:
-    """One sentence naming the bound that ended the run.
+def label_for(stopped_by: str, *, rounds_used: int, max_rounds: int, branch: str) -> str:
+    """One sentence naming the bound that ended a **loop** run (the cheap branch has its own).
+
+    Public because it is exhaustive over `STOP_REASONS` and nothing else can check that: driving
+    every reason through a whole run would need a fixture per bound, and the property under test is
+    the mapping rather than the loop.
 
     **Required of an uncalibrated run** (D-22 option E: bounded by the caps rather than by the
     signal, and say which) **and printed on every run anyway**, because "the loop stopped" and "the
     loop finished" are different outcomes that would otherwise look identical in the output.
+
+    **An unknown reason raises rather than falling through.** This chain used to end in the
+    round-cap sentence as its default, which meant a stop reason added later would have rendered as
+    *"stopped at the round cap"* — a wrong, confident, untestable sentence about which bound ended a
+    paid run. Every branch is now named, and `test_every_stop_reason_has_a_sentence_of_its_own` is
+    what makes the raise unreachable in practice.
     """
-    if stopped_by == ANSWERED:
-        return (
-            "answered in one synthesis call — the calibrated signal said the retrieved evidence "
-            "was already enough, so no decomposition was paid for."
-        )
     uncalibrated = (
         " There is no calibrated signal on this KB, so the run could not stop at sufficiency: it "
         "was bounded by the caps rather than by the evidence (`python -m pinakes.calibrate <kb>`)."
@@ -706,7 +719,12 @@ def _label(stopped_by: str, *, rounds_used: int, max_rounds: int, branch: str) -
             f"stopped at a budget window after {rounds_used} of {max_rounds} round(s) — this is a "
             f"partial answer, bounded by `[budget]` rather than by the evidence.{uncalibrated}"
         )
-    return (
-        f"stopped at the round cap — {rounds_used} of {max_rounds} round(s) — not at sufficiency. "
-        f"`[deep] max_rounds` is what bounds it.{uncalibrated}"
+    if stopped_by == ROUND_CAP:
+        return (
+            f"stopped at the round cap — {rounds_used} of {max_rounds} round(s) — not at "
+            f"sufficiency. `[deep] max_rounds` is what bounds it.{uncalibrated}"
+        )
+    raise ValueError(
+        f"label_for: {stopped_by!r} is not one of {', '.join(STOP_REASONS)} — a run cannot be "
+        "given another bound's sentence, which is what a default here would have done."
     )

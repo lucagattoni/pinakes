@@ -261,7 +261,7 @@ def a_run(
         # A factory, unbuilt: `run_deep` constructs the transport only once the caps have admitted
         # the run, so a refusal never demands an API key first. `NeverCalled` below is what proves
         # a refusing test made no call; this is what proves it built no client either.
-        transport=lambda: transport,
+        open_transport=lambda: transport,
         accountant=accountant,
         now=NOW,
         sleep=never_sleeps,
@@ -807,3 +807,45 @@ def test_the_loop_prices_the_round_cap_it_will_actually_use(
     assert answer.estimate.rounds == 2
     assert answer.estimate.total_eur == expected.total_eur
     assert answer.estimate.per_call_eur.quantize(CENT) == PER_CALL_EUR
+
+
+def test_every_stop_reason_has_a_sentence_of_its_own() -> None:
+    """No bound may be described with another bound's words, and none may be left undescribed.
+
+    `label_for` used to end its chain in the round-cap sentence as a default, so a stop reason added
+    later would have rendered as *"stopped at the round cap"* — confident, wrong, and about the one
+    thing a `--deep` run's output exists to be trusted on. It raises now, and this is what keeps the
+    raise unreachable: every reason in `STOP_REASONS` produces a sentence, and no two produce the
+    same one.
+
+    `ANSWERED` is checked as the constant rather than through `label_for`, because the cheap
+    branch has no round cap to name — which is why it stopped being a branch of that function.
+    """
+    from pinakes.deep.loop import ANSWERED_LABEL, STOP_REASONS, label_for
+
+    sentences = {ANSWERED: ANSWERED_LABEL}
+    for reason in STOP_REASONS:
+        if reason == ANSWERED:
+            continue
+        sentences[reason] = label_for(reason, rounds_used=2, max_rounds=3, branch=DECOMPOSITION)
+
+    assert set(sentences) == set(STOP_REASONS), "a reason with no sentence"
+    assert len(set(sentences.values())) == len(STOP_REASONS), (
+        f"two reasons share a sentence: {sorted(sentences.values())}"
+    )
+    with pytest.raises(ValueError, match="not one of"):
+        label_for("a-bound-nobody-added", rounds_used=1, max_rounds=3, branch=DECOMPOSITION)
+
+
+def test_only_an_uncalibrated_run_is_told_its_signal_is_missing() -> None:
+    """The D-22 sentence rides on the branch, not on the stop reason — and it must not appear on a
+    calibrated run, where it would be false, nor be missing from an uncalibrated one, where it is
+    the whole point of running anyway."""
+    from pinakes.deep.loop import label_for
+
+    for reason in (ROUND_CAP, EXHAUSTED, NO_EVIDENCE, BUDGET):
+        calibrated = label_for(reason, rounds_used=2, max_rounds=3, branch=DECOMPOSITION)
+        uncalibrated = label_for(reason, rounds_used=2, max_rounds=3, branch=UNKNOWN)
+        assert "no calibrated signal" not in calibrated
+        assert "no calibrated signal" in uncalibrated
+        assert "pinakes.calibrate" in uncalibrated
