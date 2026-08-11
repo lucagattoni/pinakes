@@ -1,0 +1,26 @@
+{
+ "name": "server-error-exhausted",
+ "branch": "500",
+ "why": "Three 500s: every attempt voided, nothing billed, and the run ends with the reservation released at zero rather than consumed.",
+ "provenance": {
+  "kind": "authored",
+  "why_not_recorded": "A fault in someone else's service cannot be requested on demand."
+ },
+ "responses": [
+  {
+   "kind": "error",
+   "class": "status",
+   "status": 500
+  },
+  {
+   "kind": "error",
+   "class": "status",
+   "status": 500
+  },
+  {
+   "kind": "error",
+   "class": "status",
+   "status": 500
+  }
+ ]
+}

@@ -55,8 +55,9 @@ Set by the user 20260808 04:39. It **overrides the global default of stopping to
 - **Never commit real knowledge-base content.** The repo is the engine. The only KBs here are the
   synthetic corpora under `tests/` (`demo-kb`, `partner-kb`) — written for the purpose, never
   harvested.
-- **The paid extractor's key is `PINAKES_ANTHROPIC_API_KEY`, never `ANTHROPIC_API_KEY`**, enforced
-  in code (`extract/claude.py: resolve_api_key`), not by machine hygiene: the SDK reads its own
+- **Every paid path's key is `PINAKES_ANTHROPIC_API_KEY`, never `ANTHROPIC_API_KEY`**, enforced
+  in code (`paid.py: resolve_api_key`, bound to its own surface by each of the two entry points),
+  not by machine hygiene: the SDK reads its own
   variable out of whatever environment it is handed, so on a machine where another tool exports one
   the paid path would find a live key nobody aimed at it (measured 20260804). It lives in `.env`
   (gitignored by pattern), passed per command: `uv run --env-file .env pnk …`. **Never teach

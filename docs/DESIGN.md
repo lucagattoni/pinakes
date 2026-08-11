@@ -46,6 +46,15 @@ import a paid client. What proves it is not a grep — a grep only ever knows th
 thought of — but a run of the whole free path in a fresh process, asserting on what actually landed
 in `sys.modules`.
 
+**Two entry points means two clients, and what they share lives in one module that is deliberately
+not on the list.** `src/pinakes/paid.py` holds the four rules both obey: the key is read from a
+Pinakes-specific variable and passed explicitly, the SDK's own retries are off, a failed call is
+classified by whether it *billed*, and a reconciliation is computed from the response's own usage.
+It imports no client — it is handed the caller's already-imported module — so the allowlist stays
+two entries long and the gate scans that file like any other. The alternative was a second copy of
+four rules that each fail *silently* when the copies drift, which is the shape of defect the
+allowlist exists to prevent, one file apart instead of one layer.
+
 ### Decisions taken (from requirements gathering)
 
 | Area | Decision |

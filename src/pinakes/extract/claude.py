@@ -52,26 +52,38 @@ the first ligature onward while the spans still tiled perfectly.
 
 import base64
 import json
-import os
 import re
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from decimal import Decimal
-from enum import Enum
 from pathlib import Path
 from typing import Any, Final, Protocol, cast
 
 from pinakes.budget.accountant import Accountant
 from pinakes.budget.estimate import MAX_TOKENS, TIMESTAMP_FORMAT, K, estimate_document
 from pinakes.budget.prices import ModelPrice
-from pinakes.errors import ApiKeyMissingError, ExtractionError, ExtractorMissingError
+from pinakes.errors import ExtractionError, ExtractorMissingError
 from pinakes.extract import CLAUDE_VISION, ExtractedText, ExtractionContext
 from pinakes.extract import cache as extract_cache
 from pinakes.extract.audit import AUDIT_KEY, as_provenance, audit_completeness
 from pinakes.extract.pageyield import FreeYield, check_worth_paying_for
 from pinakes.extract.textpolicy import TEXT_POLICY_VERSION, normalise
+from pinakes.paid import (
+    Billability,
+    SchemaFailureError,
+    actual_cost_usd,
+    build_client_kwargs,
+    classify,
+    text_blocks,
+    usage_of,
+)
+from pinakes.paid import resolve_api_key as _resolve_key
+
+#: What a refusal names when this entry point has no key. `pnk ask --deep` is the other one, and
+#: naming the wrong entry point sends the reader to the wrong command (`pinakes/paid.py`).
+KEY_SURFACE: Final = f"the `{CLAUDE_VISION}` extractor"
 
 #: Bumped whenever the prompt text changes — it is part of what produced a given extraction.
 PROMPT_VERSION: Final = 1
@@ -145,13 +157,6 @@ PAGE_SCHEMA: Final[Mapping[str, Any]] = {
 }
 
 
-class Billability(Enum):
-    """Whether a failed call cost money — the only question that decides void vs. unknown."""
-
-    NOT_BILLED = "not billed"
-    UNKNOWN = "unknown"
-
-
 class TransportError(ExtractionError):
     """A call that did not return a usable response, classified by what it cost.
 
@@ -187,43 +192,10 @@ class Transport(Protocol):
     def count_tokens(self, request: Mapping[str, Any]) -> int: ...
 
 
-API_KEY_ENV = "PINAKES_ANTHROPIC_API_KEY"
-"""**Not** `ANTHROPIC_API_KEY`, and the difference is the whole point.
-
-`anthropic.Anthropic()` reads `ANTHROPIC_API_KEY` from the process environment on its own. On any
-machine where that is exported for some other tool — an editor, an agent, a shell someone forgot —
-the paid path would find a live key it was never handed, and the "deliberate act of supplying the
-key" that `CLAUDE.md` counts as a defence would not be one. Reading a name only Pinakes uses, and
-passing it explicitly, makes the defence real rather than a property of a tidy machine.
-"""
-
-
 def resolve_api_key(environ: Mapping[str, str] | None = None) -> str:
-    """The key, or a named refusal. Never a fallback to the SDK's own variable.
-
-    `environ` is injectable so the tests can prove the fallback is absent without mutating the
-    process environment — the assertion that matters is that a set `ANTHROPIC_API_KEY` and an
-    unset `PINAKES_ANTHROPIC_API_KEY` refuses.
-    """
-    source = os.environ if environ is None else environ
-    key = (source.get(API_KEY_ENV) or "").strip()
-    if not key:
-        raise ApiKeyMissingError
-    return key
-
-
-def build_client_kwargs() -> dict[str, Any]:
-    """The client's construction arguments, as a pure function of nothing.
-
-    `max_retries=0` because the SDK's default of 2 silently turns one `messages.create` into up to
-    three billed HTTP requests — and a request retried after a timeout can be billed twice for
-    generation the server already completed. The accountant owns retry, not the SDK.
-
-    A function rather than a literal at the construction site so an unmarked test can assert it
-    with `anthropic` absent: a test that could only inspect a stand-in would be asserting a
-    property of itself.
-    """
-    return {"max_retries": 0}
+    """This entry point's key, or a refusal naming it — `pinakes.paid.resolve_api_key` bound to
+    `KEY_SURFACE`, so nothing here re-states the rule that forbids the SDK's own variable."""
+    return _resolve_key(environ, surface=KEY_SURFACE)
 
 
 def build_request(
@@ -282,11 +254,6 @@ class RequestTooLargeError(ExtractionError):
         self.pages = pages
 
 
-class SchemaFailureError(Exception):
-    """A response that returned but cannot be used: invalid JSON, the wrong number of pages, or a
-    leaked internal tag. Retryable within the semantic budget; each retry is billed and reserved."""
-
-
 @dataclass(frozen=True, slots=True)
 class SliceResult:
     pages: tuple[str, ...]
@@ -303,31 +270,6 @@ class CallTally:
     call_ids: list[str] = field(default_factory=list[str])
 
 
-def _text_blocks(response: Mapping[str, Any]) -> str:
-    """The response's text, selected by an explicit `block["type"] == "text"` check.
-
-    The block union is narrowed by *reading the discriminator*, never by asserting a block is the
-    variant we hoped for — that check is the whole of rule 7's requirement here. A response
-    carrying no text block at all is a schema failure, not a crash.
-    """
-    content: object = response.get("content")
-    if not isinstance(content, list):
-        raise SchemaFailureError("response carried no content list")
-    parts: list[str] = []
-    for block in cast(list[object], content):
-        if not isinstance(block, dict):
-            continue
-        typed = cast(dict[str, object], block)
-        if typed.get("type") != "text":
-            continue
-        text = typed.get("text")
-        if isinstance(text, str):
-            parts.append(text)
-    if not parts:
-        raise SchemaFailureError("response carried no text block")
-    return "".join(parts)
-
-
 def parse_pages(response: Mapping[str, Any], *, expected: int) -> tuple[str, ...]:
     """Validate one slice's response into `expected` page strings.
 
@@ -338,7 +280,7 @@ def parse_pages(response: Mapping[str, Any], *, expected: int) -> tuple[str, ...
     that document silently off by one, for good. An array-length constraint in the schema is not
     something to rely on for that.
     """
-    raw = _text_blocks(response)
+    raw = text_blocks(response)
     try:
         parsed: object = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -426,34 +368,6 @@ def refusal_reason(response: Mapping[str, Any]) -> str:
     return ": ".join(parts) if len(parts) > 1 else base
 
 
-def _usage(response: Mapping[str, Any]) -> tuple[int, int]:
-    raw: object = response.get("usage")
-    if not isinstance(raw, dict):
-        return 0, 0
-    usage = cast(dict[str, object], raw)
-    inputs = usage.get("input_tokens")
-    outputs = usage.get("output_tokens")
-    return (
-        inputs if isinstance(inputs, int) else 0,
-        outputs if isinstance(outputs, int) else 0,
-    )
-
-
-def actual_cost_usd(response: Mapping[str, Any], *, price: ModelPrice) -> Decimal:
-    """What the call really cost, from the response's own usage.
-
-    The reservation is a worst case; **the reconciliation must supersede it with this**, or the
-    protocol is a no-op that records the estimate twice and charges every window worst-case
-    forever — the reservation stands, nothing corrects it, and `pnk budget` reports an estimate as
-    if it were spend.
-    """
-    input_tokens, output_tokens = _usage(response)
-    million = Decimal(1_000_000)
-    return (Decimal(input_tokens) / million) * price.input_per_mtok_usd + (
-        Decimal(output_tokens) / million
-    ) * price.output_per_mtok_usd
-
-
 def _responded_model(response: Mapping[str, Any]) -> str:
     """The model that actually answered.
 
@@ -506,7 +420,7 @@ def _billed_call(
                     raise
             else:
                 call.response_received()
-                input_tokens, output_tokens = _usage(response)
+                input_tokens, output_tokens = usage_of(response)
                 call.reconcile(
                     cost_usd=actual_cost_usd(response, price=price),
                     input_tokens=input_tokens,
@@ -627,7 +541,7 @@ def extract_slice(
                 break
             continue
 
-        input_tokens, output_tokens = _usage(response)
+        input_tokens, output_tokens = usage_of(response)
         return SliceResult(
             pages=pages,
             model=_responded_model(response),
@@ -852,39 +766,19 @@ class AnthropicTransport:
         return self._client.messages.count_tokens(**payload).input_tokens
 
     def _classify(self, exc: Exception) -> TransportError:
-        """Map an SDK exception onto the only distinction that matters: did it bill?
+        """`pinakes.paid.classify`'s verdict, wearing this entry point's error type and remedy.
 
-        `APIConnectionError` is a *sibling* of `APIStatusError`, not a subclass, and it splits by
-        phase: a failure before any response byte never billed and may be retried, while a
-        timeout — which the SDK models as its own subclass — is billable-unknown, because the
-        server may have generated the response we never saw.
+        The branch order — timeout before connection error, because the first is a subclass of the
+        second and only the first may have billed — lives in `pinakes.paid` and is shared with
+        `deep/client.py`. What is local is the sentence a *sync* prints about it: a failed document
+        is isolated and the corpus is unaffected, which is not what a failed question means.
         """
-        module = self._anthropic
-        if isinstance(exc, module.APITimeoutError):
-            return TransportError(
-                f"the request timed out: {exc}", billability=Billability.UNKNOWN, retryable=False
-            )
-        if isinstance(exc, module.APIConnectionError):
-            return TransportError(
-                f"the connection failed before any response: {exc}",
-                billability=Billability.NOT_BILLED,
-                retryable=True,
-            )
-        if isinstance(exc, module.APIStatusError):
-            # Read through `getattr` and checked, rather than trusted: the SDK's own type stubs
-            # are not resolvable on a `[light]` install, and a status silently arriving as
-            # something other than an int would make `>= 500` a comparison against a string.
-            raw: object = getattr(exc, "status_code", None)
-            status = raw if isinstance(raw, int) else None
-            retryable = status is not None and (status == 429 or status >= 500)
-            return TransportError(
-                f"the API returned {status}: {exc}",
-                billability=Billability.NOT_BILLED,
-                retryable=retryable,
-                status=status,
-            )
+        failure = classify(exc, sdk=self._anthropic)
         return TransportError(
-            f"the client failed: {exc}", billability=Billability.UNKNOWN, retryable=False
+            failure.message,
+            billability=failure.billability,
+            retryable=failure.retryable,
+            status=failure.status,
         )
 
 

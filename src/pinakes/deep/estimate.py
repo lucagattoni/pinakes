@@ -93,6 +93,16 @@ PASSAGE_ENVELOPE_TOKENS: Final = 250
 #: module that prices it so the two cannot disagree — E4 imports it rather than declaring its own.
 CARRIED_MEMORY_TOKENS: Final = 4_000
 
+#: The same bound, in the unit the code that carries it can actually measure without a tokenizer.
+#:
+#: **Added in E3, where the memory first reaches a request.** `deep/client.py` refuses a longer one
+#: rather than sending it, because "the loop re-folds" is a claim about code that has not run at the
+#: point the reservation was made — and an over-long memory is an under-reservation, the direction a
+#: budget may never be wrong in. Derived at the same deliberately pessimistic 2 characters per
+#: vendor token `QUESTION_CHAR_CEILING` uses, and declared beside the token bound so the two cannot
+#: drift: a re-fold that cut to a different number would be cutting to a different price.
+CARRIED_MEMORY_CHAR_CEILING: Final = 2 * CARRIED_MEMORY_TOKENS
+
 #: The question's own tokens, and the ceiling `deep/loop.py` (E4) must enforce to make them a
 #: bound at all.
 #:

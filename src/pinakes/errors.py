@@ -318,17 +318,21 @@ class ExtractorMissingError(PinakesError):
 
 
 class ApiKeyMissingError(PinakesError):
-    """The paid extractor has no key, and Pinakes will not go looking for one.
+    """A paid entry point has no key, and Pinakes will not go looking for one.
 
     Named for `PINAKES_ANTHROPIC_API_KEY` rather than the SDK's `ANTHROPIC_API_KEY` deliberately:
     the SDK reads its own variable out of whatever environment it happens to be in, so a key
     exported for an unrelated tool would let a paid call proceed that nobody asked for. Supplying
     the key has to be an act aimed at *this* tool (DESIGN §5, `CLAUDE.md`).
+
+    `surface` names the entry point that wanted to spend — "the `claude-vision` extractor",
+    "`pnk ask --deep`" — because that is what the user typed. There are two paid entry points from
+    E3 onward, and a refusal naming the wrong one sends the reader to the wrong command.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, surface: str) -> None:
         super().__init__(
-            "the `claude-vision` extractor has no API key.",
+            f"{surface} has no API key.",
             remedy=(
                 "Set `PINAKES_ANTHROPIC_API_KEY` for this command only — "
                 "`uv run --env-file .env pnk ...` with the key in `.env`. pinakes deliberately "
@@ -340,6 +344,16 @@ class ApiKeyMissingError(PinakesError):
 
 class ExtractionError(PinakesError):
     """A registered extractor could not produce text from this document."""
+
+
+class DeepError(PinakesError):
+    """`pnk ask --deep` could not answer the question (the deep release).
+
+    A sibling of `ExtractionError` rather than a subclass of it: the two paid entry points fail
+    into different remedies. An extraction failure isolates one document and leaves the corpus
+    indexed; a deep failure ends one question, and what the user does about it is a manifest cap,
+    a key, or asking again — never a re-sync.
+    """
 
 
 class PaidExtractionRequiredError(PinakesError):

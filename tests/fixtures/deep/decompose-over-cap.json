@@ -1,0 +1,26 @@
+{
+ "name": "decompose-over-cap",
+ "branch": "schema-invalid",
+ "why": "Four subproblems against a cap of two: the cap was in the request's own schema, so exceeding it is a schema failure rather than something to silently trim.",
+ "provenance": {
+  "kind": "authored",
+  "why_not_recorded": "The API cannot be asked to violate the `maxItems` constraint it was constrained by, so this body models the response the schema forbids in order to prove the second check \u2014 the one in `parse_subproblems` \u2014 is real rather than decorative."
+ },
+ "responses": [
+  {
+   "kind": "response",
+   "stop_reason": "end_turn",
+   "model": "claude-opus-5",
+   "content": [
+    {
+     "type": "text",
+     "text": "{\"subproblems\": [\"a\", \"b\", \"c\", \"d\"]}"
+    }
+   ],
+   "usage": {
+    "input_tokens": 17000,
+    "output_tokens": 20
+   }
+  }
+ ]
+}

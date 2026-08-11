@@ -1,0 +1,26 @@
+{
+ "name": "answer-refusal",
+ "branch": "refusal",
+ "why": "`stop_reason: refusal`, with the structured `stop_details` a live refusal was observed to carry. Billed, reconciled, and reported \u2014 never retried here.",
+ "provenance": {
+  "kind": "authored",
+  "why_not_recorded": "The extractor's recorded refusal (tests/fixtures/claude, 20260729 03:36) is what says a refusal carries `stop_details` with a category and an explanation, and that it bills one output token. That shape is reused here; provoking a refusal on this path would mean sending a live model something designed to be refused."
+ },
+ "responses": [
+  {
+   "kind": "response",
+   "stop_reason": "refusal",
+   "model": "claude-opus-5",
+   "content": [],
+   "stop_details": {
+    "type": "refusal",
+    "category": "harmful_content",
+    "explanation": "the request was declined by content policy"
+   },
+   "usage": {
+    "input_tokens": 17000,
+    "output_tokens": 1
+   }
+  }
+ ]
+}
