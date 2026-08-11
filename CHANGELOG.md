@@ -10,6 +10,128 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.24.0] — 20260811 22:24
+
+**`pnk ask --deep` answers.** The deep release's loop is built: a question surface that reasons,
+bounded by `[deep]`, budgeted by `[budget]`, and honest about which of the two ended a run. E2's
+estimator and E3's paid client — both on `main` and unreleased since 20260811 — ship with it,
+because a module nothing can reach carries no user-visible change and this is what first makes
+`--deep` real.
+
+### Added
+
+- **The deep release's estimator: what one `pnk ask --deep` would cost, before the first call**
+  (E2). `pinakes.deep.estimate` prices both branches the loop can take — `estimate_synthesis` for
+  the one-call cheap branch a confident question takes, `estimate_round` x `max_rounds` for the
+  decomposition loop, and `estimate_operation` for whichever the confidence signal already chose.
+  Pure: no client, no I/O, no wall clock, `Decimal` end to end and never quantised (the ledger does
+  that, once). It refuses a stale price table and a request that would not fit the model's
+  documented context window — the second one reachable from a manifest alone, unlike the PDF
+  path's, so its remedy names `[retrieval] final_k` and `[chunking] max_tokens` rather than
+  reporting a defect. The question's own text is priced too, against a stated character ceiling —
+  it arrives as an argv string with no length limit and rides in every call of a run. Nothing is
+  wired to the CLI yet: `pnk ask`'s escalation line still prints its sentence without a number
+  until the increment that has a `[deep]` section to read.
+- **A round is priced as two calls, not as one input.** The plan's formula counts a round's input
+  once, and a round makes two calls — so counting it once under-prices every round by everything
+  the second call also carries: the memory, the question and the prompt. That is the direction a
+  budget may never be wrong in. Both calls are
+  priced at the same worst case instead, which also gives `per_call_eur` the property the per-call
+  reservation needs: whichever of the two is about to run, one number bounds it.
+- **`tools/measure_passage_tokens.py`** — the offline half of the measurement behind the two
+  per-passage ceilings. A chunk is sized in the embedding model's tokenizer and billed in the
+  vendor's, and the conversion cannot be measured without spending; this measures the character
+  width the two share.
+  Over 2,424 chunks of the committed corpora at `max_tokens = 510`, the widest real chunk holds 4.27
+  characters per embedding token, which the shipped ceiling of 3 vendor tokens per chunk token
+  clears by 2.1x. It also reports the longest citation envelope a passage is wrapped in — 220
+  characters, which is what set the per-passage envelope constant after a first draft guessed
+  "under 120" and was wrong.
+
+- **The deep release's paid client, and the second — and last — entry on the allowlist.**
+  `src/pinakes/deep/client.py`, added in the same commit as its `.paid-path-allowlist` line, with
+  DESIGN § 1 and INVARIANTS: the gate refused the commit until the line was there, which is the gate
+  working rather than the gate asserted. It builds the two calls a round is made of — decompose, and
+  answer — through a `Transport` seam identical in shape to the extractor's, so
+  `tests/test_deep_client.py` drives every branch with `anthropic` **not installed**. `anthropic` is
+  imported inside the transport, the key is `PINAKES_ANTHROPIC_API_KEY` resolved explicitly, and a
+  missing one now names the command that wanted to spend rather than the extractor.
+
+  **Two structural defences against the injection risk § 5 of the plan names**, both properties of
+  the wire format rather than checks bolted on after. A subproblem comes back as a plain string and
+  the schema has no other field it could come back in — no path, no filter, no KB selector — so the
+  worst a steered model can do is choose a bad search question. And an answer cites **passage
+  numbers**, positions in the block that was sent, so a citation naming evidence the call never had
+  is refused rather than dropped: dropping would leave prose whose support had silently disappeared
+  while the remaining numbers still made it look sourced.
+
+  **`pnk serve` must never load it**, and that is now a gate (DESIGN § 4.3: an MCP loop would spend
+  the *operator's* money on the *caller's* question). It lands with the module because an assertion
+  cannot name a module that does not exist, and it carries a planted-import negative control,
+  because "the name is absent" is also true of a run that imported nothing.
+
+- **What every paid client obeys now lives in one module.** `src/pinakes/paid.py` — the key's name,
+  the SDK's retries being off, whether a failed call *billed*, and how a reconciliation is computed.
+  Four rules, each of which fails **silently** when a second copy drifts, and a second paid entry
+  point is exactly where the copies would have appeared. It is deliberately **not** on the
+  allowlist: it imports no client (it is handed the caller's already-imported module), so the gate
+  scans it like any other file and would refuse an `import anthropic` added to it.
+
+---
+category: added
+---
+
+`pnk ask --deep` — the bounded reasoning loop, and the release's headline feature. A confident
+question takes the cheap branch (one synthesis call over the free retrieval's own passages); a
+low-confidence one decomposes, searches per subproblem, answers and re-folds, stopping at
+sufficiency; an uncalibrated one runs the same loop with no early stop and says which bound ended
+it. Every run is estimated before its first call, refused against all three `[budget]` windows at
+once with the exact manifest edit that would admit it, confirmed once, then reserved and reconciled
+per call.
+
+---
+category: added
+---
+
+`[deep]` in `pinakes.toml`: `model` (default `claude-opus-5`, the only priced entry) and
+`max_rounds` (default 3). Settable but **unstamped**, the precedent `adjacent_k` sets — a manifest
+carrying a key an older Pinakes has never heard of cannot be read by it at all — so the template
+ships the section commented out with its defaults written in.
+
+### Changed
+
+- **A boundary that needs a context clear is a stop, not an offer** (set by the user 20260811
+  15:37). `CLAUDE.md`'s autonomous working mode said to *judge and say so* at each increment
+  boundary, then carry on; it now says to finish the handoff, say so, and **stop** — since clearing
+  is the user's command and no tool clears it, stopping is what makes the offer real. The handover
+  itself is now a named step of the build procedure, [`docs/BUILDING.md` § *Hand over before you
+  stop*](https://github.com/lucagattoni/pinakes/blob/main/docs/BUILDING.md): five places that go
+  stale the moment an increment lands — `CLAUDE.md`'s live-plan pointer, `docs/README.md`'s
+  plan-routing row, the plan's own increment mark, its baseline block, and `STATUS.md`'s surface
+  row — all landed **in the same branch as the work**, and verified by opening what a fresh session
+  opens rather than by trusting they were written somewhere.
+
+- **A release check that had never been made: does the published wheel contain the thing the release
+  is named for?** `0.23.0`'s PyPI verification runs
+  `uvx --no-cache --from "pinakes[light]==0.23.0" pnk ask --help` against the index as well as the
+  usual `pnk --version`. A matching version string is evidence about *packaging*; it says nothing
+  about whether the increment is inside the artifact. Recorded in
+  [STATUS § Published on PyPI](https://github.com/lucagattoni/pinakes/blob/main/docs/STATUS.md#published-on-pypi)
+  as the check every release adding a surface should make. `0.23.0` itself also resolved on the
+  **first** install attempt, unlike the previous three.
+
+---
+category: changed
+---
+
+**The default `[budget]` caps rise so `pnk ask --deep` works out of the box**: `per_operation_eur`
+0.30 → 2.00 and `daily_eur` 1.00 → 6.00, with the new `[deep] max_rounds` defaulting to 3. At the
+shipped widths even a one-round loop prices at EUR 0.5624, so the old cap refused `--deep` on every
+KB stamped from the template. `daily_eur` moves with `per_operation_eur` because all three windows
+are checked before every call and nothing warns that a lower one binds. The `notes` template is
+version **1.2**, and `pnk upgrade` will report the change — **an existing KB keeps the caps it
+stamped**, and the refusal names the key, the number and the value that would admit the run.
+
 ## [0.23.0] — 20260811 15:25
 
 **`pnk ask` exists.** The deep release's plan landed, its eight decisions were taken the same day,
@@ -3235,7 +3357,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.24.0
 [0.23.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.23.0
 [0.22.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.22.2
 [0.22.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.22.1

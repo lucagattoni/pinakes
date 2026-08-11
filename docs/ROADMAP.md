@@ -17,22 +17,23 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260811 15:25 UTC
+## Where things stand right now — 20260811 22:24 UTC
 
-- **36 releases in 17 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.23.0`](#0230--pnk-ask-exists-and-it-will-not-pretend-to-answer-you--20260811-1525) on 20260811.
-- **Latest on PyPI: `0.23.0`**, confirmed by installing it from the index rather than by reading a
+- **37 releases in 17 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.24.0`](#0240--pnk-ask---deep-answers--20260811-2224) on 20260811.
+- **Latest on PyPI: `0.24.0`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)). Every release from
-  `0.2.2` on is published — twenty-nine.
+  `0.2.2` on is published — thirty.
 - **Two of the four named releases have shipped, and a third has started.** The links release across
   [`0.5.0`](#050--links-you-can-walk--20260731-1127)–[`0.6.0`](#060--links-you-can-write--20260801-1051),
   the graph release in [`0.11.0`](#the-graph-release--shipped-0110). **The template release has
   shipped every increment it scheduled** — T1 to T5 and T7 across 0.17.0–0.21.0, cutting more than
   once by D-9 — **and both of its gated increments are now answered**, so what is left under that
-  name is a trigger rather than a queue. **The deep release has cut its first release**: its plan
-  landed 20260811 with all eight decisions taken the same day, and **E1 — `pnk ask`, free — shipped
-  in [`0.23.0`](#0230--pnk-ask-exists-and-it-will-not-pretend-to-answer-you--20260811-1525)**. E2,
-  the round estimator, is next; the paid `--deep` loop is E4 and is not built.
+  name is a trigger rather than a queue. **The deep release has shipped the thing it is named for**: its plan
+  landed 20260811 with all eight decisions taken the same day, two more followed at E3's boundary,
+  and **E1 to E4 are built — `pnk ask --deep` answers, in [`0.24.0`](#0240--pnk-ask---deep-answers--20260811-2224)**. What is left is
+  the second cut: E5's transcript, E6's measurement run — **the only increment that spends real
+  money** — and E7's printed suggestions.
 - **Is document metadata retrieval context? Measured, and the answer was no — on one corpus, through
   one channel**
   ([`plans/20260805_1721-metadata-as-retrieval-context.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260805_1721-metadata-as-retrieval-context.md),
@@ -81,12 +82,12 @@ precision nobody measured.
 - **One thing is scheduled, and it is waiting on eight answers.** The open-corrections list is
   empty and what is left of the older work is gated rather than queued: T6 waits on a **trigger** (a
   queried KB past ~50 000 chunks *with* felt latency), the staged graph channels wait on a
-  **corpus**. **[The deep release](#the-deep-release) has a plan, and it is buildable** —
+  **corpus**. **[The deep release](#the-deep-release--the-loop-shipped-in-0240) has shipped the thing it is named for** —
   [`plans/20260811_1358-deep-release.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260811_1358-deep-release.md),
-  written 20260811 13:58, **all eight of its decisions taken the same day**. Seven increments;
-  **E1, E2 and E3 have landed** — `pnk ask` free and unable to spend, the round estimator, and the
-  paid client with the second allowlist entry. **E4, the loop, is next and is unblocked** — D-29 and D-30
-  (20260811 20:08) settled `[deep]`'s keys and the default caps a loop needs.
+  written 20260811 13:58, **all ten of its decisions taken**. Seven increments; **E1 to E4 have
+  landed** — the free question surface, the round estimator, the paid client with the second
+  allowlist entry, and the loop itself, so `pnk ask --deep` answers in [`0.24.0`](#0240--pnk-ask---deep-answers--20260811-2224). **E5 is
+  next**: the run transcript. It is the only named release with unbuilt work in it.
 
 ---
 
@@ -136,9 +137,10 @@ number belongs to a release only when it is cut
 | **[0.22.1](#0221--a-release-sweep-is-table-shaped--20260811-1226)** | 20260811 12:26 | A release sweep is table-shaped | • **Documentation only — no code path changed**<br>• This file's two prose blocks said 0.21.0 while every table in it said 0.22.0<br>• `docs/README.md`'s plan table had **no row** for the plan `CLAUDE.md` calls live — a missing row has no wrong text to find<br>• `RELEASING.md` gains the two checks that catch the class: grep the *superseded* version, and read `ls plans/` against the routing table<br>• Recorded: the 20260807 audit's **40 corrections are untouched** |
 | **[0.22.2](#0222--the-release-history-reads-in-order-and-a-gate-keeps-it-that-way--20260811-1348)** | 20260811 13:48 | The release history reads in order, and a gate keeps it that way | • **A row can be complete, correct, and in the wrong place.** Five release rows were out of order across three sequences — `docs/ROADMAP.md`'s release table and its per-release sections both read `0.20.0, 0.22.0, 0.22.1, 0.21.1, 0.21.0, 0.20.1`, and `docs/STATUS.md` put `0.15.1` after `0.16.0` and `0.20.1` after `0.22.1`. Every one is wrong on **both** readings, SemVer and release time. Nothing could see it: ordering is a property of the *sequence*, not of any row, and every check here reads rows — the tables were complete, every anchor resolved and `mkdocs build --strict` was green. **`0.21.0`'s sweep inserted its section one position too early and the next three used that same slot**, so after the first error the tail read strictly newest-first and each following sweep matched the coherent pattern around its own edit. Only the join between the ascending head and the descending tail was wrong, and no sweep's diff touched that line. The `0.15.1` instance was already in the 20260807 audit, verified, and sat unworked for four days while three sweeps added three more. **`tools/release_order_gate.py` now gates all five sequences** in `check.sh` and CI — direction declared per sequence rather than inferred, since a scrambled file would otherwise elect its own answer, and a sequence below a count floor fails rather than passes, because an empty sequence is sorted by definition. Also: ROADMAP's Part 4 heading claimed it ends at `0.10.0` while holding every release through `0.22.1`. **No code path changed** — no `schema_version`, no rebuild |
 | **[0.23.0](#0230--pnk-ask-exists-and-it-will-not-pretend-to-answer-you--20260811-1525)** | 20260811 15:25 | `pnk ask` exists, and it will not pretend to answer you | • `pnk ask` — the same evidence and filters as `pnk search`, plus **what answering would take**: one call at `high`/`medium`, decomposition at `low`, *cannot be told* uncalibrated<br>• Every run says **no answer was synthesised** — passages are not an answer<br>• **Nothing prints `--deep`**, which is not built: it is a usage error, not a flag that parses and apologises<br>• `search`'s own notice had advertised `pnk ask --deep`, in the sentence whose test is named for not doing that<br>• `--json` adds `answer: null` and an `escalation` block — one schema whether or not a loop ever runs<br>• The free-path gate covers the command **from the increment that creates it**, by matching its output<br>• Also: the deep-release plan and its eight decisions, and `tools/release_order_gate.py`<br>• *The deep release, interim cut (D-9)* — E2 to E7 are still to come |
+| **[0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)** | 20260811 22:24 | `pnk ask --deep` answers | • **`pnk ask --deep`** — the loop: one synthesis call when confident, decompose-search-answer-refold when not, stopping at sufficiency<br>• An **uncalibrated** KB runs it with no early stop and names the bound that ended the run (D-22 E)<br>• Priced and refused before the first call against all three `[budget]` windows at once; `confirm_above_eur` put once; every call reconciled<br>• A paid run that produced no answer **exits 1**<br>• **Default caps raised** — `per_operation_eur` 2.00, `daily_eur` 6.00 — because even a one-round loop exceeded the old one (D-30); `notes` is **1.2**, and an existing KB keeps what it stamped<br>• `[deep] model` and `max_rounds`, settable and unstamped (D-29)<br>• E2's estimator and E3's client ship here<br>• **Two money defects fixed in both paid clients** — a Ctrl-C, and a failure after the response arrived, each voiding a call that may have billed<br>• A gate for docs that quote command output<br>• *The deep release, interim cut (D-9)* — E5 to E7 are still to come |
 | | | **[Open corrections](#open-corrections--none-live)** | • **None live** — six on 20260808, two closed in 0.21.1, four in 0.22.0<br>• **Two of the last four were never forks — they were unchecked assumptions**, refuted by running the code they described<br>• Five routes in: building, reading, shipping, generalising a fix, and reviewing a new surface — none finds the others'<br>• An empty list means nobody has run Pinakes lately |
 | | | **[The graph release, staged](#the-graph-release-staged--gates-only-not-scheduled)** | • PPR channel, the `[ner]` extra<br>• Gate-only: no implementation plan exists, by design<br>• Not scheduled |
-| | | **[The deep release](#the-deep-release)** | • `pnk ask --deep` — the budgeted agentic loop<br>• The last paid entry point; **its client is built and the allowlist is complete at two**<br>• **E1 shipped in 0.23.0** — `pnk ask`, free<br>• **E2 and E3 are on `main`, unreleased** — the round estimator and the paid client, neither reachable<br>• **E4 is next and unblocked** — D-29/D-30 settled `[deep]`'s keys and the default caps |
+| | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **E1 to E4 are done** — the free surface, the estimator, the client and the loop<br>• **E5 is next** — the run transcript under `.pinakes/deep/`; its other half (`pnk budget` showing `ask` rows) was verified and closed at E4<br>• **E6 is the only increment that spends real money**, under `docs/MEASUREMENT-RUN.md`<br>• **E7** — printed sidecar suggestions (`--write-suggestions` is deferred to its own increment, D-25 A) |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
 ---
@@ -196,7 +198,7 @@ projects **may never be copied from** for licence reasons — flagged in
 
 An audit against the shipped CLI found the README was the only surface overclaiming.
 
-- `pnk ask --deep` was described as existing. It [does not, to this day](#the-deep-release).
+- `pnk ask --deep` was described as existing. It did not, and did not for another seventeen days — it [shipped in `0.24.0`](#0240--pnk-ask---deep-answers--20260811-2224), on 20260811.
 - Install lines pointed at a PyPI package that returned 404.
 - The headline diagram showed a `.pdf` — the one file type v0.1 could not read.
 
@@ -1182,6 +1184,71 @@ run.
 E1 adds none. *The deep release, interim cut (D-9): the name stays in the unbuilt-work table until
 E7.*
 
+## 0.24.0 — `pnk ask --deep` answers · 20260811 22:24
+
+**The deep release's second cut, and the thing it is named for.** E4 — the loop — is built, and
+E2's estimator and E3's paid client, on `main` and unreleased since earlier the same day, ship with
+it. Neither could be released alone: a module nothing can reach carries no user-visible change.
+
+**Confidence sizes the work; it does not authorise it** (D-28). Typing `--deep` *is* the decision to
+spend, so the flag always answers — what the signal changes is the price. A `high` or `medium`
+question takes the cheap branch, one synthesis call over the passages the free retrieval already
+found. A `low` one takes the loop: decompose the question against what earlier rounds established,
+search for each subproblem, answer from the merged evidence, re-fold the memory to a fixed budget,
+and ask §4.2 whether that is now enough — stopping the moment it is.
+
+**An uncalibrated KB runs the same loop with no early stop, and says so** (D-22 option E). The step
+that would end it early is the signal it does not have — and no KB stamped from the template has
+one, because thresholds fitted on someone else's corpus are not a calibration. So the run is bounded
+by `[deep] max_rounds` and by the caps instead, the output names which of them ended it, and the
+honest cost of not calibrating is stated rather than hidden: the same question, answered, for up to
+six calls instead of one.
+
+**Every bound is checked before the first call.** The whole operation is priced, refused against all
+three `[budget]` windows *at once* with the exact manifest edit that would admit it, and
+`confirm_above_eur` is put once — it defaults to `0.01`, so every `--deep` run prompts and `--yes`
+is how cron answers. Then each call is reserved and reconciled individually against the response's
+own usage. A halt mid-loop honours `[budget] on_exceed` (D-23 option A): `partial` returns what the
+completed rounds established, labelled; `abort` returns nothing and still leaves the ledger correct.
+A paid run that produced no answer **exits 1** — the money is accounted for, but a command asked a
+question and answered none must not report success to a script.
+
+**The default caps rise, and that is the part an existing KB will feel** (D-30). At the shipped
+widths a three-round loop reserves €1.6872 worst case and even a *one*-round loop reserves €0.5624,
+so the old `per_operation_eur = 0.30` refused the release's headline feature on every KB the
+template stamps — D-22 option A's outcome, explicitly rejected, arriving through the caps instead of
+through the signal. `per_operation_eur` is now `2.00` and `daily_eur` `6.00`; raising the first
+alone would have done nothing, because all three windows are checked before every call and nothing
+warns that a lower one binds. The `notes` template is **1.2**. **A default reaches new KBs only**:
+an existing KB stamped its own caps, keeps them, and meets a refusal that carries the number, the
+key and the value — `pnk upgrade` reports the change and will not apply it, because the manifest is
+the user's.
+
+**`[deep]` arrives with two keys** (D-29), `model` and `max_rounds`, settable but deliberately
+**unstamped** — an unknown key is a hard error, so a manifest carrying `[deep]` cannot be read at
+all by an older Pinakes. The template ships the section commented out with its defaults written in.
+
+**Two money defects were found on the way, and both were in code that predates E4.** A
+`KeyboardInterrupt` while a request is in flight **voided** the reservation — EUR 0 recorded for a
+call the server may well have billed — because `KeyboardInterrupt` is not an `Exception` and fell
+past every handler into the ledger's `finally`, whose default is to void an unclosed call. The paid
+PDF extractor had the same hole, and worse, since I7b. Separately, anything raising between a
+response arriving and its reconciliation being written voided too; that gap is the only place
+`response_received()` is not inert, and nothing reached it. Both are fixed in both clients, both
+have tests that fail against the old code, and the first was found by working an exit criterion
+nobody had tested.
+
+**And a gate for documentation that quotes command output.** E1 rewrote `pnk search`'s escalation
+notice and left `GUIDE.md` showing the sentence it had replaced; E4 rewrote the same sentence and
+left the same block stale again. A fenced block showing an older build's output is correct Markdown
+with working links, so no existing check could see it. `tests/test_docs_quote_the_shipped_sentences.py`
+holds a retirement list — a sentence this build can no longer print must appear nowhere in `docs/`,
+`README.md` or `src/`.
+
+**No `schema_version` bump and no rebuild.** **Interim MINOR: the release name stays in the
+unbuilt-work table** (D-9) — E5's transcript, E6's measurement run and E7's printed suggestions are
+still to come.
+
 ---
 
 # Part 5 · What is not built
@@ -1362,38 +1429,46 @@ personalization vector, not one edge kind of seven.
 → The recipe and its counter-evidence:
 [graph/PINAKES_APPROACH.md](graph/PINAKES_APPROACH.md) and [graph/GRAPH_RAG.md](graph/GRAPH_RAG.md).
 
-## The deep release
+## The deep release — the loop shipped in 0.24.0
 
 **`pnk ask --deep`** — the budgeted agentic loop that escalates when free retrieval is not enough,
 writing its discoveries back into sidecars.
 
-- The **last paid entry point**, and its client is now built: E3 added
-  `src/pinakes/deep/client.py` to the allowlist, with [DESIGN § 1](DESIGN.md#1-what-this-is) and
-  [INVARIANTS.md](INVARIANTS.md), in one commit. **The allowlist is complete at two entries.**
-  Nothing reaches the client yet — `--deep` is still a usage error until E4.
+▶ **The thing it is named for is built.** E1 to E4 landed on 20260811; `pnk ask --deep` answers,
+bounded by `[deep]` and `[budget]`, in [`0.24.0`](#0240--pnk-ask---deep-answers--20260811-2224). **The name stays here** (D-9) because
+three increments remain, and it leaves at the final cut rather than at this one.
+
+- The **last paid entry point**: E3 added `src/pinakes/deep/client.py` to the allowlist, with
+  [DESIGN § 1](DESIGN.md#1-what-this-is) and [INVARIANTS.md](INVARIANTS.md), in one commit. **The
+  allowlist is complete at two entries**, and E4 is what first reached the second.
+- **What is left, in order.** **E5** — the run transcript under `.pinakes/deep/<operation_id>.json`,
+  spared by the sweep like a paid cache entry because it cost money to produce (D-26 A). Its other
+  half is already closed: `pnk budget` shows `ask` operations beside `sync` ones, verified at E4
+  rather than assumed, and nothing in `budget/` had to move. **E6** — the measurement run, **the
+  only increment that spends real money**, under
+  [MEASUREMENT-RUN.md](MEASUREMENT-RUN.md): it calibrates E2's constants against real calls on a
+  synthetic corpus, measures *both* branches, and publishes the over-reservation factor (the
+  extractor's first live call over-reserved 11.5x). **E7** — printed sidecar suggestions;
+  `--write-suggestions` is deferred to its own increment (D-25 A), because writing them changes the
+  per-link sidecar shape and adds to INVARIANTS' exceptions to *`docs/` belongs to the user*.
 - **A plan exists as of 20260811 13:58** —
   [`plans/20260811_1358-deep-release.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260811_1358-deep-release.md).
-  Seven increments, and **all eight of its decisions taken 20260811 14:17**. **E1 has landed** —
-  `pnk ask` *without* `--deep`: cited evidence, the confidence line, and what answering the question
-  would take, free and unable to spend ([CLI](CLI.md#pnk-ask)). **E2 (the round estimator) and E3
-  (the paid client) have landed too**, both unreleased and neither reachable from any command.
-  **E4, the loop, is next, and it is blocked**: `[deep]`'s manifest keys are undecided — `max_rounds`
-  has no default anywhere — and at the shipped defaults a five-round loop prices at EUR 2.81 against
-  a default `per_operation_eur` of 0.30, so a stock KB's loop is refused at round 0 while the cheap
-  branch fits.
-  It had been described as "planned" since
-  [`0.1.2`](#012--the-readme-told-the-truth--20260727-1525) with no plan behind the word — and
-  correcting the README's claim that it *existed* was that release's whole point.
-- **Two measurements in that plan change what this section used to imply.** The budget machinery is
-  already built and proven by the paid extractor, so this release adds the loop and not the
-  machinery — it is smaller than it reads. And the confidence signal that
+  Seven increments, **eight decisions taken 20260811 14:17 and two more at E3's boundary**. It had
+  been described as "planned" since [`0.1.2`](#012--the-readme-told-the-truth--20260727-1525) with
+  no plan behind the word — and correcting the README's claim that it *existed* was that release's
+  whole point.
+- **Two measurements in that plan changed what this section used to imply, and one of them cost
+  money to answer.** The budget machinery was already built and proven by the paid extractor, so
+  this release added the loop and not the machinery. And the confidence signal that
   [§ 4.2](DESIGN.md#42-escalation--free-path-first) makes the escalation gate **ships commented out**
-  in the `notes` template, so no KB a user creates has one. D-22 answers it: `--deep` runs anyway,
-  bounded by the caps rather than by the signal, and the output names which bound ended the run.
+  in the `notes` template, so no KB a user creates has one — which made the *uncalibrated* branch
+  the one a stock KB takes, and under the old `per_operation_eur = 0.30` even a one-round loop was
+  refused. D-30 raised the defaults; D-22 is why the run happens at all, bounded by the caps rather
+  than by the signal and saying which bound ended it.
 
 → The escalation model it implements:
-[DESIGN § 4.2 Escalation — "free path first"](DESIGN.md#42-escalation--free-path-first). Its
-placeholder in the CLI: [CLI § Planned — not built yet](CLI.md#planned--not-built-yet).
+[DESIGN § 4.2 Escalation — "free path first"](DESIGN.md#42-escalation--free-path-first). What the
+command does: [CLI § `pnk ask --deep`](CLI.md#pnk-ask---deep).
 
 ## The template release — T1 shipped in 0.17.0
 
