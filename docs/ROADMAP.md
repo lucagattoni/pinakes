@@ -439,7 +439,7 @@ The field it hardened: [MANIFEST.md](MANIFEST.md).
 
 ---
 
-# Part 4 · Hardening and publishing — `0.8.0` → `0.10.0`
+# Part 4 · Hardening, publishing, and every release since — `0.8.0` onward
 
 ## 0.8.0 — Our key, not the SDK's · 20260804 08:40
 
