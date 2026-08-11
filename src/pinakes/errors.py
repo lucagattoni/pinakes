@@ -504,15 +504,31 @@ class StalePricesError(PinakesError):
 
 
 class ContextWindowExceededError(PinakesError):
-    """A single request's input (`K` page-slice tokens plus the prompt) would exceed the model's
-    documented maximum input — the pre-check exists so this is discovered at estimate time, not at
-    a 400 response from a paid call already in flight (I6a, docs/DESIGN.md §5)."""
+    """A single request's input would exceed the model's documented maximum input — the pre-check
+    exists so this is discovered at estimate time, not at a 400 response from a paid call already
+    in flight (I6a, docs/DESIGN.md §5).
 
-    def __init__(self, *, request_tokens: int, max_input_tokens: int, model: str) -> None:
+    **Two estimators raise this, and only one of them is unreachable.** For a PDF slice the input
+    is `K` pages plus the prompt, all of it fixed by the request shape, so a user has no knob to
+    turn and the default remedy says so. For a deep round (E2) the input is `[retrieval] final_k`
+    passages of `[chunking] max_tokens` each — both user-settable, with no upper bound in the
+    manifest — so that caller passes its own `remedy` naming the two keys. Same failure, different
+    thing to do about it; a single remedy would be wrong for one of them.
+    """
+
+    def __init__(
+        self,
+        *,
+        request_tokens: int,
+        max_input_tokens: int,
+        model: str,
+        remedy: str | None = None,
+    ) -> None:
         super().__init__(
             f"a single request's input ({request_tokens:,} tokens) would exceed {model}'s "
             f"documented maximum input ({max_input_tokens:,} tokens).",
-            remedy=(
+            remedy=remedy
+            or (
                 "This should not fire under the shipped constants — K is a fixed request-shape "
                 "constant (I6a decision 8), not a configurable knob. If it does, either the "
                 "model's documented context window shrank or the page-token ceiling grew past "
