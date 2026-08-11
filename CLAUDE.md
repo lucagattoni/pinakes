@@ -40,11 +40,15 @@ Set by the user 20260808 04:39. It **overrides the global default of stopping to
   specifies is yours, choosing *what* it should have specified is not.
 - **Iterate: build → adversarially review → fix → re-review, until a pass finds nothing**, with a
   commit per pass. This is the default shape of an increment, not a debugging-only move.
-- **At each increment boundary, judge whether the context should be cleared before the next one and
-  say so.** Clearing is the user's command — no tool clears it — so the obligation is to *offer*,
-  with the reason. Offer only once the handoff is complete: what the next session needs must be on
-  disk **and reachable from what it will actually open** — this file's live-plan pointer, `docs/`,
-  the plan itself. Verify those pointers first; an increment's own work is what falsifies them.
+- **At each increment boundary, judge whether the context should be cleared before the next one. If
+  it should be: finish the handoff, say so, and stop there** — do not start the next increment on a
+  context that should have been cleared. Strengthened by the user 20260811 15:37, from *offer and
+  carry on* to *stop*. Clearing is still the user's command — no tool clears it — so stopping is
+  what makes the offer real.
+- **Write the handover before you stop, and land it in the same branch as the work** — context dies
+  with the session, and an increment's own work is what falsifies the pointers to it. The five
+  places, and how to verify them: [`docs/BUILDING.md` § Hand over before you
+  stop](docs/BUILDING.md#hand-over-before-you-stop).
 
 ## This repository is PUBLIC
 

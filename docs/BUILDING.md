@@ -42,3 +42,24 @@ Never batch increments; each is a separate, bisectable landing:
 
 Which documents an increment touches, and in what order: [`docs/README.md` § Landing a new
 increment](https://github.com/lucagattoni/pinakes/blob/main/docs/README.md#landing-a-new-increment).
+
+## Hand over before you stop
+
+**Context dies with the session; disk survives.** So the handover is part of the increment, landed
+in the same branch as the work — never a follow-up, because the pointers an increment falsifies are
+exactly the ones the *next* session opens first. Set by the user 20260811 15:37, alongside the rule
+that a boundary needing a context clear is a **stop** rather than an offer
+([`CLAUDE.md` § Working mode](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md)).
+
+| Where | What goes stale the moment the increment lands |
+|---|---|
+| **`CLAUDE.md`'s live-plan pointer** | "Build E1 next" — the first thing any session in this repo reads |
+| **`docs/README.md`'s plan-routing row** | the same claim, for whoever opens `docs/` first |
+| **The plan itself** | mark the increment built, and record what shipped *beside* what the section asked for — including anything the next increment needs that only this one learned |
+| **The plan's baseline / measurement block** | which of its rows this increment just falsified, and how far `file:line` moved. Every plan here has drifted this way; the template release's did about thirty times in four days |
+| **[STATUS.md](STATUS.md)** | the surface row — `on `main`, unreleased` between landing and release, then the version |
+
+**A pointer nothing links to is not a handover.** Verify by opening what a fresh session opens —
+`CLAUDE.md`, then `docs/`, then the plan — not by trusting that you wrote it down somewhere. A
+*missing* row has no wrong text to find, so no diff review and no grep reaches it; only the question
+does ([RELEASING.md](RELEASING.md), 20260811).
