@@ -862,23 +862,40 @@ is the free path's line and says something different: *nothing was even attempte
 """
 
 
+ANSWER_SYNTHESISED = "answer — synthesised from the evidence above, and cited back into it:"
+"""The `--deep` counterpart to `NO_ANSWER_SYNTHESISED`, and the reason both exist.
+
+Whichever way the run went, the output has to say what the prose below it *is*. The free path's
+line stops a reader mistaking evidence for a conclusion; this one stops the opposite mistake —
+reading a synthesised paragraph as if it were quoted from a document. The citations under it are
+what make the difference checkable.
+"""
+
+
 def _print_answer(deep: "DeepAnswer") -> None:
-    """The paid run's own output, under the free evidence that produced it."""
+    """The paid run's own output, under the free evidence that produced it.
+
+    **The answer first, then how the run ended.** The label is provenance — which bound stopped it,
+    whether the signal was calibrated — and a reader who came for an answer should not have to read
+    past a sentence about round caps to reach one. It sits with the cost, where the rest of what
+    this run *was* lives.
+    """
     from pinakes.budget.reserve import display_eur
 
-    print(f"\n{deep.label}")
+    if deep.answered:
+        print(f"\n{ANSWER_SYNTHESISED}")
     for block in deep.blocks:
         print()
-        if block.asked:
-            for asked in block.asked:
-                print(f"round {block.round_number} asked: {asked}")
+        for asked in block.asked:
+            print(f"round {block.round_number} asked: {asked}")
         print(block.text)
         for citation in block.citations:
             print(f"  [{citation.number}] {citation.locator}")
     if not deep.answered:
-        print(NO_ANSWER_FROM_A_PAID_RUN)
+        print(f"\n{NO_ANSWER_FROM_A_PAID_RUN}")
+    print(f"\n{deep.label}")
     print(
-        f"\n{deep.tally.calls} paid call(s), €{display_eur(deep.spent_eur)} spent against an "
+        f"{deep.tally.calls} paid call(s), €{display_eur(deep.spent_eur)} spent against an "
         f"estimated €{display_eur(deep.estimate.total_eur)} worst case. `pnk budget` has the "
         "record."
     )

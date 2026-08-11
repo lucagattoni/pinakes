@@ -26,6 +26,7 @@ import numpy as np
 import pytest
 
 from pinakes.cli import (
+    ANSWER_SYNTHESISED,
     CALIBRATE_REMEDY,
     DEEP_OFFER,
     NO_ANSWER_FROM_A_PAID_RUN,
@@ -536,6 +537,9 @@ def test_deep_on_a_confident_kb_answers_in_one_call_and_says_what_it_cost(
     assert "confidence: high" in out
     assert "Retrieval confidence is fitted from a golden set" in out
     assert "one synthesis call" in out
+    # The answer says what it is. The free path's line would be false here, and its absence is not
+    # the same as this line's presence — a reader has to be told which of the two they are reading.
+    assert ANSWER_SYNTHESISED in out
     assert "1 paid call(s)" in out
     assert NO_ANSWER_SYNTHESISED not in out, "an answer was synthesised; the line would be false"
     assert (confident_kb / ".pinakes" / "ledger.jsonl").exists()
@@ -673,6 +677,7 @@ def test_a_paid_run_that_produced_no_answer_exits_non_zero_and_says_so(
     assert main(["ask", "sourdough", "--kb", str(kb), "--deep", "--yes"]) == 1
     out = capsys.readouterr().out
     assert NO_ANSWER_FROM_A_PAID_RUN in out
+    assert ANSWER_SYNTHESISED not in out, "there is no answer to announce"
     assert "1 paid call(s)" in out
     assert (kb / ".pinakes" / "ledger.jsonl").exists()
 

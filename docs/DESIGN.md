@@ -441,6 +441,23 @@ Below a confidence threshold the system does **not** silently spend money:
   decides — its reasoning is already paid for.
 - **on CLI**: returns retrieval-only and prints how to escalate (`pnk ask --deep`).
 
+**Confidence sizes the work; it does not authorise it.** Typing `--deep` *is* the decision to spend,
+so the flag always answers — what the signal changes is the price. A confident question takes one
+synthesis call over the passages already retrieved; a low-confidence one takes the decomposition
+loop. "Free path first" is about never spending *silently*, and a run the user asked for by name is
+not silent. Refusing to answer exactly the questions the free path covers best would make the flag
+unusable for its own stated purpose, which is CLI and cron.
+
+**The signal this section depends on does not exist on a KB stamped from the template**, and that
+had to be answered rather than assumed. `[retrieval.confidence]` ships commented out, because
+thresholds fitted on someone else's corpus are not a calibration. So the common case is
+`unknown` — and `unknown` does not mean *cannot spend*, it means **cannot stop early**: the loop
+runs, bounded by `[deep] max_rounds` and the §5 caps instead of by sufficiency, and the output names
+which of them ended it. An uncalibrated KB therefore pays more for the same question than a
+calibrated one, which is a true statement about the KB, said out loud rather than hidden in a
+refusal. The alternative — refusing until the user calibrates — would have made the release's
+headline feature fail on the default template, before any success.
+
 **The signal is a calibrated heuristic and is labelled as one.** Cross-encoder scores are not
 comparable across queries, so an absolute threshold is meaningless; thresholds are fitted per
 template against the golden set and stored in the manifest as `[retrieval.confidence]` (§2.1). Where
@@ -466,6 +483,32 @@ and a cross-KB neighbour is terminal, since this KB cannot vouch for what lies b
 `pnk ask --deep` exists for CLI and cron use, where no agent is present. It runs a bounded version of
 the same loop with its own API key under the budget ledger (§5). Same tools, same evidence contract —
 only the driver differs. That keeps the paid path thin enough not to rot.
+
+**It is a CLI surface only, and that is enforced rather than agreed.** A server-side loop would
+spend the *operator's* money on the *caller's* question, so there is no `pinakes_*` tool for it and
+a test asserts `pnk serve`'s own process never loads the module — with a planted import as the
+negative control, because "this set does not contain the name" is also true of a run that imported
+nothing.
+
+**A round is two calls, and the count is what makes the operation priceable.** One call turns the
+question plus what earlier rounds established into a flat list of subproblems; one turns the
+merged retrieval into a cited sub-answer. Two calls of known maximum size give a constant per-round
+worst case, so `max_rounds × per-round` is a ceiling that can be refused before the first call. A
+single call that both plans and answers has no bound on how much it retrieves into itself.
+
+Three properties are taken from the published systems this shape comes from, and none of them are
+code: a subproblem is never re-asked once asked (the cursor advances); the carried memory is
+**re-folded** to a fixed budget rather than appended to, which is what keeps a round's cost
+constant; and the round cap ends in a best-effort answer rather than a failure. The two defects the
+same notes record are designed out — sufficiency is gated by the free calibrated signal and never
+by the model's self-report, and structured output is used rather than regex repair of truncated
+JSON.
+
+**Retrieved document text now steers retrieval, which no earlier paid path did**, so two rules
+hold: a subproblem is a query string reaching `search()` over this KB with the caller's filters,
+with no field in the response schema that could carry a path or a selector; and a citation is an
+index into the passages that call was shown, so a model that never sees a document id cannot name
+one.
 
 ### 4.4 Model/index coherence
 
@@ -644,7 +687,10 @@ a paid one would spend money inside a read-only tool call. A swept entry is an e
 
 **The budget system ships in the same release as the first thing that can spend**, which is the
 honest ordering — and the first spender is no longer `pnk ask --deep`. `plans/20260727_1543-v0.2.md` decision 2 moved that role to the **opt-in Claude-vision PDF
-extractor**, dragging the whole budget machinery earlier with it. Field definitions and defaults are
+extractor**, dragging the whole budget machinery earlier with it. `--deep` arriving later therefore
+added the loop and not the machinery: it reserves, reconciles and refuses through the same
+accountant, and the only thing it needed of its own was an estimator whose unit is a *round* rather
+than a page slice. Field definitions and defaults are
 in [MANIFEST](MANIFEST.md#budget); whether any of it is wired up yet is in
 [STATUS](STATUS.md#the-surface-you-can-use-today).
 
@@ -654,9 +700,19 @@ in [MANIFEST](MANIFEST.md#budget); whether any of it is wired up yet is in
 | **Hard caps, checked before the call** | **Pre-call reservation.** Actual cost is only known from the response, so the accountant reserves worst case first. If `spent + reserved` exceeds any cap, **the call is never made** — a real ceiling, at the price of slight over-reservation, reconciled to true usage afterwards |
 | **Three windows, not one** | `per_operation_eur` bounds one invocation; `daily_eur` and `monthly_eur` bound *sequences* of them. A per-operation cap alone is no protection against a hook-driven KB syncing thirty times a day, which is the shape this project actually has |
 | **What "operation" means** | One user-facing invocation — a whole `pnk sync` or `pnk ask --deep`, not one API call. Both are loops, so the cap is a *running total* across every call made; the loop halts when the next reservation would breach it. A per-call cap would let an N-step loop spend N× the stated limit |
-| **The whole document is checked first** | Per-call reservation alone bounds each call and nothing else — a document that will certainly breach a window by call 15 is refused at call 0, with every blocked window named at once and the exact manifest edit that would admit the run. Discovering the real ceiling by raising one cap at a time is the failure this prevents |
+| **What a halted loop returns** | **`[budget] on_exceed`, the key that already answers this for `pnk sync`** — `abort` gives a failure and no answer, `partial` gives a best-effort answer from what the completed rounds established, labelled as bounded by the budget rather than by the evidence. One concept and one key: a user who set a preference for sync has already stated it. Its documented scope was corpus-level and this extends it to rounds, which is the sentence that extension needs — a question halted at round 2 of 3 still has cited evidence worth returning, and a run that produced *nothing* is a refusal either way, because `partial` has nothing to choose |
+| **The whole run is checked first** | Per-call reservation alone bounds each call and nothing else — a document that will certainly breach a window by call 15 is refused at call 0, with every blocked window named at once and the exact manifest edit that would admit the run. Discovering the real ceiling by raising one cap at a time is the failure this prevents |
 | **Rolling ledger** | `.pinakes/ledger.jsonl`, append-only. Windows computed in `[budget] timezone`. Each line is a single sub-4KB `O_APPEND` write, atomic on POSIX, so concurrent processes cannot interleave a record |
 | **Visibility** | `pnk budget` shows spend by day/month/operation, each window with the rate and price date behind its total. `pnk budget --resolve <call_id> --actual <eur>` closes a call whose outcome is unknown — by *appending* a reconciliation, never editing. Real per-KB cost data, not vibes |
+
+**The unit of estimation differs by path, and both are semantic constants rather than knobs.** For
+`pnk ask --deep` it is a **round**: two calls, each priced at the same worst case — the carried
+memory, `final_k` passages at the chunk ceiling, the question and the prompt, against a fixed
+output ceiling. Pricing both calls at the full round input over-reserves the decompose call, which
+sends no passages, and buys the property the per-call reservation needs: every call in a run costs
+the same, so one number bounds whichever is about to be made. **Under-counting is the one direction
+a budget may never be wrong in**, and counting a round's input once — as the first draft did — would
+have under-priced every round by the memory, the question and the prompt.
 
 **A request is the unit of estimation** — for the paid extractor, a fixed-size page slice, never a
 whole document and never a single page. The unit matters: a whole-document request makes input
