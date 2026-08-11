@@ -17,13 +17,13 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260811 12:26 UTC
+## Where things stand right now — 20260811 13:48 UTC
 
-- **34 releases in 17 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.22.1`](#0221--a-release-sweep-is-table-shaped--20260811-1226) on 20260811.
-- **Latest on PyPI: `0.22.1`**, confirmed by installing it from the index rather than by reading a
+- **35 releases in 17 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.22.2`](#0222--the-release-history-reads-in-order-and-a-gate-keeps-it-that-way--20260811-1348) on 20260811.
+- **Latest on PyPI: `0.22.2`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)). Every release from
-  `0.2.2` on is published — twenty-seven.
+  `0.2.2` on is published — twenty-eight.
 - **Two of the four named releases have shipped** — the links release across
   [`0.5.0`](#050--links-you-can-walk--20260731-1127)–[`0.6.0`](#060--links-you-can-write--20260801-1051),
   the graph release in [`0.11.0`](#the-graph-release--shipped-0110). **The template release has
@@ -128,6 +128,7 @@ number belongs to a release only when it is cut
 | **[0.21.1](#0211--a-damaged-template-says-so-and-the-gate-reads-what-it-was-chunked-under--20260810-0148)** | 20260810 01:48 | A damaged template says so, and the gate reads what it was chunked under | • Two open corrections closed — the two of six that could be **taken** rather than decided<br>• `graph_gate.py` compares `chunking`: two legs chunked differently are two corpora<br>• A damaged template install is a message on **five** functions, not the two the record named<br>• `TemplateNotInstalledError` — *absent* and *damaged* had been merged into one wrong sentence by the fix itself<br>• A template read error no longer prints where pinakes is installed<br>• Five passes; the last two found only wrong *claims* |
 | **[0.22.0](#0220--eight-decisions-and-two-of-them-were-never-decisions--20260811-0826)** | 20260811 08:26 | Eight decisions, and two of them were never decisions | • **T8 closed as a no-go, T6 deferred behind a written trigger** — both gates of the template release answered<br>• **The open-corrections list is empty**, for the second time in its life<br>• `pnk init --backend st\|light`; `init` validates before it writes<br>• `--rebuild` re-chunks paid documents from the cache, and **never spends**<br>• The release workflow creates the release — the step it never had, misdiagnosed six times<br>• **Two of the four corrections were unchecked assumptions, not forks** |
 | **[0.22.1](#0221--a-release-sweep-is-table-shaped--20260811-1226)** | 20260811 12:26 | A release sweep is table-shaped | • **Documentation only — no code path changed**<br>• This file's two prose blocks said 0.21.0 while every table in it said 0.22.0<br>• `docs/README.md`'s plan table had **no row** for the plan `CLAUDE.md` calls live — a missing row has no wrong text to find<br>• `RELEASING.md` gains the two checks that catch the class: grep the *superseded* version, and read `ls plans/` against the routing table<br>• Recorded: the 20260807 audit's **40 corrections are untouched** |
+| **[0.22.2](#0222--the-release-history-reads-in-order-and-a-gate-keeps-it-that-way--20260811-1348)** | 20260811 13:48 | The release history reads in order, and a gate keeps it that way | • **A row can be complete, correct, and in the wrong place.** Five release rows were out of order across three sequences — `docs/ROADMAP.md`'s release table and its per-release sections both read `0.20.0, 0.22.0, 0.22.1, 0.21.1, 0.21.0, 0.20.1`, and `docs/STATUS.md` put `0.15.1` after `0.16.0` and `0.20.1` after `0.22.1`. Every one is wrong on **both** readings, SemVer and release time. Nothing could see it: ordering is a property of the *sequence*, not of any row, and every check here reads rows — the tables were complete, every anchor resolved and `mkdocs build --strict` was green. **`0.21.0`'s sweep inserted its section one position too early and the next three used that same slot**, so after the first error the tail read strictly newest-first and each following sweep matched the coherent pattern around its own edit. Only the join between the ascending head and the descending tail was wrong, and no sweep's diff touched that line. The `0.15.1` instance was already in the 20260807 audit, verified, and sat unworked for four days while three sweeps added three more. **`tools/release_order_gate.py` now gates all five sequences** in `check.sh` and CI — direction declared per sequence rather than inferred, since a scrambled file would otherwise elect its own answer, and a sequence below a count floor fails rather than passes, because an empty sequence is sorted by definition. Also: ROADMAP's Part 4 heading claimed it ends at `0.10.0` while holding every release through `0.22.1`. **No code path changed** — no `schema_version`, no rebuild |
 | | | **[Open corrections](#open-corrections--none-live)** | • **None live** — six on 20260808, two closed in 0.21.1, four in 0.22.0<br>• **Two of the last four were never forks — they were unchecked assumptions**, refuted by running the code they described<br>• Five routes in: building, reading, shipping, generalising a fix, and reviewing a new surface — none finds the others'<br>• An empty list means nobody has run Pinakes lately |
 | | | **[The graph release, staged](#the-graph-release-staged--gates-only-not-scheduled)** | • PPR channel, the `[ner]` extra<br>• Gate-only: no implementation plan exists, by design<br>• Not scheduled |
 | | | **[The deep release](#the-deep-release)** | • `pnk ask --deep` — the budgeted agentic loop<br>• Only paid entry point still unbuilt |
@@ -1070,6 +1071,60 @@ said `0.21.0`.**
 
 Verified against the index rather than the CHANGELOG: **34 releases in 17 days**, 26 versions on
 PyPI, every one from `0.2.2` on.
+
+---
+
+## 0.22.2 — The release history reads in order, and a gate keeps it that way · 20260811 13:48
+
+**A row can be complete, correct, and in the wrong place.** Five release rows were out of order
+across three sequences:
+
+| Sequence | Read |
+|---|---|
+| `docs/ROADMAP.md` — the release table | `0.20.0, 0.22.0, 0.22.1, 0.21.1, 0.21.0, 0.20.1` |
+| `docs/ROADMAP.md` — the per-release sections | `0.20.0, 0.22.1, 0.22.0, 0.21.1, 0.21.0, 0.20.1` |
+| `docs/STATUS.md` — the release roadmap | `0.15.1` after `0.16.0`; `0.20.1` after `0.22.1` |
+| `CHANGELOG.md` | checked and clean, headings and link definitions both |
+
+Every misplacement is wrong on **both** readings — SemVer and release time — so no ordering
+convention made any of them right.
+
+**Nothing could see it.** Ordering is a property of the *sequence*, not of any row in it, and every
+check this project owns reads rows: the tables were complete, every anchor resolved, `mkdocs build
+--strict` was green, and a reader checking any single row found it correct.
+
+**How it happened, from the six release commits.** `0.20.1` was appended correctly (`2da0e07`).
+`0.21.0` (`96b3b35`) then inserted its section one position too early — after `0.20.0`'s rather
+than after `0.20.1`'s — and the next three sweeps (`c83e877`, `df832fe`, `93c20ab`) each used that
+same slot. **The tail was locally self-consistent at every step**: after the first error it read
+strictly newest-first, so each following sweep saw a coherent pattern around its own edit and
+matched it. Only the join between the ascending head and the descending tail was wrong, and no
+sweep's diff ever touched that line. The `0.15.1` instance was already in the
+[20260807 audit](https://github.com/lucagattoni/pinakes/blob/main/plans/20260807_2143-docs-audit-findings.md),
+verified against PyPI upload times, and sat unworked for four days while three sweeps added three
+more.
+
+**The fix is a gate** — `tools/release_order_gate.py`, in `check.sh` and CI's `build` job, on the
+threshold this project already applies to a checklist that has missed something repeatedly. Two
+design points are why it will still work in a year:
+
+- **Direction is declared per sequence, never inferred.** Inferring it from whichever way most
+  adjacent pairs agree would let a badly scrambled file elect its own answer and pass.
+- **A sequence below a count floor fails rather than passes.** An empty sequence is sorted by
+  definition, so a pattern that silently stops matching — a reformatted table, a changed heading
+  style — is how a check like this dies quietly.
+
+It was watched failing before it was trusted: against the pre-fix tree it names all nine
+misorderings and exits 1, CI scrambles a copy and asserts both the exit and the stated reason, and
+three mutations of its core were each killed by exactly the test that should kill it.
+
+Also here: ROADMAP's **Part 4 heading claimed `0.8.0` → `0.10.0`** while holding every release
+through `0.22.1`, twelve past its own stated range — now `0.8.0` onward, a form that cannot go
+stale at a cut. `docs/RELEASING.md` gains the rule the gate enforces: **append after the newest one
+that is there, found by reading it, never by repeating last time's position — read the sequence,
+not the neighbourhood.**
+
+**No code path changed**: no `schema_version`, no rebuild, nothing different for any KB.
 
 ---
 

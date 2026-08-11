@@ -10,6 +10,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.22.2] — 20260811 13:48
+
+### Fixed
+
+- **The release history reads in release order again.** Three ordered sequences had drifted:
+  `docs/ROADMAP.md`'s release table and its per-release sections both ran
+  `0.20.0, 0.22.0, 0.22.1, 0.21.1, 0.21.0, 0.20.1`, and `docs/STATUS.md`'s roadmap table put
+  `0.15.1` after `0.16.0` and `0.20.1` after `0.22.1`. Every misplaced row is out of order on
+  **both** readings — SemVer and release time — so no reading of the table made them right.
+  `CHANGELOG.md` was checked and is clean, headings and link definitions both. The sections were
+  moved as whole blocks with a script that refuses to cross a `# Part` boundary, asserts the
+  rewritten file is byte-identical in length, and re-checks that every `# Part` heading still
+  carries the `---` that precedes one everywhere else in the file.
+- **`docs/ROADMAP.md`'s Part 4 heading said it ends at `0.10.0`** while holding every release
+  through `0.22.1` — twelve releases past its own stated range, found while reordering the
+  sections inside it. It now reads *`0.8.0` onward*, a form that cannot go stale at the next cut;
+  Parts 1 to 3 were checked and their ranges are exact.
+
 ## [0.22.1] — 20260811 12:26
 
 ### Fixed
@@ -3132,7 +3150,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.22.1...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.22.2...HEAD
+[0.22.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.22.2
 [0.22.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.22.1
 [0.22.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.22.0
 [0.21.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.21.1
