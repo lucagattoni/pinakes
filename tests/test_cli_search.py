@@ -86,9 +86,17 @@ def test_search_prints_cited_passages_and_a_confidence_line(
 def test_an_uncalibrated_kb_says_so_without_naming_a_command_that_does_not_exist(
     kb: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    """The escalation notice may name only what a user can actually type.
+
+    Until E1 this line advertised `pnk ask --deep`, which was neither a command nor a flag — in the
+    sentence whose test is named for not doing that. `pnk ask` now exists and `--deep` still does
+    not, so the notice names the first and not the second.
+    """
     main(["search", "sourdough", "--kb", str(kb)])
     out = capsys.readouterr().out
     assert "planned for the deep release" in out
+    assert "`pnk ask`" in out
+    assert "--deep" not in out
 
 
 def test_json_output_has_a_stable_shape(kb: Path, capsys: pytest.CaptureFixture[str]) -> None:

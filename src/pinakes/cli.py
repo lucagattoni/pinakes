@@ -20,10 +20,12 @@ nothing (plans/20260725_1317-v0.1.md, decisions table).
 import argparse
 import sys
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # `sync` pulls numpy and the store; the CLI stays fast to start
+    from pinakes.search import SearchResult
     from pinakes.sync import SyncReport
 
 from pinakes import __version__
@@ -237,11 +239,18 @@ def run_templates(args: argparse.Namespace) -> int:
     # printed: naming what broke *and* answering the question asked beats doing neither, which is
     # what the traceback did.
     return EXIT_FAILURE if damaged else EXIT_OK
-    return EXIT_OK
 
 
-def _search_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("query", help="what to search for")
+def _retrieval_arguments(parser: argparse.ArgumentParser, *, query_help: str) -> None:
+    """The filter surface `pnk search` and `pnk ask` share, declared once for both.
+
+    D-27 of `plans/20260811_1358-deep-release.md`: `ask` takes **every** one of `search`'s filters,
+    because a filter narrows retrieval and so narrows what answering the question would take.
+    Declared here rather than copied, so the two commands cannot drift into accepting different
+    flags — the failure that would leave `--source-type` meaning something on one and nothing on
+    the other, with `--help` right about both.
+    """
+    parser.add_argument("query", help=query_help)
     _kb_argument(parser)
     parser.add_argument(
         "--tag",
@@ -276,6 +285,14 @@ def _search_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--offline", action="store_true", help="never reach out for model weights")
 
 
+def _search_arguments(parser: argparse.ArgumentParser) -> None:
+    _retrieval_arguments(parser, query_help="what to search for")
+
+
+def _ask_arguments(parser: argparse.ArgumentParser) -> None:
+    _retrieval_arguments(parser, query_help="the question to answer")
+
+
 def _as_timestamp(value: str | None) -> float | None:
     from datetime import datetime
 
@@ -289,10 +306,12 @@ def _as_timestamp(value: str | None) -> float | None:
         ) from exc
 
 
-def run_search(args: argparse.Namespace) -> int:
-    """`pnk search`. Prints cited passages and an honest confidence line."""
-    import json as json_module
+def _retrieve(args: argparse.Namespace) -> "SearchResult":
+    """The §4.1 pipeline, run for whichever command asked. Free, and identical for both.
 
+    `pnk search` and `pnk ask` differ in what they *say* about a result, never in how they get one
+    (D-21). Two copies of this function would be two retrieval pipelines wearing one name.
+    """
     from pinakes import manifest as manifest_module
     from pinakes import store
     from pinakes.embed import load_backend, load_reranker
@@ -308,7 +327,7 @@ def run_search(args: argparse.Namespace) -> int:
 
     connection = store.connect_ro(loaded.index_path)
     try:
-        result = search(
+        return search(
             connection,
             loaded,
             args.query,
@@ -326,45 +345,39 @@ def run_search(args: argparse.Namespace) -> int:
     finally:
         connection.close()
 
-    if args.json:
-        print(
-            json_module.dumps(
-                {
-                    "query": result.query,
-                    "confidence": result.confidence,
-                    "confidence_reason": result.confidence_reason,
-                    "considered": result.considered,
-                    "passages": [
-                        {
-                            "doc_id": passage.doc_id,
-                            "path": passage.path,
-                            "title": passage.title,
-                            "heading_path": passage.heading_path,
-                            "char_start": passage.char_start,
-                            "char_end": passage.char_end,
-                            # Separate fields, never the rendered `p12-13`: a consumer that has to
-                            # parse a citation back apart is a consumer that will get it wrong.
-                            "page_start": passage.page_start,
-                            "page_end": passage.page_end,
-                            "citation": passage.citation(),
-                            "stale_extraction": passage.stale_extraction,
-                            "text": passage.text,
-                            "rerank_score": passage.rerank_score,
-                            "fused_score": passage.fused_score,
-                        }
-                        for passage in result.passages
-                    ],
-                },
-                indent=2,
-            )
-        )
-        return EXIT_OK
 
-    if not result.passages:
-        print("no passages matched.")
-        print(f"confidence: {result.confidence} — {result.confidence_reason}")
-        return EXIT_OK
+def _retrieval_payload(result: "SearchResult") -> dict[str, object]:
+    """The `--json` object both retrieval commands print. `pnk ask` adds two keys to it."""
+    return {
+        "query": result.query,
+        "confidence": result.confidence,
+        "confidence_reason": result.confidence_reason,
+        "considered": result.considered,
+        "passages": [
+            {
+                "doc_id": passage.doc_id,
+                "path": passage.path,
+                "title": passage.title,
+                "heading_path": passage.heading_path,
+                "char_start": passage.char_start,
+                "char_end": passage.char_end,
+                # Separate fields, never the rendered `p12-13`: a consumer that has to parse a
+                # citation back apart is a consumer that will get it wrong.
+                "page_start": passage.page_start,
+                "page_end": passage.page_end,
+                "citation": passage.citation(),
+                "stale_extraction": passage.stale_extraction,
+                "text": passage.text,
+                "rerank_score": passage.rerank_score,
+                "fused_score": passage.fused_score,
+            }
+            for passage in result.passages
+        ],
+    }
 
+
+def _print_passages(result: "SearchResult") -> None:
+    """The numbered, cited blocks both retrieval commands render."""
     for position, passage in enumerate(result.passages, start=1):
         heading = f" — {passage.heading_path}" if passage.heading_path else ""
         print(f"[{position}] {passage.path}{heading}")
@@ -380,15 +393,186 @@ def run_search(args: argparse.Namespace) -> int:
             )
         print()
 
+
+def run_search(args: argparse.Namespace) -> int:
+    """`pnk search`. Prints cited passages and an honest confidence line."""
+    import json as json_module
+
+    from pinakes.search import LOW, UNKNOWN
+
+    result = _retrieve(args)
+
+    if args.json:
+        print(json_module.dumps(_retrieval_payload(result), indent=2))
+        return EXIT_OK
+
+    if not result.passages:
+        print("no passages matched.")
+        print(f"confidence: {result.confidence} — {result.confidence_reason}")
+        return EXIT_OK
+
+    _print_passages(result)
+
     print(f"confidence: {result.confidence} — {result.confidence_reason}")
-    if result.confidence in ("low", "unknown"):
-        # Never advertise a command that does not exist yet: --deep lands in the deep
-        # release (§4.2).
+    # The constants, not `("low", "unknown")` as this read until E1: `_escalation` two functions
+    # below compares against the same values, and two spellings of one vocabulary in one file is
+    # how they come to disagree.
+    if result.confidence in (LOW, UNKNOWN):
+        # Names `pnk ask`, which exists (E1), and no flag of it, which does not. The sentence this
+        # replaced advertised `pnk ask --deep` — a command *and* a flag that could not be typed,
+        # in the very line whose test is named for not doing that.
         print(
-            "retrieval-only result. Paid synthesis (`pnk ask --deep`) is planned for the "
-            "deep release; until then, narrowing the query or adding a filter is the lever "
-            "you have."
+            "retrieval-only result. `pnk ask` prints the same evidence plus what answering the "
+            "question would take; paid synthesis is planned for the deep release. Until then, "
+            "narrowing the query or adding a filter is the lever you have."
         )
+    return EXIT_OK
+
+
+NO_ANSWER_SYNTHESISED = "no answer was synthesised — this is evidence, not a conclusion."
+"""Printed by every `pnk ask`, whatever the confidence.
+
+Someone typing `ask` expects an answer, and passages are not one. The line is the difference
+between an honest retrieval surface and one that lets a reader mistake evidence for a conclusion.
+`tests/free_path_run.py` also matches on it, which is how the free-path gate proves it reached
+`pnk ask` at all rather than assuming it.
+"""
+
+DEEP_RELEASE_NOTICE = (
+    "paid synthesis is what would turn this evidence into an answer, and it belongs to the deep "
+    "release — this build cannot do it."
+)
+"""Names the release, never a command line.
+
+A flag that parses and then apologises is the defect `0.20.1` fixed for `vector_tier`: the fix was
+to refuse the value, not to keep accepting it. So nothing here prints a `--deep` a user could type
+until the increment that implements it (E1's spec, `plans/20260811_1358-deep-release.md`).
+"""
+
+CALIBRATE_REMEDY = (
+    "fit [retrieval.confidence] with `python -m pinakes.calibrate <kb>` — with reranking on, and "
+    "with the fitted reranker the one actually in use."
+)
+"""One sentence covering all three ways confidence comes back `unknown`.
+
+`SearchResult.confidence_reason` already discriminates them (`search.py`'s `_confidence`) and is
+printed on the line above, so the remedy does not branch. Re-checking the three conditions here
+would be a second copy of that logic, and a second copy can disagree with the first.
+"""
+
+
+@dataclass(frozen=True, slots=True)
+class _Escalation:
+    """What answering the question would take — one value, rendered by both surfaces.
+
+    Built once per run so `--json` and the human output cannot describe different work for the same
+    result.
+    """
+
+    branch: str
+    """`synthesis`, `decomposition`, `unknown` or `none` — what a consumer discriminates on."""
+
+    work: str
+    """One sentence: how much work answering would take."""
+
+    notice: str | None
+    """`DEEP_RELEASE_NOTICE`, or `None` when naming paid synthesis would be beside the point.
+
+    Carried rather than decided by the renderer: `if branch != "none"` at the print site would put
+    the branch vocabulary in two places, and the one that matters — *do not offer to answer a
+    question nothing matched* — would live in neither of them.
+    """
+
+    remedy: str | None
+    """What the user could do about an `unknown`, or `None` when there is nothing to fix."""
+
+
+def _escalation(result: "SearchResult") -> _Escalation:
+    """Size the work from the confidence signal — never authorise it, and never spend (D-28).
+
+    The branches are the ones §5 of the deep-release plan names: a confident retrieval needs one
+    synthesis call, a low-confidence one needs decomposition and repeated search, and an
+    uncalibrated KB cannot tell which — it is bounded by the caps rather than by the signal (D-22).
+
+    **Anything that is not `high`, `medium` or `low` falls through to `unknown`**, which is the safe
+    direction: a value this function has never heard of is precisely one it cannot size.
+    """
+    from pinakes.search import HIGH, LOW, MEDIUM
+
+    if not result.passages:
+        # Not an `unknown`: nothing matched, so no amount of reasoning has anything to reason
+        # over. Telling this user to calibrate would answer a question they did not ask, and
+        # offering paid synthesis would offer to reason over nothing.
+        return _Escalation(
+            "none", "nothing matched, so there is nothing to answer from.", None, None
+        )
+    if result.confidence in (HIGH, MEDIUM):
+        return _Escalation(
+            "synthesis",
+            "answering this would take one synthesis call over the passages above.",
+            DEEP_RELEASE_NOTICE,
+            None,
+        )
+    if result.confidence == LOW:
+        return _Escalation(
+            "decomposition",
+            "answering this would take decomposition into subquestions, a search for each, and a "
+            "synthesis over what they return — several calls.",
+            DEEP_RELEASE_NOTICE,
+            None,
+        )
+    return _Escalation(
+        "unknown",
+        "how much answering this would take cannot be told from here: with no calibrated signal, "
+        "a run would end at its caps rather than at sufficiency.",
+        DEEP_RELEASE_NOTICE,
+        CALIBRATE_REMEDY,
+    )
+
+
+def run_ask(args: argparse.Namespace) -> int:
+    """`pnk ask`. The question surface: the evidence, the confidence, and what answering would take.
+
+    **It never synthesises an answer and it never spends** — nothing free can, and this build has no
+    paid loop at all. What it adds over `pnk search` is the third thing: `search` answers *what is
+    in the KB about this*, `ask` answers *what it would take to answer this* (D-21).
+
+    The escalation block prints on **every** confidence value, not only below the threshold: the
+    work differs by confidence, so the useful thing to show is which branch this question falls in
+    (D-28).
+    """
+    import json as json_module
+
+    result = _retrieve(args)
+    escalation = _escalation(result)
+
+    if args.json:
+        payload = _retrieval_payload(result)
+        # `answer` is `null` here and stays a key in every future form of this command, so a
+        # consumer parses one schema whether or not a paid loop ever ran.
+        payload["answer"] = None
+        payload["escalation"] = {
+            "branch": escalation.branch,
+            "work": escalation.work,
+            # The estimator that fills this in is E2; until it exists the sentence carries no
+            # number, and a wrong number would be worse than none.
+            "cost_eur": None,
+            "remedy": escalation.remedy,
+        }
+        print(json_module.dumps(payload, indent=2))
+        return EXIT_OK
+
+    if result.passages:
+        _print_passages(result)
+    else:
+        print("no passages matched.")
+
+    print(f"confidence: {result.confidence} — {result.confidence_reason}")
+    print(NO_ANSWER_SYNTHESISED)
+    print(escalation.work)
+    for line in (escalation.notice, escalation.remedy):
+        if line is not None:
+            print(line)
     return EXIT_OK
 
 
@@ -1062,6 +1246,13 @@ COMMANDS: tuple[Command, ...] = (
         "I10",
         runner=lambda args: run_search(args),
         arguments=_search_arguments,
+    ),
+    Command(
+        "ask",
+        "What it would take to answer a question: cited evidence, confidence, and the work",
+        "E1",
+        runner=lambda args: run_ask(args),
+        arguments=_ask_arguments,
     ),
     Command(
         "doctor",

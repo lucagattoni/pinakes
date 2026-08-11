@@ -276,8 +276,9 @@ pnk search "how are dense and lexical results combined" --kb my-kb
     (docs/retrieval.md:0-95 (Retrieval notes))
 
 confidence: unknown — no calibrated thresholds in the manifest ([retrieval.confidence])
-retrieval-only result. Paid synthesis (`pnk ask --deep`) is planned for the deep release; until then,
-narrowing the query or adding a filter is the lever you have.
+retrieval-only result. `pnk ask` prints the same evidence plus what answering the question would
+take; paid synthesis is planned for the deep release. Until then, narrowing the query or adding a
+filter is the lever you have.
 ```
 
 Free, offline, and unlimited. The pipeline is BM25 (FTS5) + dense vectors, fused with reciprocal
@@ -315,6 +316,70 @@ for you to paste and never writes one. Until you paste it, every result reports 
 
 The cost of the heuristic once calibrated is published rather than hidden: measured false-confidence
 on the demo corpus is **0.25** ([STATUS](STATUS.md#measured-numbers)).
+
+## Asking a question
+
+`pnk search` answers *what is in the KB about this*. `pnk ask` answers *what it would take to
+answer this* — the same passages, the same filters, plus the size of the job:
+
+```bash
+pnk ask "who may assign catalogue numbers" --kb my-kb -k 2
+```
+
+```
+[1] docs/volunteer-programme.md — Volunteer programme
+    # Volunteer programme
+
+    Volunteers work on listing and repackaging, always alongside a member of staff. They do not carry
+    out conservation treatment or assign catalogue numbers.
+    (docs/volunteer-programme.md:0-176 (Volunteer programme))
+
+[2] docs/catalogue-numbers-format.md — Catalogue number format
+    # Catalogue number format
+
+    A catalogue number is three letters for the collection, a slash, and a running number. The letters
+    are assigned once and never re-used, even after a collection is fully withdrawn.
+    (docs/catalogue-numbers-format.md:0-206 (Catalogue number format))
+
+confidence: high — top rerank score 3.514 is above -3.5016
+no answer was synthesised — this is evidence, not a conclusion.
+answering this would take one synthesis call over the passages above.
+paid synthesis is what would turn this evidence into an answer, and it belongs to the deep release — this build cannot do it.
+```
+
+**There is no answer there, and there is not going to be one today.** `ask` is free, and nothing
+free can synthesise one. What it can do is say honestly whether the evidence above is enough — and,
+when it is not, that answering would take rather more than a single pass.
+
+On a KB you have **not** calibrated — which is every KB the template stamps — the closing lines
+read instead:
+
+```
+confidence: unknown — no calibrated thresholds in the manifest ([retrieval.confidence])
+no answer was synthesised — this is evidence, not a conclusion.
+how much answering this would take cannot be told from here: with no calibrated signal, a run would end at its caps rather than at sufficiency.
+paid synthesis is what would turn this evidence into an answer, and it belongs to the deep release — this build cannot do it.
+fit [retrieval.confidence] with `python -m pinakes.calibrate <kb>` — with reranking on, and with the fitted reranker the one actually in use.
+```
+
+That is not a refusal, and the reason is worth knowing. Without a fitted signal nothing can say
+*enough evidence has been gathered*, so a paid run would stop when it ran out of rounds or out of
+budget rather than when it was finished — which costs more for the same question. See [About that
+`confidence: unknown`](#about-that-confidence-unknown) above; a question that simply **matches
+nothing** is told that instead, and is not sent off to calibrate a signal that was never the
+problem.
+
+Every filter from [Searching](#searching) works here too, and each narrows the work as well as the
+results:
+
+```bash
+pnk ask "who may assign catalogue numbers" --path-prefix docs/policies/ --tag policy
+pnk ask "who may assign catalogue numbers" --json      # answer: null, plus an escalation block
+```
+
+`--json` returns `pnk search`'s payload with `answer` (always `null` here) and `escalation`
+beside it, so a script parses one shape whether or not a paid loop ever runs
+([CLI](CLI.md#pnk-ask)).
 
 ## Keeping the index fresh
 

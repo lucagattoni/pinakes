@@ -27,7 +27,8 @@
 | `pnk link` | shipped 0.6.0 | L6. Writes one `links[]` entry into the source document's own sidecar. Targets: a `pnk://` URI, `<alias>:<path>`, or a path in this KB |
 | `pnk upgrade` | shipped 0.19.0 | T3. Prints the template diff and says, hunk by hunk, whether each change still fits your manifest. Exits `3` — *no baseline* — on every KB that predates the version archive, which today is all of them |
 | `pnk upgrade --apply` | shipped, T4 | Writes the hunks that apply cleanly, `[budget]` included, after printing them; refuses the whole run if any conflicts. **The only thing in Pinakes that rewrites a `pinakes.toml` after `pnk init`.** Backs the file up to `pinakes.toml.orig`, prints any spending cap that would move with both values, and never writes `[kb] requires_pinakes` |
-| `pnk ask --deep` | **not built** | the deep release |
+| `pnk ask` | on `main`, unreleased | E1. The question surface, free: cited evidence, the confidence line, and **what answering would take** — one synthesis call at `high`/`medium`, decomposition and repeated search at `low`, and *cannot be told* on an uncalibrated KB. It never synthesises an answer and says so on every run. Every `pnk search` filter; `--json` adds `answer: null` and an `escalation` block |
+| `pnk ask --deep` | **not built** | the deep release, E4. **The flag, not the command** — until it lands, `--deep` is a usage error rather than a flag that parses and apologises |
 
 | Capability | State | Notes |
 |---|---|---|

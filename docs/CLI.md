@@ -23,8 +23,8 @@ Every error carries a **remedy**, not just a message. If one doesn't, that's a b
 
 | Flag | On | Means |
 |---|---|---|
-| `--kb PATH` | `sync`, `search`, `doctor`, `install-hooks`, `budget`, `link`, `links`, `upgrade` | KB root. Defaults to the nearest `pinakes.toml`, searching upwards from the cwd — git-style |
-| `--offline` | `sync`, `search`, `serve` | Never reach out for model weights. Fails fast instead of downloading |
+| `--kb PATH` | `sync`, `search`, `ask`, `doctor`, `install-hooks`, `budget`, `link`, `links`, `upgrade` | KB root. Defaults to the nearest `pinakes.toml`, searching upwards from the cwd — git-style |
+| `--offline` | `sync`, `search`, `ask`, `serve` | Never reach out for model weights. Fails fast instead of downloading |
 
 ---
 
@@ -205,6 +205,48 @@ PDF extractor's fingerprint has drifted — returning garbage silently would be 
 `confidence` is `unknown` unless the manifest carries fitted `[retrieval.confidence]` thresholds
 **and** `fitted_for` names the reranker actually in use. That is the honest default, not a defect
 ([GUIDE](GUIDE.md#about-that-confidence-unknown)).
+
+## `pnk ask`
+
+```
+pnk ask [--kb PATH] [--tag TAG] [--path-prefix PREFIX] [--source-type TYPE]
+        [--modified-after YYYYMMDD] [--modified-before YYYYMMDD]
+        [-k K] [--json] [--offline] query
+```
+
+The question surface. It runs exactly the pipeline [`pnk search`](#pnk-search) runs, takes exactly
+the same filters, and adds the thing `search` does not say: **what it would take to answer the
+question**.
+
+**It never synthesises an answer and it never spends.** Nothing free can, so it says so on every
+run — `no answer was synthesised — this is evidence, not a conclusion.` Passages are not an answer,
+and a command called `ask` is the easiest place in Pinakes to mistake one for the other.
+
+The work is sized by the confidence signal:
+
+| Confidence | What answering would take |
+|---|---|
+| `high`, `medium` | One synthesis call over the passages already retrieved |
+| `low` | Decomposition into subquestions, a search for each, and a synthesis over what they return — several calls |
+| `unknown` | **Cannot be told from here.** With no calibrated signal a run would end at its spending caps rather than at sufficiency, and the line above says which of the three causes applies. One remedy covers all three: fit `[retrieval.confidence]` with `python -m pinakes.calibrate <kb>`, with reranking on, and with the fitted reranker the one in use |
+
+A question **nothing matches** gets none of that: it is told nothing matched, and is not sent off to
+calibrate a signal that was never the problem.
+
+`--json` is `pnk search`'s payload plus two keys, so one schema parses whether or not a paid loop
+ever runs:
+
+| Key | Value |
+|---|---|
+| `answer` | `null` — always, on this surface |
+| `escalation.branch` | `synthesis`, `decomposition`, `unknown`, or `none` when nothing matched. **The field to discriminate on** — never the sentence |
+| `escalation.work` | That sentence, the same one the human output prints |
+| `escalation.cost_eur` | `null` until the estimator exists. A wrong number here would be worse than none |
+| `escalation.remedy` | The calibration sentence on `unknown`, `null` otherwise |
+
+**Paid synthesis is not in this build.** It belongs to the deep release, and nothing here prints a
+flag you could type for it — a flag that parses and then apologises is the defect `0.20.1` fixed
+for `vector_tier = "sqlite-vec"`, one layer out.
 
 ## `pnk doctor`
 
@@ -645,4 +687,4 @@ Listed so the shape is known in advance; each names the increment that lands it
 
 | Surface | Increment | Adds |
 |---|---|---|
-| `pnk ask --deep` | the deep release | Bounded, budgeted synthesis for CLI and cron use, where no agent is present |
+| `pnk ask --deep` | the deep release, E4 | Bounded, budgeted synthesis for CLI and cron use, where no agent is present. **The flag, not the command** — [`pnk ask`](#pnk-ask) itself is built and free. Until E4 lands, `--deep` is a usage error rather than an apology |
