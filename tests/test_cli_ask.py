@@ -137,8 +137,12 @@ def test_a_confident_kb_gets_cited_evidence_and_the_price_of_one_call(
     """The cheap branch (§5): confident retrieval needs one synthesis call, and nothing was spent.
 
     "Spends nothing" is asserted as a fact about the KB, not only as a sentence in the output: a
-    free command must leave no ledger behind, because a ledger line is what spending looks like on
-    disk.
+    ledger line is what spending looks like on disk, so a free command must leave none.
+
+    **It cannot fail today and that is the point.** No paid code exists in this build; the
+    assertion is a tripwire for E4, which adds a loop to this very command and shares `_retrieve`
+    with it. The plan's own risk table names that route — "`pnk ask` without `--deep` starts
+    spending" — and a tripwire laid after the fact is one laid too late.
     """
     assert main(["ask", "sourdough", "--kb", str(confident_kb)]) == 0
     out = capsys.readouterr().out
@@ -195,6 +199,32 @@ def test_a_reranker_the_thresholds_were_not_fitted_for_is_uncalibrated_too(
 
     assert "confidence: unknown" in out
     assert "some-other-reranker@v9" in out
+    assert CALIBRATE_REMEDY in out
+
+
+def test_thresholds_with_reranking_switched_off_are_uncalibrated_too(
+    kb: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The third of `_confidence`'s three `unknown` branches, so all three are covered here.
+
+    E1's exit criteria ask that an uncalibrated KB says *which* branch it hit. It does — through
+    `confidence_reason`, which is printed verbatim — and the single remedy sentence covers all
+    three without the CLI re-deciding which one applies.
+    """
+    _calibrate(kb, low_below=0.1, high_above=0.4, fitted_for=FINGERPRINT)
+    manifest_path = kb / "pinakes.toml"
+    manifest_path.write_text(
+        manifest_path.read_text(encoding="utf-8").replace(
+            'rerank                = "local"', 'rerank                = "none"'
+        ),
+        encoding="utf-8",
+    )
+
+    assert main(["ask", "sourdough", "--kb", str(kb)]) == 0
+    out = capsys.readouterr().out
+
+    assert "confidence: unknown" in out
+    assert "reranking is off" in out
     assert CALIBRATE_REMEDY in out
 
 
