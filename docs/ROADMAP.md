@@ -81,8 +81,8 @@ precision nobody measured.
   queried KB past ~50 000 chunks *with* felt latency), the staged graph channels wait on a
   **corpus**. **[The deep release](#the-deep-release) has a plan, and it is buildable** —
   [`plans/20260811_1358-deep-release.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260811_1358-deep-release.md),
-  written 20260811 13:58, **all eight of its decisions taken the same day**. Seven increments, E1
-  first.
+  written 20260811 13:58, **all eight of its decisions taken the same day**. Seven increments;
+  **E1 has landed** — `pnk ask`, free and unable to spend — and E2, the round estimator, is next.
 
 ---
 
@@ -1317,8 +1317,10 @@ writing its discoveries back into sidecars.
   [DESIGN § 1](DESIGN.md#1-what-this-is) and [INVARIANTS.md](INVARIANTS.md) in one commit.
 - **A plan exists as of 20260811 13:58** —
   [`plans/20260811_1358-deep-release.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260811_1358-deep-release.md).
-  Seven increments, and **all eight of its decisions taken 20260811 14:17**, so E1 is buildable
-  now. It had been described as "planned" since
+  Seven increments, and **all eight of its decisions taken 20260811 14:17**. **E1 has landed** —
+  `pnk ask` *without* `--deep`: cited evidence, the confidence line, and what answering the question
+  would take, free and unable to spend ([CLI](CLI.md#pnk-ask)). E2, the round estimator, is next.
+  It had been described as "planned" since
   [`0.1.2`](#012--the-readme-told-the-truth--20260727-1525) with no plan behind the word — and
   correcting the README's claim that it *existed* was that release's whole point.
 - **Two measurements in that plan change what this section used to imply.** The budget machinery is
