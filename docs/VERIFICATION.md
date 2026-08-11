@@ -887,6 +887,7 @@ that runs against `notes` says so.
 | the *same manifest* outcome records `[kb] template` under `--apply` and changes nothing else — **the row T4 shipped said the opposite**, and D-16 reversed it: a KB on this path had no command that could clear the warning | D-16 | `tests/test_cli_upgrade.py::test_same_manifest_under_apply_records_the_reference_and_nothing_else` |
 | the write on that outcome is announced before it is made, asserted by line position | D-16 | `tests/test_cli_upgrade.py::test_same_manifest_under_apply_announces_the_write_before_making_it` |
 | `pnk upgrade` without `--apply` still writes nothing on that outcome | D-16 | `tests/test_cli_upgrade.py::test_same_manifest_without_apply_still_writes_nothing` |
+| `--json --apply` emits one document on that outcome too, and the reference is recorded | D-16 | `tests/test_cli_upgrade.py::test_same_manifest_under_apply_json_reports_the_write` |
 | the backup is named by its **full path** when it does not sit in the KB, which is what a symlinked manifest produces | T4 | `tests/test_cli_upgrade.py::test_the_backup_is_named_by_its_full_path_when_it_leaves_the_kb` |
 
 ## An unbuilt vector tier is refused rather than ignored (T5)

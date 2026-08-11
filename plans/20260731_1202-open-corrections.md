@@ -34,8 +34,8 @@ and that no increment had reason to look at until one added a new way to trigger
 reading, shipping, generalising from a fix, and reviewing what a new surface inherits each find a
 different class, and none of them finds the others'.
 
-**Three live. Four were live at 0.21.1 (20260810 01:48), all four were answered on 20260811
-07:20, and `pnk init` (D-18) is built and closed below.** Each
+**Two live. Four were live at 0.21.1 (20260810 01:48), all four were answered on 20260811
+07:20, and `pnk init` (D-18) and `--apply`'s `same manifest` gap (D-16) are built and closed below.** Each
 had stalled on the same thing — its *required* text was "choose between these two defensible
 answers", which an implementer may not do — so the list had converged on decisions rather than
 fixes. [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md) takes all four, and every item below now carries a
@@ -91,34 +91,7 @@ copied, since embedding is free and the chunk texts are already in hand. The chu
 remains, and it predates the injection option by three releases.
 
 
-### 2 · `--apply` writes nothing on the *same manifest* outcome, so that KB can never stop drifting
-
-**File:** `src/pinakes/cli.py`, `run_upgrade` (`applying = args.apply and report.outcome is
-Outcome.DRIFTED`).
-**Current:** a template bump that leaves the rendered manifest byte-identical produces no hunks and
-reports `same manifest`. `--apply` therefore does nothing at all — **including the `[kb] template`
-restamp** — so the KB goes on recording the old reference, `pnk doctor` goes on warning, and the
-user has no command that records the new one. It is reachable: of the ten commits between
-`notes@1.0` and `1.1`, five touched only the starter golden set.
-
-**Not a defect of T4's implementation — T4 specifies `--apply` in terms of hunks and there are
-none.** Writing the reference anyway would be behaviour the plan does not describe, so the
-conservative reading was taken deliberately and pinned by
-`tests/test_cli_upgrade.py::test_same_manifest_under_apply_writes_nothing`.
-
-**Decided 20260811 (D-16, [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md)): `--apply` restamps `[kb] template` on this outcome,
-and the printed report says it wrote the reference with no hunks to show.** Consent rather than
-refusal — the same shape D-10 already took for `[budget]`: the write is announced before it happens.
-The alternative leaves a KB recording a stale reference, warning forever, with no command that can
-fix it.
-
-⚠️ **`tests/test_cli_upgrade.py::test_same_manifest_under_apply_writes_nothing` pins the opposite.**
-It is replaced by a test of the new property, not deleted quietly, and the commit names the
-behaviour that changed.
-
-**Recorded 20260808 by T4's third review pass**, in the increment that created it.
-
-### 3 · An eval outcome records the vector tier it was *configured* with, not the one that ran
+### 2 · An eval outcome records the vector tier it was *configured* with, not the one that ran
 
 **File:** `src/pinakes/eval.py` (`"vector_tier": settings.vector_tier` in the outcomes header) and
 `tools/reachable_ceiling_probe.py`, which copies the line.
@@ -148,6 +121,7 @@ defect class lives.
 
 | Was | Closed by |
 |---|---|
+| `--apply` wrote nothing on the *same manifest* outcome — including the `[kb] template` restamp — so a KB whose template bumped without changing its manifest kept recording the old reference, `pnk doctor` kept warning, and no command could clear it. Reachable: of the ten commits between `notes@1.0` and `1.1`, five touched only the starter golden set | 0.22.0 (D-16). `--apply` records the reference and changes nothing else, **announced before the write** — consent rather than refusal, the answer D-10 already gave for `[budget]`. `APPLIABLE` sits beside `Outcome` so the CLI's predicate and `apply`'s own guard cannot disagree. **`test_same_manifest_under_apply_writes_nothing` pinned the opposite and was replaced rather than deleted**, and its untouched half — that a *report* writes nothing — is now its own test, without which this could have been implemented by making the report restamp. `docs/CLI.md` stated the old behaviour outright and was corrected in the same change |
 | `pnk init` wrote `pinakes.toml`, `docs/` and `.gitignore` before it knew the template's `files` declaration was legal, so a refusal left a directory that is *almost* a KB — which a second `pnk init` then refuses **as** one. Pre-existing: any failure after that write did it, and T7 only added a new way to reach it | 0.22.0 (D-18). All three checks — declaration shape, the `_versions` rule, and both containment layers — run before the first byte. **The item had rejected this as unavailable**, believing containment could not be judged before the target existed; `lands_inside` resolves the *parent* and `resolve()` is non-strict, so against a path never created `README.md` lands inside and `../escape.md` does not. The narrow hoist stayed rejected for the item's own reason. `copy_extras` split into `validate_extras` and a copy, with `validated=` defaulting to checking anyway so no other caller silently gets an unchecked copy. Guarantee stated as **validated before writing, never atomic** — a symlinked ancestor can still change between check and write. The review pass added the case every test was blind to: a refusal against a directory being *adopted*, where the property is not "root does not exist" but "the user's files are untouched" |
 | `graph_gate.check_identity` was blind to `chunking` — it compared `k`, `embedding`, `rerank`, `ranking` and `retrieval` and not the block `5993521` added to `eval.header` so a leg could say what it was built under. Two legs chunked differently are two corpora, so rows paired on `id` were produced by searching different texts and the rechunk was reported as whatever was under test — on the gate that licensed the graph channel's default | 0.21.1. The whole block, with **nothing excepted** — which is the one place it differs from `tools/two_leg_gate.py`, and deliberately: there `chunking.metadata` *is* the independent variable, here it is `graph_channel`. Both tests are built so that copying two_leg_gate's exception list across fails. A block absent from all three legs still compares equal and passes, as the five fields beside it do: the gate already refuses legs not produced by the binary under test, and requiring it would refuse the graph release's own archived artifacts |
 | A damaged template install escaped as a traceback, on two surfaces | 0.21.1, and on **five** functions rather than the two this item named — `render_manifest`, `declared_files` and `copy_extras` held the identical unguarded read, so fixing only `describe` and `render_archived` would have left the defect three functions away. `jinja2.TemplateSyntaxError` needed its own arm because it is raised by `Template(...)` and not by `render`, where the existing `UndefinedError` handler sits. **The fix then nearly opened its own replacement**: making the failure a `PinakesError` routed it into `doctor` and `upgrade`'s existing `except`, which answers *"is not installed here"* — advice that sends the owner of a *present but damaged* template to install what they already have. `TemplateNotInstalledError` splits them, with a test on each surface. A third pass found the `OSError` arm printing the install's absolute path, since `OSError.__str__` appends its `filename` and doctor's de-homing strips the *KB* root, which a template is outside by construction |

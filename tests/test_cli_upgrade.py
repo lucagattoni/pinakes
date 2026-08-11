@@ -2265,6 +2265,29 @@ def test_same_manifest_under_apply_announces_the_write_before_making_it(
     assert announcement < written, "the write was announced after it had already happened"
 
 
+def test_same_manifest_under_apply_json_reports_the_write(
+    tmp_path: Path, synthetic_template: Callable[..., str]
+) -> None:
+    """D-16 opened a new *writing* path, and a writing path with no machine-readable coverage is
+    how a consumer learns about a change from its side effects.
+
+    `--json --apply` emits one document after the attempt on every other outcome; this asserts it
+    does so here too, and that the document says the reference was recorded. Found by asking what
+    the new path inherits rather than what it introduces — the same question that produced
+    open-corrections item 4."""
+    import json as json_module
+
+    name = synthetic_template("synth", versions={"1.0": _source(), "2.0": _source()}, current="2.0")
+    root = _stamp(tmp_path / "kb", name, "1.0")
+
+    code, out, err = _run2(root, "--apply", "--json")
+
+    assert code == 0, err
+    payload = json_module.loads(out)
+    assert payload["outcome"] == "same-manifest"
+    assert 'template = "synth@2.0"' in (root / "pinakes.toml").read_text(encoding="utf-8")
+
+
 def test_same_manifest_without_apply_still_writes_nothing(
     tmp_path: Path, synthetic_template: Callable[..., str]
 ) -> None:
