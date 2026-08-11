@@ -30,7 +30,7 @@ precision nobody measured.
   shipped every increment it scheduled** — T1 to T5 and T7 across 0.17.0–0.21.0, cutting more than
   once by D-9 — **and both of its gated increments are now answered**, so what is left under that
   name is a trigger rather than a queue. The deep release is unbuilt, and **as of 20260811 has a
-  plan whose eight decisions are all open**.
+  plan whose eight decisions were all taken the same day**.
 - **Is document metadata retrieval context? Measured, and the answer was no — on one corpus, through
   one channel**
   ([`plans/20260805_1721-metadata-as-retrieval-context.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260805_1721-metadata-as-retrieval-context.md),
@@ -79,10 +79,10 @@ precision nobody measured.
 - **One thing is scheduled, and it is waiting on eight answers.** The open-corrections list is
   empty and what is left of the older work is gated rather than queued: T6 waits on a **trigger** (a
   queried KB past ~50 000 chunks *with* felt latency), the staged graph channels wait on a
-  **corpus**. **[The deep release](#the-deep-release) now has a plan** —
+  **corpus**. **[The deep release](#the-deep-release) has a plan, and it is buildable** —
   [`plans/20260811_1358-deep-release.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260811_1358-deep-release.md),
-  written 20260811 13:58 — with seven increments and **eight open decisions, every one of them
-  blocking an increment.** Nothing in it can start until they are taken.
+  written 20260811 13:58, **all eight of its decisions taken the same day**. Seven increments, E1
+  first.
 
 ---
 
@@ -1317,16 +1317,16 @@ writing its discoveries back into sidecars.
   [DESIGN § 1](DESIGN.md#1-what-this-is) and [INVARIANTS.md](INVARIANTS.md) in one commit.
 - **A plan exists as of 20260811 13:58** —
   [`plans/20260811_1358-deep-release.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260811_1358-deep-release.md).
-  Seven increments, **eight open decisions, and every one blocks an increment**, so nothing is
-  buildable until they are taken. It had been described as "planned" since
+  Seven increments, and **all eight of its decisions taken 20260811 14:17**, so E1 is buildable
+  now. It had been described as "planned" since
   [`0.1.2`](#012--the-readme-told-the-truth--20260727-1525) with no plan behind the word — and
   correcting the README's claim that it *existed* was that release's whole point.
 - **Two measurements in that plan change what this section used to imply.** The budget machinery is
   already built and proven by the paid extractor, so this release adds the loop and not the
   machinery — it is smaller than it reads. And the confidence signal that
   [§ 4.2](DESIGN.md#42-escalation--free-path-first) makes the escalation gate **ships commented out**
-  in the `notes` template, so no KB a user creates has one — which is what most of the plan's open
-  decisions are about.
+  in the `notes` template, so no KB a user creates has one. D-22 answers it: `--deep` runs anyway,
+  bounded by the caps rather than by the signal, and the output names which bound ended the run.
 
 → The escalation model it implements:
 [DESIGN § 4.2 Escalation — "free path first"](DESIGN.md#42-escalation--free-path-first). Its
