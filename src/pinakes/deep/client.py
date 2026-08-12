@@ -220,6 +220,15 @@ def answer_schema(*, passages: int) -> dict[str, Any]:
     outside it. That mattered enough to keep — under a parser-only bound a stray citation is a
     `SchemaFailureError` on a call that already billed, and here it is unreachable.
 
+    **The enum scales with `passages` where the old form did not, and that is priced.** `[retrieval]
+    final_k` has a floor of 1 and no ceiling, so a wide KB makes a long enum, and the obvious worry
+    is that a schema growing with the passage count breaks `PROMPT_TOKENS` — which E2 declares as
+    "everything that does not scale with the passages" and reserves flat at 1,500. It does not: the
+    growth is *per passage*, so it lands in the per-passage term, which is reserved per passage.
+    Measured 20260812 06:58 UTC by `count_tokens` over this exact request at 1, 5, 8, 50 and 200
+    passages: **15 tokens per extra passage, linear throughout**, against 250 reserved for the
+    envelope alone and 610 per passage in total. Sixteen times the headroom at any `final_k`.
+
     **Zero passages is refused rather than clamped to one.** The first draft wrote
     `max(passages, 1)`, which describes a call whose schema admits citation `[1]` and whose parser
     refuses every index — the two halves disagreeing about the same bound, in the direction that
