@@ -204,7 +204,10 @@ def write(state_dir: Path, body: Mapping[str, object]) -> Path:
     descriptor, tmp_name = tempfile.mkstemp(dir=path.parent, prefix=".tmp-", suffix=".tmp")
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            json.dump(body, handle, indent=2)
+            # `dict(body)`, because `json.dump` serialises a `dict` and not every `Mapping` —
+            # accepting the wider type at the door and narrowing here is what lets a caller pass
+            # whatever mapping it has without the failure landing three lines into an open file.
+            json.dump(dict(body), handle, indent=2)
         os.replace(tmp_name, path)
     except BaseException:
         Path(tmp_name).unlink(missing_ok=True)

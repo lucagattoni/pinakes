@@ -107,7 +107,7 @@ rows are still printed: the question you asked is still answered.
 ```
 pnk sync [--kb PATH] [--rebuild] [--sidecars-only] [--index-only] [--stage] [--offline] [--scan-links]
          [--offline] [--force-unlock] [--extract BACKEND] [--force]
-         [--estimate-only] [--clear-cache[=paid]] [--yes] [-q]
+         [--estimate-only] [--clear-cache[=paid|transcripts]] [--yes] [-q]
 ```
 
 The freshness primitive. Walks the sources, compares content hashes, re-processes only what changed.
@@ -126,7 +126,8 @@ corpus. Failures are recorded, the run continues, and sync exits non-zero listin
 | `--extract BACKEND` | Override `[extraction] backend` for this run only. Validated against the registry *without importing* it, so an unknown name is a usage error before any extra could matter |
 | `--estimate-only` | Price what a paid run would cost and exit, extracting nothing. **A network call** — it measures the real first-slice request with the vendor's own token counter, so it needs a key. It generates nothing and bills no output. Refuses on a free backend |
 | `--force` | Overrules **exactly two** refusals: paying to extract a PDF whose free text layer is already healthy, and — **only together with an explicit free `--extract`** — overwriting a paid extraction, printing what it discards. It never widens `per_operation_eur`, `daily_eur`, `monthly_eur`, the stale-price refusal, the missing-floor refusal, or the no-terminal abort |
-| `--clear-cache[=paid]` | Empty `cache/extract/` entirely — paid or free, active or orphaned — after printing the entry count, the bytes, **and what the paid entries cost in euros**, and requiring a `y`. Never touches `ledger.jsonl`. `=paid` is the explicit authorisation to destroy entries a paid backend wrote. The bare form is `=all` spelled out — both clear the whole cache, so the value names what you are authorising, not what is removed |
+| `--clear-cache[=paid]` | Empty `cache/extract/` entirely — paid or free, active or orphaned — after printing the entry count, the bytes, **and what the paid entries cost in euros**, and requiring a `y`. Never touches `ledger.jsonl`, and never touches a [deep-run transcript](#pnk-ask---deep). `=paid` is the explicit authorisation to destroy entries a paid backend wrote. The bare form is `=all` spelled out — both clear the whole cache, so between those two the value names what you are authorising, not what is removed |
+| `--clear-cache=transcripts` | The one value that names a **different store**: empty `.pinakes/deep/` — the record of what each paid `pnk ask --deep` was asked and what it answered — and nothing else. Same prompt shape, different sentence, because the loss is a different kind: an extraction can be bought again, and the record of what a particular run was asked cannot. The extraction cache is untouched, in both directions |
 | `--yes` | Answer this run's confirmation prompts, for cron. **Raises no cap**, and does not authorise clearing paid cache entries — that needs `--clear-cache=paid` as well |
 | `--force-unlock` | Take a lock held by another machine. Liveness cannot be checked across hosts, so this is deliberately a human decision |
 | `-q`, `--quiet` | Print only problems |
@@ -244,6 +245,7 @@ ever runs:
 | Key | Value |
 |---|---|
 | `answer` | `null` without `--deep`; the [answer object](#pnk-ask---deep) with it. **The key is always present**, so one schema parses either way |
+| `transcript` | Where the run's [transcript](#the-transcript) landed, relative to the KB root — `null` when nothing was paid for. Present on every form of the command, like `answer` |
 | `escalation.branch` | `synthesis`, `decomposition`, `unknown`, or `none` when nothing matched. **The field to discriminate on** — never the sentence |
 | `escalation.work` | That sentence, the same one the human output prints |
 | `escalation.cost_eur` | What `--deep` would cost on this branch, worst case, as a **string** at the cent — `null` when it cannot be priced (a stale price table, an unpriceable `[deep] model`). A string because JSON has no decimal type and a float would reintroduce the error `Decimal` exists to avoid |
@@ -309,6 +311,7 @@ The signal is a threshold on the top reranker score, fitted against a golden set
 answered in one synthesis call — the calibrated signal said the retrieved evidence was
 already enough, so no decomposition was paid for.
 1 paid call(s), €0.08 spent against an estimated €0.26 worst case. `pnk budget` has the record.
+what was asked and what came back is kept in .pinakes/deep/01K2ZQ…ZQ.json
 ```
 
 **Citation numbers are per block, and are not renumbered.** Each round's `[n]` indexes the passages
@@ -325,11 +328,29 @@ therefore printed under the text that cites them.
 | `rounds_used`, `stopped_by` | How many rounds were paid for, and what ended it: `answered`, `sufficient`, `round-cap`, `no-new-subproblems`, `no-evidence`, `budget` |
 | `label` | The same sentence the human output prints |
 | `partial` | The run halted at a budget window with `on_exceed = "partial"` |
-| `calls`, `estimated_eur`, `spent_eur` | What it cost against what was reserved. Money as strings, at the cent |
+| `calls`, `call_ids`, `estimated_eur`, `spent_eur` | What it cost against what was reserved. Money as strings, at the cent. `call_ids` are the ledger's join key, so a script can price the run against `pnk budget` without re-deriving anything |
 | `blocks[]` | Per answering call: `round`, `asked`, `text`, and `citations[]` of `{number, doc_id, path, citation}` |
 
 **Exit codes**: `0` when it answered, `1` when it did not — including a run that made calls and
 produced nothing, which is not an error (the money is accounted for) but is not a success either.
+
+### The transcript
+
+Every paid run writes `.pinakes/deep/<operation_id>.json` and names it in the output. **The ledger
+stores no query text**, so without this nothing on disk would say what a `pnk budget` row was *for*
+— and a cron run's `--json` is gone the moment the pipe closes.
+
+It holds the question, the filters as you typed them, the confidence reading that chose the branch,
+the model and prompt version that produced the answer, and the answer object above — byte for byte
+the one `--json` prints. The filename is the `operation_id` the ledger groups its calls by, so a row
+and its transcript meet without searching.
+
+| | |
+|---|---|
+| **Written for** | a run that returned. A refusal, a declined confirmation and an `on_exceed = "abort"` halt write none — `abort` discards the rounds already paid for, and a file holding what it discarded would hand back exactly what the setting withholds. Their spend is in the ledger either way |
+| **Protected like a paid cache entry** | nothing sweeps it, `--rebuild` leaves it, and `pnk sync --clear-cache` — bare or `=paid` — does not touch it |
+| **Removed by** | `pnk sync --clear-cache=transcripts`, and nothing else |
+| **KB-local** | it holds your question and prose about your documents. It never leaves `.pinakes/`, which `pnk init` gitignores ([INVARIANTS](INVARIANTS.md)) |
 
 ### Two rules it will not bend
 

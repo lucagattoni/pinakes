@@ -1001,6 +1001,10 @@ def _clear_transcripts(manifest: Manifest, options: SyncOptions) -> SyncReport:
 
     **Every transcript is a paid record**, which is why the paid counters are filled from the same
     count rather than from a classification: a transcript exists only for a run that made calls.
+
+    **The sync lock this runs under does not bound `pnk ask --deep`, which takes none** — so a run
+    finishing mid-clear keeps its transcript. That is the safe direction and it is left open: this
+    removes what was on disk when it looked, and the survivor records a run nobody asked to forget.
     """
     from pinakes.deep import transcript
 

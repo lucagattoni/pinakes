@@ -404,6 +404,7 @@ never re-used [2].
 answered in one synthesis call — the calibrated signal said the retrieved evidence was
 already enough, so no decomposition was paid for.
 1 paid call(s), €0.08 spent against an estimated €0.26 worst case. `pnk budget` has the record.
+what was asked and what came back is kept in .pinakes/deep/01K2ZQ…ZQ.json
 ```
 
 **The confidence decides the price, not whether you get an answer.** `--deep` is you asking to
@@ -451,6 +452,25 @@ costs one call instead of a loop.
 Every blocked window at once, with the exact edit — because raising one cap, retrying, and
 discovering the next is the experience that shape exists to avoid. `pnk upgrade` will show you the
 new defaults as a proposed change too, and will not apply it without `--apply`.
+
+### What the run leaves behind
+
+That last line is a file, and it is the only place your question is written down: the spend ledger
+deliberately records no query text, so a `pnk budget` row on its own cannot say what it was for. The
+transcript sits beside it under `.pinakes/deep/`, named after the same `operation_id`, holding what
+you asked, what narrowed it, which confidence reading chose the branch, and the answer with its
+citations.
+
+It cost money to produce, so nothing sweeps it away: `pnk sync --rebuild` leaves it, and so does
+`pnk sync --clear-cache`. When you do want it gone:
+
+```bash
+pnk sync --clear-cache=transcripts --kb my-kb
+```
+
+That empties `.pinakes/deep/` and touches nothing else — and it asks first, because unlike an
+extraction, a record of what a particular run was asked cannot be bought back. `.pinakes/` is
+gitignored from `pnk init` onward, so none of this reaches your repository.
 
 **What it will not do.** A subproblem it writes is a search query against *your* KB with *your*
 filters — never a path, never another KB — so a document telling the model to go and read

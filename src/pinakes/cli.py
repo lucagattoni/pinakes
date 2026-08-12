@@ -1472,8 +1472,10 @@ def _run_clear_cache(loaded: Manifest, args: argparse.Namespace) -> int:
             loaded,
             options=SyncOptions(
                 clear_cache=True,
-                # Re-called with the *same target* the prompt described. Carrying `clear_cache_paid`
-                # into a transcripts run would authorise a store the user was never asked about.
+                # Re-called with the *same target* the prompt described. `_clear_cache` branches on
+                # the target first, so `clear_cache_paid` is already dead on a transcripts run —
+                # this passes `False` anyway rather than relying on that: an authorisation nobody
+                # was asked for should not sit in the options waiting for a branch order to change.
                 clear_cache_paid=not transcripts,
                 clear_cache_transcripts=transcripts,
                 yes=True,
