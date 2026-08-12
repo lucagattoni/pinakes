@@ -21,10 +21,12 @@ precision nobody measured.
 
 - **38 releases in 18 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
   [`0.25.0`](#0250--a-paid-run-leaves-a-record-of-what-it-was-asked--20260812-0531) on 20260812.
-- **Latest on PyPI: `0.24.0`**, confirmed by installing it from the index rather than by reading a
-  green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)). Every release from
-  `0.2.2` on is published — thirty. **`0.25.0` is tagged; verify it on the index before claiming
-  it.**
+- **Latest on PyPI: `0.25.0`**, confirmed by installing it from the index rather than by reading a
+  green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by importing
+  `pinakes.deep.transcript` out of the published wheel, because a matching version string says
+  nothing about whether the release's own subject is inside it. Every release from `0.2.2` on is
+  published — **thirty-one**, counted from the index's own `json` endpoint rather than from this
+  list's previous number.
 - **Two of the four named releases have shipped, and a third has started.** The links release across
   [`0.5.0`](#050--links-you-can-walk--20260731-1127)–[`0.6.0`](#060--links-you-can-write--20260801-1051),
   the graph release in [`0.11.0`](#the-graph-release--shipped-0110). **The template release has
