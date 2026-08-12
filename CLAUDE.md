@@ -155,10 +155,14 @@ file" there ([`docs/README.md`](docs/README.md) tells them apart).
     - **A plan's open decision is what the *plan* has not settled — not what the *repository* has not settled.** D-4 sat open while `manifest.py` had already answered it one line below `VECTOR_TIERS`. Read the sibling key before the decision table.
     - **Read a plan's test list as part of its specification, not as an illustration of it.** Where a plan's prose and its test list disagree, the test list has been forced to be concrete and the prose has not — T7's containment rule named only the target while its test list required refusing a symlink in the template, and both layers were real.
 
-- **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) is empty
-  as of 0.22.0** — for the second time in its life. It emptied once before, on 20260805, and
-  **refilled twice within three days**, so read an empty list as *nobody has run Pinakes lately*,
-  never as *finished*. Add to it when something bites.
+- **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) holds one
+  live item, added by E5** — `pnk init`'s gitignore warning is the only thing keeping `.pinakes/`
+  out of a repository, and E5 put the user's verbatim question in there. **It is not urgent and the
+  item says why** (an unprotected `.pinakes/` already commits the whole index), but its *required
+  text is undecided* — whether `pnk doctor` carries the check, and at what level — so it is a
+  decision, not a task. The list emptied twice before, on 20260805 and at 0.22.0, and **refilled
+  within days both times**: read an empty list as *nobody has run Pinakes lately*, never as
+  *finished*.
   - **Two of the last four had stood behind premises that were simply false**, and that is the
     reusable part: one called the full fix unavailable, one called a free operation a paid one, and
     running the code refuted both. **An item that reads as a decision may only be an unchecked
