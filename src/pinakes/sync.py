@@ -114,6 +114,17 @@ from pinakes.sidecar import (
 
 type BackendFactory = Callable[[Manifest, bool], EmbeddingBackend]
 
+CLEAR_EXTRACTIONS = "extractions"
+"""`--clear-cache` and `--clear-cache=paid`: the extraction cache, `.pinakes/cache/extract/`."""
+
+CLEAR_TRANSCRIPTS = "transcripts"
+"""`--clear-cache=transcripts`: the deep-run records under `.pinakes/deep/` (E5), and nothing else.
+
+Named as a target rather than layered as a third authorisation on the same store, because
+`--clear-cache` and `--clear-cache=paid` both clear the *whole* extraction cache and differ only in
+what they authorise. A value that also removed transcripts would destroy more than it names; a value
+that *only* removes transcripts is the one thing the flag could not otherwise say."""
+
 
 @dataclass(frozen=True, slots=True)
 class SyncOptions:
@@ -141,6 +152,11 @@ class SyncOptions:
     """`--clear-cache=paid` (I6b): authorises destroying entries a paid backend wrote. `yes` alone
     does not, so `pnk sync --yes --clear-cache` in a cron job cannot throw away paid extractions
     unattended."""
+    clear_cache_transcripts: bool = False
+    """`--clear-cache=transcripts` (E5): the *other store* under `.pinakes/` this mode can empty —
+    the deep-run transcripts, and only those. Not an authorisation like `clear_cache_paid` but a
+    target: an extraction cache and a record of what was asked are protected separately, and a user
+    who asked to drop one has not asked to drop the other."""
     yes: bool = False  # answer the confirmations this run owes (cron use); raises no cap
     force: bool = False
     """Only meaningful together with an explicit `extract=` naming a *free* backend (I5): the one
@@ -289,6 +305,12 @@ class SyncReport:
 
     on_exceed: str = "abort"
     """Copied from the manifest so `ok` can read it without the manifest in hand."""
+    cache_clear_target: str = CLEAR_EXTRACTIONS
+    """Which store the `cache_*` fields above are counting — `CLEAR_EXTRACTIONS` or
+    `CLEAR_TRANSCRIPTS` (E5). One set of counters for both, because the shape of the outcome is
+    identical (found this many, removed them or asked first); one field naming the store, because
+    the *sentences* are not — an extraction can be re-created by paying again, and a record of what
+    a particular run was asked cannot be re-created at all."""
     cache_pending_paid_eur: str = "0.0000"
     """What those entries cost, joined from the ledger on each entry's `call_ids` (I7c).
 
@@ -931,23 +953,36 @@ def paid_cache_spend(manifest: Manifest, cache_dir: Path) -> str:
 
     Joined on each entry's own `call_ids`. **Not** on `operation_id`, which the draft specified and
     which cannot work: one operation extracts many documents, so an operation id prices a *run* and
-    would attribute the whole run's spend to every document in it.
+    would attribute the whole run's spend to every document in it. `ledger_spend` deduplicates.
+    """
+    entries = extract_cache.paid_entries(cache_dir)
+    return ledger_spend(manifest, {call_id for entry in entries for call_id in entry.call_ids})
 
-    Call ids are deduplicated across entries before summing — an id counted twice would overstate
-    what is about to be lost, and overstating it is not the safe direction either: a number a user
-    can see is wrong is a number they stop reading.
+
+def transcript_spend(manifest: Manifest) -> str:
+    """What the runs the transcripts on disk record cost, in euros, from the ledger (E5).
+
+    The same join as `paid_cache_spend` above, on the ids each transcript names — and from the
+    ledger for the same reason: a `--resolve` that closed an unknown outcome after the run moves
+    the number, and the transcript's own copy of it does not.
+    """
+    from pinakes.deep import transcript
+
+    return ledger_spend(manifest, transcript.call_ids(manifest.state_dir))
+
+
+def ledger_spend(manifest: Manifest, wanted: set[str]) -> str:
+    """The ledger's effective total over exactly these `call_id`s.
+
+    A set, so an id named by two entries is counted once — double-counting overstates what is about
+    to be lost, and that is not the safe direction either: a number a user can see is wrong is a
+    number they stop reading.
     """
     from pinakes.budget import ledger
-
-    entries = extract_cache.paid_entries(cache_dir)
-    if not entries:
-        return "0.0000"
-    wanted = {call_id for entry in entries for call_id in entry.call_ids}
-    if not wanted:
-        return "0.0000"
-
     from pinakes.budget.summary import euros
 
+    if not wanted:
+        return "0.0000"
     resolved = ledger.resolve(ledger.read(ledger.ledger_path(manifest.state_dir)).records)
     total = sum(
         (call.effective_eur for call in resolved.calls if call.call_id in wanted),
@@ -956,10 +991,47 @@ def paid_cache_spend(manifest: Manifest, cache_dir: Path) -> str:
     return euros(total)
 
 
+def _clear_transcripts(manifest: Manifest, options: SyncOptions) -> SyncReport:
+    """`--clear-cache=transcripts`: remove every deep-run transcript, and nothing else (E5).
+
+    **One authorisation, not two.** The extraction cache needs a second because `--yes` alone must
+    not let a cron line destroy paid extractions it never mentioned; here the *value* is already the
+    explicit mention — nobody types `=transcripts` by accident, and there is no bare form that
+    reaches this store. So `--yes` (or a confirmed prompt) is the whole of it.
+
+    **Every transcript is a paid record**, which is why the paid counters are filled from the same
+    count rather than from a classification: a transcript exists only for a run that made calls.
+    """
+    from pinakes.deep import transcript
+
+    pending_entries, pending_bytes = transcript.stats(manifest.state_dir)
+    if pending_entries == 0:
+        return SyncReport(
+            cache_cleared=0, cache_cleared_bytes=0, cache_clear_target=CLEAR_TRANSCRIPTS
+        )
+    if not options.yes:
+        return SyncReport(
+            cache_clear_aborted=True,
+            cache_clear_target=CLEAR_TRANSCRIPTS,
+            cache_pending_entries=pending_entries,
+            cache_pending_bytes=pending_bytes,
+            cache_pending_paid_entries=pending_entries,
+            cache_pending_paid_eur=transcript_spend(manifest),
+        )
+    removed, removed_bytes = transcript.clear_all(manifest.state_dir)
+    return SyncReport(
+        cache_cleared=removed,
+        cache_cleared_bytes=removed_bytes,
+        cache_clear_target=CLEAR_TRANSCRIPTS,
+    )
+
+
 def _clear_cache(manifest: Manifest, options: SyncOptions) -> SyncReport:
     """`--clear-cache`'s whole effect. No prompt lives here (§ module docstring's own I/O rule):
     the caller (`cli.py`) checks a TTY and asks the user, then re-calls with `yes=True` — this
     function only ever does the deletion, and only when told to."""
+    if options.clear_cache_transcripts:
+        return _clear_transcripts(manifest, options)
     cache_dir = manifest.extract_cache_dir
     pending_entries, pending_bytes = extract_cache.total_stats(cache_dir)
     if pending_entries == 0:
