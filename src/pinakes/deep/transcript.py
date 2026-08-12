@@ -18,11 +18,15 @@ returned to no caller that could forward it.
 filters arrive as a mapping the caller already built, so the whole module is a pure serialisation
 of a `DeepAnswer` plus an envelope — which is what makes a transcript testable without a run.
 
-**A transcript records a run that produced an answer, and only that.** A run that was refused by a
-budget window, declined at the confirmation, or halted with `[budget] on_exceed = "abort"` writes
-none: `abort`'s whole meaning is that the rounds already paid for are *discarded* (D-23), and a file
-holding the prose it discarded would hand back what the setting exists to withhold. Their spend is
-in the ledger, where it belongs, and `pnk budget` names them as `ask` rows with no transcript.
+**A transcript records a run that *returned* — answer or not.** A run that decomposed into nothing
+made its calls, was billed and produced no prose, and that is the case a record is worth most in:
+nothing on screen explains the `pnk budget` row, so this file is the only thing that can.
+
+**What writes none** is a run that never returned: refused by a budget window, declined at the
+confirmation, or halted with `[budget] on_exceed = "abort"`. `abort`'s whole meaning is that the
+rounds already paid for are *discarded* (D-23), and a file holding the prose it discarded would hand
+back what the setting exists to withhold. Their spend is in the ledger, where it belongs, and
+`pnk budget` shows them as `ask` rows with no transcript beside them.
 """
 
 import json
@@ -35,13 +39,13 @@ from typing import TYPE_CHECKING, Any, Final, cast
 from pinakes.budget.reserve import display_eur
 from pinakes.ids import is_id
 
-if TYPE_CHECKING:  # pragma: no cover — typing only, and deliberately so: see below
+# **`DeepAnswer` is imported for typing only, and that is load-bearing.** `deep/loop.py` imports
+# `deep/client.py` — the module `tests/test_paid_path.py` asserts never reaches the MCP surface or a
+# free command. A runtime import here would drag it into every process that so much as writes or
+# reads a transcript path.
+if TYPE_CHECKING:  # pragma: no cover
     from pinakes.deep.loop import DeepAnswer
 
-#: **`DeepAnswer` is imported for typing only, and that is load-bearing.** `deep/loop.py` imports
-#: `deep/client.py`, the module `tests/test_paid_path.py` asserts never reaches the MCP surface or a
-#: free command. A runtime import here would drag it into every process that so much as writes or
-#: reads a transcript path.
 
 TRANSCRIPTS_DIRNAME: Final = "deep"
 """Under `.pinakes/`, beside `cache/` and `ledger.jsonl` — not *inside* `cache/`, because
