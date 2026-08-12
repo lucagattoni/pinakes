@@ -716,7 +716,7 @@ def run_ask(args: argparse.Namespace) -> int:
         # for. Relative to the KB root, never absolute — a transcript is KB-local (D-26), and
         # printing where *this machine* keeps the KB would put a fact about the machine into a
         # script's input.
-        payload["transcript"] = str(run.relative_transcript) if run is not None else None
+        payload["transcript"] = run.relative_transcript if run is not None else None
         payload["escalation"] = {
             "branch": escalation.branch,
             "work": escalation.work,
@@ -756,9 +756,12 @@ class _DeepRun:
     """
 
     answer: "DeepAnswer"
-    relative_transcript: Path
-    """Where the transcript landed, relative to the KB root — the form that is printed. It is inside
-    `.pinakes/` by construction (E5), so this never escapes the KB."""
+    relative_transcript: str
+    """Where the transcript landed, relative to the KB root — the form both surfaces print.
+
+    A POSIX string, computed once: the citations above it are printed KB-relative too, so a reader
+    already reads paths that way, and `--json` must not carry a separator that depends on which
+    machine ran the command. It is inside `.pinakes/` by construction (E5), so it never escapes."""
 
 
 def _run_deep(
@@ -841,7 +844,10 @@ def _run_deep(
             now=now,
         ),
     )
-    return _DeepRun(answer=answer, relative_transcript=written.relative_to(pipeline.manifest.root))
+    return _DeepRun(
+        answer=answer,
+        relative_transcript=written.relative_to(pipeline.manifest.root).as_posix(),
+    )
 
 
 def _filters_payload(args: argparse.Namespace) -> dict[str, object]:
@@ -916,7 +922,7 @@ what make the difference checkable.
 """
 
 
-def _print_answer(deep: "DeepAnswer", transcript: Path) -> None:
+def _print_answer(deep: "DeepAnswer", transcript: str) -> None:
     """The paid run's own output, under the free evidence that produced it.
 
     **The answer first, then how the run ended.** The label is provenance — which bound stopped it,
@@ -1448,9 +1454,16 @@ def _run_clear_cache(loaded: Manifest, args: argparse.Namespace) -> int:
             # A different sentence from the cache's, because the loss is a different kind. An
             # extraction can be bought again; the record of what a particular run was asked and
             # what it answered cannot — paying again buys a *new* run, not this one back.
+            #
+            # **The count leads and the euros follow**, deliberately. The count is a fact about the
+            # files in front of it; the euro figure is a join against the ledger, and a join that
+            # resolves nothing — a deleted `ledger.jsonl`, ids closed by nothing — returns 0.0000.
+            # Led with, that reads as *these cost nothing*, which is the opposite of the warning,
+            # at the one moment it has to land.
             print(
-                f"they record €{report.cache_pending_paid_eur} of paid runs, and nothing "
-                "re-creates them — the ledger keeps the spend, but what was asked is only here."
+                f"they are the record of {paid} paid run(s), €{report.cache_pending_paid_eur} in "
+                "the ledger. Nothing re-creates them — the ledger keeps the spend, but what was "
+                "asked is only here."
             )
         elif paid:
             print(

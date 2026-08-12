@@ -149,6 +149,8 @@ def test_the_envelope_records_what_the_run_was_asked_not_only_what_it_answered(
     assert body["response_schema_version"] == 1
     assert body["model"] == "claude-opus-5"
     assert body["written_at"] == "20260812 04:43"
+    # Which build wrote it: a prompt version says what was asked, and this says what asked it.
+    assert body["pinakes_version"] == "0.24.0"
 
 
 def test_money_is_a_string_of_cents_never_a_float(state_dir: Path) -> None:
@@ -389,7 +391,10 @@ def test_the_cli_refuses_unattended_without_a_yes_and_names_the_flags_that_would
     captured = capsys.readouterr()
 
     assert "this will remove 1 transcripts" in captured.out
-    assert "nothing re-creates them" in captured.out
+    assert "they are the record of 1 paid run(s)" in captured.out
+    # The count leads: the euro figure is a join against the ledger, and a join resolving
+    # nothing would otherwise open the warning with "€0.0000".
+    assert "Nothing re-creates them" in captured.out
     assert "re-run with --yes --clear-cache=transcripts" in captured.err
     assert _transcripts(kb_with_a_transcript) == 1
 
