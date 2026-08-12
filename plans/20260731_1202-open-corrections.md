@@ -66,10 +66,30 @@ default *on a corpus where three of the seven edge kinds derived zero edges*.
 
 ## Live
 
-**Empty as of 0.22.0 (20260811).** The four that stood here on 20260810 were all answered on
-20260811 and all four are built. It has been empty once before, on 20260805 22:18, and refilled
-twice within three days — **an empty list means nobody has run Pinakes lately, never that it is
+**It emptied at 0.22.0 (20260811) and refilled the next day, from E5** — the third time in its
+life, and again within days. **An empty list means nobody has run Pinakes lately, never that it is
 finished.** Add to it when something bites.
+
+### `pnk init`'s gitignore warning is the only thing keeping a KB's `.pinakes/` out of a repository, and E5 raised what is in there
+
+**What is true.** `pnk init` checks an *adopted* `.gitignore` for `.pinakes/` and, if it is missing,
+prints the line to add (`init.py: gitignore_unprotected`, `cli.py:133`). That warning is printed
+once, at creation, and nothing checks again — not `pnk doctor`, not `pnk sync`, not `pnk ask`.
+
+**What E5 changed.** `.pinakes/deep/<operation_id>.json` is the first file under `.pinakes/` holding
+the user's **verbatim question**. The ledger deliberately holds none (DESIGN § 5), and that is why
+the transcript exists at all.
+
+**Why it is here and not marked urgent.** It is not a new *class* of exposure: an unprotected
+`.pinakes/` already commits `index.db`, which holds every chunk of every document. The question text
+is new; the document content is not. So this is a *strengthening* of an existing warning, not a hole
+E5 opened.
+
+**Required text — undecided, and that is the item.** The obvious home is a `pnk doctor` check
+(`.pinakes/` reachable by git), which would fire on every run rather than once. Whether doctor should
+carry it, and whether it is a WARN or an OK-with-a-note, is exactly the shape of judgement this file
+says an implementer may not take — the heading-coverage item below records what an un-actionable
+permanent WARN costs. **Decide before building.**
 
 ---
 

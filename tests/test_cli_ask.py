@@ -31,6 +31,7 @@ from pinakes.cli import (
     DEEP_OFFER,
     NO_ANSWER_FROM_A_PAID_RUN,
     NO_ANSWER_SYNTHESISED,
+    TRANSCRIPT_PREFIX,
     main,
 )
 from pinakes.embed import (
@@ -351,8 +352,12 @@ def test_json_carries_a_null_answer_and_an_escalation_block(
         "passages",
         "answer",
         "escalation",
+        "transcript",
     }
     assert payload["answer"] is None
+    # Present and `null` for the same reason `answer` is: one schema parses either way, and a free
+    # run wrote no transcript because it paid for nothing (E5).
+    assert payload["transcript"] is None
     assert set(payload["escalation"]) == {"branch", "work", "cost_eur", "remedy"}
     assert payload["escalation"]["branch"] == "synthesis"
     # A string, never a float: JSON has no decimal type, and a float here would reintroduce the
@@ -579,6 +584,7 @@ def test_the_json_answer_object_carries_the_blocks_the_citations_and_the_money(
         "label",
         "partial",
         "calls",
+        "call_ids",
         "estimated_eur",
         "spent_eur",
         "blocks",
@@ -586,6 +592,9 @@ def test_the_json_answer_object_carries_the_blocks_the_citations_and_the_money(
     assert answer["branch"] == "synthesis"
     assert answer["stopped_by"] == "answered"
     assert answer["calls"] == 1
+    # The ledger's join key, so a script reading this can price the run against `pnk budget`
+    # without re-deriving anything — and the reason the transcript can be priced at all (E5).
+    assert len(answer["call_ids"]) == answer["calls"]
     assert answer["partial"] is False
     assert answer["text"] == answer["blocks"][0]["text"]
 
@@ -693,3 +702,140 @@ def test_the_json_surface_reports_the_same_outcome_as_the_human_one(
     answer = json.loads(capsys.readouterr().out)["answer"]
     assert answer["blocks"] == []
     assert answer["stopped_by"] == "no-new-subproblems"
+
+
+# ---------------------------------------------------------------------------------------------
+# The transcript (E5)
+# ---------------------------------------------------------------------------------------------
+
+
+def _transcripts(root: Path) -> list[Path]:
+    from pinakes.deep import transcript
+
+    return list(transcript.paths(root / ".pinakes"))
+
+
+def test_a_paid_run_leaves_a_transcript_and_says_where(
+    confident_kb: Path, scripted: Callable[..., _Script], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """D-26 option A, end to end. The file is named in the output because it was *written*: it
+    holds the question and the model's prose about this KB's documents, and a user who caused that
+    should be told once — beside the cost, which is the other thing the run left behind.
+    """
+    scripted("answer-cited")
+
+    assert main(["ask", "sourdough", "--kb", str(confident_kb), "--deep", "--yes"]) == 0
+    out = capsys.readouterr().out
+
+    written = _transcripts(confident_kb)
+    assert len(written) == 1
+    assert f"{TRANSCRIPT_PREFIX}.pinakes/deep/{written[0].name}" in out
+
+    body = json.loads(written[0].read_text(encoding="utf-8"))
+    assert body["question"] == "sourdough"
+    assert body["confidence"] == "high"
+    assert body["answer"]["branch"] == "synthesis"
+    assert body["answer"]["blocks"][0]["citations"], "the citations resolved to documents"
+
+
+def test_the_transcript_is_filed_under_the_operation_id_the_ledger_recorded(
+    confident_kb: Path, scripted: Callable[..., _Script]
+) -> None:
+    """The join `pnk budget` needs: the ledger stores no query text, so the row and the file have
+    to meet on the id. Read out of the ledger rather than out of the accountant, because what
+    matters is that the two *files on disk* agree."""
+    scripted("answer-cited")
+    assert main(["ask", "sourdough", "--kb", str(confident_kb), "--deep", "--yes"]) == 0
+
+    records = [
+        json.loads(line)
+        for line in (confident_kb / ".pinakes" / "ledger.jsonl").read_text().splitlines()
+        if line.strip()
+    ]
+    operations = {record["operation_id"] for record in records}
+    assert operations == {_transcripts(confident_kb)[0].stem}
+    assert {record["operation"] for record in records} == {"ask"}
+
+
+def test_the_transcript_records_the_filters_the_run_was_narrowed_by(
+    confident_kb: Path, scripted: Callable[..., _Script]
+) -> None:
+    """D-27: the same question under a filter is a different run at a different price, so a record
+    of what was asked that omitted them could not be re-run."""
+    scripted("answer-cited")
+    argv = ["ask", "sourdough", "--kb", str(confident_kb), "--deep", "--yes", "--path-prefix", "d"]
+    assert main(argv) == 0
+
+    body = json.loads(_transcripts(confident_kb)[0].read_text(encoding="utf-8"))
+    assert body["filters"]["path_prefix"] == "d"
+    assert body["filters"]["tags"] == []
+
+
+def test_the_transcripts_answer_object_is_what_json_printed(
+    confident_kb: Path, scripted: Callable[..., _Script], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The same object on stdout and on disk — and `--json` names the file, relative to the KB
+    root, so a script never has to guess where it went."""
+    scripted("answer-cited")
+
+    assert main(["ask", "sourdough", "--kb", str(confident_kb), "--deep", "--yes", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    written = _transcripts(confident_kb)[0]
+    assert payload["transcript"] == f".pinakes/deep/{written.name}"
+    assert json.loads(written.read_text(encoding="utf-8"))["answer"] == payload["answer"]
+
+
+@pytest.mark.parametrize("extra", [[], ["--json"]])
+def test_a_free_ask_writes_no_transcript(
+    confident_kb: Path, extra: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """It paid for nothing, so there is nothing to record — and the directory is never created."""
+    assert main(["ask", "sourdough", "--kb", str(confident_kb), *extra]) == 0
+    capsys.readouterr()
+
+    assert not (confident_kb / ".pinakes" / "deep").exists()
+
+
+def test_a_run_that_was_never_authorised_writes_no_transcript(
+    confident_kb: Path, scripted: Callable[..., _Script], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Nothing was sent and nothing was spent, so there is no run to record. The transcript is
+    written after `run_deep` returns, which is exactly why a refusal leaves none."""
+    script = scripted("answer-cited")
+
+    assert main(["ask", "sourdough", "--kb", str(confident_kb), "--deep"]) == 1
+    capsys.readouterr()
+
+    assert script.calls == 0
+    assert not (confident_kb / ".pinakes" / "deep").exists()
+
+
+def test_a_paid_run_with_no_answer_still_leaves_a_transcript(
+    kb: Path, scripted: Callable[..., _Script], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The case the record is worth most in: money was spent and there is nothing on screen to
+    show for it, so the only thing that can explain the `pnk budget` row is this file."""
+    scripted("decompose-empty")
+
+    assert main(["ask", "sourdough", "--kb", str(kb), "--deep", "--yes"]) == 1
+    capsys.readouterr()
+
+    body = json.loads(_transcripts(kb)[0].read_text(encoding="utf-8"))
+    assert body["question"] == "sourdough"
+    assert body["answer"]["blocks"] == []
+    assert body["answer"]["calls"] == 1
+    assert body["confidence"] == "unknown"
+
+
+def test_two_runs_leave_two_transcripts(
+    confident_kb: Path, scripted: Callable[..., _Script], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """One per operation, keyed on the id — a second run does not overwrite the first, which is
+    what a fixed filename would have done."""
+    for _ in range(2):
+        scripted("answer-cited")
+        assert main(["ask", "sourdough", "--kb", str(confident_kb), "--deep", "--yes"]) == 0
+    capsys.readouterr()
+
+    assert len(_transcripts(confident_kb)) == 2

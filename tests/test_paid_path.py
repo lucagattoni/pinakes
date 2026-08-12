@@ -435,6 +435,13 @@ def test_the_free_path_reaches_the_estimator_and_still_not_the_client(tmp_path: 
         "the free `pnk ask` no longer reaches the estimator — either it stopped pricing the run it "
         "offers, or this gate stopped covering `pnk ask`"
     )
+    # E5 gave the free path a *second* module in that package: `pnk sync --clear-cache=transcripts`
+    # reads and empties `.pinakes/deep/`. Two siblings of `pinakes.deep.client` are now reachable
+    # without spending, which makes the `__init__` importing nothing load-bearing twice over.
+    assert "pinakes.deep.transcript" in modules, (
+        "the free path no longer reaches the transcript module — either "
+        "`--clear-cache=transcripts` stopped reading it, or this gate stopped covering it"
+    )
     _assert_no_deep_client(modules)
 
 

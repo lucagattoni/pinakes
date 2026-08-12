@@ -704,13 +704,19 @@ def run_ask(args: argparse.Namespace) -> int:
         result = pipeline.search(args.query)
         escalation = _escalation(result, manifest=pipeline.manifest, final_k=pipeline.final_k)
         # Inside the block: the loop retrieves once per subproblem, through this same open index.
-        deep = _run_deep(args, pipeline, result, escalation) if args.deep else None
+        run = _run_deep(args, pipeline, result, escalation) if args.deep else None
+    deep = run.answer if run is not None else None
 
     if args.json:
         payload = _retrieval_payload(result)
         # `answer` is a key in every form of this command — `null` when nothing was paid for, an
         # object when a run produced one — so a consumer parses one schema either way (E1).
         payload["answer"] = _answer_payload(deep) if deep is not None else None
+        # `transcript` is the same shape of promise: always present, `null` when nothing was paid
+        # for. Relative to the KB root, never absolute — a transcript is KB-local (D-26), and
+        # printing where *this machine* keeps the KB would put a fact about the machine into a
+        # script's input.
+        payload["transcript"] = run.relative_transcript if run is not None else None
         payload["escalation"] = {
             "branch": escalation.branch,
             "work": escalation.work,
@@ -728,9 +734,9 @@ def run_ask(args: argparse.Namespace) -> int:
         print("no passages matched.")
 
     print(f"confidence: {result.confidence} — {result.confidence_reason}")
-    if deep is not None:
-        _print_answer(deep)
-        return EXIT_OK if deep.answered else EXIT_FAILURE
+    if run is not None:
+        _print_answer(run.answer, run.relative_transcript)
+        return EXIT_OK if run.answer.answered else EXIT_FAILURE
 
     print(NO_ANSWER_SYNTHESISED)
     print(escalation.work)
@@ -740,13 +746,31 @@ def run_ask(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+@dataclass(frozen=True, slots=True)
+class _DeepRun:
+    """One paid run and the file it left behind — what `run_ask` needs after the index is closed.
+
+    A pair rather than two returns, because the transcript's whole point is that it is *this* run's:
+    handing the answer and the path back separately is how a later edit prints one run's cost beside
+    another run's path.
+    """
+
+    answer: "DeepAnswer"
+    relative_transcript: str
+    """Where the transcript landed, relative to the KB root — the form both surfaces print.
+
+    A POSIX string, computed once: the citations above it are printed KB-relative too, so a reader
+    already reads paths that way, and `--json` must not carry a separator that depends on which
+    machine ran the command. It is inside `.pinakes/` by construction (E5), so it never escapes."""
+
+
 def _run_deep(
     args: argparse.Namespace,
     pipeline: _Retrieval,
     result: "SearchResult",
     escalation: _Escalation,
-) -> "DeepAnswer":
-    """Build one operation's accountant and run the loop (E4).
+) -> _DeepRun:
+    """Build one operation's accountant, run the loop (E4), and record what it did (E5).
 
     **Imported here and nowhere higher.** `pinakes.deep.client` is one of the two modules in this
     package permitted to construct a vendor client, and `tests/test_paid_path.py` runs the whole
@@ -755,13 +779,21 @@ def _run_deep(
 
     `operation="ask"` needs no ledger change: `operation` is already a free-form string whose own
     docstring names this value (M9).
+
+    **The transcript is written here, after `run_deep` returns, and only then.** The loop reads no
+    clock and opens no file by design, so the I/O belongs to the caller — and a run that never
+    returns an answer never writes one: a budget refusal, a declined confirmation and an
+    `on_exceed = "abort"` halt all raise past this line. That is deliberate for the last of the
+    three, whose meaning is that the rounds already paid for are discarded (D-23); their spend is
+    in the ledger either way.
     """
     from datetime import UTC, datetime
 
     from pinakes.budget.accountant import Accountant
     from pinakes.budget.estimate import TIMESTAMP_FORMAT
     from pinakes.budget.prices import load_prices
-    from pinakes.deep.client import default_transport
+    from pinakes.deep import transcript as transcript_module
+    from pinakes.deep.client import PROMPT_VERSION, SCHEMA_VERSION, default_transport
     from pinakes.deep.loop import NothingToAnswerError, run_deep
 
     if escalation.branch == "none":
@@ -777,7 +809,8 @@ def _run_deep(
         ask=input,
         yes=args.yes,
     )
-    return run_deep(
+    now = datetime.now(UTC).strftime(TIMESTAMP_FORMAT)
+    answer = run_deep(
         question=args.query,
         round0=result,
         branch=escalation.branch,
@@ -788,8 +821,49 @@ def _run_deep(
         # `[budget]` refuses says so instead of demanding an API key first.
         open_transport=default_transport,
         accountant=accountant,
-        now=datetime.now(UTC).strftime(TIMESTAMP_FORMAT),
+        now=now,
     )
+    written = transcript_module.write(
+        pipeline.manifest.state_dir,
+        transcript_module.record(
+            deep=answer,
+            operation_id=accountant.operation_id,
+            question=args.query,
+            filters=_filters_payload(args),
+            final_k=pipeline.final_k,
+            # Round 0's own reading, because it is *why* this run cost what it did: D-28 gives the
+            # branch to the free signal, so `high` bought one call and `unknown` bought a loop.
+            confidence=result.confidence,
+            confidence_reason=result.confidence_reason,
+            # The model the estimate priced and the calls used — not a second read of the manifest,
+            # which is how a transcript comes to name a model the run did not pay for.
+            model=answer.estimate.model,
+            prompt_version=PROMPT_VERSION,
+            response_schema_version=SCHEMA_VERSION,
+            pinakes_version=__version__,
+            now=now,
+        ),
+    )
+    return _DeepRun(
+        answer=answer,
+        relative_transcript=written.relative_to(pipeline.manifest.root).as_posix(),
+    )
+
+
+def _filters_payload(args: argparse.Namespace) -> dict[str, object]:
+    """The filters a run was narrowed by, as the user typed them (D-27).
+
+    The typed form rather than the resolved `Filters`, on purpose: `--modified-after 20260101`
+    resolves to an epoch float, and a transcript recording that would say what the code did instead
+    of what the user asked — the one of the two a reader can re-run.
+    """
+    return {
+        "tags": list(args.tag),
+        "path_prefix": args.path_prefix,
+        "source_type": args.source_type,
+        "modified_after": args.modified_after,
+        "modified_before": args.modified_before,
+    }
 
 
 def _money(amount: "Decimal | None") -> str | None:
@@ -807,46 +881,15 @@ def _money(amount: "Decimal | None") -> str | None:
 
 
 def _answer_payload(deep: "DeepAnswer") -> dict[str, object]:
-    """`--json`'s `answer` object: the prose, the blocks it came in, and what it cost."""
-    return {
-        "text": _answer_text(deep),
-        "branch": deep.branch,
-        "rounds_used": deep.rounds_used,
-        "stopped_by": deep.stopped_by,
-        "label": deep.label,
-        "partial": deep.partial,
-        "calls": deep.tally.calls,
-        "estimated_eur": _money(deep.estimate.total_eur),
-        "spent_eur": _money(deep.spent_eur),
-        "blocks": [
-            {
-                "round": block.round_number,
-                "asked": list(block.asked),
-                "text": block.text,
-                "citations": [
-                    {
-                        "number": citation.number,
-                        "doc_id": citation.doc_id,
-                        "path": citation.path,
-                        "citation": citation.locator,
-                    }
-                    for citation in block.citations
-                ],
-            }
-            for block in deep.blocks
-        ],
-    }
+    """`--json`'s `answer` object: the prose, the blocks it came in, and what it cost.
 
-
-def _answer_text(deep: "DeepAnswer") -> str:
-    """Every block's prose in order — the answer as one piece of text.
-
-    **Blocks are joined, never renumbered.** Each block's `[n]` indexes the passages *its own* call
-    was handed, and rewriting those numbers into a single global sequence would mean editing prose
-    the model wrote: a `[3]` inside a quotation would be rewritten into a citation of something
-    else. So the sources are printed per block, right under the text that cites them.
+    **The same renderer the transcript stores** (`deep/transcript.py`), so the object a script
+    parsed off stdout and the object it reads back off disk are the same object rather than two
+    shapes free to drift — and the drift would be silent, since both would still be valid JSON.
     """
-    return "\n\n".join(block.text for block in deep.blocks)
+    from pinakes.deep.transcript import answer_payload
+
+    return answer_payload(deep)
 
 
 NO_ANSWER_FROM_A_PAID_RUN = (
@@ -862,6 +905,13 @@ is the free path's line and says something different: *nothing was even attempte
 """
 
 
+TRANSCRIPT_PREFIX = "what was asked and what came back is kept in "
+"""The line naming the file the run wrote (E5).
+
+A constant because `tests/test_docs_quote_the_shipped_sentences.py` reads it: a sentence a
+documented command prints is one the documentation may quote, and the gate compares the two."""
+
+
 ANSWER_SYNTHESISED = "answer — synthesised from the evidence above, and cited back into it:"
 """The `--deep` counterpart to `NO_ANSWER_SYNTHESISED`, and the reason both exist.
 
@@ -872,13 +922,18 @@ what make the difference checkable.
 """
 
 
-def _print_answer(deep: "DeepAnswer") -> None:
+def _print_answer(deep: "DeepAnswer", transcript: str) -> None:
     """The paid run's own output, under the free evidence that produced it.
 
     **The answer first, then how the run ended.** The label is provenance — which bound stopped it,
     whether the signal was calibrated — and a reader who came for an answer should not have to read
     past a sentence about round caps to reach one. It sits with the cost, where the rest of what
     this run *was* lives.
+
+    **The transcript is named because it was written, not as a courtesy.** It holds the question and
+    the model's prose about this KB's documents, and a file appearing under `.pinakes/` with that in
+    it is something the person who caused it should be told about once — beside the cost, which is
+    the other thing this run left behind.
     """
     from pinakes.budget.reserve import display_eur
 
@@ -899,6 +954,7 @@ def _print_answer(deep: "DeepAnswer") -> None:
         f"estimated €{display_eur(deep.estimate.total_eur)} worst case. `pnk budget` has the "
         "record."
     )
+    print(f"{TRANSCRIPT_PREFIX}{transcript}")
 
 
 def _doctor_arguments(parser: argparse.ArgumentParser) -> None:
@@ -1187,19 +1243,25 @@ def _sync_arguments(parser: argparse.ArgumentParser) -> None:
             "stale-price refusal, the missing-floor refusal, or the no-terminal abort"
         ),
     )
-    # `all` rather than `free` as the bare form's value: both spellings clear the *whole* cache, so
-    # a value named `free` would read as "clear only the free entries", which is not what either
-    # does. The value names what you are authorising, not what is removed.
+    # `all` rather than `free` as the bare form's value: both spellings clear the *whole* extraction
+    # cache, so a value named `free` would read as "clear only the free entries", which is not what
+    # either does. Between those two the value names what you are authorising, not what is removed.
+    #
+    # `transcripts` is the one value that names a *store* instead (E5), and it has to: layering it
+    # as a third authorisation over the same store would mean `--clear-cache=transcripts` also
+    # emptying the extraction cache — destroying more than the flag names. So it clears
+    # `.pinakes/deep/` and nothing else, and neither other spelling touches it.
     parser.add_argument(
         "--clear-cache",
         nargs="?",
         const="all",
         default=None,
-        choices=("all", "paid"),
-        metavar="paid",
+        choices=("all", "paid", "transcripts"),
+        metavar="paid|transcripts",
         help=(
             "empty the extraction cache, after confirming (never the ledger); "
-            "=paid also authorises destroying entries a paid backend wrote"
+            "=paid also authorises destroying entries a paid backend wrote; "
+            "=transcripts instead empties the deep-run records under .pinakes/deep/"
         ),
     )
     parser.add_argument(
@@ -1356,31 +1418,63 @@ def _run_clear_cache(loaded: Manifest, args: argparse.Namespace) -> int:
     need a second, explicit one: either `--clear-cache=paid`, or an interactive `y` to a prompt
     that names the paid count. What is forbidden is the unattended case — `--yes` alone, no
     terminal, paid entries present — because that is the line a cron job or a hook could carry.
-    """
-    from pinakes.sync import SyncOptions, sync
 
+    **`=transcripts` targets the other store and needs one authorisation, not two** (E5): the value
+    itself is already the explicit mention that `=paid` exists to force, and no bare form of this
+    flag reaches `.pinakes/deep/` at all.
+    """
+    from pinakes.sync import CLEAR_TRANSCRIPTS, SyncOptions, sync
+
+    transcripts = args.clear_cache == CLEAR_TRANSCRIPTS
     paid_authorised = args.clear_cache == "paid"
     report = sync(
         loaded,
-        options=SyncOptions(clear_cache=True, clear_cache_paid=paid_authorised, yes=args.yes),
+        options=SyncOptions(
+            clear_cache=True,
+            clear_cache_paid=paid_authorised,
+            clear_cache_transcripts=transcripts,
+            yes=args.yes,
+        ),
     )
     if report.busy:
         print("another sync is already running; nothing to do.")
         return EXIT_OK
 
+    # Two nouns rather than one: the prompt has always said "cache entries" and the outcome line
+    # "entries", and E5 changes neither — a sentence a user's eye knows is not worth tidying.
+    noun = "transcripts" if transcripts else "entries"
+    pending_noun = "transcripts" if transcripts else "cache entries"
     if report.cache_clear_aborted:
         print(
-            f"this will remove {report.cache_pending_entries} cache entries "
+            f"this will remove {report.cache_pending_entries} {pending_noun} "
             f"({report.cache_pending_bytes} bytes)."
         )
         paid = report.cache_pending_paid_entries
-        if paid:
+        if transcripts:
+            # A different sentence from the cache's, because the loss is a different kind. An
+            # extraction can be bought again; the record of what a particular run was asked and
+            # what it answered cannot — paying again buys a *new* run, not this one back.
+            #
+            # **The count leads and the euros follow**, deliberately. The count is a fact about the
+            # files in front of it; the euro figure is a join against the ledger, and a join that
+            # resolves nothing — a deleted `ledger.jsonl`, ids closed by nothing — returns 0.0000.
+            # Led with, that reads as *these cost nothing*, which is the opposite of the warning,
+            # at the one moment it has to land.
+            print(
+                f"they are the record of {paid} paid run(s), €{report.cache_pending_paid_eur} in "
+                "the ledger. Nothing re-creates them — the ledger keeps the spend, but what was "
+                "asked is only here."
+            )
+        elif paid:
             print(
                 f"{paid} of them were written by a paid backend and cost "
                 f"€{report.cache_pending_paid_eur} — re-creating them means paying again."
             )
         if not sys.stdin.isatty():
-            flags = "--yes --clear-cache=paid" if paid else "--yes"
+            if transcripts:
+                flags = "--yes --clear-cache=transcripts"
+            else:
+                flags = "--yes --clear-cache=paid" if paid else "--yes"
             print(f"no terminal to confirm from; re-run with {flags}.", file=sys.stderr)
             return EXIT_FAILURE
         answer = input("proceed? [y/N] ").strip().lower()
@@ -1388,10 +1482,20 @@ def _run_clear_cache(loaded: Manifest, args: argparse.Namespace) -> int:
             print("aborted; nothing removed.")
             return EXIT_OK
         report = sync(
-            loaded, options=SyncOptions(clear_cache=True, clear_cache_paid=True, yes=True)
+            loaded,
+            options=SyncOptions(
+                clear_cache=True,
+                # Re-called with the *same target* the prompt described. `_clear_cache` branches on
+                # the target first, so `clear_cache_paid` is already dead on a transcripts run —
+                # this passes `False` anyway rather than relying on that: an authorisation nobody
+                # was asked for should not sit in the options waiting for a branch order to change.
+                clear_cache_paid=not transcripts,
+                clear_cache_transcripts=transcripts,
+                yes=True,
+            ),
         )
 
-    print(f"removed {report.cache_cleared} entries ({report.cache_cleared_bytes} bytes).")
+    print(f"removed {report.cache_cleared} {noun} ({report.cache_cleared_bytes} bytes).")
     return EXIT_OK
 
 
