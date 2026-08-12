@@ -764,6 +764,20 @@ under the extra: `uvx --no-cache --refresh --from "pinakes[light]==0.24.0" pnk a
 `--deep` and `--yes` **from the index**. That is the release's whole subject, and a matching version
 string would have said nothing about whether it was inside the wheel.
 
+**0.25.0, 20260812 05:45 — no lag this time, and the artifact check passed on the first attempt.**
+`gh release view v0.25.0` reports non-draft, created 05:36:02Z by the workflow's own step;
+`git merge-base --is-ancestor v0.25.0 main` passes; and the index itself carries both files —
+`pinakes-0.25.0-py3-none-any.whl` (435 653 bytes) and `pinakes-0.25.0.tar.gz` (2 301 287 bytes),
+read from `https://pypi.org/pypi/pinakes/json` rather than from a green workflow. The resolver lag
+0.22.1, 0.22.2 and 0.24.0 recorded did **not** appear, which keeps it *variable* rather than fixed.
+
+**The artifact check, on the release's own subject:**
+`uvx --no-cache --refresh --from "pinakes[light]==0.25.0" pnk sync --help` prints
+`--clear-cache [paid|transcripts]` **from the index**, and
+`uvx --no-cache --from "pinakes[light]==0.25.0" python -c "from pinakes.deep import transcript"`
+imports the new module and reports `deep` / schema `1`. A matching version string would have said
+nothing about whether E5 was inside the wheel — this is what says it.
+
 **And one check this list had never made: does the published artifact contain the thing the release
 is named for?** `uvx --no-cache --from "pinakes[light]==0.23.0" pnk ask --help` prints `pnk ask`'s
 full flag surface from the index, not from this checkout. A version number matching is evidence
