@@ -14,6 +14,9 @@ beside the fixtures that can drive a scripted `--deep` run.
 """
 
 import json
+import os
+import sys
+from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
 
@@ -24,6 +27,7 @@ from pinakes.deep import transcript
 from pinakes.deep.client import CallTally
 from pinakes.deep.estimate import OperationEstimate, RoundEstimate
 from pinakes.deep.loop import ANSWERED, SYNTHESIS, AnswerBlock, Citation, DeepAnswer
+from pinakes.deep.transcript import FILE_SUFFIX
 from pinakes.init import init
 from pinakes.manifest import load
 from pinakes.sync import CLEAR_TRANSCRIPTS, SyncOptions, sync
@@ -185,13 +189,34 @@ def test_a_body_with_no_operation_id_is_refused_rather_than_filed_somewhere(
         transcript.write(state_dir, {"schema": 1})
 
 
-def test_a_half_written_transcript_is_never_counted_as_a_finished_one(state_dir: Path) -> None:
+def test_a_half_written_transcript_is_never_counted_as_a_finished_one(
+    state_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The temp file is `.tmp`, not `.json`, because `Path.glob("*.json")` matches dot-files — so a
-    leftover from an uncatchable kill would otherwise be surveyed and cleared as a real record
-    (`extract/cache.py` carries the same trap and the same note)."""
-    transcript.write(state_dir, _record())
-    (state_dir / "deep" / ".tmp-abcdef.tmp").write_text("{", encoding="utf-8")
+    leftover from an uncatchable kill (SIGKILL, OOM, power loss; `except BaseException` cleans up
+    everything else) would otherwise be counted and cleared as a real record. `extract/cache.py`
+    carries the same trap and the same note.
 
+    **Asserted on the name the writer actually asks for**, not on a leftover the test invented: a
+    planted `.tmp` file proves only that the glob ignores `.tmp` files, and would keep passing if
+    the writer started suffixing its temporaries `.json`.
+    """
+    seen: list[str] = []
+    real = os.replace
+
+    def spy(src: str, dst: str) -> None:
+        """`os.replace` is handed the temp name — which is precisely the file a kill one
+        instruction earlier would have left on disk."""
+        seen.append(str(src))
+        real(src, dst)
+
+    monkeypatch.setattr(os, "replace", spy)
+    transcript.write(state_dir, _record())
+
+    leftover = Path(seen[0])
+    assert leftover.suffix != FILE_SUFFIX, "a killed write would leave this behind"
+    # And the consequence, with the writer's own name rather than an invented one.
+    leftover.write_text("{", encoding="utf-8")
     assert len(transcript.paths(state_dir)) == 1
     assert transcript.stats(state_dir)[0] == 1
 
@@ -377,3 +402,66 @@ def test_an_unknown_clear_cache_value_is_a_usage_error(kb_with_a_transcript: Pat
     assert exit_info.value.code == 2
     assert _transcripts(kb_with_a_transcript) == 1
     assert _cache_entries(kb_with_a_transcript) == 1
+
+
+@pytest.fixture
+def at_a_terminal(monkeypatch: pytest.MonkeyPatch) -> Callable[[str], None]:
+    """Pretend a terminal is attached and answer its one question.
+
+    The confirm-then-re-call path has no coverage at all otherwise — `sys.stdin.isatty()` is
+    `False` under pytest, so every existing `--clear-cache` test takes the `--yes` route past it.
+    It is also the destructive path a person actually walks.
+    """
+
+    def _answering(reply: str) -> None:
+        def _input(prompt: str = "") -> str:
+            assert "proceed?" in prompt, "the reply is to the confirmation, not to anything else"
+            return reply
+
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+        monkeypatch.setattr("builtins.input", _input)
+
+    return _answering
+
+
+def test_a_confirmed_prompt_removes_the_transcripts_and_nothing_else(
+    kb_with_a_transcript: Path,
+    at_a_terminal: Callable[[str], None],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    at_a_terminal("y")
+    assert main(["sync", "--kb", str(kb_with_a_transcript), "--clear-cache=transcripts"]) == 0
+    out = capsys.readouterr().out
+
+    assert "removed 1 transcripts" in out
+    assert _transcripts(kb_with_a_transcript) == 0
+    # The re-call after `y` carries the target the prompt described, not the other one.
+    assert _cache_entries(kb_with_a_transcript) == 1
+
+
+def test_declining_the_prompt_removes_nothing(
+    kb_with_a_transcript: Path,
+    at_a_terminal: Callable[[str], None],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    at_a_terminal("n")
+    assert main(["sync", "--kb", str(kb_with_a_transcript), "--clear-cache=transcripts"]) == 0
+
+    assert "aborted; nothing removed." in capsys.readouterr().out
+    assert _transcripts(kb_with_a_transcript) == 1
+    assert _cache_entries(kb_with_a_transcript) == 1
+
+
+def test_a_confirmed_cache_clear_still_leaves_the_transcript(
+    kb_with_a_transcript: Path,
+    at_a_terminal: Callable[[str], None],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The same walk on the other store: answering `y` to the cache prompt authorises the cache,
+    including its paid entries — and reaches nothing under `.pinakes/deep/`."""
+    at_a_terminal("y")
+    assert main(["sync", "--kb", str(kb_with_a_transcript), "--clear-cache"]) == 0
+
+    assert "removed 1 entries" in capsys.readouterr().out
+    assert _cache_entries(kb_with_a_transcript) == 0
+    assert _transcripts(kb_with_a_transcript) == 1
