@@ -12,6 +12,13 @@ The lesson is narrow and mechanical: **`git checkout` restores to the last commi
 before the mutation.** Either commit before mutating, or restore with `git stash`/a copy. This
 increment did the former for the code and got caught by the one edit that landed in between.
 
+**And it happened a second time, two passes later** — `git checkout tests/free_path_run.py`, run to
+undo a deliberate deletion that was proving a gate row discriminates, reverted the *uncommitted*
+addition of that same call. Knowing the trap was not enough to avoid it; the only thing that caught
+it the second time was checking for it immediately afterwards, because it was now expected. **Write
+the check, not the resolution:** after any `git checkout <file>` in a mutation loop, grep for the
+thing that was supposed to survive.
+
 **MEDIUM — a test that asserted the wrong half of its own claim.** "The temp file is `.tmp`, not
 `.json`, so a killed write leaves nothing the readers count" was tested by *planting* a
 `.tmp-abcdef.tmp` file and checking the glob ignored it. That proves the glob ignores `.tmp` files.
