@@ -341,8 +341,8 @@ stores no query text**, so without this nothing on disk would say what a `pnk bu
 — and a cron run's `--json` is gone the moment the pipe closes.
 
 It holds the question, the filters as you typed them, the confidence reading that chose the branch,
-the model and prompt version that produced the answer, and the answer object above — byte for byte
-the one `--json` prints. The filename is the `operation_id` the ledger groups its calls by, so a row
+the model and prompt version that produced the answer, and the answer object above — the *same*
+object `--json` prints, from one renderer rather than two. The filename is the `operation_id` the ledger groups its calls by, so a row
 and its transcript meet without searching.
 
 | | |
@@ -350,7 +350,7 @@ and its transcript meet without searching.
 | **Written for** | a run that returned. A refusal, a declined confirmation and an `on_exceed = "abort"` halt write none — `abort` discards the rounds already paid for, and a file holding what it discarded would hand back exactly what the setting withholds. Their spend is in the ledger either way |
 | **Protected like a paid cache entry** | nothing sweeps it, `--rebuild` leaves it, and `pnk sync --clear-cache` — bare or `=paid` — does not touch it |
 | **Removed by** | `pnk sync --clear-cache=transcripts`, and nothing else |
-| **KB-local** | it holds your question and prose about your documents. It never leaves `.pinakes/`, which `pnk init` gitignores ([INVARIANTS](INVARIANTS.md)) |
+| **KB-local** | it holds your question and prose about your documents, and never leaves `.pinakes/` ([INVARIANTS](INVARIANTS.md)). `pnk init` writes `.pinakes/` into a `.gitignore` it creates, and **says so loudly rather than editing** a `.gitignore` that was already there — if you met that warning, act on it before running this |
 
 ### Two rules it will not bend
 

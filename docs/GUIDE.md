@@ -469,8 +469,12 @@ pnk sync --clear-cache=transcripts --kb my-kb
 ```
 
 That empties `.pinakes/deep/` and touches nothing else — and it asks first, because unlike an
-extraction, a record of what a particular run was asked cannot be bought back. `.pinakes/` is
-gitignored from `pnk init` onward, so none of this reaches your repository.
+extraction, a record of what a particular run was asked cannot be bought back.
+
+**Check `.pinakes/` is gitignored before you rely on that.** `pnk init` writes the line into a
+`.gitignore` it creates; into one that *already existed* it writes nothing and prints the line for
+you to add, because a `.gitignore` is yours. If you skipped that warning, the transcript is the file
+you would least like committed.
 
 **What it will not do.** A subproblem it writes is a search query against *your* KB with *your*
 filters — never a path, never another KB — so a document telling the model to go and read
