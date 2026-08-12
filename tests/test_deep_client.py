@@ -586,11 +586,10 @@ def test_the_decomposition_schema_gives_a_model_nowhere_to_put_a_path() -> None:
     path, a filter, a KB alias or a tool call, so a model steered by hostile passage text has
     nothing to put one in.
     """
-    schema = subproblems_schema(max_items=3)
+    schema = subproblems_schema()
     assert set(schema["properties"]) == {"subproblems"}
     assert schema["additionalProperties"] is False
     assert schema["properties"]["subproblems"]["items"] == {"type": "string"}
-    assert schema["properties"]["subproblems"]["maxItems"] == 3
 
 
 def test_an_injected_subproblem_arrives_as_nothing_but_a_search_string(
@@ -642,9 +641,52 @@ def test_the_answer_schema_bounds_citations_to_the_passages_actually_sent() -> N
     assert schema["additionalProperties"] is False
     assert schema["properties"]["citations"]["items"] == {
         "type": "integer",
-        "minimum": 1,
-        "maximum": 4,
+        "enum": [1, 2, 3, 4],
     }
+
+
+@pytest.mark.parametrize(
+    ("name", "schema"),
+    [
+        ("subproblems", deep_client.subproblems_schema()),
+        ("answer", deep_client.answer_schema(passages=5)),
+    ],
+)
+def test_no_schema_carries_a_keyword_the_api_refuses(name: str, schema: object) -> None:
+    """**The gate the `Transport` seam cannot be.** Every other test here drives the loop from
+    recorded fixtures, so the suite has never sent a schema to the API — and the schema is the one
+    field the API validates and a fixture cannot exercise. That gap shipped `maximum`/`minimum` on
+    the citation index and `maxItems` on the subproblem list through four releases, 400ing every
+    live `--deep` call while this file stayed green (E6, 20260812).
+
+    So the gate is a shape assertion, not a call: walk the schema and refuse any keyword on
+    `UNSUPPORTED_SCHEMA_KEYWORDS`. It needs no key, no network and no fixture, and it would have
+    failed at E4 on the branch that introduced the defect.
+    """
+    offenders = sorted(_keywords(schema) & set(deep_client.UNSUPPORTED_SCHEMA_KEYWORDS))
+    assert not offenders, (
+        f"the {name} schema carries {offenders}, which structured outputs refuses with a 400 — "
+        "no fixture-driven test can catch this, which is why this one exists"
+    )
+
+
+def _keywords(node: object) -> set[str]:
+    """Every key appearing anywhere in a nested JSON schema, at any depth.
+
+    Recursive rather than a top-level scan because both defects were nested — `maxItems` two levels
+    down under `properties.subproblems`, `minimum` three under `properties.citations.items`. A
+    scan of the outer keys would have passed on the exact schemas that 400'd.
+    """
+    found: set[str] = set()
+    if isinstance(node, dict):
+        mapping = cast(dict[str, object], node)
+        found |= set(mapping)
+        for value in mapping.values():
+            found |= _keywords(value)
+    elif isinstance(node, list):
+        for item in cast(list[object], node):
+            found |= _keywords(item)
+    return found
 
 
 @pytest.mark.parametrize("citation", [0, -1, 3])
@@ -737,19 +779,26 @@ def test_an_unknown_answer_kind_is_refused_rather_than_defaulted() -> None:
 
 def test_the_subproblem_cap_is_bounded_by_the_module_and_by_the_caller() -> None:
     """`MAX_SUBPROBLEMS` is the ceiling over whatever the caller asks for, and a cap below 1 is a
-    mistake wherever it came from — the schema's `maxItems` cannot be zero and still describe a
-    useful call."""
+    mistake wherever it came from — a cap of zero describes a call that cannot succeed.
+
+    Read through the prompt body rather than the schema: the cap left the schema at E6, because
+    `maxItems` is a keyword the API refuses (`subproblems_schema`).
+    """
     wide = build_decompose_request(model=MODEL, question=QUESTION, memory="", max_subproblems=99)
-    schema = wide["output_config"]["format"]["schema"]
-    assert schema["properties"]["subproblems"]["maxItems"] == MAX_SUBPROBLEMS
+    assert f"at most {MAX_SUBPROBLEMS} subproblems" in wide["messages"][0]["content"][0]["text"]
 
     narrow = build_decompose_request(model=MODEL, question=QUESTION, memory="", max_subproblems=0)
-    assert narrow["output_config"]["format"]["schema"]["properties"]["subproblems"]["maxItems"] == 1
+    assert "at most 1 subproblems" in narrow["messages"][0]["content"][0]["text"]
 
 
 def test_a_response_over_the_cap_is_a_schema_failure_not_a_silent_trim() -> None:
-    """The cap was in the request's own schema, so exceeding it means the response did not obey
-    it. Taking the first `cap` would hide that, and the round would look like it worked."""
+    """The request asked in plain words for at most `cap`, so exceeding it means the response did
+    not do what it was asked. Taking the first `cap` would hide that, and the round would look like
+    it worked.
+
+    This is the *only* check on the cap since E6 — the schema's `maxItems` never reached the API,
+    which is the argument for keeping this strict rather than truncating.
+    """
     with pytest.raises(deep_client.SchemaFailureError, match="against a cap of 2"):
         parse_subproblems(
             _response({"subproblems": ["a", "b", "c", "d"]}),
@@ -819,17 +868,19 @@ def test_an_answer_call_over_no_passages_at_all_is_refused(accountant: Accountan
     assert transport.calls == 0
 
 
-def test_the_cap_in_the_schema_and_the_cap_in_the_parser_are_one_number() -> None:
+def test_the_cap_in_the_prompt_and_the_cap_in_the_parser_are_one_number() -> None:
     """Two ceilings computed twice is how the second check ends up being about a different limit
     than the first, at which point one of them is decoration. `subproblem_cap` is the one home, and
-    this drives it through both users at once."""
+    this drives it through both users at once.
+
+    There were three users until E6; the schema's `maxItems` was the third, and it is gone because
+    the API refuses that keyword. Two is now the whole set, and both are still enforced.
+    """
     for asked in (0, 1, 3, MAX_SUBPROBLEMS, 99):
         cap = deep_client.subproblem_cap(asked)
         request = build_decompose_request(
             model=MODEL, question=QUESTION, memory="", max_subproblems=asked
         )
-        schema = request["output_config"]["format"]["schema"]
-        assert schema["properties"]["subproblems"]["maxItems"] == cap
         assert f"at most {cap} subproblems" in request["messages"][0]["content"][0]["text"]
         assert parse_subproblems(_response({"subproblems": ["q"] * cap}), cap=cap) == ("q",) * cap
 
@@ -978,6 +1029,10 @@ def test_a_keyboard_interrupt_mid_request_is_not_voided_either(accountant: Accou
 #: version is bumped with the files it denotes (T1).
 PINNED = {
     (1, 1): "2306c0dad1fc62bc699bdd92a77df067c777bcb90ac54283b1977cbab909470d",
+    # Schema 2 (E6): the citation bound became `enum: [1..passages]` and the subproblem cap left
+    # the schema, because structured outputs refuses `minimum`/`maximum` and `maxItems`. Schema 1
+    # was never accepted by the API at all, so no measurement was ever taken against it.
+    (1, 2): "6672ca287414f9f7d080a6d0ad8388a2921bef7a428aa0cbb254efa96c31f915",
 }
 
 
@@ -992,7 +1047,7 @@ def _prompt_digest() -> str:
                 deep_client.MEMORY_LABEL,
                 deep_client.PASSAGES_LABEL,
             ],
-            "subproblems_schema": subproblems_schema(max_items=3),
+            "subproblems_schema": subproblems_schema(),
             "answer_schema": answer_schema(passages=3),
         },
         sort_keys=True,

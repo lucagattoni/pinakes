@@ -38,7 +38,13 @@ import sys
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:  # imports for annotations only — nothing here loads at runtime
+    from collections.abc import Sequence
+
+    from pinakes.deep.client import Passage
+    from pinakes.manifest import Manifest
 
 # --- the shapes a measurement comes in --------------------------------------------------------
 
@@ -131,7 +137,7 @@ def _retrieval_args(kb: Path) -> argparse.Namespace:
     )
 
 
-def _passages(kb: Path, question: str):
+def _passages(kb: Path, question: str) -> tuple[Manifest, tuple[Passage, ...]]:
     """The real passages a real free search returns — never a fixture.
 
     E2 prices the evidence term at `final_k` passages of `[chunking] max_tokens`; measuring it
@@ -139,7 +145,10 @@ def _passages(kb: Path, question: str):
     same §4.1 pipeline the loop's own retrieval step opens** — a second wiring of `search()` here
     would be a second pipeline wearing one name, which is the thing that helper exists to prevent.
     """
-    from pinakes.cli import _retrieval
+    # Deliberately the private helper: see the docstring above. A public re-wiring of `search()`
+    # here would be the second pipeline this exists to avoid, so the underscore is accepted rather
+    # than worked around.
+    from pinakes.cli import _retrieval  # pyright: ignore[reportPrivateUsage]
 
     with _retrieval(_retrieval_args(kb)) as pipeline:
         found = tuple(pipeline.search(question).passages)[: pipeline.final_k]
@@ -161,7 +170,7 @@ def measure_inputs(kb: Path, question: str, model: str) -> tuple[list[Row], dict
         )
     count = _counter(model)
 
-    def answer_req(passages, q: str) -> dict[str, Any]:
+    def answer_req(passages: Sequence[Passage], q: str) -> dict[str, Any]:
         return build_answer_request(
             model=model, kind=SYNTHESIS, question=q, passages=passages, passage_cap=len(found)
         )
@@ -187,9 +196,7 @@ def measure_inputs(kb: Path, question: str, model: str) -> tuple[list[Row], dict
     # reserved for carried memory rather than what some smaller sample happened to use.
     memory = ("word " * est.CARRIED_MEMORY_CHAR_CEILING)[: est.CARRIED_MEMORY_CHAR_CEILING]
     with_memory = count(
-        build_decompose_request(
-            model=model, question=question, memory=memory, max_subproblems=6
-        )
+        build_decompose_request(model=model, question=question, memory=memory, max_subproblems=6)
     )
     without_memory = count(
         build_decompose_request(model=model, question=question, memory="", max_subproblems=6)
@@ -260,14 +267,21 @@ def collect_spend(kb: Path) -> list[Spend]:
     manifest = load_manifest(kb)
     out: list[Spend] = []
     for path in transcript.paths(manifest.state_dir):
-        body = json.loads(path.read_text(encoding="utf-8"))
-        answer = body.get("answer") or {}
-        ids = {c for c in answer.get("call_ids", []) if isinstance(c, str)}
+        # Every read is defensive and typed at the boundary: a transcript is a file on disk that a
+        # `--clear-cache` or a hand-edit can have left in any shape, and this runs *after* the money
+        # was spent — a crash here would lose the reconciliation, not prevent a charge.
+        body = cast(dict[str, object], json.loads(path.read_text(encoding="utf-8")))
+        raw = body.get("answer")
+        answer = cast(dict[str, object], raw) if isinstance(raw, dict) else {}
+        listed = answer.get("call_ids")
+        ids: set[str] = set()
+        if isinstance(listed, list):
+            ids = {c for c in cast(list[object], listed) if isinstance(c, str)}
         out.append(
             Spend(
                 operation_id=str(body.get("operation_id", path.stem)),
                 branch=str(answer.get("branch", "unknown")),
-                calls=int(answer.get("calls", 0)),
+                calls=int(cast(int, answer.get("calls", 0))),
                 estimated_eur=Decimal(str(answer.get("estimated_eur", "0"))),
                 actual_eur=Decimal(ledger_spend(manifest, ids)),
             )
