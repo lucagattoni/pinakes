@@ -227,7 +227,14 @@ was written naming this run as the thing that would replace its assumed half.
 ### The measurement KB
 
 **It is `tests/demo-kb`, copied.** Nothing needs authoring, and three properties it already has are
-exactly the three this run requires:
+exactly the three this run requires.
+
+> **Rebuild it rather than looking for the last one.** A KB under `/tmp` is reaped — these were
+> gone after nine days, taking every transcript and every ledger row with them, and with them the
+> evidence for a factor that had already been published. Rebuilding is free and takes a minute, so
+> the cost of the loss is only that the number has to be re-measured; the cost of *not noticing*
+> is publishing a figure nothing on disk supports. `report` will happily print a different factor
+> over whatever records survive, without saying that is what it is doing.
 
 - **It is synthetic by construction** — its golden set says so in its first line. E6's exit
   criterion is that every constant is recorded as measured on synthetic data, so the corpus has to
@@ -256,8 +263,21 @@ uv run --frozen pnk ask --kb "$SP/measure-kb" --json "What is the Institute's pa
 Expect `high synthesis 0.21` and `low decomposition 1.38`. **If the first prints `unknown`, stop** —
 the thresholds did not survive the copy, and every run after that would price the expensive branch.
 
+**Run that probe over *every* question you are about to pay for, not the two above.** It is free
+and it is the only thing that says which branch a question actually buys. Measured 20260821: of
+the three `no-answer` questions step (c) used to name, one — *"Which software does the catalogue
+run on?"* — scores **`medium`**, which takes the **cheap** branch. Running the list as written
+bought a synthesis call and filed it as a loop measurement. Step (b) already warns that a `calls`
+of `2` means the branch was mis-selected; this is the same defect inverted, and nothing caught it
+because the questions were chosen before `[retrieval.confidence]` was fitted and never re-checked
+against it.
+
 Then append the caps, raised deliberately and each just above the worst case it has to clear, so a
-cap can still catch a runaway:
+cap can still catch a runaway. **Two of the four are now the shipped default** — D-30 raised
+`per_operation_eur` to 2.00 and `daily_eur` to 6.00 in 0.24.0, which is why the 20260821 run
+completed the whole plan on both KBs with no `[budget]` section at all. The block is still worth
+stamping for the two that differ: `confirm_above_eur` (the shipped 0.01 prompts on every run, which
+`--yes` also answers) and `monthly_eur` (the shipped 30.00 is five times what this plan needs):
 
 ```toml
 [budget]
@@ -337,22 +357,44 @@ Then check, in order:
 - every run left a transcript at `.pinakes/deep/<operation_id>.json` (E5), and `pnk budget` shows
   one `ask` row per `call_id` it names.
 
-**(c) The loop — three `no-answer` questions, up to six paid calls each.**
+**(c) The loop — and it takes two KBs, not one.**
+
+**Only two of the calibrated KB's `no-answer` questions score `low`.** Use those, and take the
+round cap from the *uncalibrated* KB, for the reason below:
 
 ```bash
+# the calibrated KB, `low` -> the `decomposition` branch
 for q in "What is the Institute's parking policy?" \
-         "How much does a reader's ticket cost?" \
-         "Which software does the catalogue run on?"; do
+         "How much does a reader's ticket cost?"; do
   uv run --env-file <repo>/.env pnk ask --kb "$SP/measure-kb" --deep --yes --json "$q" > "$SP/loop-$RANDOM.json"
 done
+
+# the uncalibrated partner, `unknown` -> the same price, no early stop
+uv run --env-file <repo>/.env pnk ask --kb "$SP/partner-kb" --deep --yes --json \
+    "How much does a reader's ticket cost?" > "$SP/loop-unknown-$RANDOM.json"
+
 uv run --env-file <repo>/.env pnk budget --kb "$SP/measure-kb"
+uv run --env-file <repo>/.env pnk budget --kb "$SP/partner-kb"
 ```
 
-`no-answer` questions are the right instrument for the loop and not a perverse choice: nothing in
-the corpus answers them, so the sufficiency gate cannot stop the run early and it goes to the round
-cap — which is the *worst case the reservation was sized for*, and therefore the only case that
-measures it. Check that `answer.stopped_by` names the round cap rather than the budget, and that
-`answer.partial` and `answer.label` say which bound ended it (D-22).
+**Why not three questions on the one KB, as this step used to say.** The old argument was that
+`no-answer` questions cannot stop early — nothing in the corpus answers them, so the sufficiency
+gate would have to run to the round cap, which is the worst case the reservation was sized for.
+**Measured 20260821, that is false.** Both `decomposition` runs stopped at **sufficiency**, after
+2 rounds and after 1 round of 3: a gate reading a calibrated signal is perfectly willing to
+conclude that enough has been established *about a question the corpus cannot answer*. So on a
+calibrated KB the round cap is not reachable by choosing a harder question.
+
+**The branch that does reach it is `unknown`**, on a KB with no `[retrieval.confidence]` at all —
+`tests/partner-kb`, which has none by design. D-22 gives it no early stop, so it ends at the round
+cap or the budget and says which. It is priced identically to `decomposition` (the missing signal
+changes when a run *stops*, never what a round *costs*), which is what makes it a valid instrument
+for the loop's worst case rather than a different measurement.
+
+Check on every run that `answer.stopped_by` names a loop bound rather than the budget, and that
+`answer.partial` and `answer.label` say which one ended it (D-22). Expect `sufficient` on the
+calibrated pair and `round-cap` — or `no-new-subproblems`, a third terminator neither this document
+nor D-22 had named — on the uncalibrated one.
 
 **(d) The refusal path — free, and it proves the cap is real.**
 
@@ -378,11 +420,43 @@ uv run --frozen python3 tools/deep_reservation.py report --kb "$SP/measure-kb"
 1. **`deep/estimate.py`** — every constant gains its measurement, the command that produced it, and
    the word *synthetic*. No constant is lowered.
 2. **`prices.toml`** gains nothing from this run: it prices models, and this run measured a loop.
-3. **DESIGN §5** gains the over-reservation factor for both branches, with date, model and euros
+3. **DESIGN §5** gains the over-reservation factor for every branch, with date, model and euros
    actually spent.
 4. **STATUS.md** gains what this run measured.
 5. **The retrospective** carries the spend for the whole run, and any constant whose measurement
    contradicted its own comment.
+
+### What it settled — run 20260821, €0.2131
+
+Done in full on 20260821 against `claude-opus-5`: steps (a) through (e), the refusal probe
+included. **€0.2131** of the €5.1836 worst case, which is itself the headline result.
+
+| Constant | Reserved | Measured | Factor |
+|---|---|---|---|
+| `PROMPT_TOKENS` | 1,500 | 376 | 3.99× |
+| `QUESTION_TOKENS` | 1,000 | 399 | 2.51× |
+| `PASSAGE_ENVELOPE_TOKENS` | 250 | 28 | 8.93× |
+| `VENDOR_TOKENS_PER_CHUNK_TOKEN` | 3 | 2 | 1.50× |
+| `CARRIED_MEMORY_TOKENS` | 4,000 | 1,612 | 2.48× |
+| `MAX_TOKENS` (output) | 8,000 | 660 widest of 22 calls | 12.12× |
+
+| Branch | Runs | Calls | Reserved | Spent | Over-reservation |
+|---|---|---|---|---|---|
+| `synthesis` — the common case | 5 | 5 | €1.0500 | €0.0353 | **29.75×** |
+| `decomposition` — calibrated loop | 2 | 6 | €2.7600 | €0.0542 | **50.92×** |
+| `unknown` — uncalibrated loop | 2 | 11 | €2.7600 | €0.1235 | **22.35×** |
+
+Three things in that second table are worth reading twice. **The calibrated loop is the *most*
+over-reserved**, because a reservation must cover `max_rounds` and calibration is exactly what
+lets a run stop before reaching them — the uncalibrated branch is the least over-reserved because
+it spends the rounds it reserved. **`MAX_TOKENS` carries most of the ratio**, since output bills
+at five times input and dominates a round's price — two thirds under the shipped defaults, and
+**four fifths** at this KB's narrower `final_k = 5` / `max_tokens = 120` geometry. And **no constant was lowered**: the
+corpus is synthetic, which is E6's exit criterion and `PAGE_TOKEN_CEILING`'s binding precedent.
+
+**An earlier partial run published 19.0× and 16.5×.** Those are **withdrawn**, not corrected — a
+distinction worth keeping, because they were not mis-computed: their KBs were reaped from `/tmp` before anyone re-ran `report`, so no surviving
+transcript or ledger row supports them. Treat them as withdrawn rather than as a second data point.
 
 **Both branches are reported separately and the cheap one is named as the common case.** A single
 blended figure would hide the whole return on having a calibrated signal — one call against
