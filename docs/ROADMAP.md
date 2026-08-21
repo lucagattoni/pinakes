@@ -21,11 +21,13 @@ precision nobody measured.
 
 - **39 releases in 27 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
   [`0.25.1`](#0251--pnk-ask---deep-works-against-the-live-api--20260821-0717) on 20260821.
-- **Latest on PyPI: `0.25.0`**, confirmed by installing it from the index rather than by reading a
-  green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by importing
-  `pinakes.deep.transcript` out of the published wheel, because a matching version string says
-  nothing about whether the release's own subject is inside it. Every release from `0.2.2` on is
-  published — **thirty-one**, counted from the index's own `json` endpoint rather than from this
+- **Latest on PyPI: `0.25.1`**, confirmed by installing it from the index rather than by reading a
+  green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by reading the
+  schema builders out of the published wheel, because a matching version string says nothing about
+  whether the release's own subject is inside it. **0.25.1 is the sharpest case this project has
+  had of that distinction**: every release from 0.22.0 on installed cleanly and reported the right
+  version while `pnk ask --deep` could not make one successful call. Every release from `0.2.2` on
+  is published — **thirty-two**, counted from the index's own `json` endpoint rather than from this
   list's previous number.
 - **Two of the four named releases have shipped, and a third has started.** The links release across
   [`0.5.0`](#050--links-you-can-walk--20260731-1127)–[`0.6.0`](#060--links-you-can-write--20260801-1051),

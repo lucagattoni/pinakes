@@ -779,6 +779,25 @@ read from `https://pypi.org/pypi/pinakes/json` rather than from a green workflow
 imports the new module and reports `deep` / schema `1`. A matching version string would have said
 nothing about whether E5 was inside the wheel — this is what says it.
 
+**0.25.1, 20260821 07:26 — verified on the first attempt, with no resolver lag.**
+`gh release view v0.25.1` reports non-draft, created 07:24:30Z by the workflow's own step;
+`git merge-base --is-ancestor v0.25.1 main` passes; and `https://pypi.org/pypi/pinakes/json` serves
+`0.25.1` as `info.version` and carries both files — `pinakes-0.25.1-py3-none-any.whl` (437 172
+bytes) and `pinakes-0.25.1.tar.gz` (2 318 538 bytes). Read from the index, not from a green
+workflow.
+
+**The artifact check, on the release's own subject — and this release is the reason that check
+exists in the strong form.** `uvx --no-cache --refresh --from "pinakes[light]==0.25.1" pnk
+--version` prints `pinakes 0.25.1`, and
+`uvx --no-cache --from "pinakes[light]==0.25.1" python -c "..."` reads the schema builders **out of
+the published wheel**: `answer_schema(passages=4)` yields
+`{'type': 'integer', 'enum': [1, 2, 3, 4]}`, `subproblems_schema()` carries no `maxItems`, and
+`SCHEMA_VERSION` is `2`. That is the fix itself, asserted from the index. **A version string would
+have been worthless here in a way it has never quite been before**: 0.22.0 through 0.25.0 all
+installed cleanly, reported the right version, imported every module — and `pnk ask --deep` could
+not make a single successful call in any of them. The whole point of this release is that
+*installable* and *working* had come apart, so *installable* is not what gets checked.
+
 **And one check this list had never made: does the published artifact contain the thing the release
 is named for?** `uvx --no-cache --from "pinakes[light]==0.23.0" pnk ask --help` prints `pnk ask`'s
 full flag surface from the index, not from this checkout. A version number matching is evidence
