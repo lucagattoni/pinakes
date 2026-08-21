@@ -60,22 +60,29 @@ CALLS_PER_ROUND: Final = 2
 #: are different tokenizers over the same text. The conversion cannot be measured without spending,
 #: so it is bounded from the character side, which can:
 #:
-#:     uv run --frozen python3 tools/measure_passage_tokens.py \
-#:         tests/demo-kb/docs tests/partner-kb/docs docs
+#: uv run --frozen python3 tools/measure_passage_tokens.py \ tests/demo-kb/docs
+#: tests/partner-kb/docs docs
 #:
 #: **Measured 20260811 16:17** over 2,424 chunks at the template default `max_tokens = 510`: the
 #: widest real chunk holds **4.27 chars per embedding token** (2,131 chars at 499 tokens), and the
 #: worst ratio anywhere is 7.07 on a 15-token block no full-size chunk could sustain. **The other
 #: half of the conversion is assumed, not measured** — English prose is commonly quoted at ~3.5-4
-#: characters per vendor token, and nothing here has counted one. At a pessimistic **3**, the
-#: widest real chunk converts at 1.42x and even the 7.07 outlier at 2.36x. **3 is above both, and
-#: is lowered to neither** — a ceiling below a measurement is not a ceiling (`PAGE_TOKEN_CEILING`
-#: records the same refusal, and E6 measures the vendor half rather than assuming it).
+#: characters per vendor token, and nothing here has counted one. At a pessimistic **3**, the widest
+#: real chunk converts at 1.42x and even the 7.07 outlier at 2.36x. **3 is above both, and is
+#: lowered to neither** — a ceiling below a measurement is not a ceiling (`PAGE_TOKEN_CEILING`
+#: records the same refusal). E6 measured the vendor half rather than leaving it assumed:
+#:
+#: **E6 measured the vendor half: 2, against the 3 reserved — 1.50x** (20260821 07:49 UTC,
+#: `tools/deep_reservation.py count --kb <kb>`, on the **synthetic** `tests/demo-kb`). The assumed
+#: pessimistic 3 was above the real ratio, which is the direction it was chosen to be wrong in.
+#: **Not lowered**: 1.50x is the thinnest margin of any constant here, and it was measured on one
+#: synthetic corpus in English prose — the case a ceiling exists for is the one no corpus here
+#: contains.
 VENDOR_TOKENS_PER_CHUNK_TOKEN: Final = 3
 
-#: Per passage, on top of its text: the citation line the prompt wraps it in — the path, the
-#: heading path and the numbering. Charged per passage rather than per call, because `final_k`
-#: scales it the way the text scales.
+#: Per passage, on top of its text: the citation line the prompt wraps it in — the path, the heading
+#: path and the numbering. Charged per passage rather than per call, because `final_k` scales it the
+#: way the text scales.
 #:
 #: **The measurement refuted the first guess, which is why it is a measured number now.** The same
 #: command reports the longest `path — heading_path` in the corpora: **220 characters** (20260811
@@ -83,6 +90,13 @@ VENDOR_TOKENS_PER_CHUNK_TOKEN: Final = 3
 #: asserted "under 120" without running anything. At the pessimistic 2 characters per vendor token
 #: that is ~110 tokens, so 100 would have been a ceiling *below* its own measurement — the exact
 #: failure this module's other constants are written to avoid. 250 clears it by 2.3x.
+#:
+#: **E6 measured it at 28 tokens, against the 250 reserved — 8.93x** (20260821 07:49 UTC,
+#: `tools/deep_reservation.py count --kb <kb>`, **synthetic** corpus), by counting a request twice
+#: with the last passage's text hollowed out: the difference is the envelope alone. The
+#: 220-character path used to size this is a corpus maximum, not a typical one, and
+#: `tests/demo-kb`'s paths are short — so the margin is real but the measurement is not the worst
+#: case. **Not lowered.**
 PASSAGE_ENVELOPE_TOKENS: Final = 250
 
 #: The carried-memory bound: what a round may hand the next one after §5's re-fold.
@@ -91,6 +105,14 @@ PASSAGE_ENVELOPE_TOKENS: Final = 250
 #: this budget instead of appending to it, which is what keeps a round's cost constant; so this is
 #: not a ceiling over an unknown, it is the number `deep/loop.py` (E4) must cut to. It lives in the
 #: module that prices it so the two cannot disagree — E4 imports it rather than declaring its own.
+#:
+#: **E6 measured 1,612 tokens for a memory filled to `CARRIED_MEMORY_CHAR_CEILING` — 2.48x**
+#: (20260821 07:49 UTC, `tools/deep_reservation.py count --kb <kb>`, **synthetic** corpus). The
+#: probe fills the memory to exactly the bound a round is priced at, so this measures what E2
+#: reserved rather than what a small sample happened to use. It confirms the
+#: 2-characters-per-vendor-token derivation was pessimistic by ~2.5x. **Not lowered** — the re-fold
+#: cuts to this number, so lowering it would change what `deep/loop.py` must cut to, not merely what
+#: is reserved.
 CARRIED_MEMORY_TOKENS: Final = 4_000
 
 #: The same bound, in the unit the code that carries it can actually measure without a tokenizer.
@@ -103,8 +125,8 @@ CARRIED_MEMORY_TOKENS: Final = 4_000
 #: drift: a re-fold that cut to a different number would be cutting to a different price.
 CARRIED_MEMORY_CHAR_CEILING: Final = 2 * CARRIED_MEMORY_TOKENS
 
-#: The question's own tokens, and the ceiling `deep/loop.py` (E4) must enforce to make them a
-#: bound at all.
+#: The question's own tokens, and the ceiling `deep/loop.py` (E4) must enforce to make them a bound
+#: at all.
 #:
 #: **Found in this increment's own review, and it is a real under-count without the pair.** A
 #: question arrives as an argv string — `pnk ask "<question>"` — with no length limit anywhere in
@@ -114,19 +136,31 @@ CARRIED_MEMORY_CHAR_CEILING: Final = 2 * CARRIED_MEMORY_TOKENS
 #: deliberately pessimistic 2 characters per vendor token that is 1,000 tokens.
 #:
 #: The ceiling is not enforced here — this module refuses nothing but a stale price table and an
-#: oversized request. **E4 refuses a longer question**, and until it does, a question past the
-#: ceiling is the one input that can cost more than was reserved for it.
+#: oversized request. **E4 refuses a longer question** (shipped 0.24.0); before it did, a question
+#: past the ceiling was the one input that could cost more than was reserved for it.
+#:
+#: **E6 measured 399 tokens for a question filled to `QUESTION_CHAR_CEILING` — 2.51x** (20260821
+#: 07:49 UTC, `tools/deep_reservation.py count --kb <kb>`, **synthetic** corpus). Differenced
+#: against a one-character question, so it isolates the question's own cost. **Not lowered.**
 QUESTION_TOKENS: Final = 1_000
 QUESTION_CHAR_CEILING: Final = 2_000
 
-#: The fixed cost of a call: instructions, the structured-output schema, and the envelope around
-#: the question — everything that does not scale with the passages or with the question.
+#: The fixed cost of a call: instructions, the structured-output schema, and the envelope around the
+#: question — everything that does not scale with the passages or with the question.
 #:
-#: **Not yet measured, and above the only measurement this repository has.** The prompts are
-#: written in E3/E4, so nothing here can count them; the nearest datum is the paid extractor's
+#: **Where the number came from, before it could be measured.** The prompts are written in E3/E4,
+#: so nothing at E2 could count them; the nearest datum was the paid extractor's
 #: instructions-plus-schema, *measured* at 571 tokens and shipped at 700 (`PROMPT_TOKENS` in
 #: `budget/estimate.py`). A decompose/answer pair carrying citation rules and a richer schema is
-#: larger, so this is set at ~2.6x that measurement. E6 measures the real one.
+#: larger, so this was set at ~2.6x that measurement.
+#:
+#: **E6 measured it, and the guess was 3.99x high: 376 tokens against 1,500** (20260821 07:49 UTC,
+#: `tools/deep_reservation.py count --kb <kb>`, **synthetic** corpus). The floor is what remains of
+#: a real request once the question and the evidence are differenced out. Note the *direction*: the
+#: extractor's equivalent was measured at 571 against an estimated 300 — wrong in the **unsafe**
+#: direction — and this one is wrong in the safe one. Reasoning from that precedent to "~2.6x the
+#: extractor's" landed 4x above the real figure, which is the cost of estimating from an estimate.
+#: **Not lowered.**
 PROMPT_TOKENS: Final = 1_500
 
 #: Output ceiling per call — the `max_tokens` the client sets on the request. Caps thinking and
@@ -134,9 +168,19 @@ PROMPT_TOKENS: Final = 1_500
 #: bound, and the same value the extractor reserves for the same reason.
 #:
 #: **This dominates a round's price** — two thirds of it under the shipped defaults (EUR 0.1852 of
-#: EUR 0.2812 a call), because output bills at five times the input rate. E6 measures what the two
-#: calls actually produce; until then a bound that cannot be exceeded is worth more than one that
-#: is close.
+#: EUR 0.2812 a call), because output bills at five times the input rate. **A bound that cannot
+#: be exceeded is worth more than one that is close**, which is why the measurement below did
+#: not move it.
+#:
+#: **E6 measured it, and it is the single largest source of over-reservation: the widest of 22
+#: reconciled calls produced 660 output tokens against the 8,000 reserved — 12.12x** (20260821 07:49
+#: UTC; the calls are the ledger rows of the runs `tools/deep_reservation.py report` joins, on
+#: **synthetic** corpora). Across those 22 calls output ran 11 to 660, mean 241. Because output
+#: bills at five times input and is two thirds of a round's price, this one constant carries most of
+#: the 22-51x whole-run factor the run published. **Not lowered, and this is the constant where that
+#: refusal costs the most and matters the most**: `max_tokens` is a hard truncation, so a ceiling
+#: set near the observed mean would cut a long answer off mid-sentence on the first question a real
+#: corpus asked that this one did not.
 MAX_TOKENS: Final = 8_000
 
 #: The cheap branch: one synthesis call over round 0's passages (D-28 option B).
