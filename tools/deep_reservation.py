@@ -33,12 +33,13 @@ needs no key, never loads the SDK at all.
 from __future__ import annotations
 
 import argparse
+import collections
 import json
 import sys
 from dataclasses import asdict, dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Final, cast
 
 if TYPE_CHECKING:  # imports for annotations only — nothing here loads at runtime
     from collections.abc import Sequence
@@ -61,14 +62,40 @@ class Row:
     @property
     def factor(self) -> float:
         """How many times the reservation exceeds the measurement. `inf` when nothing was used."""
-        return float("inf") if self.measured == 0 else self.reserved / self.measured
+        return float("inf") if self.measured <= 0 else self.reserved / self.measured
+
+    @property
+    def marker(self) -> str:
+        """Two characters that say which of three things this row is.
+
+        **`inf` is not a passing grade, and it used to print like one.** Three code paths clamp a
+        measurement to zero — `max(floor, 0)` and `_ratio`'s two guards — and a zero measurement
+        makes `factor` infinite, which sailed past the old `reserved >= measured` test wearing the
+        calm marker. An infinite ratio never means *the reservation is infinitely safe*; it means
+        **the differencing produced nothing and this row measured nothing**, which is the one
+        outcome an operator must not paste into a release note. It gets its own marker rather than
+        sharing either of the others.
+        """
+        if self.measured <= 0:
+            return "??"
+        return "  " if self.reserved >= self.measured else "!!"
 
     def describe(self) -> str:
-        arrow = "  " if self.reserved >= self.measured else "!!"
         return (
-            f"{arrow} {self.name:<32} reserved {self.reserved:>7,}  "
+            f"{self.marker} {self.name:<32} reserved {self.reserved:>7,}  "
             f"measured {self.measured:>7,} {self.unit:<6}  {self.factor:>6.2f}x"
         )
+
+
+#: The branch name given to a transcript that could not be read or carries no branch.
+#:
+#: **Deliberately not `"unknown"`.** `estimate.UNKNOWN` is that exact string and names a *real*
+#: branch — the uncalibrated loop, which is one of the three figures this run publishes. A fallback
+#: sharing its name folds every unreadable file into that branch's statistics: on a KB whose runs
+#: are genuinely `unknown`, a stray JSON file adds a phantom run and EUR 0.00 to a published total
+#: with nothing in the output to say so. The parentheses are not decoration — no branch constant
+#: can ever collide with a name that is not an identifier.
+UNREADABLE: Final = "(unreadable)"
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +107,27 @@ class Spend:
     calls: int
     estimated_eur: Decimal
     actual_eur: Decimal
+    reconciled_calls: int = 0
+    voided_calls: int = 0
+    unresolved_calls: int = 0
+    """Reserved, with neither a reconciliation nor a void. **Priced at its reservation** by
+    `Call.effective_eur`, which is right for a budget guard and wrong for a measurement: it lands
+    in the `spent` column and pulls the published factor towards 1.0."""
+    unrecorded_calls: int = 0
+    """Named by the transcript and absent from the ledger entirely — contributes nothing, so it
+    pulls the factor the *other* way. Reachable when a ledger is truncated or a KB is copied
+    without it."""
+
+    @property
+    def settled(self) -> bool:
+        """True when every call this run named reached a terminal outcome in the ledger.
+
+        A **voided** call is settled: it is closed at zero because it never billed, which is
+        exactly what the deep path does to a reservation whose request was refused — all of
+        0.22.0-0.25.0's `400`s ended this way. An **unresolved** or **unrecorded** one is not, and
+        a factor computed over either is not the number this tool claims to print.
+        """
+        return self.unresolved_calls == 0 and self.unrecorded_calls == 0
 
     @property
     def factor(self) -> float:
@@ -251,8 +299,15 @@ def measure_inputs(kb: Path, question: str, model: str) -> tuple[list[Row], dict
 
 
 def _ratio(vendor: int, embedding: int) -> int:
-    """Vendor tokens per embedding token, rounded **up** — a ratio floored is a ceiling breached."""
-    if embedding <= 0:
+    """Vendor tokens per embedding token, rounded **up** — a ratio floored is a ceiling breached.
+
+    Both guards return 0, which `Row.marker` renders `??` rather than as an infinitely safe
+    reservation. **The negative guard is not theoretical**: `vendor` is a difference of two counted
+    requests, so a counter that returned the pair out of order makes it negative — and `-(-v // e)`
+    is a true ceiling, which for a negative numerator rounds *towards zero*. `_ratio(-150, 100)`
+    returned `-1`, and a reservation of 3 against a measurement of -1 compares as comfortable.
+    """
+    if embedding <= 0 or vendor <= 0:
         return 0
     return -(-vendor // embedding)
 
@@ -273,13 +328,86 @@ def manifest_final_k(kb: Path) -> int:
 # --- the free half: the transcripts, priced from the ledger ------------------------------------
 
 
-def collect_spend(kb: Path) -> list[Spend]:
-    """Every transcript on disk, joined to the ledger by the ids it names.
+def _read_body(path: Path) -> dict[str, object] | None:
+    """One transcript, or `None` if it is not a JSON object this can read.
+
+    **The comment that used to sit here claimed this was defensive and it was not.** `json.loads`
+    was unguarded and `cast` does nothing at runtime, so a single unreadable file aborted the whole
+    report before one row printed — losing the reconciliation for every *other* run, after the
+    money was spent. Four shapes were reproduced doing it: a truncated file, a zero-byte file, a
+    top-level JSON list (`AttributeError` on `.get`), and a macOS AppleDouble sidecar
+    `._<ulid>.json` which `transcript.paths()` globs because it applies no ULID check on read —
+    and which appears
+    whenever a KB is copied to exFAT or SMB, an ordinary way to move one.
+
+    **`transcript.call_ids()` already swallows exactly these**, which is why `pnk sync
+    --clear-cache=transcripts` could price a store this tool died on. Diverging from the helper
+    whose behaviour this module's own docstring cites was the defect, not a design choice.
+    """
+    try:
+        body = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    return cast(dict[str, object], body) if isinstance(body, dict) else None
+
+
+def _int(value: object, *, default: int = 0) -> int:
+    """A count from a file on disk — accepted only if it really is one.
+
+    `int(cast(int, ...))` was neither a check nor a conversion: `"calls": 3.9` truncated silently to
+    3 and summed into a published call count, `"calls": "3"` was accepted, and `null` or `"many"`
+    raised out of the whole run. The two silent ones are worse than the two loud ones, because they
+    move a number an operator then pastes into a release note. `bool` is excluded deliberately —
+    it is an `int` subclass, and `"calls": true` counting as one call is not a reading anyone meant.
+    """
+    return value if isinstance(value, int) and not isinstance(value, bool) else default
+
+
+def _decimal(value: object, *, default: str = "0") -> Decimal:
+    """A money figure from a file on disk. `Decimal(str(None))` is `InvalidOperation`, not zero."""
+    if isinstance(value, str | int) and not isinstance(value, bool):
+        try:
+            return Decimal(str(value))
+        except InvalidOperation:
+            return Decimal(default)
+    return Decimal(default)
+
+
+def _settlement(manifest: Manifest, ids: set[str]) -> tuple[int, int, int, int]:
+    """`(reconciled, voided, unresolved, unrecorded)` for exactly these `call_id`s.
+
+    **Asked separately from the money, and deliberately so.** `sync.ledger_spend` stays the one
+    place a euro figure comes from — a second expression of that arithmetic here would be a second
+    answer to *what did this cost*. This asks a different question, *did the ledger finish
+    answering it*, which `ledger_spend` cannot report because it returns a single string.
+    """
+    from pinakes.budget import ledger
+
+    resolved = ledger.resolve(ledger.read(ledger.ledger_path(manifest.state_dir)).records)
+    states = {call.call_id: call.state for call in resolved.calls if call.call_id in ids}
+    counted = collections.Counter(states.values())
+    return (
+        counted[ledger.CallState.RECONCILED],
+        counted[ledger.CallState.VOIDED],
+        counted[ledger.CallState.UNKNOWN],
+        len(ids - set(states)),
+    )
+
+
+def collect_spend(kb: Path) -> tuple[list[Spend], int]:
+    """Every transcript on disk joined to the ledger, and how many were unreadable.
 
     **The ledger is asked what a run cost, never the transcript** — a transcript's `spent_eur` is a
     snapshot taken at write time and a later `pnk budget --resolve` moves the number without
     touching the file. `transcript.call_ids()` + `sync.ledger_spend()` is the join E5 left for this,
     and it is the same one `paid_cache_spend` already used.
+
+    **And the ledger is asked *how* it settled, not only the total.** `Call.effective_eur` prices a
+    reservation with no outcome at the reservation — correct for a budget guard, which must assume
+    an in-flight call billed, and wrong for a measurement, which would report a reserved amount in
+    a column headed `spent`. Measured on this repository's own run: dropping one reconciliation
+    line took the published synthesis factor from **29.75x to 4.40x**, silently, at exit 0.
+    `pnk budget` says loudly that unknown outcomes hold that money; this said nothing at all.
     """
     from pinakes.deep import transcript
     from pinakes.manifest import load as load_manifest
@@ -287,46 +415,68 @@ def collect_spend(kb: Path) -> list[Spend]:
 
     manifest = load_manifest(kb)
     out: list[Spend] = []
+    unreadable = 0
     for path in transcript.paths(manifest.state_dir):
-        # Every read is defensive and typed at the boundary: a transcript is a file on disk that a
-        # `--clear-cache` or a hand-edit can have left in any shape, and this runs *after* the money
-        # was spent — a crash here would lose the reconciliation, not prevent a charge.
-        body = cast(dict[str, object], json.loads(path.read_text(encoding="utf-8")))
+        body = _read_body(path)
+        if body is None:
+            unreadable += 1
+            continue
         raw = body.get("answer")
         answer = cast(dict[str, object], raw) if isinstance(raw, dict) else {}
         listed = answer.get("call_ids")
         ids: set[str] = set()
         if isinstance(listed, list):
             ids = {c for c in cast(list[object], listed) if isinstance(c, str)}
+        raw_branch = answer.get("branch")
+        branch = raw_branch if isinstance(raw_branch, str) and raw_branch else UNREADABLE
+        reconciled, voided, unresolved, unrecorded = _settlement(manifest, ids)
         out.append(
             Spend(
                 operation_id=str(body.get("operation_id", path.stem)),
-                branch=str(answer.get("branch", "unknown")),
-                calls=int(cast(int, answer.get("calls", 0))),
-                estimated_eur=Decimal(str(answer.get("estimated_eur", "0"))),
+                branch=branch,
+                calls=_int(answer.get("calls")),
+                estimated_eur=_decimal(answer.get("estimated_eur")),
                 actual_eur=Decimal(ledger_spend(manifest, ids)),
+                reconciled_calls=reconciled,
+                voided_calls=voided,
+                unresolved_calls=unresolved,
+                unrecorded_calls=unrecorded,
             )
         )
-    return out
+    return out, unreadable
 
 
 def summarise(rows: list[Spend]) -> dict[str, dict[str, Any]]:
-    """Per branch, because a blended figure hides the whole return on a calibrated signal (D-28)."""
+    """Per branch, because a blended figure hides the whole return on a calibrated signal (D-28).
+
+    Each branch also carries `settled`: false when any run in it named a call the ledger has not
+    closed. A branch's factor is only the number this tool claims to publish while that is true.
+    """
     by: dict[str, dict[str, Any]] = {}
     for row in rows:
         seen = by.setdefault(
             row.branch,
-            {"runs": 0, "calls": 0, "estimated_eur": Decimal("0"), "actual_eur": Decimal("0")},
+            {
+                "runs": 0,
+                "calls": 0,
+                "estimated_eur": Decimal("0"),
+                "actual_eur": Decimal("0"),
+                "unresolved_calls": 0,
+                "unrecorded_calls": 0,
+            },
         )
         seen["runs"] += 1
         seen["calls"] += row.calls
         seen["estimated_eur"] += row.estimated_eur
         seen["actual_eur"] += row.actual_eur
+        seen["unresolved_calls"] += row.unresolved_calls
+        seen["unrecorded_calls"] += row.unrecorded_calls
     for seen in by.values():
         actual = seen["actual_eur"]
         seen["over_reservation"] = (
             float("inf") if not actual else float(seen["estimated_eur"] / actual)
         )
+        seen["settled"] = not (seen["unresolved_calls"] or seen["unrecorded_calls"])
     return by
 
 
@@ -365,7 +515,7 @@ def main(argv: list[str]) -> int:
         )
         return 0
 
-    rows = collect_spend(args.kb)
+    rows, unreadable = collect_spend(args.kb)
     if not rows:
         print(f"deep_reservation: no transcripts under {args.kb}/.pinakes/deep/", file=sys.stderr)
         return 1
@@ -373,7 +523,11 @@ def main(argv: list[str]) -> int:
     if args.json:
         print(
             json.dumps(
-                {"runs": [_as_json(r) for r in rows], "by_branch": summary},
+                {
+                    "runs": [_as_json(r) for r in rows],
+                    "by_branch": summary,
+                    "unreadable_transcripts": unreadable,
+                },
                 indent=2,
                 default=str,
             )
@@ -382,9 +536,29 @@ def main(argv: list[str]) -> int:
     print("# over-reservation, per branch (estimate / reconciled ledger spend)\n")
     for branch, seen in sorted(summary.items()):
         print(
-            f"  {branch:<15} {seen['runs']:>2} runs, {seen['calls']:>2} calls   "
+            f"{'  ' if seen['settled'] else '!!'} {branch:<15} "
+            f"{seen['runs']:>2} runs, {seen['calls']:>2} calls   "
             f"reserved EUR {seen['estimated_eur']:>8.4f}   spent EUR {seen['actual_eur']:>8.4f}   "
             f"{seen['over_reservation']:>6.2f}x"
+        )
+    # Printed *after* the table and never in place of it: the figures are still the best available
+    # reading, and an operator who pastes one needs to know which of them is not what it says.
+    for branch, seen in sorted(summary.items()):
+        if seen["settled"]:
+            continue
+        print(
+            f"\n!! {branch}: {seen['unresolved_calls']} call(s) reserved but never reconciled, "
+            f"{seen['unrecorded_calls']} named by a transcript and absent from the ledger.\n"
+            "   An unreconciled call is priced at its RESERVATION, so it lands in `spent` and\n"
+            "   pulls this factor towards 1.0. Close them with `pnk budget --resolve <call_id>\n"
+            "   --actual <eur>` and re-run; until then this row is not the number it claims.",
+            file=sys.stderr,
+        )
+    if unreadable:
+        print(
+            f"\n!! {unreadable} transcript(s) under {args.kb}/.pinakes/deep/ could not be\n"
+            "   read, and are excluded from every figure above.",
+            file=sys.stderr,
         )
     return 0
 
