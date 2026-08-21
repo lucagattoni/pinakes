@@ -40,7 +40,7 @@
 | **PDF ingest, paid path** (scanned PDFs) | shipped 0.3.0 | I7b. `claude-vision` is a real extractor, **measured against the live API 20260729** — 1.000 on every metric over the synthetic scanned stratum, where the free path scores 0.000 ([DESIGN §9](DESIGN.md#9-known-risks)) |
 | Budget estimator, caps, window aggregation | shipped 0.2.2, **inert** | I6a. The pure logic only — nothing calls it, so nothing can spend |
 | Deep paid client | shipped 0.24.0, reached by `--deep` | E3. `src/pinakes/deep/client.py` — the **second and final** entry on `.paid-path-allowlist`, and the module that builds a round's two calls: decompose, and answer. Reached by `pnk ask --deep` since E4, which builds its transport only once the caps have admitted the run. Two structural defences ship with it — a subproblem is a plain string because the schema has no other field it could be, and an answer cites **passage numbers**, so a citation naming evidence the call never had is refused. `pnk serve` never loading it is now a gate. `src/pinakes/paid.py` holds what both paid clients obey; it is deliberately **not** allowlisted, because it imports no client |
-| Deep-round estimator | shipped 0.24.0 | E2. What one `pnk ask --deep` would cost, before the first call: the cheap branch's single synthesis call, a loop round, and `max_rounds x` a round for the whole operation. Pure — no client, no I/O, no wall clock. It waited on `main` for E4, which is what first made `--deep` real, and both cut in 0.24.0. **The free `pnk ask` calls it too**, to price the run it offers — which is why a free command reaches `pinakes.deep.estimate` and still never `pinakes.deep.client`, asserted in a fresh subprocess. At the shipped defaults the cheap branch is EUR 0.2627 and a three-round loop EUR 1.6872 — which is why E4 raised `per_operation_eur` to 2.00 and `daily_eur` to 6.00 (D-30): under the old 0.30 even a **one-round** loop was refused, on every KB the template stamps |
+| Deep-round estimator | shipped 0.24.0 | E2. What one `pnk ask --deep` would cost, before the first call: the cheap branch's single synthesis call, a loop round, and `max_rounds x` a round for the whole operation. Pure — no client, no I/O, no wall clock. It waited on `main` for E4, which is what first made `--deep` real, and both cut in 0.24.0. **The free `pnk ask` calls it too**, to price the run it offers — which is why a free command reaches `pinakes.deep.estimate` and still never `pinakes.deep.client`, asserted in a fresh subprocess. At the shipped defaults the cheap branch is EUR 0.2627 and a three-round loop EUR 1.6872 — which is why E4 raised `per_operation_eur` to 2.00 and `daily_eur` to 6.00 (D-30): under the old 0.30 even a **one-round** loop was refused, on every KB the template stamps. **Every constant it prices with was measured against the live API in E6 and none was lowered** — 3.99x to 12.12x above their ceilings ([below](#the-deep-loop-measurement-run-has-been-done--20260821-02131)) |
 | Budget ledger, `pnk budget`, the accountant | shipped 0.3.0 | I6b. `ledger.jsonl`, the reservation/outcome protocol, and I6a's decisions read from it — now driven by I7b's extractor |
 | `path:page` citations | shipped | I8. `docs/paper.pdf:p7` / `:p7-8`, on the CLI and MCP alike; `pnk doctor` names the pages with no text layer |
 | Cross-KB links (`pnk link`, `pnk links`, `pinakes_links`) | **shipped 0.6.0** — `pnk sync` records what other KBs link into this one (`--scan-links`), `pnk links` and `pinakes_links` traverse (0.5.0), `pnk link` authors, and `pnk doctor` reports link coverage as a ratio and resolves cross-KB targets (0.6.0) | 0.5.0 · 0.6.0 |
@@ -239,6 +239,36 @@ how conservative the reservation is.
 | `PAGE_TOKEN_CEILING` | Measured ~1,574/page against a 6,000 ceiling. **Deliberately not lowered**: the corpus rasters are synthetic, and a real 300-DPI scan is the case they cannot represent |
 | Reservation accuracy | Over-reserved **11.5×** on the first live call ($0.3515 → $0.0306). Safe, and exactly why reconciliation exists |
 | The refusal branch | Fired for real. `headers-repeating.pdf` was refused twice, recorded as a document failure, and the other four extracted normally |
+
+### The deep-loop measurement run has been done — 20260821, €0.2131
+
+Steps (a)–(e) of [MEASUREMENT-RUN.md](MEASUREMENT-RUN.md#the-deep-loop-run), against the live API
+with `claude-opus-5`, for **€0.2131** — a twenty-fourth of the €5.1836 worst case, which is itself
+the result. Synthetic corpora throughout (`tests/demo-kb` and `tests/partner-kb`, copied): that is
+E6's exit criterion and the reason no ceiling moved.
+
+| What it settled | Result |
+|---|---|
+| Over-reservation, `synthesis` — the common case | **29.75×** — €1.0500 reserved, €0.0353 spent, 5 runs of 1 call |
+| Over-reservation, `decomposition` — a calibrated loop | **50.92×** — €2.7600 reserved, €0.0542 spent, 2 runs |
+| Over-reservation, `unknown` — an uncalibrated loop | **22.35×** — €2.7600 reserved, €0.1235 spent, 2 runs |
+| The five input constants | 1.50× to 8.93× above their ceilings, each isolated by differencing real `count_tokens` requests. None lowered |
+| `MAX_TOKENS` | 8,000 against a widest-observed **660** across 22 reconciled calls (mean 241) — **12.12×**, and most of the whole-run ratio, since output bills at five times input and is two thirds of a round's price |
+| The refusal branch | Fired for real, and **had never been run before**. Refused *before the first call* at exit 1, leaving no ledger row and no transcript — D-23 and E5's rule both hold |
+| The runbook | Two defects in one step, both found by the free pre-flight it prescribes one paragraph earlier |
+| The instrument | Five defects in `tools/deep_reservation.py`, which had no tests. Its `--json` had never once run |
+
+**The calibrated loop is the most over-reserved, and that is the signal working.** A reservation
+must cover `max_rounds`; a calibrated confidence signal is exactly what lets a run stop before
+reaching them, so `decomposition` reserves the full loop and usually stops early while `unknown` —
+which has no early stop by construction — spends closer to what it reserved. Both are reported
+separately because a single blended figure would hide precisely that (D-28), and the cheap branch
+is named as the common case.
+
+**An earlier partial run published 19.0× and 16.5×. Those are withdrawn, not corrected** — their
+measurement KBs were reaped from `/tmp` before anyone re-ran the report, so no surviving transcript
+or ledger row supports them. **A measurement whose substrate lives in `/tmp` has a shelf life**, and
+that number outlived it.
 
 ## The fixtures are now half recorded — 20260729 03:36, €0.26
 

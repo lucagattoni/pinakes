@@ -453,8 +453,8 @@ it spends the rounds it reserved. **`MAX_TOKENS` carries most of the ratio**, si
 at five times input and is two thirds of a round's price. And **no constant was lowered**: the
 corpus is synthetic, which is E6's exit criterion and `PAGE_TOKEN_CEILING`'s binding precedent.
 
-**An earlier partial run published 19.0× and 16.5×.** Those are superseded, and not because they
-were mis-computed: their KBs were reaped from `/tmp` before anyone re-ran `report`, so no surviving
+**An earlier partial run published 19.0× and 16.5×.** Those are **withdrawn**, not corrected — a
+distinction worth keeping, because they were not mis-computed: their KBs were reaped from `/tmp` before anyone re-ran `report`, so no surviving
 transcript or ledger row supports them. Treat them as withdrawn rather than as a second data point.
 
 **Both branches are reported separately and the cheap one is named as the common case.** A single

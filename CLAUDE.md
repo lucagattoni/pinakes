@@ -146,11 +146,11 @@ closed plan still binds, is [`docs/README.md`](docs/README.md):
 
 - **[`plans/20260811_1358-deep-release.md`](plans/20260811_1358-deep-release.md) is the live build
   order — the only plan with *scheduled* unbuilt work.** All ten decisions (D-21 to D-30) are taken and
-  it is the authority for them; re-run its § 2 before trusting any `file:line`. **E1 to E5 are
-  built; E6 — the measurement run, the only increment that spends real money — is part-built and
-  is the work in progress**: the plan's E6 status block records what is done and what is still
-  owed, and [`docs/MEASUREMENT-RUN.md`](docs/MEASUREMENT-RUN.md) is the procedure. Then E7,
-  printed suggestions. **Read the E6 retrospective (*a seam the tests never crossed*) before
+  it is the authority for them; re-run its § 2 before trusting any `file:line`. **E1 to E6 are
+  built, so `pnk ask --deep` is measured as well as bounded — the plan's E6 status block carries
+  the over-reservation figures and the four things the run learned that the plan did not
+  anticipate.** **E7 — printed suggestions — is the only increment left**, and it is unstarted.
+  **Read the E6 retrospective (*a seam the tests never crossed*) before
   trusting any fixture-backed claim about the deep path** — `pnk ask --deep` `400`d on every live
   call from 0.22.0 until 0.25.1. A cut after E4 was already a complete release, so the name stays
   in the unbuilt-work table until the final cut (D-9).
