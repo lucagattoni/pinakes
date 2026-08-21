@@ -697,7 +697,7 @@ in [MANIFEST](MANIFEST.md#budget); whether any of it is wired up yet is in
 | Control | Mechanism |
 |---|---|
 | **Estimate before running** | Price a *worst case* locally from a versioned table, print it, and prompt above **`confirm_above_eur`** — a separate, lower field than the hard caps. Confirming at the same number that aborts would make the prompt unreachable, so the two thresholds are evaluated independently: a request sitting exactly at a cap is still allowed, and still asked about |
-| **Hard caps, checked before the call** | **Pre-call reservation.** Actual cost is only known from the response, so the accountant reserves worst case first. If `spent + reserved` exceeds any cap, **the call is never made** — a real ceiling, at the price of slight over-reservation, reconciled to true usage afterwards |
+| **Hard caps, checked before the call** | **Pre-call reservation.** Actual cost is only known from the response, so the accountant reserves worst case first. If `spent + reserved` exceeds any cap, **the call is never made** — a real ceiling, at the price of over-reservation (measured at 11.5x on the extractor and 22-51x on the deep loop, [below](#what-over-reservation-actually-costs)), reconciled to true usage afterwards |
 | **Three windows, not one** | `per_operation_eur` bounds one invocation; `daily_eur` and `monthly_eur` bound *sequences* of them. A per-operation cap alone is no protection against a hook-driven KB syncing thirty times a day, which is the shape this project actually has |
 | **What "operation" means** | One user-facing invocation — a whole `pnk sync` or `pnk ask --deep`, not one API call. Both are loops, so the cap is a *running total* across every call made; the loop halts when the next reservation would breach it. A per-call cap would let an N-step loop spend N× the stated limit |
 | **What a halted loop returns** | **`[budget] on_exceed`, the key that already answers this for `pnk sync`** — `abort` gives a failure and no answer, `partial` gives a best-effort answer from what the completed rounds established, labelled as bounded by the budget rather than by the evidence. One concept and one key: a user who set a preference for sync has already stated it. Its documented scope was corpus-level and this extends it to rounds, which is the sentence that extension needs — a question halted at round 2 of 3 still has cited evidence worth returning, and a run that produced *nothing* is a refusal either way, because `partial` has nothing to choose |
@@ -713,6 +713,38 @@ sends no passages, and buys the property the per-call reservation needs: every c
 the same, so one number bounds whichever is about to be made. **Under-counting is the one direction
 a budget may never be wrong in**, and counting a round's input once — as the first draft did — would
 have under-priced every round by the memory, the question and the prompt.
+
+### What over-reservation actually costs
+
+**It is large, it is measured, and it is the price of the ceiling being real.** A reservation is
+made *before* the call it pays for, so every constant behind it is a bound rather than an estimate,
+and the gap between the bound and the bill is the whole cost of refusing at call 0 instead of
+discovering a breach at call 15.
+
+| Path | Measured | When |
+|---|---|---|
+| Paid extractor, first live call | **11.5×** ($0.3515 reserved → $0.0306 spent) | 20260729, `claude-opus-5` |
+| `pnk ask --deep`, `synthesis` — the common case | **29.75×** (€1.0500 → €0.0353, 5 runs) | 20260821, `claude-opus-5` |
+| `pnk ask --deep`, `decomposition` — calibrated loop | **50.92×** (€2.7600 → €0.0542, 2 runs) | 20260821, `claude-opus-5` |
+| `pnk ask --deep`, `unknown` — uncalibrated loop | **22.35×** (€2.7600 → €0.1235, 2 runs) | 20260821, `claude-opus-5` |
+
+All on synthetic corpora, and **no ceiling was lowered to any of them** — a ceiling below a
+measurement is not a ceiling, and a synthetic corpus is precisely the one that cannot contain the
+case a ceiling exists for.
+
+Two things in that table are not obvious. **The output ceiling carries most of the ratio**: output
+bills at five times input and is two thirds of a round's price, and the widest of 22 reconciled
+deep calls produced 660 tokens against 8,000 reserved. It is also the ceiling least safe to lower,
+because `max_tokens` truncates rather than bills — an input bound set too low over-reserves, an
+output bound set too low cuts an answer off mid-sentence.
+
+**And the better-calibrated branch is the *more* over-reserved one.** A reservation must cover
+`max_rounds`; a calibrated confidence signal is exactly what lets a run stop before reaching them.
+So `decomposition` reserves the full loop and usually stops early, while `unknown` — which has no
+early stop by construction (§4.2) — spends closer to what it reserved. The apparent paradox is the
+signal working: the branch that looks worst on this table is the one whose runs cost least in
+absolute terms. Reporting a single blended figure would hide all of it, which is why both are kept
+separate here.
 
 **A request is the unit of estimation** — for the paid extractor, a fixed-size page slice, never a
 whole document and never a single page. The unit matters: a whole-document request makes input
