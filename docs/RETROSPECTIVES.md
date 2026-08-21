@@ -5982,6 +5982,41 @@ headroom, the branch, the call and round count, the complete manifest edit that 
 run, and the two cheaper routes before raising a cap. D-23 and E5's "a run that never returned
 writes none" both hold.
 
+## A prose tool pointed at a comment run containing load-bearing whitespace (20260821 22:48)
+
+**Found by the E6-close adversarial pass, after `./check.sh` was green — twice.** While annotating
+`estimate.py`'s constants, `textwrap` was used to reflow the affected comment runs to fix
+line-length errors, and it flattened an indented `\`-continued shell command into
+`... \ tests/demo-kb/docs` on one line — a literal backslash argument for anyone who pastes it.
+Caught before the tag, fixed in `4d5debf`.
+
+**The class, and why no gate can see it:** the result is legal, correctly-lengthed comment text, so
+`ruff` accepts it; it is a comment, so `pyright` never reads it; and a diff review reads the *new*
+prose rather than the old command. **No assertion anywhere could have failed** — which makes it a
+clean example of what the mutation battery cannot reach, now noted in
+[`docs/BUILDING.md`](BUILDING.md) § 4. The rule: a prose tool's output over text containing
+load-bearing whitespace is re-read as the thing it is — a command, a table, an indent — never as
+prose.
+
+**The sibling case, from the same day's release sweeps: a script that navigates Markdown by a
+heading prefix steps over every shallower heading.** 0.25.3's sweep inserted its ROADMAP section
+with a `startswith("## ")` scan for the next section — and `# Part 5 · What is not built` starts
+with `"# "`, so the scan stepped straight over the divider and the Part heading and placed a
+finished release section inside the unbuilt-work part. `release_order_gate` could not see it: it
+checks order *among* release sections, never which part they sit in. Diagnosed by the sweep's own
+author from the script, not guessed; the other three insertions from that sweep were each anchored
+*immediately after a located line* and are correctly placed — the one that navigated *forward* to
+find its slot is the one that crossed a boundary it could not represent. Moved in 0.25.4. The rule
+both halves of this entry share: **a prose-shaped tool applied to a file whose structure carries
+meaning it does not model needs its output re-read against that structure** — heading level,
+load-bearing whitespace, a divider — never against the text alone.
+
+The same pass also found a shorthand ("output is two thirds of a round's price") that is correct
+beside the shipped defaults and wrong at the measurement KB's geometry (four fifths there); it was
+qualified at its five new uses only, deliberately — the pre-existing uses sit beside
+default-geometry arithmetic, where the shorthand is exact, and a blanket qualifier would cost every
+reader to protect none.
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings

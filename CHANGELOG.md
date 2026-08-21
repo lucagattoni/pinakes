@@ -10,6 +10,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.25.4] — 20260821 22:49
+
+### Changed
+
+- **`docs/BUILDING.md` § 4 now says what the mutation battery cannot reach** — a defect with no
+  assertion anywhere, with 0.25.3's rewrapped-comment command (`4d5debf`) as the worked case: a
+  prose tool's output over text containing load-bearing whitespace is re-read as the thing it is,
+  never as prose.
+
 ## [0.25.3] — 20260821 22:34
 
 ### Changed
@@ -3465,7 +3474,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.25.3...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.25.4...HEAD
+[0.25.4]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.4
 [0.25.3]: https://github.com/lucagattoni/pinakes/compare/v0.25.2...v0.25.3
 [0.25.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.2
 [0.25.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.1

@@ -17,11 +17,11 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260821 22:34 UTC
+## Where things stand right now — 20260821 22:49 UTC
 
-- **41 releases in 27 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.25.3`](#0253--the-deep-loop-is-measured--20260821-2234) on 20260821.
-- **Latest on PyPI: `0.25.3`**, confirmed by installing it from the index rather than by reading a
+- **42 releases in 27 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.25.3`](#0253--the-deep-loop-is-measured--20260821-2234) and [`0.25.4`](#0254--what-the-mutation-battery-cannot-reach--20260821-2249) on 20260821.
+- **Latest on PyPI: `0.25.3`** (`0.25.4` publishes with its tag), confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by reading the
   schema builders out of the published wheel, because a matching version string says nothing about
   whether the release's own subject is inside it. **0.25.1 is the sharpest case this project has
@@ -156,6 +156,7 @@ number belongs to a release only when it is cut
 | **[0.25.1](#0251--pnk-ask---deep-works-against-the-live-api--20260821-0717)** | 20260821 07:17 | `pnk ask --deep` works against the live API | • **It never had.** Every answer call carried `integer` `minimum`/`maximum` and every decompose call an array `maxItems`; structured outputs accepts neither, so the API returned `400` **before the request billed**<br>• Every `--deep` invocation in 0.22.0–0.25.0 failed, at a cost of €0.00 — the accountant reserved, refused and voided exactly as designed<br>• The citation bound is **kept, not dropped**: `enum: [1..passages]` states what `minimum`/`maximum` stated, so E4's two halves both survive<br>• The subproblem cap has no such form and moves to the prompt body and `parse_subproblems`, which were always its real enforcement<br>• **Found by E6's measurement run on its first real call** — the fixtures could not have caught it, because the `Transport` seam means no test ever sent a schema to the API<br>• The gate is a recursive shape assertion over both builders against the documented unsupported keywords<br>• *The deep release, fix (D-9)* — E6 and E7 are still to come |
 | **[0.25.2](#0252--the-guidance-carries-its-own-lessons--20260821-1447)** | 20260821 14:47 | the guidance carries its own lessons | • **Documentation only** — the recurring lessons routed into `docs/BUILDING.md` (mutation-harness discipline, gate exit status, the CI-matrix leg check, two plan-reading rules) and RETROSPECTIVES' own § *Start here* (four new rows)<br>• `CLAUDE.md` § *Changing retrieval* names which corpus can license a change; the live-plan block slims to pointers, the E6 status moving into the plan itself<br>• A committed mutation harness, `tools/mutate.py`, proposed in `plans/` |
 | **[0.25.3](#0253--the-deep-loop-is-measured--20260821-2234)** | 20260821 22:34 | the deep loop is measured | • **E6 is built** — the measurement run published the over-reservation factor: **29.75×** on the cheap `synthesis` branch, **50.92×** and **22.35×** on the two loop branches, for €0.2131 against a €5.1836 worst case<br>• Every `deep/estimate.py` constant carries its measurement and the command that produced it; **none lowered**, the corpus being synthetic<br>• Six defects in `tools/deep_reservation.py`, which had no tests — now 27, mutation-verified 10/10<br>• Two defects in the runbook's own step (c) |
+| **[0.25.4](#0254--what-the-mutation-battery-cannot-reach--20260821-2249)** | 20260821 22:49 | what the mutation battery cannot reach | • **Documentation only** — BUILDING § 4 names the mutation step's own blind spot, with 0.25.3's rewrapped-command case (`4d5debf`)<br>• The lesson filed as a retrospective entry<br>• 0.25.3's section on this page moved out of Part 5, where its sweep had landed it |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **E1 to E6 are done** — the free surface, the estimator, the client, the loop, the run transcript and the measurement run<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7** — printed sidecar suggestions (`--write-suggestions` is deferred to its own increment, D-25 A) |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -1371,10 +1372,6 @@ dropped. `plans/` gains a proposal for a committed mutation harness, `tools/muta
 
 **PATCH: documentation and one docstring. The only wheel diff is the `__version__` string; the changed docstring is in `tools/`, outside the wheel.**
 
----
-
-# Part 5 · What is not built
-
 ## 0.25.3 — the deep loop is measured · 20260821 22:34
 
 **E6, the only increment that spends real money, is built.** Steps (a)–(e) of
@@ -1416,6 +1413,26 @@ on disk ever supported them.
 **No `schema_version` bump, no rebuild, and no product behaviour changed** — `tools/` ships in no
 wheel. **Interim PATCH: the release name stays in the unbuilt-work table** (D-9) — E7, printed
 suggestions, is the only increment left.
+
+## 0.25.4 — what the mutation battery cannot reach · 20260821 22:49
+
+**Documentation only.** `docs/BUILDING.md` § 4 now names the limit of its own mutation step — a
+defect with no assertion anywhere — with 0.25.3's worked case: a `textwrap` reflow of a comment
+run flattened a `\`-continued shell command onto one line, legal to `ruff`, invisible to
+`pyright`, read as prose by a diff review (`4d5debf`, caught by the E6-close adversarial pass
+before the tag). The rule it leaves: a prose tool's output over text carrying load-bearing
+whitespace is re-read as the thing it is — a command, a table, an indent — never as prose. The
+same landing files the lesson as a retrospective entry, and moves 0.25.3's own section on this
+page out of Part 5, where its sweep's `startswith("## ")` scan had placed it — a prefix match
+steps over every `# `, so the Part 5 boundary was invisible to it. The "complete, correct, and in
+the wrong place" class, one release after it was written into the release procedure — and this
+time with its mechanism identified from the script rather than guessed.
+
+**PATCH: docs and fragments only; the wheel diff is the `__version__` string.**
+
+---
+
+# Part 5 · What is not built
 
 ## Open corrections — one live
 

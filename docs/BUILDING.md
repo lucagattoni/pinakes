@@ -68,6 +68,14 @@ Never batch increments; each is a separate, bisectable landing:
    **"Mutation-verified" is a per-assertion claim, never a per-commit one**, and "pinned by test
    X" is a claim about a *failing* test: revert the fix and watch it go red, or do not write the
    word.
+   **And know what the battery cannot reach: a defect with no assertion anywhere.** A `textwrap`
+   reflow of a comment run flattened a `\`-continued shell command onto one line — legal to ruff,
+   invisible to pyright, read as prose by a diff review (0.25.3, `4d5debf`). A prose tool pointed
+   at text containing load-bearing whitespace needs its output re-read as the thing it is — a
+   command, a table, an indent — never as prose. The sibling case: a script navigating Markdown
+   matches the heading *level*, never a bare `startswith("## ")` — that steps over every `# `,
+   and it is how 0.25.3's release section landed inside ROADMAP's Part 5. Both are prose-shaped
+   tools applied to structure they do not model.
 5. **Retrospective review** — a fresh adversarial pass over the increment's own diff, repeated
    until clean. Findings and fixes are their **own commit** — **and a fix gets the same treatment
    as the code it fixes, mutation included**: a fix applied under review inherits the review's
