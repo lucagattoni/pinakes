@@ -10,6 +10,48 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.25.3] — 20260821 22:34
+
+### Changed
+
+- **Every constant that prices `pnk ask --deep` now carries its measurement, and none was
+  lowered.** E6's measurement run, against the live API on synthetic corpora: `PROMPT_TOKENS`
+  1,500 against 376 measured (3.99×), `QUESTION_TOKENS` 1,000 against 399 (2.51×),
+  `PASSAGE_ENVELOPE_TOKENS` 250 against 28 (8.93×), `VENDOR_TOKENS_PER_CHUNK_TOKEN` 3 against 2
+  (1.50×), `CARRIED_MEMORY_TOKENS` 4,000 against 1,612 (2.48×), and `MAX_TOKENS` 8,000 against a
+  widest-observed 660 (12.12×). **Whole-run over-reservation, per branch: 29.75× on the cheap
+  synthesis branch, 50.92× on the calibrated loop, 22.35× on the uncalibrated one** — against the
+  paid extractor's 11.5×. `MAX_TOKENS` carries most of it, because output bills at five times
+  input and is two thirds of a round's price. **A ceiling is never lowered to a measurement taken
+  on synthetic data**, and `max_tokens` is the one where that refusal matters most: it truncates
+  rather than bills, so a ceiling near the observed mean would cut a long answer off mid-sentence.
+
+### Fixed
+
+- **`tools/deep_reservation.py --json` raised `TypeError` on both subcommands.** `vars()` on a
+  `slots=True` dataclass has no `__dict__` to return, so `count --json` and `report --json` both
+  died on their first row. Nothing had ever called it — E6's measurement runs read the printed
+  table — so four releases of green tests never touched the branch. It now dumps through
+  `dataclasses.asdict` and carries `factor`, which is a property on both row types and would
+  otherwise have been missing from the machine-readable output while the table beside it printed
+  the number the whole run exists to produce.
+
+- **`tools/deep_reservation.py report` could print a plausible wrong factor and say nothing.** A
+  ledger call left *unresolved* — reserved, with neither a reconciliation nor a void — is priced at
+  its **reservation** by `Call.effective_eur`, which is right for a budget guard and wrong for a
+  measurement: it landed in a column headed `spent`. Deleting one reconciliation line from the real
+  measurement ledger moved the published synthesis figure from **29.75× to 4.40×**, silently, at
+  exit 0, while `pnk budget` on the identical ledger warns loudly about exactly that money. The
+  report now counts how each call settled, marks an unsettled branch, and says how to close it —
+  and a *voided* call stays settled, because it is closed at zero for never having billed. Three
+  more in the same pass: an unreadable transcript aborted the whole report rather than being
+  skipped, losing every other run's reconciliation after the money was spent (reproduced with a
+  truncated file, a zero-byte one, a top-level JSON list, and a macOS AppleDouble sidecar that
+  `transcript.paths()` globs); the fallback branch name was the literal `"unknown"`, which is a
+  *real* branch, so stray JSON was folded into the uncalibrated loop's published statistics; and
+  the "defensive" reads were neither, silently truncating `"calls": 3.9` into a published call
+  count. **The tool now has 27 tests, mutation-verified 10/10**, having had none at all.
+
 ## [0.25.2] — 20260821 14:47
 
 ### Changed
@@ -3423,7 +3465,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.25.2...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.25.3...HEAD
+[0.25.3]: https://github.com/lucagattoni/pinakes/compare/v0.25.2...v0.25.3
 [0.25.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.2
 [0.25.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.1
 [0.25.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.0
