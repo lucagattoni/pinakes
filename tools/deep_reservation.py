@@ -35,7 +35,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -84,6 +84,27 @@ class Spend:
     @property
     def factor(self) -> float:
         return float("inf") if not self.actual_eur else float(self.estimated_eur / self.actual_eur)
+
+
+def _as_json(row: Row | Spend) -> dict[str, Any]:
+    """One measured row, as JSON — **`asdict`, never `vars`**, and carrying its `factor`.
+
+    Two defects in one line, both found by this tool's own first test run (20260821 08:15) and
+    neither reachable from the human-readable output that every earlier run used:
+
+    * **`vars()` raises on both of these types.** `Row` and `Spend` are `slots=True`, so neither
+      instance has a `__dict__` for `vars` to return — `--json` did not print a worse answer, it
+      raised `TypeError` on the first row of either subcommand. It shipped that way because
+      nothing had ever called it: the measurement runs read the printed table.
+    * **`factor` is the published number and is not a field.** It is a property on both types, so
+      no field-dumping call reaches it, and the JSON a machine reads would have omitted the one
+      figure the whole run exists to produce while the table beside it printed it.
+
+    `float("inf")` is preserved as the string `Infinity` by `json.dumps` — not valid JSON, but the
+    honest rendering of a division by a zero spend, and the alternative (`null`) is
+    indistinguishable from a row that was never measured.
+    """
+    return {**asdict(row), "factor": row.factor}
 
 
 # --- the free half: count_tokens over the requests the loop really builds ----------------------
@@ -331,7 +352,7 @@ def main(argv: list[str]) -> int:
     if args.command == "count":
         rows, context = measure_inputs(args.kb, args.question, args.model)
         if args.json:
-            print(json.dumps({"context": context, "rows": [vars(r) for r in rows]}, indent=2))
+            print(json.dumps({"context": context, "rows": [_as_json(r) for r in rows]}, indent=2))
             return 0
         print(f"# input constants, measured on {context['kb']} ({context['passages']} passages)")
         print("# synthetic corpus — no constant below is a licence to lower a ceiling.\n")
@@ -352,7 +373,9 @@ def main(argv: list[str]) -> int:
     if args.json:
         print(
             json.dumps(
-                {"runs": [vars(r) for r in rows], "by_branch": summary}, indent=2, default=str
+                {"runs": [_as_json(r) for r in rows], "by_branch": summary},
+                indent=2,
+                default=str,
             )
         )
         return 0
