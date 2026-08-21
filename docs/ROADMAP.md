@@ -17,17 +17,17 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260821 07:17 UTC
+## Where things stand right now — 20260821 14:47 UTC
 
-- **39 releases in 27 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.25.1`](#0251--pnk-ask---deep-works-against-the-live-api--20260821-0717) on 20260821.
-- **Latest on PyPI: `0.25.1`**, confirmed by installing it from the index rather than by reading a
+- **40 releases in 27 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.25.2`](#0252--the-guidance-carries-its-own-lessons--20260821-1447) on 20260821.
+- **Latest on PyPI: `0.25.2`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by reading the
   schema builders out of the published wheel, because a matching version string says nothing about
   whether the release's own subject is inside it. **0.25.1 is the sharpest case this project has
   had of that distinction**: every release from 0.22.0 on installed cleanly and reported the right
   version while `pnk ask --deep` could not make one successful call. Every release from `0.2.2` on
-  is published — **thirty-two**, counted from the index's own `json` endpoint rather than from this
+  is published — **thirty-three**, counted from the index's own `json` endpoint rather than from this
   list's previous number.
 - **Two of the four named releases have shipped, and a third has started.** The links release across
   [`0.5.0`](#050--links-you-can-walk--20260731-1127)–[`0.6.0`](#060--links-you-can-write--20260801-1051),
@@ -98,7 +98,7 @@ precision nobody measured.
   written 20260811 13:58, **all ten of its decisions taken**. Seven increments; **E1 to E5 have
   landed** — the free question surface, the round estimator, the paid client with the second
   allowlist entry, the loop itself, so `pnk ask --deep` answers in [`0.24.0`](#0240--pnk-ask---deep-answers--20260811-2224), and the run
-  transcript in [`0.25.0`](#0250--a-paid-run-leaves-a-record-of-what-it-was-asked--20260812-0531). **E6 is next**, and it is the
+  transcript in [`0.25.0`](#0250--a-paid-run-leaves-a-record-of-what-it-was-asked--20260812-0531). **E6 is part-built and in progress**, and it is the
   only increment that spends real money. It is the only named release with unbuilt work in it.
 
 ---
@@ -154,7 +154,8 @@ number belongs to a release only when it is cut
 | | | **[The graph release, staged](#the-graph-release-staged--gates-only-not-scheduled)** | • PPR channel, the `[ner]` extra<br>• Gate-only: no implementation plan exists, by design<br>• Not scheduled |
 | **[0.25.0](#0250--a-paid-run-leaves-a-record-of-what-it-was-asked--20260812-0531)** | 20260812 05:31 | a paid run leaves a record of what it was asked | • **The run transcript** — `.pinakes/deep/<operation_id>.json`, written by every `pnk ask --deep` that returns and named in the output and in `--json`<br>• The ledger stores no query text and still does: this is a *second* file, which is what makes a `pnk budget` row explicable after the fact<br>• Filed under the `operation_id` the ledger groups by; the name is validated as a ULID<br>• The stored `answer` object is the one `--json` prints, **from one renderer**; `--json` gains `answer.call_ids` and a `transcript` path<br>• **Protected like a paid cache entry** — nothing sweeps it, `--rebuild` and `--clear-cache` leave it — and removed only by **`--clear-cache=transcripts`**, a *store* rather than a third authorisation<br>• Written for a run that **returned**, answer or not; a refusal, a decline and an `abort` halt write none<br>• *The deep release, interim cut (D-9)* — E6 and E7 are still to come |
 | **[0.25.1](#0251--pnk-ask---deep-works-against-the-live-api--20260821-0717)** | 20260821 07:17 | `pnk ask --deep` works against the live API | • **It never had.** Every answer call carried `integer` `minimum`/`maximum` and every decompose call an array `maxItems`; structured outputs accepts neither, so the API returned `400` **before the request billed**<br>• Every `--deep` invocation in 0.22.0–0.25.0 failed, at a cost of €0.00 — the accountant reserved, refused and voided exactly as designed<br>• The citation bound is **kept, not dropped**: `enum: [1..passages]` states what `minimum`/`maximum` stated, so E4's two halves both survive<br>• The subproblem cap has no such form and moves to the prompt body and `parse_subproblems`, which were always its real enforcement<br>• **Found by E6's measurement run on its first real call** — the fixtures could not have caught it, because the `Transport` seam means no test ever sent a schema to the API<br>• The gate is a recursive shape assertion over both builders against the documented unsupported keywords<br>• *The deep release, fix (D-9)* — E6 and E7 are still to come |
-| | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **E1 to E5 are done** — the free surface, the estimator, the client, the loop and the run transcript<br>• **E6 is next, and it is the only increment that spends real money**, under `docs/MEASUREMENT-RUN.md`<br>• **E7** — printed sidecar suggestions (`--write-suggestions` is deferred to its own increment, D-25 A) |
+| **[0.25.2](#0252--the-guidance-carries-its-own-lessons--20260821-1447)** | 20260821 14:47 | the guidance carries its own lessons | • **Documentation only** — the recurring lessons routed into `docs/BUILDING.md` (mutation-harness discipline, gate exit status, the CI-matrix leg check, two plan-reading rules) and RETROSPECTIVES' own § *Start here* (four new rows)<br>• `CLAUDE.md` § *Changing retrieval* names which corpus can license a change; the live-plan block slims to pointers, the E6 status moving into the plan itself<br>• A committed mutation harness, `tools/mutate.py`, proposed in `plans/` |
+| | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **E1 to E5 are done** — the free surface, the estimator, the client, the loop and the run transcript<br>• **E6 is part-built and in progress** — the plan's E6 status block records what is done and what is still owed; it is the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7** — printed sidecar suggestions (`--write-suggestions` is deferred to its own increment, D-25 A) |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
 ---
@@ -1349,6 +1350,25 @@ request rather than by a recorded one.
 **`SCHEMA_VERSION` is 2. No `schema_version` bump and no rebuild** — that constant names the deep
 response shape, not the index's, and is recorded into the transcript rather than validated against.
 **PATCH: the release name stays in the unbuilt-work table** (D-9) — E6 and E7 are still to come.
+
+## 0.25.2 — the guidance carries its own lessons · 20260821 14:47
+
+**Documentation only — no code path changed.** Six failure classes in `docs/RETROSPECTIVES.md`
+recurred after being written down; the guidance that runs now carries them where the work happens.
+`docs/BUILDING.md` gains the mutation-harness discipline (commit before mutating — `git checkout`
+restores to the last commit and has silently reverted uncommitted fixes six times — every anchor
+asserted to match exactly once, `__pycache__` cleared between mutants, no `-x`, and one
+known-catchable kill before a run's silence means anything), the gate-exit-status rule, the
+CI-matrix leg check, and two rules for reading a plan. RETROSPECTIVES' own § *Start here* gains
+four rows — mutation passes, measurement tools, test seams, review fixes — so the two thirds of
+the file written since 20260801 is reachable from its entry point again. `CLAUDE.md` § *Changing
+retrieval* names which corpus can license a change (`tests/demo-kb`'s improvable pool cannot clear
+p < 0.05 even on a perfect sweep), and its live-plan block slims to pointers — the deep plan's E6
+status now lives in the plan itself, and `docs/README.md`'s routing rows carry what the block
+dropped. `plans/` gains a proposal for a committed mutation harness, `tools/mutate.py` — the
+`land.py` precedent applied to the second class of failure that reports success.
+
+**PATCH: documentation and one docstring; the wheel's code is byte-identical to 0.25.1.**
 
 ---
 

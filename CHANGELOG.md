@@ -10,6 +10,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.25.2] — 20260821 14:47
+
+### Changed
+
+- **The build guidance now carries the retrospectives' recurring lessons.** `docs/BUILDING.md`
+  gains the mutation-harness discipline (commit before mutating, anchor asserted once,
+  `__pycache__` cleared, no `-x`, one known kill first), the gate-exit-status rule, the CI-matrix
+  leg check and two rules for reading a plan; `docs/RETROSPECTIVES.md` § *Start here* gains four
+  rows routing the post-20260801 failure classes — mutation passes, measurement tools, test seams
+  and review fixes; `CLAUDE.md` § *Changing retrieval* names which corpus can license a change,
+  its live-plan block slims to pointers with the deep plan's E6 status recorded in the plan
+  itself; and `plans/` gains a proposal for a committed mutation harness, `tools/mutate.py`.
+
 ## [0.25.1] — 20260821 07:17
 
 ### Fixed
@@ -3410,7 +3423,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.25.1...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.25.2...HEAD
+[0.25.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.2
 [0.25.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.1
 [0.25.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.0
 [0.24.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.24.0
