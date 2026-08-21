@@ -805,6 +805,14 @@ full flag surface from the index, not from this checkout. A version number match
 about *packaging*; it says nothing about whether the increment is inside the wheel. Cheap, and it
 belongs in every release that adds a surface.
 
+**0.25.2, same standard, 20260821 22:30:** `gh release view v0.25.2` reports non-draft, created
+22:28:25Z by the workflow's own step; the `Publish to PyPI` step log prints both uploads
+(`pinakes-0.25.2-py3-none-any.whl`, 426.9 KiB; `pinakes-0.25.2.tar.gz`, 2.2 MiB); and
+`uvx --no-cache --refresh --from "pinakes==0.25.2" pnk --version` → `pinakes 0.25.2`, on the
+second attempt — the first read *unsatisfiable* 30 s earlier, the documented resolver lag. The
+release is documentation only, so the wheel's expected diff from 0.25.1 is the `__version__`
+string alone and the artifact check stops at the install; the four-step flow was not re-run.
+
 **The manual-release step recurred a sixth time, and on the sixth someone finally read the
 workflow. It is not a failure at all: there is no step that creates a release.**
 `.github/workflows/release.yml` validates the tag against `__version__`, builds, smoke-tests the
