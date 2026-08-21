@@ -60,8 +60,8 @@ CALLS_PER_ROUND: Final = 2
 #: are different tokenizers over the same text. The conversion cannot be measured without spending,
 #: so it is bounded from the character side, which can:
 #:
-#: uv run --frozen python3 tools/measure_passage_tokens.py \ tests/demo-kb/docs
-#: tests/partner-kb/docs docs
+#:     uv run --frozen python3 tools/measure_passage_tokens.py \
+#:         tests/demo-kb/docs tests/partner-kb/docs docs
 #:
 #: **Measured 20260811 16:17** over 2,424 chunks at the template default `max_tokens = 510`: the
 #: widest real chunk holds **4.27 chars per embedding token** (2,131 chars at 499 tokens), and the
