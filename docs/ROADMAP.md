@@ -17,10 +17,10 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260812 05:31 UTC
+## Where things stand right now — 20260821 07:17 UTC
 
-- **38 releases in 18 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.25.0`](#0250--a-paid-run-leaves-a-record-of-what-it-was-asked--20260812-0531) on 20260812.
+- **39 releases in 27 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.25.1`](#0251--pnk-ask---deep-works-against-the-live-api--20260821-0717) on 20260821.
 - **Latest on PyPI: `0.25.0`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by importing
   `pinakes.deep.transcript` out of the published wheel, because a matching version string says
@@ -35,9 +35,12 @@ precision nobody measured.
   name is a trigger rather than a queue. **The deep release has shipped the thing it is named for**: its plan
   landed 20260811 with all eight decisions taken the same day, two more followed at E3's boundary,
   and **E1 to E5 are built — `pnk ask --deep` answers, in [`0.24.0`](#0240--pnk-ask---deep-answers--20260811-2224), and since
-  [`0.25.0`](#0250--a-paid-run-leaves-a-record-of-what-it-was-asked--20260812-0531) it leaves a record of what it was asked**. What is left is
-  E6's measurement run — **the only increment that spends real money** — and E7's printed
-  suggestions.
+  [`0.25.0`](#0250--a-paid-run-leaves-a-record-of-what-it-was-asked--20260812-0531) it leaves a record of what it was asked**. **It did not
+  answer against the live API until [`0.25.1`](#0251--pnk-ask---deep-works-against-the-live-api--20260821-0717), which is E6's first
+  finding rather than a separate defect**: both response schemas carried keywords structured
+  outputs refuses, so every call `400`d before it billed, and no fixture-driven test could have
+  seen it. What is left is the rest of E6's measurement run — **the only increment that spends
+  real money** — and E7's printed suggestions.
 - **Is document metadata retrieval context? Measured, and the answer was no — on one corpus, through
   one channel**
   ([`plans/20260805_1721-metadata-as-retrieval-context.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260805_1721-metadata-as-retrieval-context.md),
@@ -148,6 +151,7 @@ number belongs to a release only when it is cut
 | | | **[Open corrections](#open-corrections--one-live)** | • **One live** — `pnk init`'s gitignore warning is printed once, and E5 put the user's verbatim question under `.pinakes/`. Its required text is undecided, so it is a decision rather than a task<br>• Six on 20260808, two closed in 0.21.1, four in 0.22.0<br>• **Two of the last four were never forks — they were unchecked assumptions**, refuted by running the code they described<br>• Five routes in: building, reading, shipping, generalising a fix, and reviewing a new surface — none finds the others'<br>• An empty list means nobody has run Pinakes lately |
 | | | **[The graph release, staged](#the-graph-release-staged--gates-only-not-scheduled)** | • PPR channel, the `[ner]` extra<br>• Gate-only: no implementation plan exists, by design<br>• Not scheduled |
 | **[0.25.0](#0250--a-paid-run-leaves-a-record-of-what-it-was-asked--20260812-0531)** | 20260812 05:31 | a paid run leaves a record of what it was asked | • **The run transcript** — `.pinakes/deep/<operation_id>.json`, written by every `pnk ask --deep` that returns and named in the output and in `--json`<br>• The ledger stores no query text and still does: this is a *second* file, which is what makes a `pnk budget` row explicable after the fact<br>• Filed under the `operation_id` the ledger groups by; the name is validated as a ULID<br>• The stored `answer` object is the one `--json` prints, **from one renderer**; `--json` gains `answer.call_ids` and a `transcript` path<br>• **Protected like a paid cache entry** — nothing sweeps it, `--rebuild` and `--clear-cache` leave it — and removed only by **`--clear-cache=transcripts`**, a *store* rather than a third authorisation<br>• Written for a run that **returned**, answer or not; a refusal, a decline and an `abort` halt write none<br>• *The deep release, interim cut (D-9)* — E6 and E7 are still to come |
+| **[0.25.1](#0251--pnk-ask---deep-works-against-the-live-api--20260821-0717)** | 20260821 07:17 | `pnk ask --deep` works against the live API | • **It never had.** Every answer call carried `integer` `minimum`/`maximum` and every decompose call an array `maxItems`; structured outputs accepts neither, so the API returned `400` **before the request billed**<br>• Every `--deep` invocation in 0.22.0–0.25.0 failed, at a cost of €0.00 — the accountant reserved, refused and voided exactly as designed<br>• The citation bound is **kept, not dropped**: `enum: [1..passages]` states what `minimum`/`maximum` stated, so E4's two halves both survive<br>• The subproblem cap has no such form and moves to the prompt body and `parse_subproblems`, which were always its real enforcement<br>• **Found by E6's measurement run on its first real call** — the fixtures could not have caught it, because the `Transport` seam means no test ever sent a schema to the API<br>• The gate is a recursive shape assertion over both builders against the documented unsupported keywords<br>• *The deep release, fix (D-9)* — E6 and E7 are still to come |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **E1 to E5 are done** — the free surface, the estimator, the client, the loop and the run transcript<br>• **E6 is next, and it is the only increment that spends real money**, under `docs/MEASUREMENT-RUN.md`<br>• **E7** — printed sidecar suggestions (`--write-suggestions` is deferred to its own increment, D-25 A) |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -1301,6 +1305,48 @@ it — twice, the second time while proving a gate row discriminates. Both are i
 
 **No `schema_version` bump and no rebuild.** **Interim MINOR: the release name stays in the
 unbuilt-work table** (D-9) — E6's measurement run and E7's printed suggestions are still to come.
+
+---
+
+## 0.25.1 — `pnk ask --deep` works against the live API · 20260821 07:17
+
+**It never had.** E4 shipped the loop, E5 the transcript, and every test of both was green — but
+`answer_schema` emitted `{"type": "integer", "minimum": 1, "maximum": passages}` and
+`subproblems_schema` emitted an array `maxItems`, and structured outputs accepts neither. The API
+returned `400` on every `--deep` call from 0.22.0 through 0.25.0. It cost users nothing: the refusal
+arrives **before** the request bills, and the accountant reserved, refused and voided each time,
+which is the one part of this story that worked exactly as written.
+
+**E6's measurement run found it on the first real call it made** — the increment whose whole purpose
+is to spend real money and compare the result against what the fixtures claim. That is the case
+[MEASUREMENT-RUN.md](MEASUREMENT-RUN.md) closes with, arriving on schedule: *a finding that
+contradicts the fixtures outranks the release schedule.*
+
+**The citation bound is kept, not dropped.** E4 specified it in two halves on purpose — the schema
+asks for `1..passages`, `parse_answer` checks it again where the value is read — and the API refuses
+the form the schema half was written in. `enum: [1..passages]` is accepted and honoured, and states
+exactly what `minimum`/`maximum` stated, so both halves survive intact. Under a parser-only bound a
+stray citation would be a `SchemaFailureError` on a call that had already billed; here it stays
+unreachable. The subproblem cap had no such escape — structured outputs has no supported
+array-length keyword — so it now lives in the prompt body and `parse_subproblems`. It never was
+anywhere else: the API rejected that schema outright, so `maxItems` was never enforcing anything.
+
+**Why four releases of green tests missed it, which is the part worth keeping.** Every test drives
+the loop from recorded fixtures through the `Transport` seam — a good seam, and the reason the whole
+loop can be tested with `anthropic` absent. What it also guarantees is that **no test has ever sent
+a schema to the API**, and the schema is the one field the API validates and a fixture cannot
+exercise. A seam introduced for testability defines a region the tests cannot reach, and that region
+needs its own gate. This one is a recursive shape assertion over both builders against the keywords
+structured outputs documents as unsupported: no key, no network, no fixture, and it would have
+failed at E4 on the branch that introduced the defect.
+
+Verified against the live API on both branches before release — one synthesis call, and a six-call
+loop run exercising decompose, sub-answer and synthesis — so both schemas are proven by a real
+request rather than by a recorded one.
+
+**`SCHEMA_VERSION` is 2. No `schema_version` bump and no rebuild** — that constant names the deep
+response shape, not the index's, and is recorded into the transcript rather than validated against.
+**PATCH: the release name stays in the unbuilt-work table** (D-9) — E6 and E7 are still to come.
 
 ---
 
