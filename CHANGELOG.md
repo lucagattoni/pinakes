@@ -10,6 +10,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.25.1] — 20260821 07:17
+
+### Fixed
+
+- **`pnk ask --deep` now works against the live API — it never had.** Every answer call carried
+  `{"type": "integer", "minimum": 1, "maximum": passages}` and every decompose call carried an array
+  `maxItems`, and structured outputs accepts neither: the API returned `400` before the request was
+  billed, so **every `--deep` invocation in 0.22.0 through 0.25.0 failed**, at a cost of €0.00. The
+  citation bound is kept rather than dropped — `enum: [1..passages]` states exactly what
+  `minimum`/`maximum` stated, and is accepted and honoured — so the schema still constrains what the
+  model may emit and `parse_answer` still re-checks it where the value is read. The subproblem cap
+  has no such form (structured outputs has no supported array-length keyword) and now lives in the
+  prompt body and `parse_subproblems`, which were always its real enforcement. `SCHEMA_VERSION` is
+  2; nothing on disk needs rebuilding.
+- **A schema that the API would refuse now fails the test suite.** Every test drives the loop from
+  recorded fixtures through the `Transport` seam, so no test had ever sent a schema to the API — and
+  the schema is the one field the API validates and a fixture cannot exercise. A recursive shape
+  assertion over both builders, against the keyword list the API documents as unsupported, closes
+  that gap without a key, a network or a fixture.
+
 ## [0.25.0] — 20260812 05:31
 
 **Every paid `pnk ask --deep` run leaves a record of what it was asked.** The deep release's E5:
@@ -3390,7 +3410,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.25.1...HEAD
+[0.25.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.1
 [0.25.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.0
 [0.24.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.24.0
 [0.23.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.23.0

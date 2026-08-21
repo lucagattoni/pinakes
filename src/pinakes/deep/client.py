@@ -77,8 +77,35 @@ KEY_SURFACE: Final = "`pnk ask --deep`"
 #: record of nothing.
 PROMPT_VERSION: Final = 1
 
-#: Bumped whenever a response schema changes shape.
-SCHEMA_VERSION: Final = 1
+#: Bumped whenever a response schema changes shape. 2: the citation bound became an `enum` and the
+#: subproblem cap left the schema, because structured outputs refuses `minimum`/`maximum` and
+#: `maxItems` — see `UNSUPPORTED_SCHEMA_KEYWORDS`.
+SCHEMA_VERSION: Final = 2
+
+#: JSON-schema keywords structured outputs rejects with a 400, asserted against both builders by
+#: `tests/test_deep_client.py`. **This list is the gate the `Transport` seam cannot be:** every
+#: test drives the loop from recorded fixtures, so no test has ever sent a schema to the API, and
+#: the one field the API validates is the one a fixture cannot exercise. The two entries that
+#: shipped — `maximum`/`minimum` on the citation index and `maxItems` on the subproblem list —
+#: 400'd every `--deep` call from 0.22.0 through 0.25.0 while the suite stayed green.
+#:
+#: Measured against `claude-opus-5` on 20260812 06:45 UTC for `maximum`, `minimum` and `maxItems`;
+#: the rest are their documented neighbours on the same unsupported list and are **not** separately
+#: measured. Refusing an unmeasured keyword costs nothing — nothing here has a use in these two
+#: schemas — so the list is deliberately wider than what was proven.
+UNSUPPORTED_SCHEMA_KEYWORDS: Final = (
+    "maximum",
+    "minimum",
+    "multipleOf",
+    "exclusiveMaximum",
+    "exclusiveMinimum",
+    "maxItems",
+    "minItems",
+    "uniqueItems",
+    "maxLength",
+    "minLength",
+    "pattern",
+)
 
 #: Structured-output effort, pinned together with `THINKING` because the model accepts disabled
 #: thinking only at effort `high` or below — changing one without the other 400s
@@ -153,23 +180,25 @@ MEMORY_LABEL: Final = "What earlier rounds established"
 PASSAGES_LABEL: Final = "Passages"
 
 
-def subproblems_schema(*, max_items: int) -> dict[str, Any]:
+def subproblems_schema() -> dict[str, Any]:
     """The decompose response's shape: **one** field, an array of plain strings.
 
     `additionalProperties: false` and a single string-typed field are the structural half of §5's
     injection rule. There is no property here for a path, a filter, a KB alias or a tool call, so a
     model steered by hostile passage text has no field to put one in — the worst it can return is a
     badly chosen search question, which searches this KB and returns nothing useful.
+
+    **The cap is not here, and cannot be.** This took a `max_items` and emitted `maxItems`, which
+    the API refuses outright (`For 'array' type, property 'maxItems' is not supported`), and
+    structured outputs has no other array-length keyword — unlike the citation bound, which
+    `answer_schema` re-expresses as an `enum`. So the cap is asked for in the prompt body
+    (`build_decompose_request`) and enforced in `parse_subproblems`, and the *structural* half of
+    the injection rule above is the whole of what this function still carries. Nothing was lost that
+    was ever load-bearing: the API never enforced the cap, because it never accepted this schema.
     """
     return {
         "type": "object",
-        "properties": {
-            "subproblems": {
-                "type": "array",
-                "maxItems": max_items,
-                "items": {"type": "string"},
-            }
-        },
+        "properties": {"subproblems": {"type": "array", "items": {"type": "string"}}},
         "required": ["subproblems"],
         "additionalProperties": False,
     }
@@ -183,11 +212,30 @@ def answer_schema(*, passages: int) -> dict[str, Any]:
     `parse_answer` checks it again — structured output constrains what the model may emit, and this
     project's rule is that a value which decides what gets cited is validated where it is read.
 
+    **The bound is an `enum` because `minimum`/`maximum` are refused.** This emitted
+    `{"type": "integer", "minimum": 1, "maximum": passages}` until 20260812, which 400s
+    (`For 'integer' type, properties maximum, minimum are not supported`). `enum` *is* accepted and
+    honoured, so the schema half survives intact rather than being dropped: `enum: [1..passages]`
+    states exactly the bound the removed keywords stated, and the model still cannot emit an index
+    outside it. That mattered enough to keep — under a parser-only bound a stray citation is a
+    `SchemaFailureError` on a call that already billed, and here it is unreachable.
+
+    **The enum scales with `passages` where the old form did not, and that is priced.** `[retrieval]
+    final_k` has a floor of 1 and no ceiling, so a wide KB makes a long enum, and the obvious worry
+    is that a schema growing with the passage count breaks `PROMPT_TOKENS` — which E2 declares as
+    "everything that does not scale with the passages" and reserves flat at 1,500. It does not: the
+    growth is *per passage*, so it lands in the per-passage term, which is reserved per passage.
+    Measured 20260812 06:58 UTC by `count_tokens` over this exact request at 1, 5, 8, 50 and 200
+    passages: **15 tokens per extra passage, linear throughout**, against 250 reserved for the
+    envelope alone and 610 per passage in total. Sixteen times the headroom at any `final_k`.
+
     **Zero passages is refused rather than clamped to one.** The first draft wrote
     `max(passages, 1)`, which describes a call whose schema admits citation `[1]` and whose parser
     refuses every index — the two halves disagreeing about the same bound, in the direction that
     produces prose with nothing behind it. `build_answer_request` refuses the call outright
-    (`NoEvidenceError`); this refuses the schema, so neither can be reached alone.
+    (`NoEvidenceError`); this refuses the schema, so neither can be reached alone. The enum makes
+    the same refusal structural: `passages=0` would otherwise emit an **empty** `enum`, a schema
+    that admits no citation at all.
     """
     if passages < 1:
         raise NoEvidenceError
@@ -197,7 +245,7 @@ def answer_schema(*, passages: int) -> dict[str, Any]:
             "answer": {"type": "string"},
             "citations": {
                 "type": "array",
-                "items": {"type": "integer", "minimum": 1, "maximum": passages},
+                "items": {"type": "integer", "enum": list(range(1, passages + 1))},
             },
         },
         "required": ["answer", "citations"],
@@ -389,14 +437,16 @@ class MemoryTooLongError(DeepError):
 
 
 def subproblem_cap(max_subproblems: int) -> int:
-    """The cap that goes into the request's schema, and the one the response is checked against.
+    """The cap the request asks for, and the one the response is checked against.
 
-    **One function because they must be the same number.** The schema's `maxItems` is what the API
-    enforces and `parse_subproblems`'s cap is what this module enforces; computing the ceiling twice
-    is how the second check ends up being about a different limit than the first, at which point one
-    of them is decoration. A cap below 1 is a mistake wherever it came from — a `maxItems` of zero
-    describes a call that cannot succeed — so it clamps up rather than refusing, and never down past
-    `MAX_SUBPROBLEMS`.
+    **One function because they must be the same number.** The prompt body states this cap to the
+    model and `parse_subproblems` enforces it on the way back; computing the ceiling twice is how
+    the second check ends up being about a different limit than the first, at which point one of
+    them is decoration. A cap below 1 is a mistake wherever it came from — it describes a call that
+    cannot succeed — so it clamps up rather than refusing, and never down past `MAX_SUBPROBLEMS`.
+
+    It used to feed the schema's `maxItems` as well, which is the keyword the API refuses
+    (`subproblems_schema`). One number, one fewer place: the two that remain are still both real.
     """
     return max(1, min(max_subproblems, MAX_SUBPROBLEMS))
 
@@ -425,7 +475,7 @@ def build_decompose_request(
         model=model,
         prompt=DECOMPOSE_PROMPT,
         body="\n".join(lines),
-        schema=subproblems_schema(max_items=cap),
+        schema=subproblems_schema(),
     )
 
 
@@ -585,8 +635,13 @@ def parse_subproblems(response: Mapping[str, Any], *, cap: int) -> tuple[str, ..
 
     Blank entries are dropped rather than refused — an empty string is not a subproblem, and
     failing the whole round over one would throw away the others. A list longer than the cap **is**
-    refused: the cap was in the request's own schema, so exceeding it means the response did not
-    obey the schema, and silently taking the first `cap` would hide that.
+    refused: the request asked in plain words for at most `cap`, so exceeding it means the response
+    did not do what it was asked, and silently taking the first `cap` would hide that.
+
+    **This is now the only enforcement of the cap.** It read "the cap was in the request's own
+    schema" until 20260812, and that was true of a schema the API never accepted — `maxItems` is
+    refused, so the API was never checking. The refusal here is unchanged; what changed is that
+    nothing stands behind it, which is the argument for keeping it strict rather than truncating.
     """
     value = _decoded(response).get("subproblems")
     if not isinstance(value, list):
