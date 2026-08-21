@@ -14,7 +14,7 @@ cannot touch the same file — the conflict class stops existing rather than bei
 fragments are spliced into the real document at release time, by one actor, with nothing else
 running. That is the towncrier/scriv/reno model, and this is a small stdlib implementation of it.
 
-**Traceability is unchanged, which is the point.** `docs/BUILDING.md` step 5 requires the changelog
+**Traceability is unchanged, which is the point.** `docs/BUILDING.md` step 6 requires the changelog
 entry to land in the same commit as the code; a fragment lands in the same commit as the code. What
 changes is only which file it lands in.
 

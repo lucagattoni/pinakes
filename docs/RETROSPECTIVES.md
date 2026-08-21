@@ -22,8 +22,9 @@ The seven **pre-implementation** design review passes are at the foot of this fi
 Added 20260801 01:11. Forty-odd sections in date order is an archive, not something anyone reads
 before starting work — so this table is the way in. It is keyed on **what you are about to do**, not
 on when the lesson was learned, and it is deliberately short: only the classes that have recurred.
-A rule that hardened into a standing instruction lives in [`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md); this file is
-where the evidence for it is.
+A rule that hardened into a standing instruction lives in
+[`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md) or [`BUILDING.md`](BUILDING.md);
+this file is where the evidence for it is.
 
 | About to… | Read | Because |
 |---|---|---|
@@ -34,8 +35,12 @@ where the evidence for it is.
 | **write an error message** | L3–L4, I8 | An error message is part of the interface; a remedy inside one is a **claim**, and it was false. A fix applied to one surface is half a fix |
 | **change retrieval** | I9, the eval-harness section, I6 | Three defects under one green suite. Overlap could push a chunk past `max_tokens`; heading text landed in no chunk at all |
 | **edit a doc, a plan or an exclusion list** | L5b, I9, the shared-file section | An exclusion list is a set of claims, and claims rot. A fix instruction can carry its own defects. Four silent `str.replace` no-ops in one session — an edit that does not match is an edit that did not happen. A clean auto-merge is not a correct merge |
-| **cut a release** | the post-v0.1 housekeeping section | A CHANGELOG entry and a `__version__` are only claims: 0.1.0 had both for two days with no tag, no release and nothing published. Verify with `git tag -l`, `gh release list`, and the index itself |
+| **cut a release** | the post-v0.1 housekeeping section, the two release-sweep sections (20260811) | A CHANGELOG entry and a `__version__` are only claims: 0.1.0 had both for two days with no tag, no release and nothing published. Verify with `git tag -l`, `gh release list`, and the index itself. A release sweep is table-shaped and misses prose — grep for the superseded version number — and ordering is a property of the sequence: read the sequence, not the neighbourhood |
 | **trust CI** | the cross-platform scanned-fixture section | `main` was CI-red for three pushes and nobody noticed. Green proves the tests ran, never that they can detect the defect |
+| **run a mutation pass** | G1, L6 § *Mutation testing*, T3, T7, E5 | **Commit before mutating** — `git checkout` restores to the last commit and has silently reverted uncommitted fixes six times. A harness must prove it can kill before its silence means anything: assert the anchor matched exactly once, clear `__pycache__` between mutants, run without `-x`, restore from a copy. A killed run poisons everything after it, and a surviving mutant first asks *is this reachable at all?* |
+| **write a measurement tool, or publish a number** | the reachable-ceiling probe, `measure_sync_cpu.py`, E2, E6 | A tool that absorbs input it cannot measure reports a plausible number — strictly worse than a crash. Validate everything the measurement consumes, not the bugs already reported; the artifact names every input its numbers are a function of; one test runs the tool the way it is really invoked, because the shipped one measured the launcher and not the work. A probe is code and earns the same adversarial pass — two of five constants were measured wrong on E6's first run |
+| **lean on a fake, a seam or a fixture** | E6, I7b (passes 6–7), the `[light]` backend error, *Running it found what reading it could not* | A seam built for testability defines a region no test reaches, and that region needs its own gate: the deep client's schemas `400`d on every live call for four releases of green fixtures. "Each part works" is not "the parts are connected". For any new knob, turn it on a real KB before landing — only running proves the parameter arrives |
+| **apply a review fix** | T3, T4, L6, 2d round two | A fix applied under review inherits the review's confidence and none of its scrutiny — every review loop here has found its worst defects inside the previous pass's fixes. "Pinned by test X" is a claim about a *failing* test: revert the fix and watch it go red, or do not write the word. Re-run the whole battery after every fix — a fix can silently disarm a test written for something else |
 
 **The pattern across all of them**, and the reason this file is worth keeping: the worst finding of a
 review pass is usually inside the *previous* pass's fix. That has held from I5 through L6's thirteen
