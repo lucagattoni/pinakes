@@ -141,33 +141,28 @@ increment, `./check.sh` green, mutate the assertions, adversarial review, fragme
 `tools/land.py`. Never batch increments. Read the build order out of `plans/` — **never** "the newest
 file" there ([`docs/README.md`](docs/README.md) tells them apart).
 
-**What is live right now:**
+**What is live right now** — one line per plan here; the full routing table, with what each
+closed plan still binds, is [`docs/README.md`](docs/README.md):
 
-- **[`plans/20260811_1358-deep-release.md`](plans/20260811_1358-deep-release.md) — the live build order, and the only plan with unbuilt work in it.** Seven increments, E1 to E7; **all ten decisions (D-21 to D-30) are taken and it is the authority for them.** **E1 to E5 are built — `pnk ask --deep` answers, bounded and budgeted, and every paid run leaves a transcript at `.pinakes/deep/<operation_id>.json`, spared by the sweep and removed only by `pnk sync --clear-cache=transcripts`.** **E6 is part-built, and its first act was to find a defect four releases of green tests had missed: `pnk ask --deep` `400`d on every live call from 0.22.0 until the fix in 0.25.1, because both response schemas carried keywords structured outputs refuses. Read that before trusting any fixture-backed claim about the deep path.** Done: both halves of `tools/deep_reservation.py` run, every input constant is measured, and the over-reservation factor is published — 19.0x on synthesis, 16.5x on the loop. Still owed: the remaining paid runs, tests for the tool itself, and the recording surfaces. The measurement run is the only increment that spends real money, and its procedure is [`docs/MEASUREMENT-RUN.md`](docs/MEASUREMENT-RUN.md). Then E7, printed suggestions. **A cut after E4 was already a complete release and the name stays in the unbuilt-work table until the final one** (D-9). **What E5 leaves E6**: the over-reservation factor E6 must publish is computable from the transcripts a measured run leaves behind — each carries its `call_ids`, its estimate and its reconciled spend — joined to the ledger by `transcript.call_ids()` + `sync.ledger_spend()`, which the confirmation prompt already uses.
-  - **Two of its measurements change what the older documents imply.** The budget machinery is already built and proven by the paid extractor, so this release adds the loop and not the machinery. And **`[retrieval.confidence]` ships commented out**, so the escalation gate DESIGN §4.2 depends on exists on no KB a user creates — D-22 answers that by running anyway, bounded by the caps rather than by the signal, and saying which bound ended the run.
-  - **Re-run its § 2 before trusting any `file:line`.** Written against `main` at `106d01f`.
-- **[`plans/20260805_1721-metadata-as-retrieval-context.md`](plans/20260805_1721-metadata-as-retrieval-context.md) — CLOSED 20260807, answered.** Read its **§0** before proposing anything about titles, `heading_path` or injecting either into retrieval; the rest of the file is the record of how. **The screen returned no-go — 6 improved, 6 regressed, 84 unchanged** — so `schema_version` 4 was not taken and **PDF layout heuristics and paid title inference stay unapproved**. What it measured is *vector-only* injection on *one* corpus; the both-channel form was never tested, so it does not say metadata is worthless. **What would re-open it is a corpus, not an idea about the prefix**: this one's `lexical` and `simple-lookup` classes are saturated at 1.00, so all its power sat in `paraphrase`. Still live from it: the frozen golden set (`tools/rfc_corpus/questions.yaml`, 110 questions — **never reword or renumber one**, `id` pairs a before row with an after row), and `[chunking] metadata`, shipped default `off`.
-- **[`plans/20260811_0720-decisions-gates-and-corrections.md`](plans/20260811_0720-decisions-gates-and-corrections.md) — eight decisions taken 20260811, and it is the authority for all eight.** It closes both gates of the template release and unblocks all four open corrections; where either plan below still reads as undecided, this file supersedes it. **Its § Build order is fully built out as of 0.22.0** — all six increments landed, so nothing in it is queued; the next body of work is the deep release, whose plan is the first entry above.
-  - **Read § *What was checked first* before re-opening any of them.** Two items had stalled on premises that were simply false, and running the code refuted both: `lands_inside` works against a target that does not exist, and the extraction cache survives `--rebuild`. **An item that reads as a decision may only be an unchecked assumption.**
-- **[`plans/20260804_1016-template-release.md`](plans/20260804_1016-template-release.md) — every scheduled increment is shipped, and both gated ones are now answered.** T1 in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0. **T6 is deferred behind a written trigger** (a queried KB crossing ~50 000 chunks *with* felt latency) and **T8 is closed as a no-go** — its gate was run and fails on leg 3, because every divergence in every real KB is a manifest value. **The release name still stays in the unbuilt-work table** (D-9): T6 can still return.
-  - **Re-run its Baseline block before trusting any `file:line` in it.** Rows moved at T4, T5 and again at T7.
-  - **Ten of the plan's own measurements or specs have been wrong** — the record of which, and how each was found, is [`docs/ROADMAP.md`](docs/ROADMAP.md) and [`docs/RETROSPECTIVES.md`](docs/RETROSPECTIVES.md). Two lessons generalise and are why the count is here at all:
-    - **A plan's open decision is what the *plan* has not settled — not what the *repository* has not settled.** D-4 sat open while `manifest.py` had already answered it one line below `VECTOR_TIERS`. Read the sibling key before the decision table.
-    - **Read a plan's test list as part of its specification, not as an illustration of it.** Where a plan's prose and its test list disagree, the test list has been forced to be concrete and the prose has not — T7's containment rule named only the target while its test list required refusing a symlink in the template, and both layers were real.
-
+- **[`plans/20260811_1358-deep-release.md`](plans/20260811_1358-deep-release.md) is the live build
+  order — the only plan with unbuilt work in it.** All ten decisions (D-21 to D-30) are taken and
+  it is the authority for them; re-run its § 2 before trusting any `file:line`. **E1 to E5 are
+  built; E6 — the measurement run, the only increment that spends real money — is part-built and
+  is the work in progress**: the plan's E6 status block records what is done and what is still
+  owed, and [`docs/MEASUREMENT-RUN.md`](docs/MEASUREMENT-RUN.md) is the procedure. Then E7,
+  printed suggestions. **Read the E6 retrospective (*a seam the tests never crossed*) before
+  trusting any fixture-backed claim about the deep path** — `pnk ask --deep` `400`d on every live
+  call from 0.22.0 until 0.25.1. A cut after E4 was already a complete release, so the name stays
+  in the unbuilt-work table until the final cut (D-9).
+- **Every other plan is closed, answered or deferred** — the routing table says which, and what
+  each still binds: the metadata plan's frozen golden set and its unapproved no-gos, the template
+  release's T6 trigger and T8 no-go, and the 20260811 decision record that supersedes both
+  wherever they still read as undecided. **An item that reads as a decision may only be an
+  unchecked assumption** — four stalled items have now fallen to simply running the code.
 - **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) holds one
-  live item, added by E5** — `pnk init`'s gitignore warning is the only thing keeping `.pinakes/`
-  out of a repository, and E5 put the user's verbatim question in there. **It is not urgent and the
-  item says why** (an unprotected `.pinakes/` already commits the whole index), but its *required
-  text is undecided* — whether `pnk doctor` carries the check, and at what level — so it is a
-  decision, not a task. The list emptied twice before, on 20260805 and at 0.22.0, and **refilled
-  within days both times**: read an empty list as *nobody has run Pinakes lately*, never as
-  *finished*.
-  - **Two of the last four had stood behind premises that were simply false**, and that is the
-    reusable part: one called the full fix unavailable, one called a free operation a paid one, and
-    running the code refuted both. **An item that reads as a decision may only be an unchecked
-    assumption** — run the check before escalating one, and before believing one that is already
-    there.
+  live item** — E5's gitignore-warning question, a decision rather than a task, and the item says
+  why it is not urgent. The list has emptied and refilled twice: **read an empty list as *nobody
+  has run Pinakes lately*, never as *finished*.**
 
 ## Landing work: always push, always release
 
@@ -206,6 +201,14 @@ number, the tag, the verification and the documents a release stales — is
 Any change to chunking, fusion weights, reranking or the confidence signal must be justified by the
 golden-set eval (`recall@k`, MRR, false-abstain rate) — never by intuition alone. Report the before
 and after numbers in the commit message.
+
+**And name the corpus that can license the change.** `tests/demo-kb`'s golden set is a regression
+guard, not a licensing instrument: its improvable pool was 4 questions when measured (20260806),
+and `sign_test(4, 0)` = 0.0625 — even a perfect sweep fails the p < 0.05 bar the graph channel was
+held to. That is a power limit, not a mechanism limit, and the two have different remedies. A
+claimed improvement needs the RFC corpus (`tools/build_rfc_corpus.py`; frozen questions in
+`tools/rfc_corpus/questions.yaml`) or another corpus whose improvable pool — re-measured, not
+remembered — can carry a verdict.
 
 ## Docs
 
