@@ -450,7 +450,8 @@ Three things in that second table are worth reading twice. **The calibrated loop
 over-reserved**, because a reservation must cover `max_rounds` and calibration is exactly what
 lets a run stop before reaching them — the uncalibrated branch is the least over-reserved because
 it spends the rounds it reserved. **`MAX_TOKENS` carries most of the ratio**, since output bills
-at five times input and is two thirds of a round's price. And **no constant was lowered**: the
+at five times input and dominates a round's price — two thirds under the shipped defaults, and
+**four fifths** at this KB's narrower `final_k = 5` / `max_tokens = 120` geometry. And **no constant was lowered**: the
 corpus is synthetic, which is E6's exit criterion and `PAGE_TOKEN_CEILING`'s binding precedent.
 
 **An earlier partial run published 19.0× and 16.5×.** Those are **withdrawn**, not corrected — a

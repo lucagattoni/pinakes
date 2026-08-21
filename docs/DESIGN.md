@@ -733,8 +733,9 @@ measurement is not a ceiling, and a synthetic corpus is precisely the one that c
 case a ceiling exists for.
 
 Two things in that table are not obvious. **The output ceiling carries most of the ratio**: output
-bills at five times input and is two thirds of a round's price, and the widest of 22 reconciled
-deep calls produced 660 tokens against 8,000 reserved. It is also the ceiling least safe to lower,
+bills at five times input and dominates a round's price — two thirds under the shipped
+defaults, and **four fifths** at the measurement KB's narrower geometry — while the widest of
+22 reconciled deep calls produced 660 tokens against 8,000 reserved. It is also the ceiling least safe to lower,
 because `max_tokens` truncates rather than bills — an input bound set too low over-reserves, an
 output bound set too low cuts an answer off mid-sentence.
 

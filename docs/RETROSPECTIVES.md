@@ -5960,7 +5960,8 @@ of it was measured.
 **MEDIUM — `MAX_TOKENS` carries most of the over-reservation, and is the constant least safe to
 lower.** 8,000 reserved against a widest-observed 660 across 22 reconciled calls (mean 241) —
 12.12×, against 1.50× to 8.93× for the five input constants. It dominates because output bills at
-five times input and is two thirds of a round's price. It is also the only one of the six that is
+five times input and is two thirds of a round's price under the shipped defaults — and four
+fifths at the narrower geometry these runs actually used. It is also the only one of the six that is
 a *truncation* rather than a bill: an input ceiling set too low over-reserves, while an output
 ceiling set too low cuts an answer off mid-sentence. The temptation to lower the one constant that
 would visibly improve the headline figure is therefore precisely inverted from where it is safe to

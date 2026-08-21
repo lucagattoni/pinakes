@@ -176,8 +176,9 @@ PROMPT_TOKENS: Final = 1_500
 #: reconciled calls produced 660 output tokens against the 8,000 reserved — 12.12x** (20260821 07:49
 #: UTC; the calls are the ledger rows of the runs `tools/deep_reservation.py report` joins, on
 #: **synthetic** corpora). Across those 22 calls output ran 11 to 660, mean 241. Because output
-#: bills at five times input and is two thirds of a round's price, this one constant carries most of
-#: the 22-51x whole-run factor the run published. **Not lowered, and this is the constant where that
+#: bills at five times input and dominates a round's price -- two thirds under the shipped defaults,
+#: four fifths at the measurement KB's narrower geometry -- this one constant carries most of the
+#: 22-51x whole-run factor the run published. **Not lowered, and this is the constant where that
 #: refusal costs the most and matters the most**: `max_tokens` is a hard truncation, so a ceiling
 #: set near the observed mean would cut a long answer off mid-sentence on the first question a real
 #: corpus asked that this one did not.

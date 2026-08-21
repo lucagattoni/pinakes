@@ -253,7 +253,7 @@ E6's exit criterion and the reason no ceiling moved.
 | Over-reservation, `decomposition` — a calibrated loop | **50.92×** — €2.7600 reserved, €0.0542 spent, 2 runs |
 | Over-reservation, `unknown` — an uncalibrated loop | **22.35×** — €2.7600 reserved, €0.1235 spent, 2 runs |
 | The five input constants | 1.50× to 8.93× above their ceilings, each isolated by differencing real `count_tokens` requests. None lowered |
-| `MAX_TOKENS` | 8,000 against a widest-observed **660** across 22 reconciled calls (mean 241) — **12.12×**, and most of the whole-run ratio, since output bills at five times input and is two thirds of a round's price |
+| `MAX_TOKENS` | 8,000 against a widest-observed **660** across 22 reconciled calls (mean 241) — **12.12×**, and most of the whole-run ratio, since output bills at five times input and dominates a round's price — two thirds under the shipped defaults, and **four fifths** at the measurement KB's narrower `final_k = 5` / `max_tokens = 120` geometry |
 | The refusal branch | Fired for real, and **had never been run before**. Refused *before the first call* at exit 1, leaving no ledger row and no transcript — D-23 and E5's rule both hold |
 | The runbook | Two defects in one step, both found by the free pre-flight it prescribes one paragraph earlier |
 | The instrument | Five defects in `tools/deep_reservation.py`, which had no tests. Its `--json` had never once run |
