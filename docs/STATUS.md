@@ -853,6 +853,13 @@ second attempt — the first read *unsatisfiable* 30 s earlier, the documented r
 release is documentation only, so the wheel's expected diff from 0.25.1 is the `__version__`
 string alone and the artifact check stops at the install; the four-step flow was not re-run.
 
+**0.25.4, same standard, 20260821 22:55:** `gh release view v0.25.4` reports non-draft, created
+22:53:57Z by the workflow's own step; the `Publish to PyPI` step log prints both uploads
+(`pinakes-0.25.4-py3-none-any.whl`, 428.0 KiB; `pinakes-0.25.4.tar.gz`, 2.2 MiB); and
+`uvx --no-cache --refresh --from "pinakes==0.25.4" pnk --version` → `pinakes 0.25.4`, on the
+second attempt after the documented resolver lag. Documentation only; the artifact check stops at
+the install.
+
 **The manual-release step recurred a sixth time, and on the sixth someone finally read the
 workflow. It is not a failure at all: there is no step that creates a release.**
 `.github/workflows/release.yml` validates the tag against `__version__`, builds, smoke-tests the
