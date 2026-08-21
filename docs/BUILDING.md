@@ -46,7 +46,8 @@ Never batch increments; each is a separate, bisectable landing:
    fences** too: a docs-only commit can still fail the gate. And a green run proves **this
    worktree's venv**, not the three-leg matrix: for a test gated on an extra, run its file once
    with the extra absent (`uv sync --frozen --extra light`, run it, then
-   `uv sync --frozen --all-extras` to restore) — `uv run --extra X` does **not** prune extras a
+   `uv sync --frozen --extra light --extra pdf --extra claude` to restore — never `--all-extras`,
+   which pulls the ~2 GB `[st]` extra the matrix deliberately omits) — `uv run --extra X` does **not** prune extras a
    previous sync installed.
 4. **Break the code on purpose — after committing.** Mutate the 3–5 most safety-critical
    assertions, confirm the *right* test fails for the *right reason*, restore. The harness rules,
@@ -83,7 +84,7 @@ Never batch increments; each is a separate, bisectable landing:
    the branch's own worktree that merges the branch into itself and reports success three times over
    ([`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md)). **Then
    `gh run list --branch main`**: local green is one leg of a three-leg matrix, and `main` has been
-   red for three and for four consecutive merges without anyone noticing (20260728, 20260801).
+   red for three pushes and, later, four consecutive merges without anyone noticing (20260728, 20260801).
 
 Which documents an increment touches, and in what order: [`docs/README.md` § Landing a new
 increment](https://github.com/lucagattoni/pinakes/blob/main/docs/README.md#landing-a-new-increment).

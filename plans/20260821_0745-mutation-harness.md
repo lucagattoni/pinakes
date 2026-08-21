@@ -1,12 +1,12 @@
 # The mutation harness — a committed `tools/mutate.py`
 
-**Status: proposed 20260821 0745 — not scheduled.** One increment, buildable whenever the deep
+**Status: proposed 20260821 07:45 — not scheduled.** One increment, buildable whenever the deep
 release's queue allows; nothing blocks it and it blocks nothing.
 
 ## Why this exists
 
-The mutation step is the only part of [`docs/BUILDING.md`](../docs/BUILDING.md) § 4 with no
-executable guard, and it is the part that fails silently: a broken harness reports SURVIVED and
+The mutation step ([`docs/BUILDING.md`](../docs/BUILDING.md) § 4) is the procedure's one
+silently-failing step with no executable guard: a broken harness reports SURVIVED and
 KILLED exactly like a working one. The record (`docs/RETROSPECTIVES.md`, G1 20260801 → E5
 20260812) counts more than a dozen invalid runs or silently destructive restores across ten
 increments — six of them the identical `git checkout` trap, still recurring after four write-ups,

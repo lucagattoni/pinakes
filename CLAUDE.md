@@ -145,7 +145,7 @@ file" there ([`docs/README.md`](docs/README.md) tells them apart).
 closed plan still binds, is [`docs/README.md`](docs/README.md):
 
 - **[`plans/20260811_1358-deep-release.md`](plans/20260811_1358-deep-release.md) is the live build
-  order — the only plan with unbuilt work in it.** All ten decisions (D-21 to D-30) are taken and
+  order — the only plan with *scheduled* unbuilt work.** All ten decisions (D-21 to D-30) are taken and
   it is the authority for them; re-run its § 2 before trusting any `file:line`. **E1 to E5 are
   built; E6 — the measurement run, the only increment that spends real money — is part-built and
   is the work in progress**: the plan's E6 status block records what is done and what is still
@@ -154,11 +154,12 @@ closed plan still binds, is [`docs/README.md`](docs/README.md):
   trusting any fixture-backed claim about the deep path** — `pnk ask --deep` `400`d on every live
   call from 0.22.0 until 0.25.1. A cut after E4 was already a complete release, so the name stays
   in the unbuilt-work table until the final cut (D-9).
-- **Every other plan is closed, answered or deferred** — the routing table says which, and what
+- **Everything else in `plans/` is closed, answered, deferred or proposed-unscheduled** — the
+  routing table classifies every file, and says what
   each still binds: the metadata plan's frozen golden set and its unapproved no-gos, the template
   release's T6 trigger and T8 no-go, and the 20260811 decision record that supersedes both
   wherever they still read as undecided. **An item that reads as a decision may only be an
-  unchecked assumption** — four stalled items have now fallen to simply running the code.
+  unchecked assumption** — two stalled items fell to simply running the code, 20260811.
 - **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) holds one
   live item** — E5's gitignore-warning question, a decision rather than a task, and the item says
   why it is not urgent. The list has emptied and refilled twice: **read an empty list as *nobody
@@ -203,7 +204,8 @@ golden-set eval (`recall@k`, MRR, false-abstain rate) — never by intuition alo
 and after numbers in the commit message.
 
 **And name the corpus that can license the change.** `tests/demo-kb`'s golden set is a regression
-guard, not a licensing instrument: its improvable pool was 4 questions when measured (20260806),
+guard, not a licensing instrument: its improvable pool **on `recall@k`** was 4 questions when
+measured (20260806),
 and `sign_test(4, 0)` = 0.0625 — even a perfect sweep fails the p < 0.05 bar the graph channel was
 held to. That is a power limit, not a mechanism limit, and the two have different remedies. A
 claimed improvement needs the RFC corpus (`tools/build_rfc_corpus.py`; frozen questions in
