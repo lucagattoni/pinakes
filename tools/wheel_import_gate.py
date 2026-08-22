@@ -87,9 +87,17 @@ SOURCE_TREE = REPO / "src"
 the check: a sibling worktree's `src/` is somebody else's path and passes it."""
 
 INSTALL_DIRECTORIES = ("site-packages", "dist-packages")
-"""Where installing a wheel puts a package, on every layout this runs on — a virtualenv, `uv`'s
-isolated environment cache, a Debian interpreter. An editable checkout is in none of them, which
-is the whole point: the test is what an install *is*, not what one particular source tree is."""
+"""Where installing a wheel puts a package on the layouts this is actually invoked from — a
+virtualenv, `uv`'s isolated environment cache, a Debian interpreter. An editable checkout is in
+none of them, which is the whole point: the test is what an install *is*, not what one particular
+source tree is."""
+
+DIST_INFO = "*.dist-info"
+"""The other half, and the layout-independent one: an installed distribution has a `.dist-info`
+directory beside it, wherever it was put. Without this a `pip install --target` — and a zipapp, a
+pex, a Lambda layer — was refused as "a source tree", which is a false answer even though no call
+site here reaches it (review, 20260822). A checkout has no `.dist-info` beside `src/pinakes`, so
+the refusal that matters is unaffected."""
 
 #: The distribution name at the head of a `Requires-Dist` entry — `mcp>=1.28,<2`,
 #: `pinakes[pdf]`, `sentence-transformers>=5.0; extra == 'st'`.
@@ -254,13 +262,15 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     location = Path(str(origin)).resolve()
-    if not set(INSTALL_DIRECTORIES) & set(location.parts):
-        where = "the source tree" if location.is_relative_to(SOURCE_TREE) else "a source tree"
+    in_install_directory = bool(set(INSTALL_DIRECTORIES) & set(location.parts))
+    beside_dist_info = any(location.parent.parent.glob(DIST_INFO))
+    if not (in_install_directory or beside_dist_info):
+        where = "the source tree" if location.is_relative_to(SOURCE_TREE) else "an unpacked tree"
         print(
             f"wheel-import: {package_name} resolved to {where} at {location}, which is in no "
-            f"{' or '.join(INSTALL_DIRECTORIES)} directory and so is not an installed copy. This "
-            f"gate is only ever evidence about an install, so it refuses rather than reporting a "
-            f"pass it did not earn — run it inside "
+            f"{' or '.join(INSTALL_DIRECTORIES)} directory and has no {DIST_INFO} beside it, so "
+            f"it is not an installed copy. This gate is only ever evidence about an install, so "
+            f"it refuses rather than reporting a pass it did not earn — run it inside "
             f"`uv run --isolated --no-project --with <wheel>`",
             file=sys.stderr,
         )

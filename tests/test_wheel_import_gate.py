@@ -459,3 +459,82 @@ def test_one_module_may_carry_only_one_allowance(tmp_path: Path) -> None:
     assert result.returncode == 1
     assert "dupkit.a" in result.stderr
     assert "more than one --allow-missing" in result.stderr
+
+
+def test_a_dist_packages_layout_is_accepted(tmp_path: Path) -> None:
+    """Debian and its derivatives put installed packages in `dist-packages`, not `site-packages`.
+
+    Both names are load-bearing and only one is exercised by every other test here, so dropping
+    `dist-packages` from the tuple survived the whole suite until this existed.
+    """
+    debian = tmp_path / "dist-packages"
+    debian.mkdir()
+    package = debian / "debkit"
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    for index in range(4):
+        (package / f"mod{index}.py").write_text("value = 1\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(TOOL), "--package", "debkit", "--min-modules", "4"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONPATH": str(debian)},
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_an_install_with_a_dist_info_beside_it_is_accepted_wherever_it_lives(
+    tmp_path: Path,
+) -> None:
+    """`pip install --target`, a zipapp, a pex, a Lambda layer: an install that is in no
+    `site-packages` directory at all.
+
+    Refusing those as "a source tree" was a false answer — no call site here reaches them, but a
+    gate that reports something untrue about a real install is one somebody will eventually
+    believe (review, 20260822). A `.dist-info` beside the package is what installing produces
+    wherever it puts things, and a checkout has none.
+    """
+    target = tmp_path / "lambda-layer"
+    target.mkdir()
+    (target / "targetkit-1.0.dist-info").mkdir()
+    package = target / "targetkit"
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    for index in range(4):
+        (package / f"mod{index}.py").write_text("value = 1\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(TOOL), "--package", "targetkit", "--min-modules", "4"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONPATH": str(target)},
+    )
+    assert result.returncode == 0, result.stderr
+
+    # …and the same tree without the `.dist-info` is refused, or the branch above proves nothing.
+    (target / "targetkit-1.0.dist-info").rmdir()
+    refused = subprocess.run(
+        [sys.executable, str(TOOL), "--package", "targetkit", "--min-modules", "4"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONPATH": str(target)},
+    )
+    assert refused.returncode == 1
+    assert "dist-info" in refused.stderr
+
+
+def test_the_default_floor_is_not_zero() -> None:
+    """`--min-modules` has a default, and a default of 0 makes every call site's flag the only
+    thing standing between the gate and a walk that found nothing. Pinned because lowering the
+    default is invisible at every call site that passes the flag — which is all of them."""
+    result = subprocess.run(
+        [sys.executable, str(TOOL), "--help"], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0
+    assert "default: 20" in result.stdout, (
+        "the help text and the default have drifted, or the default has been lowered"
+    )

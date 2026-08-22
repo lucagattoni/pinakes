@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 CHECK_SH = Path(__file__).parent.parent / "check.sh"
 WORKFLOW = Path(__file__).parent.parent / ".github" / "workflows" / "ci.yml"
@@ -278,6 +279,39 @@ def test_the_release_workflow_creates_the_github_release_after_publishing() -> N
     )
 
 
+def _no_failure_path_exits_zero(run: str, where: str) -> None:
+    """Every `exit` in a step body must be non-zero.
+
+    `::error::` is a log annotation and fails nothing; the `exit` beside it is the whole
+    mechanism. Every one of these steps captures a status, greps the output and then exits — and
+    the tests asserted all three of those *shapes* while nothing asserted the last one exits
+    non-zero. Changing `exit 1` to `exit 0` in the handshake left it printing
+    `::error::pnk serve exited 1` and reporting success, on a wheel that could not serve; the same
+    edit in `release.yml` put that in front of `uv publish`. Found by the third review's battery,
+    20260822.
+
+    Comment lines are dropped first: one of these steps explains its own guard with the words
+    "and exit 0", and reading that as a command is this repository's most-recorded mistake —
+    committed here, once, while writing the assertion against it.
+    """
+    commands = "\n".join(line for line in run.splitlines() if not line.lstrip().startswith("#"))
+    zeros = [code for code in re.findall(r"\bexit (\d+)", commands) if code == "0"]
+    assert not zeros, f"{where}: a failure path that exits 0 is not a failure path"
+
+
+def _job_cannot_be_switched_off(document: dict[str, Any], name: str) -> None:
+    """The steps were guarded against `if:`/`continue-on-error:` and the **job** was not.
+
+    It is the same key one level up and the shorter edit: `continue-on-error: true` on `build`
+    makes the entire fresh-resolve leg advisory, and `if: false` deletes it, while every
+    step-level assertion stays true. Both survived the suite until this existed.
+    """
+    jobs: dict[str, Any] = document["jobs"]
+    job: dict[str, Any] = jobs[name]
+    disabling = {"if", "continue-on-error"} & set(job)
+    assert not disabling, f"the {name} job itself carries {sorted(disabling)}"
+
+
 def test_ci_imports_every_module_out_of_a_freshly_resolved_wheel_and_proves_it_can_fail() -> None:
     """The durable half of the `mcp` 2.0 outage fix, and the half that matters.
 
@@ -336,6 +370,14 @@ def test_cis_negative_check_names_the_failure_it_expects_not_the_generic_headlin
         body,
         re.MULTILINE,
     ), "the negative check no longer names the failure it expects"
+    import yaml
+
+    negative = next(
+        step
+        for step in yaml.safe_load(workflow)["jobs"]["build"]["steps"]
+        if str(step.get("name")) == "The wheel-import gate can still fail"
+    )
+    _no_failure_path_exits_zero(str(negative["run"]), "ci.yml's negative check")
     assert not re.search(
         r"^[ \t]*(?![ \t#]).*did not import against the resolved dependency set",
         body,
@@ -396,6 +438,16 @@ def test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install() -> 
     assert re.search(r'^\s*if \[ "\$code" -ne 0 \]; then', body, re.MULTILINE), (
         "the captured status is compared against something other than success"
     )
+    import yaml
+
+    document = yaml.safe_load(workflow)
+    handshake = next(
+        step
+        for step in document["jobs"]["build"]["steps"]
+        if "pnk serve" in str(step.get("run", ""))
+    )
+    _no_failure_path_exits_zero(str(handshake["run"]), "ci.yml's handshake")
+    _job_cannot_be_switched_off(document, "build")
 
 
 def test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish() -> None:
@@ -453,6 +505,8 @@ def test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish() -> No
         f"the pre-publish check carries {sorted(disabling)} — it can be skipped or ignored while "
         f"still reading correctly, and what it guards is an upload PyPI will not take back"
     )
+    _no_failure_path_exits_zero(runs[exercised], "release.yml's pre-publish check")
+    _job_cannot_be_switched_off(document, "publish")
 
     published = next((i for i, run in enumerate(runs) if "uv publish" in run), None)
     assert published is not None, "release.yml no longer publishes"
@@ -510,9 +564,10 @@ def test_no_step_that_resolves_fresh_can_be_switched_off() -> None:
     """`if:` is the obvious way to disable a step; `continue-on-error:` is the quiet one — the
     step fails, the job carries on, and everything after it runs as though it had passed.
 
-    These four steps are the entire fresh-resolve leg. Each reads correctly with either key
-    attached, because neither touches the step's body, so nothing else here would notice. Found by
-    the second review's mutation battery, 20260822.
+    These steps are the entire fresh-resolve leg. Each reads correctly with either key attached,
+    because neither touches the step's body, so nothing else here would notice. Found by the
+    second review's mutation battery, 20260822. The **job** carrying either key is the same edit
+    one level up and is asserted in the two tests above.
     """
     import yaml
 
@@ -533,10 +588,11 @@ def test_every_invocation_of_the_wheel_import_gate_carries_its_floor_and_its_sen
     """`--min-modules` and `--require` are the two flags that stop a walk finding nothing from
     reading exactly like a clean run, and both live at the call site rather than in the tool.
 
-    Four call sites across three files, so "the flag is present" was true of the file the last
+    Five call sites across three files, so "the flag is present" was true of the file the last
     edit touched and unpinned everywhere else: deleting `--min-modules 50` from any one of them
     survived every test, and the tool then falls silently back to a default of 20 against a
-    package of 57 modules. Asserted per invocation, not per file.
+    package of 57 modules. Asserted per invocation, not per file — and by value, because
+    `--min-modules 1` survived too.
     """
     sources = {
         path: (Path(__file__).parent.parent / path).read_text(encoding="utf-8")
@@ -555,11 +611,21 @@ def test_every_invocation_of_the_wheel_import_gate_carries_its_floor_and_its_sen
                 block.append(lines[index + len(block)])
             joined = " ".join(block)
             invocations += 1
-            assert "--min-modules" in joined, f"{path}: an invocation with no floor: {joined!r}"
+            floor = re.search(r"--min-modules (\d+)", joined)
+            assert floor is not None, f"{path}: an invocation with no floor: {joined!r}"
+            # The **value**, not only the flag. `--min-modules 1` survived every test, which is
+            # the defect the flag exists for, one step in. The number that matters: a walk that
+            # stopped at the top level finds 31 of the package's 57 modules and still satisfies
+            # `--require pinakes.serve`, because `serve` is top-level. Anything above 31 catches
+            # it; 40 keeps headroom in both directions.
+            assert int(floor.group(1)) >= 40, (
+                f"{path}: a floor of {floor.group(1)} is below the 31 modules a walk that "
+                f"stopped at the top level would still find: {joined!r}"
+            )
             assert "--require pinakes.serve" in joined, (
                 f"{path}: an invocation with no sentinel: {joined!r}"
             )
-    assert invocations >= 4, f"only {invocations} invocation(s) found; the call sites have moved"
+    assert invocations >= 5, f"only {invocations} invocation(s) found; the call sites have moved"
 
 
 def test_make_smoke_exercises_the_wheel_rather_than_only_its_version() -> None:
@@ -589,3 +655,10 @@ def test_make_smoke_exercises_the_wheel_rather_than_only_its_version() -> None:
         f"pnk serve's output is piped, so the target reports the last stage's exit status and a "
         f"`grep -q` closing the pipe kills the server it is reading: {piped}"
     )
+    # make has its own `continue-on-error`, and it is one character: a recipe line beginning `-`
+    # has its exit status ignored. Prefixing either `grep` restored the exact defect the pipe fix
+    # removed — the target printing "answers an MCP handshake" over a check that failed, exit 0.
+    # Over `logical`, not over the raw body: a continuation line carrying `--require` starts with
+    # a hyphen and is not a recipe line at all.
+    ignored = [line for line in logical.splitlines() if line.lstrip("\t").startswith("-")]
+    assert not ignored, f"make is told to ignore the exit status of: {ignored}"

@@ -101,11 +101,24 @@ constructor signature says nothing about that. **The remedy for the class is tes
 not capping on reflex**; a project that caps everywhere buys the same silence with a different
 cause.
 
-**The battery is what turned three rounds of prose into three rounds of evidence.** Round one:
-11 mutants, 11 killed. Round two, after the first review's fixes: 21 mutants, **3 survived** — and
-all three were tests written from the fix's own description, which is a test of the description.
-Round three, after the second review: 12 of 26 survived, every one of them in surface the remedies
-had added. **A remedy is new code, and new code that nothing has tried to break is a claim.**
+**The battery is what turned four rounds of prose into four rounds of evidence, and the survivor
+count went the wrong way twice before it went the right way.**
+
+| Round | Mutants | Survived | Where |
+|---|---|---|---|
+| 1 — the increment | 11 | 0 | — |
+| 2 — after review 1's fixes | 21 | **3** | tests written from the fix's own description |
+| 3 — after review 2's fixes | 26 (reviewer's) → 33 (mine) | **12** → then **2** | the remedies' own surface |
+| 4 — after review 3's fixes | 25 (reviewer's) → 40 (mine) | **19** → then 0 | the remedies' remedies |
+
+Round one said 11/11 and meant it about eleven assertions, which is all a battery ever means. Every
+later round found survivors **in the surface the previous round's fixes had added** — `exit 1`
+changed to `exit 0` in a step that then printed `::error::` and reported success; a `continue-on-error`
+on the *job* under tests that guarded the *steps*; `--min-modules 1` under a test that asserted the
+flag was present; a leading `-` in a Makefile recipe, which is make's own way of ignoring an exit
+status. **A remedy is new code, and new code nothing has tried to break is a claim.** The count that
+matters is not 40/40, it is that three consecutive reviews each found something and the fourth
+round's mutants were written by someone who had not written the fixes.
 
 **What the new legs still cannot see, named so nobody reads them as more.** Import-time breaks
 only, on the install states CI runs. A dependency that keeps its module layout and changes a

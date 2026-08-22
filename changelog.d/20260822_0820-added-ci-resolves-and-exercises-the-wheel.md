@@ -10,7 +10,9 @@
   for `pinakes.serve`. **`[st]` is the one gap and it is deliberate**: a ~2GB torch download CI
   will not take, so the default backend is still never resolved by anything.
 - **The release workflow exercises the wheel it is about to publish.** Its pre-publish smoke test
-  was `pnk --version` + `pnk init`, which is how 45 releases shipped with `pnk serve` dead. The
+  was `pnk --version` + `pnk init`, which is how all **38** published releases shipped with
+  `pnk serve` dead — `mcp` 2.0.0 reached PyPI 3.5 hours before Pinakes' first published
+  version did, so there has never been one that worked on a fresh install. The
   import gate and the handshake now run **in front of** `uv publish`, where a failure costs a
   deleted tag rather than a version number PyPI will never release again. `make smoke` runs the
   same two checks locally.
