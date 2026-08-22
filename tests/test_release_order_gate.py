@@ -49,7 +49,7 @@ def _tree(
         "| Release | Adds |\n|---|---|\n"
         + "".join(f"| **[{v}](#anchor-{v})** | 20260101 00:00 | something |\n" for v in versions)
         + "\n"
-        + "".join(f"## {v} — Something · 20260101 00:00\n\nbody.\n\n" for v in versions),
+        + _parts(versions),
         encoding="utf-8",
     )
     (root / "docs" / "STATUS.md").write_text(
@@ -63,6 +63,46 @@ def _tree(
         encoding="utf-8",
     )
     return root
+
+
+#: The real document's Part structure, in miniature: the three range forms it actually uses, plus a
+#: rangeless Part at the end. Fixtures carry it because the placement check reads a section's Part
+#: from the document, so a fixture with no Parts tests nothing about placement.
+PARTS: tuple[tuple[str, str], ...] = (
+    ("# Part 1 · The engine — `0.1.x`", "prefix"),
+    ("# Part 2 · The middle — `0.2.0` → `0.4.0`", "closed"),
+    ("# Part 3 · Links — `0.5.0` → `0.7.0`", "closed"),
+    ("# Part 4 · Everything since — `0.8.0` onward", "open"),
+    ("# Part 5 · What is not built", "none"),
+)
+
+
+def _part_of(version: str) -> int:
+    """Which Part index the fixture's own ranges put a version in. Mirrors PARTS above."""
+    minor = int(version.split(".")[1])
+    if minor == 1:
+        return 0
+    if 2 <= minor <= 4:
+        return 1
+    if 5 <= minor <= 7:
+        return 2
+    return 3
+
+
+def _parts(versions: list[str], *, misfile: str | None = None, into: int = 4) -> str:
+    """The Part headings with each version's section under the Part its own range claims.
+
+    `misfile` moves one section under `into` instead — the defect that shipped twice, and the only
+    way to build a tree where every sequence is sorted and a section is still in the wrong place.
+    """
+    held: list[list[str]] = [[] for _ in PARTS]
+    for v in versions:
+        index = into if v == misfile else _part_of(v)
+        held[index].append(f"## {v} — Something · 20260101 00:00\n\nbody.\n")
+    out: list[str] = []
+    for (heading, _kind), sections in zip(PARTS, held, strict=True):
+        out.append(heading + "\n\n" + "".join(f"{s}\n" for s in sections))
+    return "\n".join(out)
 
 
 def _versions(count: int = COUNT) -> list[str]:
@@ -249,3 +289,178 @@ def test_the_prose_pattern_does_not_match_the_roadmap_table(tmp_path: Path) -> N
     assert int(match.group(1)) == 20, (
         f"the prose sequence must match its own 20 entries and nothing else: {result.stdout}"
     )
+
+
+def test_the_real_document_places_every_section_under_its_part() -> None:
+    """The invariant itself, with no arguments — the run `check.sh` performs."""
+    result = run()
+    assert result.returncode == 0, result.stderr
+    assert "every section placed" in result.stdout
+    match = re.search(r"placement: (\d+) release section\(s\)", result.stdout)
+    assert match is not None, result.stdout
+    assert int(match.group(1)) >= 40, result.stdout
+
+
+def test_a_section_under_a_rangeless_part_fails_while_every_sequence_stays_sorted(
+    tmp_path: Path,
+) -> None:
+    """The defect that shipped twice, in the only form that matters.
+
+    `0.27.1`'s section landed inside `# Part 5 · What is not built`, and **all six sequences were
+    green**: it was still the newest section in document order, and sorting says nothing about
+    location. So the fixture moves the newest section into the rangeless Part, where it remains last
+    and every ordering check still passes. If this test ever fails for an *ordering* reason it has
+    stopped testing placement.
+    """
+    versions = _versions()
+    root = _tree(tmp_path, versions=versions)
+    (root / "docs" / "ROADMAP.md").write_text(
+        "| Release | Adds |\n|---|---|\n"
+        + "".join(f"| **[{v}](#anchor-{v})** | 20260101 00:00 | something |\n" for v in versions)
+        + "\n"
+        + _parts(versions, misfile=versions[-1], into=4),
+        encoding="utf-8",
+    )
+
+    result = run(str(root))
+
+    assert result.returncode == 1
+    assert f"the section for {versions[-1]} sits under Part 5" in result.stderr
+    assert "Part 5 declares no release range" in result.stderr
+    assert "reads ascending" not in result.stderr, (
+        "the fixture must fail for placement alone — an ordering failure here means the test no "
+        "longer distinguishes the two, which is the whole point of the check:\n" + result.stderr
+    )
+
+
+def test_a_section_one_part_early_is_caught_and_names_both_parts(tmp_path: Path) -> None:
+    """The realistic shape: an off-by-one at a Part boundary.
+
+    `0.8.0` appended to the end of Part 3 (`0.5.0` → `0.7.0`) instead of opening Part 4 (`0.8.0`
+    onward) leaves the document in ascending order — it still sits between `0.7.0` and `0.9.0` — so
+    only its Part is wrong. The message must name the Part it is under *and* the Part it belongs to,
+    or the reader has to re-derive what the gate already knows.
+    """
+    versions = _versions()
+    root = _tree(tmp_path, versions=versions)
+    (root / "docs" / "ROADMAP.md").write_text(
+        "| Release | Adds |\n|---|---|\n"
+        + "".join(f"| **[{v}](#anchor-{v})** | 20260101 00:00 | something |\n" for v in versions)
+        + "\n"
+        + _parts(versions, misfile="0.8.0", into=2),
+        encoding="utf-8",
+    )
+
+    result = run(str(root))
+
+    assert result.returncode == 1
+    assert "the section for 0.8.0 sits under Part 3, but belongs under Part 4" in result.stderr
+    assert "Part 3 declares 0.5.0 → 0.7.0" in result.stderr
+    assert "reads ascending" not in result.stderr, result.stderr
+
+
+def test_a_part_whose_range_stops_parsing_holds_nothing_rather_than_everything(
+    tmp_path: Path,
+) -> None:
+    """A heading whose range is reformatted past recognition must fail, not silently accept.
+
+    The dangerous reading is "no declared range, so nothing to check" — that would make every
+    section under it pass, and a Part is exactly where thirty sections live. `declares_range` is
+    false in both cases and `holds()` returns False for both, so a rangeless Part holding sections
+    is always a failure whether the range was removed or was never there.
+    """
+    root = _tree(tmp_path, versions=_versions())
+    roadmap = root / "docs" / "ROADMAP.md"
+    roadmap.write_text(
+        roadmap.read_text(encoding="utf-8").replace(
+            "# Part 4 · Everything since — `0.8.0` onward",
+            "# Part 4 · Everything since — 0.8.0 onward",  # backticks gone; range no longer parses
+        ),
+        encoding="utf-8",
+    )
+
+    result = run(str(root))
+
+    assert result.returncode == 1
+    assert "Part 4 declares no release range" in result.stderr
+    assert "falls in no Part's declared range" in result.stderr, (
+        "with Part 4 unparsed nothing claims 0.8.0 onward, and the message must say so rather "
+        "than point at a Part that could take it"
+    )
+
+
+def test_the_prefix_range_form_is_actually_read(tmp_path: Path) -> None:
+    """`0.1.x` is a form of its own, and a gate understanding only `a → b` and `onward` would place
+    every 0.1.z section nowhere while looking correct on the other thirty.
+
+    Asserts **both** directions, because the red half alone is satisfied by absence: a mutant that
+    breaks the prefix pattern altogether also produces this failure, so a test asserting only the
+    failure passes whether the form is read correctly or not at all. A mutation run found exactly
+    that — the same shape as a containment test satisfied by a path that does not exist.
+    """
+    root = _tree(tmp_path, versions=_versions())
+    roadmap = root / "docs" / "ROADMAP.md"
+    intact = roadmap.read_text(encoding="utf-8")
+
+    baseline = run(str(root))
+    assert baseline.returncode == 0, (
+        "with `0.1.x` intact the 0.1.z section must be *accepted* — this is the half that fails "
+        f"when the prefix form stops being read at all:\n{baseline.stderr}"
+    )
+
+    roadmap.write_text(
+        intact.replace(
+            "# Part 1 · The engine — `0.1.x`",
+            "# Part 1 · The engine — `0.1.z`",  # not a form the gate knows
+        ),
+        encoding="utf-8",
+    )
+    result = run(str(root))
+
+    assert result.returncode == 1
+    assert "the section for 0.1.0 sits under Part 1" in result.stderr
+    assert "Part 1 declares no release range" in result.stderr
+
+
+def test_a_range_like_string_in_a_part_title_is_not_mistaken_for_the_range(tmp_path: Path) -> None:
+    """The range is matched at the **end** of the heading, and this is what that buys.
+
+    A title that mentions versions — "The 0.2.0 to 0.4.0 era", written with the arrow — contains
+    the closed-range shape before the real range. An unanchored search takes the leftmost match,
+    so the Part would
+    silently claim the versions named in its *prose* and disown the ones it actually holds. Nothing
+    in the real document does this today, which is exactly why the property needs a test rather
+    than a docstring: a future Part title is where it would first appear.
+    """
+    versions = _versions()
+    root = _tree(tmp_path, versions=versions)
+    roadmap = root / "docs" / "ROADMAP.md"
+    roadmap.write_text(
+        roadmap.read_text(encoding="utf-8").replace(
+            "# Part 3 · Links — `0.5.0` → `0.7.0`",
+            "# Part 3 · The `0.2.0` → `0.4.0` era, revisited — `0.5.0` → `0.7.0`",
+        ),
+        encoding="utf-8",
+    )
+
+    result = run(str(root))
+
+    assert result.returncode == 0, (
+        "Part 3 still declares 0.5.0 → 0.7.0; the range in its title must not be read instead:\n"
+        + result.stderr
+    )
+
+
+def test_a_part_pattern_that_stops_matching_fails_rather_than_passing(tmp_path: Path) -> None:
+    """The vacuity branch, for the reason the sequence floor exists: a document the gate can no
+    longer find Parts in must say so, not report every section correctly placed."""
+    root = _tree(tmp_path, versions=_versions())
+    roadmap = root / "docs" / "ROADMAP.md"
+    roadmap.write_text(
+        roadmap.read_text(encoding="utf-8").replace("\n# Part ", "\n# Section "), encoding="utf-8"
+    )
+
+    result = run(str(root))
+
+    assert result.returncode == 1
+    assert "`# Part` heading(s), fewer than the 4 floor" in result.stderr

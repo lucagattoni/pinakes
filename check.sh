@@ -160,7 +160,12 @@ uv run --frozen python3 tools/eval_reproducibility_gate.py
 uv run --frozen python3 tools/status_header_gate.py
 
 # release-order: the six ordered release sequences in CHANGELOG.md, docs/ROADMAP.md and
-# docs/STATUS.md read in release order. The sixth is STATUS's *Published on PyPI* prose, added
+# docs/STATUS.md read in release order, AND every per-release section in ROADMAP sits under the
+# Part whose declared range holds its version. The second half was added 20260822 after 0.27.1's
+# section landed inside `# Part 5 · What is not built` with all six sequences green — the sequence
+# was still sorted, because sorting says nothing about location. 0.25.3 did the same and 0.25.4
+# fixed it once already. The Part ranges are read out of the `# Part N` headings themselves rather
+# than from a mapping kept beside them. The sixth is STATUS's *Published on PyPI* prose, added
 # 20260822: docs/RELEASING.md named that list as a place a release stales and said this gate decides
 # where the new entry goes, while no pattern here matched it — so the procedure delegated the
 # decision to a check that could not read the document, and the list had been mis-ordered since
