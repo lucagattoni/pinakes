@@ -26,6 +26,20 @@ exactly what makes a remedy hard to doubt.
 the remedy is unfalsifiable and the test written for it will be a tautology — the same failure E7
 recorded, where a guard whose input is built by its own validator cannot be shown to guard anything.
 
+**The cheap structural version, if only one thing survives from this:** when an adversarial reviewer
+is asked to refute a finding, ask it to refute the **proposed fix** as a separate verdict. Both
+instances above were caught that way and neither was caught any other way — one by accident, when a
+skeptic exceeded its brief, and one by design, when the second pass asked *tolerant in which
+direction?*. It costs one more question per finding. The mechanism and the first instance came from
+the concurrent session; this fragment shipped without them and had to be amended, which is the
+argument in miniature.
+
+**And it worked because reviewing was somebody's assigned job.** That amendment was found by a
+session whose remaining task was to look at work other people had finished — development split to
+one agent, planning and review to another. A review that happens as a courtesy after the work is
+done is the one that gets skipped when the work runs long; the catch here depended on it being
+nobody's optional extra.
+
 **A coda from the concurrent session, worth keeping beside this.** The night's most serious defect —
 `pnk serve` raising `ModuleNotFoundError` on every fresh install of every published version, from a
 lower-bound-only dependency pin that 37 `--frozen` CI invocations never resolve — was not found by a
