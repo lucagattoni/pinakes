@@ -84,6 +84,25 @@ the release procedure itself, which writes CHANGELOG before anything else.
 allowed not to have reached the latest release yet — the hold-back window. Below its own newest it
 must be as complete as any other, so the exemption cannot hide a hole in the middle.
 
+**And that ceiling is the sequence's own maximum, which is an echo — so how far it may lag is
+declared too.** Without a bound, deleting the *newest* entry of a lagging sequence drops the ceiling
+with it and the deletion hides itself: exactly the defect refused at the lower bound, surviving four
+lines away at the upper one. `MAX_VERIFICATION_LAG` closes it, and the number is not a tuning knob.
+*Verify the artifact, never the run status* is the rule this list exists to record. Two behind is
+one unverified cut plus one slip; **three behind means verification has stopped happening**, and a
+gate going red on that is the gate doing the job the list was created for. If it ever fires, the
+remedy is to verify the backlog, not to raise the constant.
+
+**What the bound buys, exactly.** It does not detect a deletion; it bounds how far the echo can
+drift before something says so. At a legitimate lag of 1, deleting the newest entry leaves a lag of
+2 and is still silent. Past that it is not. Unbounded silent drift becomes at most
+`MAX_VERIFICATION_LAG` releases of it, which is the honest description and not "the deletion hole is
+closed".
+
+**The message names both causes and picks neither**, because the documents genuinely cannot tell
+them apart: an entry deleted and an entry not yet written look identical. A gate that guessed would
+be wrong half the time and confident every time.
+
 **What this gate cannot see: a count.** It reads an *order*. A sentence saying "thirty-six" beside
 a list of thirty-seven is invisible here, and one landed one line from its own correction through a
 green run of every gate in this repo (20260822). Counts are checked by reading the neighbourhood,
@@ -103,6 +122,12 @@ from pathlib import Path
 #: A sequence shorter than this means the pattern stopped matching, not that the project un-released
 #: something. Releases are never deleted, so this floor only ever holds.
 MINIMUM = 25
+
+#: How many releases a sequence permitted to lag may be behind the newest release overall, before
+#: the lag stops being latency and becomes a lapse. Declared for the same reason `starts_at` is: the
+#: alternative is a ceiling read out of the sequence being checked, which moves when an entry is
+#: deleted and so hides the deletion. Raising this is a decision someone has to take deliberately.
+MAX_VERIFICATION_LAG = 2
 
 Version = tuple[int, int, int]
 
@@ -383,6 +408,17 @@ def check_membership(
         required = [
             v for v in universe if sequence.starts_at <= v <= ceiling and v not in sequence.absent
         ]
+        behind = [v for v in universe if v > ceiling]
+        if sequence.newest_may_lag and len(behind) > MAX_VERIFICATION_LAG:
+            failures.append(
+                f"{where}: {len(behind)} releases behind — newest here {_show(ceiling)}, newest "
+                f"overall {_show(max(universe))}, past the declared lag of "
+                f"{MAX_VERIFICATION_LAG}. Either an entry was deleted, or verification has stopped "
+                "happening. This list records a claim about the index that is only written once it "
+                "has been checked against the index, so falling this far behind is the state it "
+                "exists to make visible — the remedy is to verify the backlog, not to raise the "
+                "constant."
+            )
         missing = [v for v in required if v not in present]
         if missing:
             failures.append(

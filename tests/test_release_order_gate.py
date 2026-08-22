@@ -29,6 +29,17 @@ def run(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def failures_of(result: subprocess.CompletedProcess[str]) -> list[str]:
+    """The gate's failure lines. Each is printed as `  {failure}` under one headline.
+
+    Exists so a fixture can assert **exactly one failure, and which one** rather than
+    `assert "reads ascending" not in stderr`. The negative form is satisfied by a reworded message
+    and by a second failure appearing beside the one under test: it asserts the absence of a
+    spelling, where what the test means is the presence of exactly one thing.
+    """
+    return [line[2:] for line in result.stderr.splitlines() if line.startswith("  ")]
+
+
 def _tree(
     root: Path,
     *,
@@ -281,13 +292,18 @@ def test_the_prose_pattern_does_not_match_the_roadmap_table(tmp_path: Path) -> N
     The count is the observable — six sequences, and the prose one names exactly its own entries.
     """
     versions = _versions()
-    result = run(str(_tree(tmp_path, versions=versions, prose_versions=versions[:20])))
+    # Two behind, not ten: `MAX_VERIFICATION_LAG` makes a ten-behind fixture illegitimate, and a
+    # fixture the gate would reject in production proves nothing about production.
+    prose = versions[:-2]
+    result = run(str(_tree(tmp_path, versions=versions, prose_versions=prose)))
 
     assert result.returncode == 0, result.stderr
     match = re.search(r"the Published on PyPI prose: (\d+) releases,", result.stdout)
     assert match is not None, result.stdout
-    assert int(match.group(1)) == 20, (
-        f"the prose sequence must match its own 20 entries and nothing else: {result.stdout}"
+    assert int(match.group(1)) == len(prose), (
+        f"the prose sequence must match its own {len(prose)} entries and nothing else — the "
+        f"STATUS table beside it carries {len(versions)}, so a pattern reaching into the table "
+        f"would report more: {result.stdout}"
     )
 
 
@@ -325,12 +341,13 @@ def test_a_section_under_a_rangeless_part_fails_while_every_sequence_stays_sorte
     result = run(str(root))
 
     assert result.returncode == 1
-    assert f"the section for {versions[-1]} sits under Part 5" in result.stderr
-    assert "Part 5 declares no release range" in result.stderr
-    assert "reads ascending" not in result.stderr, (
-        "the fixture must fail for placement alone — an ordering failure here means the test no "
-        "longer distinguishes the two, which is the whole point of the check:\n" + result.stderr
+    only = failures_of(result)
+    assert len(only) == 1, (
+        "the fixture must fail for placement ALONE — a second failure means it no longer "
+        f"distinguishes placement from ordering, which is the whole point:\n{only}"
     )
+    assert f"the section for {versions[-1]} sits under Part 5" in only[0]
+    assert "Part 5 declares no release range" in only[0]
 
 
 def test_a_section_one_part_early_is_caught_and_names_both_parts(tmp_path: Path) -> None:
@@ -354,9 +371,10 @@ def test_a_section_one_part_early_is_caught_and_names_both_parts(tmp_path: Path)
     result = run(str(root))
 
     assert result.returncode == 1
-    assert "the section for 0.8.0 sits under Part 3, but belongs under Part 4" in result.stderr
-    assert "Part 3 declares 0.5.0 → 0.7.0" in result.stderr
-    assert "reads ascending" not in result.stderr, result.stderr
+    only = failures_of(result)
+    assert len(only) == 1, f"placement alone, or the fixture has stopped discriminating:\n{only}"
+    assert "the section for 0.8.0 sits under Part 3, but belongs under Part 4" in only[0]
+    assert "Part 3 declares 0.5.0 → 0.7.0" in only[0]
 
 
 def test_a_part_whose_range_stops_parsing_holds_nothing_rather_than_everything(
@@ -514,10 +532,11 @@ def test_a_release_missing_from_the_middle_is_caught(tmp_path: Path) -> None:
     result = run(str(_tree(tmp_path, versions=versions, status_versions=gapped)))
 
     assert result.returncode == 1
-    assert "1 release(s) missing — 0.20.0" in result.stderr
-    assert "reads ascending" not in result.stderr, (
-        "a gap leaves every surviving pair sorted; if this fails on ordering the fixture is wrong"
+    only = failures_of(result)
+    assert len(only) == 1, (
+        f"a gap leaves every surviving pair sorted, so membership must be the only failure:\n{only}"
     )
+    assert "1 release(s) missing — 0.20.0" in only[0]
 
 
 def test_a_release_before_a_sequences_declared_start_is_not_required(tmp_path: Path) -> None:
@@ -553,3 +572,55 @@ def test_a_lagging_sequence_may_not_have_a_hole_below_its_own_newest(tmp_path: P
 
     assert result.returncode == 1
     assert "the Published on PyPI prose: 1 release(s) missing — 0.20.0" in result.stderr
+
+
+def test_a_lag_within_the_declared_bound_stays_green(tmp_path: Path) -> None:
+    """The half that gets skipped.
+
+    `MAX_VERIFICATION_LAG` is 2, so a list two releases behind is still legitimate — one unverified
+    cut plus one slip. A bound that also reddened the normal hold-back window would be turned off
+    within a week, so the green case is as much the specification as the red one.
+    """
+    versions = _versions()
+    result = run(str(_tree(tmp_path, versions=versions, prose_versions=versions[:-2])))
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_a_lag_past_the_declared_bound_fails_and_names_both_causes(tmp_path: Path) -> None:
+    """Three behind is not latency any more.
+
+    The ceiling for a lagging sequence is that sequence's own maximum — an echo of the document
+    being checked — so without this bound, deleting its newest entry drops the ceiling with it and
+    the deletion hides itself. That is the defect refused at the *lower* bound surviving four lines
+    away at the upper one.
+
+    The message must name **both** causes and choose neither: an entry deleted and an entry not yet
+    written are indistinguishable from the documents, and a gate that guessed would be wrong half
+    the time and confident every time.
+    """
+    versions = _versions()
+    result = run(str(_tree(tmp_path, versions=versions, prose_versions=versions[:-3])))
+
+    assert result.returncode == 1
+    only = failures_of(result)
+    assert len(only) == 1, f"the lag bound alone should fire here:\n{only}"
+    assert "3 releases behind" in only[0]
+    assert "past the declared lag of 2" in only[0]
+    assert "an entry was deleted" in only[0] and "verification has stopped" in only[0], (
+        "naming one cause would be a guess the documents cannot support"
+    )
+
+
+def test_the_lag_bound_does_not_apply_to_a_sequence_that_may_not_lag(tmp_path: Path) -> None:
+    """Discriminating: the bound is scoped to `newest_may_lag`. Applied to every sequence it would
+    be dead code — the cross-sequence agreement check already refuses a strict sequence that is
+    behind at all, and it fires on the first missing release rather than the third."""
+    versions = _versions()
+    result = run(str(_tree(tmp_path, versions=versions, status_versions=versions[:-3])))
+
+    assert result.returncode == 1
+    assert "releases behind" not in result.stderr, (
+        "a strict sequence is caught by the newest-differs check, not by the lag bound"
+    )
+    assert "the newest release differs between sequences" in result.stderr
