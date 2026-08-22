@@ -44,8 +44,10 @@ spent, and a courtesy at the end of a paid run must not become the thing that st
 reaching the person who paid for it.
 """
 
+import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from itertools import groupby
 from pathlib import Path
 from typing import Final
 
@@ -240,11 +242,28 @@ def propose(
     an *addition*, an entry that is already authored is not one, and printing it would spend the
     reader's attention on a paste that changes nothing.
     """
+    # **Resolved once per document, not once per pair.** A block citing `n` documents makes
+    # `n(n-1)/2` pairs, and resolving inside the loop would read — and YAML-parse — each sidecar
+    # `n-1` times. `[retrieval] final_k` has no ceiling, so that is quadratic disk work at the end
+    # of a run whose money is already spent.
+    resolved: dict[str, _Endpoint | None] = {}
+
+    def endpoint(doc_id: str) -> _Endpoint | None:
+        if doc_id not in resolved:
+            resolved[doc_id] = _resolve(doc_id, cited=cited, manifest=manifest)
+        return resolved[doc_id]
+
     suggestions: list[Suggestion] = []
     for observation in observations:
-        source = _resolve(observation.first, cited=cited, manifest=manifest)
-        target = _resolve(observation.second, cited=cited, manifest=manifest)
+        source = endpoint(observation.first)
+        target = endpoint(observation.second)
         if source is None or target is None:
+            continue
+        if source.uri == target.uri:
+            # `pnk link` refuses this outright — a document related to itself says nothing and
+            # comes back as its own neighbour from `pnk links`. Unreachable from `co_citations`,
+            # which pairs distinct ids; reachable through this function, which is public and
+            # re-checks everything else it is handed.
             continue
         if any(existing.to == target.uri for existing in source.links):
             continue
@@ -275,6 +294,27 @@ def for_run(answer: DeepAnswer, *, manifest: Manifest) -> tuple[Suggestion, ...]
     return propose(co_citations(answer), cited=cited_documents(answer), manifest=manifest)
 
 
+_UNPRINTABLE: Final = frozenset({"Cc", "Zl", "Zp"})
+"""Unicode categories that must not reach a YAML comment: C0/C1 controls, and the two separators
+YAML 1.1 also reads as line breaks."""
+
+
+def _one_line(text: str) -> str:
+    """`text` with anything that could end the line it is written on replaced by a space.
+
+    **A POSIX filename may contain a newline**, and this module writes document paths into YAML
+    *comments*. One newline ends the comment and turns the rest of the path into a node — the
+    fragment's whole round-trip promise broken by a legal filename, with no error anywhere to say
+    so. `sidecar.needs_quoting` cannot help: it answers about a scalar, and a comment is not one.
+
+    Only the human-readable half is touched. The `to` value is a `PnkUri`, which is two ULIDs and
+    a fixed scheme, so nothing in the entry a paste depends on passes through here.
+    """
+    return "".join(
+        " " if unicodedata.category(character) in _UNPRINTABLE else character for character in text
+    )
+
+
 def render(suggestions: Sequence[Suggestion]) -> str:
     """The copy-pasteable fragment: `HEADER`, then one block per sidecar.
 
@@ -282,24 +322,32 @@ def render(suggestions: Sequence[Suggestion]) -> str:
     citing one document per block produces none, and on a narrow question that is the common case
     rather than an edge one.
 
-    **Built as text rather than dumped through `ruamel`.** Every value in it is constrained to a
+    **Built as text rather than dumped through `ruamel`.** Every *value* in it is constrained to a
     charset that needs no quoting — `to` is a `PnkUri`, so two ULIDs and a fixed scheme; `rel` and
     `origin` are the constants above — and `test_deep_suggest.py` pins that against
     `sidecar.needs_quoting` rather than asserting it here. What a dumper would buy is quoting that
     is not needed; what it would cost is that the round-trip test would then be a test of `ruamel`.
+    The paths are not values but *comments*, which is a different hazard and `_one_line`'s.
+
+    **Sorts its own input**, so the fragment is the same whatever order a caller assembled the
+    suggestions in — `propose` already returns them sorted, and a second consumer must not be able
+    to change what a user is told to paste by iterating differently.
     """
     if not suggestions:
         return ""
+    ordered = sorted(suggestions, key=lambda item: (item.sidecar, item.target))
     blocks: list[str] = []
-    for sidecar in sorted({item.sidecar for item in suggestions}):
-        group = [item for item in suggestions if item.sidecar == sidecar]
+    for sidecar, entries in groupby(ordered, key=lambda item: item.sidecar):
+        group = list(entries)
         note = f" {ALREADY_HAS_LINKS}" if group[0].into_existing else ""
-        lines = [f"# {sidecar}{note}"]
+        lines = [f"# {_one_line(sidecar)}{note}"]
         if not group[0].into_existing:
             lines.append("links:")
         for item in group:
             rounds = "1 round" if len(item.rounds) == 1 else f"{len(item.rounds)} rounds"
-            lines.append(f"- to: {item.to}  # {item.target}, cited with it in {rounds}")
+            lines.append(
+                f"- to: {item.to}  # {_one_line(item.target)} — cited together in {rounds}"
+            )
             lines.append(f"  rel: {item.rel}")
             lines.append(f"  origin: {ORIGIN}")
         blocks.append("\n".join(lines))

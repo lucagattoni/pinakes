@@ -349,7 +349,8 @@ observation proposes — for you to paste, review and commit.
 suggested links — documents this run cited together. Nothing was written: paste a block into the sidecar its first line names.
 
 # docs/volunteer-programme.md.pnk.yaml
-- to: pnk://01K2ZQ…ZQ/01K2ZR…ZR  # docs/catalogue-numbers-format.md, cited with it in 1 round
+links:
+- to: pnk://01K2ZQ…ZQ/01K2ZR…ZR  # docs/catalogue-numbers-format.md — cited together in 1 round
   rel: co-cited
   origin: deep
 ```

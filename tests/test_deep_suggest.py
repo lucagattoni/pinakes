@@ -46,6 +46,7 @@ from pinakes.deep.suggest import (
     propose,
     render,
 )
+from pinakes.ids import mint_doc_id
 from pinakes.manifest import Manifest, load
 from pinakes.search import HIGH, Filters, Passage, SearchResult
 from pinakes.sidecar import SIDECAR_SUFFIX, needs_quoting, read, write
@@ -183,7 +184,7 @@ def test_the_same_pair_cited_twice_is_one_suggestion_naming_both_rounds(kb: Kb) 
     suggestions = for_run(answer, manifest=manifest_of(kb))
     assert len(suggestions) == 1
     assert suggestions[0].rounds == (1, 2)
-    assert "cited with it in 2 rounds" in render(suggestions)
+    assert "cited together in 2 rounds" in render(suggestions)
 
 
 def test_the_direction_does_not_depend_on_the_order_the_model_cited_in(kb: Kb) -> None:
@@ -237,6 +238,19 @@ def test_a_suggestion_naming_a_document_the_run_never_retrieved_is_refused(kb: K
     assert propose([smuggled], cited=cited_documents(answer), manifest=manifest_of(kb)) == ()
 
 
+def test_a_pair_naming_one_document_twice_is_refused(kb: Kb) -> None:
+    """`pnk link` refuses a document linked to itself, so this must not propose one.
+
+    Unreachable from `co_citations`, which pairs distinct ids — and reachable through `propose`,
+    which is public and re-checks everything else it is handed. The two duplicate-id defences are
+    different: this is the identity check, and the ULID comparison in `_resolve` is the staleness
+    one.
+    """
+    answer = an_answer(a_block(kb, 0, "alpha", "beta"))
+    itself = CoCitation(first=str(kb.docs["alpha"]), second=str(kb.docs["alpha"]), rounds=(0,))
+    assert propose([itself], cited=cited_documents(answer), manifest=manifest_of(kb)) == ()
+
+
 def test_a_pair_whose_source_the_run_never_retrieved_is_refused_too(kb: Kb) -> None:
     """Both endpoints are checked, not only the target: the source names the sidecar a reader is
     being told to edit, which is the half that decides where a paste lands."""
@@ -284,15 +298,24 @@ def test_an_instruction_in_a_document_to_link_elsewhere_produces_no_such_suggest
 # --- The rule: resolution goes through the existing containment check -----------------------------
 
 
-def test_a_citation_pointing_outside_the_kb_is_dropped(kb: Kb) -> None:
-    """`link._document_in` is the check, reached through `link.source_sidecar` — a path that
-    escapes the root has no ULID this KB may write down, and no second implementation here
-    decides that."""
+def test_a_citation_pointing_outside_the_kb_is_dropped(kb: Kb, tmp_path: Path) -> None:
+    """`link._document_in` is the check, reached through `link.source_sidecar`.
+
+    **The escaping path names a document that exists, with a sidecar carrying the very id the
+    citation claims** — a whole second KB next door. A test pointing at `../nothing.md` is green
+    with no containment check at all, because the read fails on absence; this one is green only
+    because containment refused, and the mutation pass is what caught the difference.
+
+    What it prevents is concrete: without the check the fragment would carry
+    `pnk://<this KB>/<that KB's document>` — a URI naming a document this KB will never index,
+    under an id that belongs to someone else.
+    """
+    outside = make_kb(tmp_path / "outside", "outside", ["shared"])
     escaped = Citation(
         number=1,
-        doc_id=str(kb.docs["alpha"]),
-        path="../outside.md",
-        locator="../outside.md:0-1",
+        doc_id=str(outside.docs["shared"]),
+        path="../outside/docs/shared.md",
+        locator="../outside/docs/shared.md:0-1",
     )
     block = AnswerBlock(
         round_number=0, asked=(), text="", citations=(escaped, a_citation(kb, "beta", 2))
@@ -341,8 +364,62 @@ def test_a_sidecar_linked_the_other_way_still_gets_the_suggestion(kb: Kb) -> Non
 # --- The printed fragment -------------------------------------------------------------------------
 
 
+def test_a_newline_in_a_document_name_cannot_break_the_fragment(kb: Kb, tmp_path: Path) -> None:
+    """A POSIX filename may contain a newline, and the fragment writes paths into YAML *comments*.
+
+    One newline would end the comment and turn the rest of the path into a node — the round-trip
+    promise broken by a legal filename, with nothing raising. `needs_quoting` cannot see it: it
+    answers about a scalar, and a comment is not one.
+
+    Written as a real file rather than as a `Citation` with a made-up path, because the whole
+    question is whether such a document survives the containment check and reaches `render`.
+    """
+    hostile = make_kb(tmp_path / "hostile", "hostile", ["plain"])
+    awkward = hostile.root / "docs" / "two\nlines.md"
+    awkward.write_text("# two lines\n", encoding="utf-8")
+    sidecar_for = awkward.with_name(awkward.name + SIDECAR_SUFFIX)
+    minted = mint_doc_id()
+    sidecar_for.write_text(f"id: {minted}\ntitle: two lines\n", encoding="utf-8")
+
+    block = AnswerBlock(
+        round_number=0,
+        asked=(),
+        text="",
+        citations=(
+            Citation(number=1, doc_id=str(minted), path="docs/two\nlines.md", locator="x"),
+            Citation(
+                number=2,
+                doc_id=str(hostile.docs["plain"]),
+                path="docs/plain.md",
+                locator="docs/plain.md:0-1",
+            ),
+        ),
+    )
+    fragment = render(for_run(an_answer(block), manifest=load(hostile.root)))
+
+    assert fragment, "the document is inside the KB and has a sidecar, so it is still suggested"
+    parser = YAML()
+    parser.preserve_quotes = True
+    body = fragment.split("\n\n", 1)[1] + "\n"
+    loaded: Any = parser.load(body)
+    assert len(loaded["links"]) == 1
+    assert loaded["links"][0]["rel"] == REL
+    # The path is still readable, minus the byte that would have ended the line.
+    assert "two lines.md" in fragment
+
+
 def test_no_suggestions_render_to_the_empty_string() -> None:
     assert render([]) == ""
+
+
+def test_render_sorts_its_own_input(kb: Kb) -> None:
+    """A second consumer must not be able to change what a user is told to paste by iterating in
+    a different order. `propose` already sorts; `render` does not depend on it having."""
+    suggestions = for_run(
+        an_answer(a_block(kb, 0, "gamma", "alpha", "beta")), manifest=manifest_of(kb)
+    )
+    assert len(suggestions) == 3
+    assert render(list(reversed(suggestions))) == render(suggestions)
 
 
 def test_the_shipped_relation_and_provenance_are_the_values_the_design_names() -> None:
@@ -364,8 +441,9 @@ def test_the_documentation_quotes_the_header_this_build_prints() -> None:
     one kind of staleness a reader cannot tell from a correct one — the defect
     `test_docs_quote_the_shipped_sentences.py` exists for, caught there only after it shipped
     twice. Cheaper to assert forwards for a sentence that exists today."""
-    cli = (Path(__file__).parent.parent / "docs" / "CLI.md").read_text(encoding="utf-8")
-    assert HEADER in cli
+    docs = Path(__file__).parent.parent / "docs"
+    for name in ("CLI.md", "GUIDE.md"):
+        assert HEADER in (docs / name).read_text(encoding="utf-8"), name
 
 
 def test_the_fragment_names_the_sidecar_and_both_documents(kb: Kb) -> None:
@@ -373,7 +451,7 @@ def test_the_fragment_names_the_sidecar_and_both_documents(kb: Kb) -> None:
     assert fragment.startswith(f"{HEADER}\n\n")
     assert f"# docs/alpha.md{SIDECAR_SUFFIX}\n" in fragment
     assert "links:\n" in fragment
-    assert f"- to: {kb.uri('beta')}  # docs/beta.md, cited with it in 1 round" in fragment
+    assert f"- to: {kb.uri('beta')}  # docs/beta.md — cited together in 1 round" in fragment
     assert f"  rel: {REL}\n" in fragment
     assert f"  origin: {ORIGIN}" in fragment
 
