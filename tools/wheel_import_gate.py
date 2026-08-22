@@ -3,7 +3,7 @@
 **Why this exists.** `pnk serve` raised `ModuleNotFoundError: No module named
 'mcp.server.fastmcp'` on every fresh install from the first PyPI release until this was written
 (20260822) — a whole command dead for the entire published life of the project. `pyproject.toml`
-said `mcp>=1.28` with no upper bound, `uv.lock` pins 1.28.1, and all 37 `uv` invocations in
+said `mcp>=1.28` with no upper bound, `uv.lock` pinned 1.28.1, and all 37 `uv` invocations in
 `.github/workflows/ci.yml` *outside the one job that resolves fresh* carry `--frozen` (28
 `uv run`, 9 `uv sync`), so **no job in this repository had ever resolved that
 dependency**. The one job that does resolve fresh — `build`, through `uv run --isolated
@@ -11,10 +11,11 @@ dependency**. The one job that does resolve fresh — `build`, through `uv run -
 data files, and never imported `pinakes.serve`: `grep -c 'pinakes.serve' .github/workflows/ci.yml`
 returned 0.
 
-**So the cap is not the fix.** Capping `mcp` below 2.0 closes today's instance and leaves the
-class open for every other dependency's next major. This gate closes the class: it discovers the
-installed package's modules by walking its directory tree and imports **every one of them**, so a
-module added tomorrow is covered without anyone remembering that this file exists.
+**So a cap was never the fix.** Capping `mcp` below 2.0 closed that day's instance and left the
+class open for every other dependency's next major; the cap is gone again as of the port to the
+2.x API, and this gate is what remained. It closes the class: it discovers the installed package's
+modules by walking its directory tree and imports **every one of them**, so a module added tomorrow
+is covered without anyone remembering that this file exists.
 
 **What it cannot see — named rather than implied.**
 

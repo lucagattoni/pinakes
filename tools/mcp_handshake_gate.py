@@ -5,12 +5,17 @@
 hand-rolled JSON-RPC piped into `pnk serve`: three lines written, then stdin closed. Under `mcp`
 1.28.1 the server drained the queue before shutting down, so `tools/list` was answered every time.
 Under 2.0.0 it is not — measured 20260822 14:35, the same three lines answered `tools/list`
-**2 times out of 10**, with `initialize` answered all 10. A gate that flakes 8 runs in 10 is worse
-than no gate: the first red run gets rerun, the second gets believed. Driving the session with
-`mcp`'s own client removes the race at its source — the client holds the connection open until it
-has its answers — and it negotiates the protocol version itself, so this gate tracks the dependency
-instead of rotting against it (a client asking for `2024-11-05`, which is what the workflow used to
-send, now gets a session that answers `initialize` and nothing else).
+**2 times out of 10**, with `initialize` answered all 10. That is a race on shutdown, not a
+protocol disagreement: it reproduces at every protocol version the library accepts, and the run
+that first showed it looked like a `2024-11-05` problem only because that is the version the
+workflow happened to send. A gate that flakes 8 runs in 10 is worse than no gate — the first red
+run gets rerun, the second gets believed.
+
+Driving the session with `mcp`'s own client removes the race at its source: the client holds the
+connection open until it has its answers (8 for 8, same conditions). It also stops the protocol
+version being a string typed into YAML — the client offers whatever the installed library
+supports, so a future release narrowing that window cannot leave this gate negotiating a version
+nobody accepts any more.
 
 **What it asserts, and why each one is not satisfiable by something else:**
 
@@ -25,6 +30,13 @@ send, now gets a session that answers `initialize` and nothing else).
   libraries derive the same one. They were byte-identical at the port (20260822), which is a
   measurement, not a guarantee: run against a *freshly resolved* dependency set, this is what turns
   a future mcp release quietly reshaping the published tool contract into a red run.
+
+  **What a mismatch means is wider than Pinakes, and the message should not pretend otherwise.**
+  The schemas are pydantic's JSON-Schema output as `mcp` serialises it, and pydantic is a
+  transitive dependency here — nothing in `pyproject.toml` names it. A pydantic minor that changes
+  how it emits `anyOf` ordering or a `title` reddens this gate without a line of Pinakes having
+  moved. That is the correct outcome, because the bytes clients receive really did change; read the
+  diff before assuming the cause is in this repository.
 
 The snapshot is regenerated only by `--update-snapshot`, never as a side effect of a check, because
 a gate that repairs its own expectation asserts nothing.
@@ -42,9 +54,11 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_SNAPSHOT = Path(__file__).with_name("mcp_tool_schemas.json")
-# A whole session — spawn, initialize, list — against an empty KB takes well under a second. Ten is
-# far enough above that to never fire on a slow runner, and near enough that a hang costs seconds
-# rather than the job's `timeout-minutes`.
+# A whole session — spawn, initialize, list — against an empty KB takes well under a second locally
+# (measured 20260822: 0.5s). Thirty is far enough above that never to fire on a cold runner
+# resolving a wheel, and near enough that a server which never answers costs half a minute rather
+# than the job's `timeout-minutes`. Verified to fire, and to leave no orphan: pointed at a command
+# that spawns and stays silent, the gate exits 1 after 32s and `pgrep` finds nothing behind it.
 SESSION_TIMEOUT_SECONDS = 30.0
 
 
@@ -88,10 +102,14 @@ def _check_server_info(server_info: dict[str, Any], expected_version: str) -> No
         raise GateError(f"serverInfo.name is {name!r}, expected 'pinakes'")
     version = server_info.get("version")
     if version != expected_version:
+        # No version literal in this message, deliberately. It named `0.27.2` while `0.27.2` was
+        # also what the tests passed as the expected value, so an assertion that the failure
+        # "names both what was advertised and what was expected" was satisfied by this sentence
+        # alone and held with the fix deleted (found by review, 20260822).
         raise GateError(
-            f"serverInfo.version is {version!r}, expected {expected_version!r}. Until 0.27.2 this "
-            f"field carried the mcp library's own version, which is what the `version=` argument "
-            f"to MCPServer exists to stop"
+            f"serverInfo.version is {version!r}, expected {expected_version!r}. Under FastMCP this "
+            f"field carried the mcp library's own version rather than Pinakes', which is what the "
+            f"`version=` argument to MCPServer exists to stop"
         )
 
 
@@ -140,6 +158,12 @@ def main(argv: list[str] | None = None) -> int:
         "--command", default="pnk", help="the Pinakes entry point to spawn (default: pnk)"
     )
     parser.add_argument(
+        "--timeout",
+        type=float,
+        default=SESSION_TIMEOUT_SECONDS,
+        help=f"seconds to allow for the whole session (default: {SESSION_TIMEOUT_SECONDS:.0f})",
+    )
+    parser.add_argument(
         "--update-snapshot",
         action="store_true",
         help="rewrite --snapshot from what the server lists, and check nothing else",
@@ -168,13 +192,11 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         payload = asyncio.run(
-            asyncio.wait_for(
-                _session_payload(args.command, args.kb), timeout=SESSION_TIMEOUT_SECONDS
-            )
+            asyncio.wait_for(_session_payload(args.command, args.kb), timeout=args.timeout)
         )
     except TimeoutError:
         print(
-            f"mcp-handshake-gate: no complete session in {SESSION_TIMEOUT_SECONDS:.0f}s — "
+            f"mcp-handshake-gate: no complete session in {args.timeout:.0f}s — "
             f"`{args.command} serve` did not answer",
             file=sys.stderr,
         )

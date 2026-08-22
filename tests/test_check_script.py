@@ -312,6 +312,42 @@ def _job_cannot_be_switched_off(document: dict[str, Any], name: str) -> None:
     assert not disabling, f"the {name} job itself carries {sorted(disabling)}"
 
 
+def _gate_invocation(run: str, where: str) -> str:
+    """The one logical line that runs the handshake gate, asserted to be a **simple command**.
+
+    *A gate is only a gate when its exit status is what the next command reads*, and this is the
+    positive form of that rule. The first version asserted the absence of one literal string,
+    `out=$(timeout` — the shape the step used to have — which left every other way of discarding a
+    status green: `| tee`, `|| true`, `if …; then`, a backticked capture. Restoring the old
+    *printing* behaviour with `| tee` is not even a perverse edit; it is the obvious one, since the
+    shape it replaced existed precisely to print the gate's output (review, 20260822).
+
+    Continuation lines are joined first, because the invocation spans two of them and every
+    disarming form would sit on the second.
+    """
+    commands = "\n".join(line for line in run.splitlines() if not line.lstrip().startswith("#"))
+    logical = re.sub(r"\\\n\s*", " ", commands)
+    lines = [line.strip() for line in logical.splitlines() if "mcp_handshake_gate.py" in line]
+    assert len(lines) == 1, f"{where}: expected one handshake invocation, found {len(lines)}"
+    line = lines[0]
+    for disarming, why in (
+        ("|", "a pipeline reports the last stage's status, not the gate's"),
+        ("&&", "a conditional list can be entered on a status nobody read"),
+        ("$(", "a capture turns the gate's failure into a string"),
+        ("`", "a backticked capture does the same, less visibly"),
+    ):
+        assert disarming not in line, f"{where}: `{disarming}` in the gate's invocation — {why}"
+    assert not line.startswith(("if ", "! ", "out=")), (
+        f"{where}: the gate's status is consumed by the line itself rather than by `set -e`"
+    )
+    assert re.match(r"timeout \d+ uv run", line), (
+        f"{where}: the gate is not run under `timeout`. How a session ends is a property of "
+        f"whichever mcp the fresh resolve took — the thing that changes with no commit here — so "
+        f"a server that never answers must cost seconds rather than the job"
+    )
+    return line
+
+
 def test_ci_imports_every_module_out_of_a_freshly_resolved_wheel_and_proves_it_can_fail() -> None:
     """The durable half of the `mcp` 2.0 outage fix, and the half that matters.
 
@@ -416,47 +452,7 @@ def test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install() -> 
     created = re.search(r"^[ \t]*(?![ \t#]).*pnk init (?P<kb>/\S+)", body, re.MULTILINE)
     assert created is not None, "the build job no longer creates a smoke KB"
     kb = created.group("kb")
-    gate = re.search(
-        r"^[ \t]*(?![ \t#]).*tools/mcp_handshake_gate\.py.*\n(?:[ \t]*(?![ \t#]).*\n)*",
-        body,
-        re.MULTILINE,
-    )
-    assert gate is not None, (
-        "ci.yml no longer drives a handshake against the freshly-resolved wheel"
-    )
-    invocation = gate.group(0)
-    assert re.search(rf"--kb {re.escape(kb)}(\s|$)", invocation), (
-        f"the handshake does not serve the KB the job creates ({kb})"
-    )
-    assert "--expect-version" in invocation, (
-        "nothing asserts which version the server tells a client it is — the field that carried "
-        "the mcp library's version on every release to 0.27.2"
-    )
-    assert not re.search(r"--expect-version[= ]\"?\$\(.*pnk --version", invocation), (
-        "the expected version is read from the install under test, so it would agree with itself"
-    )
-    assert re.search(
-        r"^[ \t]*(?![ \t#]).*version=\$\(basename .*cut -d- -f2", body, re.MULTILINE
-    ), (
-        "the expected version no longer comes from the built wheel's filename, the one source "
-        "here that is independent of the process being checked"
-    )
-    assert re.search(r"^[ \t]*(?![ \t#]).*timeout \d+ uv run", body, re.MULTILINE), (
-        "how a session ends is a property of whichever mcp the fresh resolve took — the very "
-        "thing that changes with no commit here — so a hang must cost seconds, not the job"
-    )
-    assert re.search(r"^    timeout-minutes: \d+$", body, re.MULTILINE), (
-        "the only job here whose runtime a third party can change has no ceiling on it"
-    )
-    # **The gate's own exit status is the step's.** The previous shape captured the output into a
-    # variable, tested `code=$?` and grepped what it had captured — three places to get wrong, and
-    # the battery had to pin each one. Running the gate bare removes them: `set -e` plus a
-    # non-zero exit is the whole mechanism. So what has to be asserted now is the *absence* of a
-    # capture, because reintroducing one is how this step would quietly stop reading failures.
-    assert not re.search(r"^\s*out=\$\(timeout", body, re.MULTILINE), (
-        "the handshake's output is captured into a variable again — a gate is only a gate when "
-        "its exit status is what the next command reads"
-    )
+
     import yaml
 
     document = yaml.safe_load(workflow)
@@ -466,8 +462,62 @@ def test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install() -> 
         if "tools/mcp_handshake_gate.py" in str(step.get("run", ""))
         and "--expect-version 0.0.0" not in str(step.get("run", ""))
     )
+    invocation = _gate_invocation(str(handshake["run"]), "ci.yml's handshake")
+
+    assert re.search(rf"--kb {re.escape(kb)}(\s|$)", invocation), (
+        f"the handshake does not serve the KB the job creates ({kb})"
+    )
+    # `--expect-version` must be passed **the shell variable the wheel's filename fills**, checked
+    # as one fact rather than two. The first version of this asserted the flag was present
+    # somewhere and, separately, that a `version=$(basename …)` line existed *anywhere in the job*
+    # — so a step could compute the right value, never pass it, and stay green (review, 20260822).
+    expected = re.search(r'--expect-version "\$\{?(?P<name>\w+)\}?"', invocation)
+    assert expected is not None, (
+        "the handshake does not pass --expect-version a shell variable — a literal here would "
+        "have to be edited by hand at every release, and drifts silently when it is not"
+    )
+    name = expected.group("name")
+    assert re.search(
+        rf"^[ \t]*(?![ \t#]){re.escape(name)}=\$\(basename .*cut -d- -f2",
+        str(handshake["run"]),
+        re.MULTILINE,
+    ), (
+        f"${name} is not filled from the built wheel's filename. The version the server advertises "
+        f"must be checked against the artifact's own name, not against the install under test — "
+        f"`pnk --version` would ask the very process being checked and agree with itself"
+    )
+    assert re.search(r"^    timeout-minutes: \d+$", body, re.MULTILINE), (
+        "the only job here whose runtime a third party can change has no ceiling on it"
+    )
     _no_failure_path_exits_zero(str(handshake["run"]), "ci.yml's handshake")
     _job_cannot_be_switched_off(document, "build")
+
+
+def test_no_automated_caller_can_regenerate_the_tool_schemas_it_is_supposed_to_check() -> None:
+    """`--update-snapshot` rewrites `tools/mcp_tool_schemas.json` from whatever the server lists,
+    prints how many tools it wrote and returns 0 — **without checking anything, `--expect-version`
+    included**. In a workflow it would turn the published-contract gate into a machine that agrees
+    with every change to the contract, and the run would stay green while doing it.
+
+    The tool's docstring says the flag must never appear there and its test says so too; neither is
+    a gate. This is, and it covers the three places a scheduled or automated run could reach it —
+    both workflows and the Makefile — rather than the one that happened to be edited last.
+
+    Comments are stripped first: the sentence explaining *why* the flag is absent names the flag.
+    """
+    for label, text in (
+        ("ci.yml", _workflow()),
+        ("release.yml", RELEASE_WORKFLOW.read_text(encoding="utf-8")),
+        ("the Makefile", (Path(__file__).parent.parent / "Makefile").read_text(encoding="utf-8")),
+    ):
+        commands = "\n".join(
+            line for line in text.splitlines() if not line.lstrip().startswith(("#", "//"))
+        )
+        assert "--update-snapshot" not in commands, (
+            f"{label} regenerates the tool schemas it is supposed to be checking against — the "
+            f"gate would then agree with any change to the four pinakes_* tools, and say so in "
+            f"green"
+        )
 
 
 def test_the_handshake_gate_is_watched_failing_for_the_reason_it_claims() -> None:
@@ -525,34 +575,38 @@ def test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish() -> No
 
     exercised = next((i for i, run in enumerate(runs) if "tools/wheel_import_gate.py" in run), None)
     assert exercised is not None, "release.yml does not import the wheel it is about to publish"
-    assert "tools/mcp_handshake_gate.py" in runs[exercised], (
-        "it imports the wheel and never starts the server the outage was in"
+
+    # **Comments stripped before any of this is read.** `step["run"]` is a YAML literal block and
+    # carries the step's own `#` lines, and this step's comments name every string asserted below —
+    # so commenting the commands out left the whole test green (review, 20260822). Its `ci.yml`
+    # twin had required *command* lines since 0.27.2 for exactly this reason; this side did not.
+    recipe = "\n".join(
+        line for line in runs[exercised].splitlines() if not line.lstrip().startswith("#")
     )
 
     # The same assertions its `ci.yml` twin makes, and for the same reasons: the release path is
     # the one where being wrong is irreversible, so it may not check *less*. Each of these
     # survived deletion from release.yml while this test stayed green (second review, 20260822).
-    assert "--expect-version" in runs[exercised], (
-        "the wheel about to be uploaded is never asked which version it tells a client it is — "
-        "the field that carried the mcp library's version on every release to 0.27.2"
+    assert "tools/mcp_handshake_gate.py" in recipe, (
+        "it imports the wheel and never starts the server the outage was in"
     )
-    assert re.search(r"version=\$\(basename .*cut -d- -f2", runs[exercised]), (
-        "the expected version no longer comes from the wheel's own filename, so it could be read "
-        "from the install under test and agree with itself"
+    expected = re.search(r'--expect-version "\$\{?(?P<name>\w+)\}?"', recipe)
+    assert expected is not None, (
+        "the wheel about to be uploaded is never asked which version it tells a client it is, or "
+        "is asked against a literal — the field that carried the mcp library's version until 0.27.2"
     )
-    assert "--require pinakes.serve" in runs[exercised], (
+    name = expected.group("name")
+    assert re.search(rf"^\s*{re.escape(name)}=\$\(basename .*cut -d- -f2", recipe, re.MULTILINE), (
+        f"${name} is not filled from the wheel's own filename, so it could be read from the "
+        f"install under test and agree with itself"
+    )
+    assert "--require pinakes.serve" in recipe, (
         "nothing requires the walk to have reached the module the whole gate exists for"
     )
-    assert "--min-modules" in runs[exercised], (
+    assert "--min-modules" in recipe, (
         "without it the gate falls back to a floor a half-empty wheel would clear"
     )
-    assert re.search(r"timeout \d+ uv run", runs[exercised]), (
-        "an mcp whose session never ends would hang the job that publishes"
-    )
-    assert not re.search(r"^\s*out=\$\(timeout", runs[exercised], re.MULTILINE), (
-        "the handshake's output is captured into a variable again — on the publish path above all, "
-        "the gate's own exit status must be what `set -e` reads"
-    )
+    _gate_invocation(runs[exercised], "release.yml's pre-publish check")
 
     # **Unconditional, in both senses.** `Publish to PyPI` is legitimately gated on a repository
     # variable; a check in front of it must not be, because a gate that can be switched off is not
@@ -696,27 +750,45 @@ def test_make_smoke_exercises_the_wheel_rather_than_only_its_version() -> None:
     `pnk --version` — a fresh resolve asked one question that touches no dependency.
 
     It is the local pre-tag check a maintainer runs, so it must carry the same two checks the two
-    workflows do. And the output must not go into a pipe: `pnk serve | grep -q` returns *grep's*
-    status, and grep closing the pipe on its first match kills the server with a BrokenPipeError
-    that the target then reports as success — measured 20260822, printing a 70-line traceback and
-    exiting 0.
+    workflows do — **by running the same two gates**, not by reimplementing one of them. It did
+    reimplement the handshake, and both defects that shape can carry showed up here: output through
+    `grep -q` returns *grep's* status and kills the server with a BrokenPipeError the target reports
+    as success (20260822, a 70-line traceback and exit 0), and writing three JSON-RPC lines then
+    closing stdin answers `tools/list` 2 runs in 10 under `mcp` 2.x. The second survived the first's
+    fix, in this file, because the first fix was about the pipe and nobody re-asked what the session
+    was.
     """
     makefile = (Path(__file__).parent.parent / "Makefile").read_text(encoding="utf-8")
     target = re.search(r"^smoke:.*?\n(?P<body>(?:\t.*\n|\n)*)", makefile, re.MULTILINE)
     assert target is not None, "the Makefile has no smoke target"
     body = target.group("body")
     assert "tools/wheel_import_gate.py" in body, "make smoke no longer imports the wheel"
-    assert '"method":"initialize"' in body, "make smoke no longer drives a handshake"
-    assert "serverInfo" in body, "nothing asserts the server answered"
-    assert "pinakes_search" in body, "nothing asserts it registered any tools"
-    # Continuation lines joined first: the pipe that caused this lived on the line *after*
-    # `pnk serve`, so a per-line check saw nothing and reintroducing `| tee` survived the battery.
-    # The same shape as reading a sequence rather than a neighbourhood.
+    assert "tools/mcp_handshake_gate.py" in body, "make smoke no longer drives a handshake"
+    assert "--expect-version" in body, (
+        "make smoke starts a server and never asks which version it tells a client it is"
+    )
+    assert '"method":"initialize"' not in body, (
+        "the handshake is hand-rolled again — three lines and a closed stdin, which mcp 2.x "
+        "answers 2 runs in 10. It must go through tools/mcp_handshake_gate.py"
+    )
+    # Continuation lines joined first: the pipe that caused the original defect lived on the line
+    # *after* `pnk serve`, so a per-line check saw nothing and reintroducing `| tee` survived the
+    # battery. The same shape as reading a sequence rather than a neighbourhood.
+    #
+    # Command substitutions are blanked before the pipe is looked for. `--expect-version
+    # "$(basename dist/*.whl | cut -d- -f2)"` contains a pipe that builds an *argument* and has
+    # nothing to do with the gate's status; without this the check fires on the correct recipe,
+    # which is a false positive in the assertion whose value is that a failure means something.
     logical = re.sub(r"\\\n\s*", " ", body)
-    piped = [line for line in logical.splitlines() if "pnk serve" in line and "|" in line]
+    outside_substitutions = re.sub(r"\$\([^)]*\)", "", logical)
+    piped = [
+        line
+        for line in outside_substitutions.splitlines()
+        if "mcp_handshake_gate.py" in line and "|" in line
+    ]
     assert not piped, (
-        f"pnk serve's output is piped, so the target reports the last stage's exit status and a "
-        f"`grep -q` closing the pipe kills the server it is reading: {piped}"
+        f"the handshake gate's output is piped, so the recipe line reports the last stage's exit "
+        f"status and the gate's own failure is discarded: {piped}"
     )
     # make has its own `continue-on-error`, and it is one character: a recipe line beginning `-`
     # has its exit status ignored. Prefixing either `grep` restored the exact defect the pipe fix

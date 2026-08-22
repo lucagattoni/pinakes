@@ -2,8 +2,10 @@
   handshake in `ci.yml` and `release.yml` was three JSON-RPC lines piped into `pnk serve` with stdin
   closed immediately. `mcp` 1.28.1 drained that queue before shutting down; 2.0.0 does not. Measured
   on the same three lines, ten runs each: **`tools/list` answered 10/10 under 1.28.1 and 2/10 under
-  2.0.0.** It was never a gate — it was a coin flip that landed the same way for a year, and it
-  would have gone red four runs in five on a server that works. The gate drives `mcp`'s own client,
+  2.0.0.** It would have gone red four runs in five on a server that works perfectly. The
+  uncomfortable part is the timing: that handshake was written the same morning, in 0.27.2, to
+  catch the `mcp` outage — and it was written against the behaviour of the version being replaced,
+  so the gate for a dependency major was itself a hostage to it. The gate drives `mcp`'s own client,
   which holds the session open until it has its answers (8/8) and negotiates the protocol version
   itself, so the leg tracks the dependency instead of rotting against it.
 

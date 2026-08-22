@@ -22,22 +22,40 @@ from pathlib import Path
 
 import pytest
 
+from pinakes import __version__
 from pinakes.init import init
 
 TOOL = Path(__file__).parent.parent / "tools" / "mcp_handshake_gate.py"
 SNAPSHOT = Path(__file__).parent.parent / "tools" / "mcp_tool_schemas.json"
 
-INSTALLED = importlib.metadata.version("pinakes")
-"""Read from the installed distribution's metadata rather than imported from `pinakes.__version__`.
+EXPECTED = __version__
+"""What the running code says its version is — the same constant `serve.py` passes to `MCPServer`.
 
-Both ultimately come from `pyproject.toml`, but by different routes and at different times — the
-metadata is written when the package is installed, the constant when the module is imported — and
-the point of the assertion is that the *server* advertises the version this environment believes
-it has. Comparing `__version__` with `__version__` would hold with the `version=` argument deleted.
+**This was `importlib.metadata.version("pinakes")` for about an hour, and that was a defect.** The
+metadata looks like an independent source and is not: `pyproject.toml` declares
+`dynamic = ["version"]` and `[tool.hatch.version]` reads `src/pinakes/__init__.py`, so it is the
+same constant copied into `.dist-info` **at install time** — and `uv run` does not reinstall an
+editable package when that constant changes. Bumping `__version__` to cut a release therefore left
+the metadata at the old value, and this file went red on the release commit with a message blaming
+the `serverInfo` defect. Measured, not predicted: 0.27.2 → 0.28.0 diverged them immediately and
+reddened two tests.
+
+**So there is no independent source of the version inside a checkout, and pretending otherwise is
+worse than saying so.** What this pins is the property that was actually missing until now — the
+field is filled from *Pinakes* rather than from the library — which
+`test_the_version_a_client_is_told_is_pinakes_own_and_not_the_mcp_librarys` asserts from the
+failing side, and which the mutation battery confirms dies when `version=` is deleted. The genuine
+cross-check lives in CI, where the expected value comes from the **built wheel's filename** and the
+advertised one from a separate installed copy of it.
 """
 
 MCP_VERSION = importlib.metadata.version("mcp")
-"""The version every Pinakes release up to 0.27.2 advertised as its own."""
+"""Whatever `mcp` this environment resolved — used because it is, by construction, *not* Pinakes'
+version.
+
+Not a historical value: releases up to 0.27.2 advertised `1.28.1`, and this constant now reads
+`2.0.0`. It stands in for the shape of that defect rather than its value, which is what keeps it
+correct after the next lock bump."""
 
 
 def run(*args: str, timeout: float = 90.0) -> subprocess.CompletedProcess[str]:
@@ -48,6 +66,20 @@ def run(*args: str, timeout: float = 90.0) -> subprocess.CompletedProcess[str]:
         check=False,
         timeout=timeout,
     )
+
+
+def shim(root: Path, behaviour: str) -> tuple[str, Path]:
+    """An executable standing in for `pnk`, which records that it was run.
+
+    Returns its path and the marker file it touches. The marker is what makes "the gate refused
+    before spawning anything" observable rather than inferred — the gate resolves `--command`
+    through `shutil.which`, which accepts an absolute path, so the shim needs no PATH surgery.
+    """
+    marker = root / "spawned"
+    script = root / "pnk-shim"
+    script.write_text(f'#!/bin/sh\ntouch "{marker}"\n{behaviour}\n', encoding="utf-8")
+    script.chmod(0o755)
+    return str(script), marker
 
 
 @pytest.fixture(scope="module")
@@ -63,14 +95,20 @@ def kb(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def test_a_real_session_lists_exactly_the_committed_tool_schemas(kb: Path) -> None:
-    """The contract check, and the only test here that would notice a change to `serve.py`.
+    """The contract check: what a real client is handed, against what the repository committed.
+
+    Two other tests here also read the live schemas —
+    `test_update_snapshot_writes_what_the_server_lists_and_checks_nothing` regenerates them and
+    compares, and the mismatch test builds its fixture from the committed file — so a change to a
+    `pinakes_*` signature reddens three tests, not one. This is the one whose *name* says why that
+    matters.
 
     A real `ClientSession` over stdio, not hand-rolled JSON-RPC. That distinction is the reason
     the gate exists: three lines written to `pnk serve` followed by a closed stdin answered
     `tools/list` **2 times in 10** under mcp 2.0.0 and 10 in 10 under 1.28.1 (measured
     20260822 14:35). A test flaking 8 runs in 10 is worse than no test.
     """
-    result = run("--kb", str(kb), "--expect-version", INSTALLED)
+    result = run("--kb", str(kb), "--expect-version", EXPECTED)
     assert result.returncode == 0, result.stdout + result.stderr
     for tool in ("pinakes_search", "pinakes_get", "pinakes_links", "pinakes_list_kbs"):
         assert tool in result.stdout, f"the gate passed without naming {tool}: {result.stdout}"
@@ -84,11 +122,11 @@ def test_the_version_a_client_is_told_is_pinakes_own_and_not_the_mcp_librarys(kb
     was `1.28.1`. Handing the gate that same value must fail, and asserting it fails *for the
     version* rather than for any reason at all is what makes this more than a non-zero exit.
     """
-    assert INSTALLED != MCP_VERSION, "this test cannot distinguish them if they are equal"
+    assert EXPECTED != MCP_VERSION, "this test cannot distinguish them if they are equal"
     result = run("--kb", str(kb), "--expect-version", MCP_VERSION)
     assert result.returncode == 1, result.stdout + result.stderr
     assert "serverInfo.version" in result.stderr, result.stderr
-    assert MCP_VERSION in result.stderr and INSTALLED in result.stderr, (
+    assert MCP_VERSION in result.stderr and EXPECTED in result.stderr, (
         "the failure must name both what was advertised and what was expected, or a reader "
         "cannot tell which of the two is wrong"
     )
@@ -112,7 +150,7 @@ def test_a_snapshot_that_does_not_match_fails_and_shows_which_line_moved(
         encoding="utf-8",
     )
 
-    result = run("--kb", str(kb), "--expect-version", INSTALLED, "--snapshot", str(altered))
+    result = run("--kb", str(kb), "--expect-version", EXPECTED, "--snapshot", str(altered))
     assert result.returncode == 1, result.stdout + result.stderr
     assert '-    "name": "pinakes_fetch"' in result.stderr, result.stderr
     assert '+    "name": "pinakes_get"' in result.stderr, result.stderr
@@ -129,12 +167,24 @@ def test_a_missing_snapshot_is_refused_before_a_server_is_ever_spawned(
     missing asserts nothing ever again.
     """
     absent = tmp_path / "nothing-here.json"
-    result = run("--kb", str(kb), "--expect-version", INSTALLED, "--snapshot", str(absent))
+    command, spawned = shim(tmp_path, "exit 0")
+    result = run(
+        "--kb", str(kb),
+        "--expect-version", EXPECTED,
+        "--snapshot", str(absent),
+        "--command", command,
+    )  # fmt: skip
     assert result.returncode == 1, result.stdout + result.stderr
     assert "nothing to compare against" in result.stderr, result.stderr
     assert not absent.exists(), "a check wrote the snapshot it was supposed to compare against"
-    assert "answered over MCP" not in result.stdout, (
-        "the session ran before the missing snapshot was noticed"
+    # **The spawn is observed, not inferred.** The first version of this line asserted
+    # `"answered over MCP" not in result.stdout`, which asserted nothing at all: the gate writes to
+    # stdout only on the success path, so *every* non-zero exit has empty stdout and the assertion
+    # held with the check moved back after the session (review, 20260822). A shim that records
+    # having been run makes "before the spawn" a fact the test can see.
+    assert not spawned.exists(), (
+        "the server was started before the missing snapshot was noticed — the run printed the "
+        "reassuring half of its work before discovering it had nothing to check against"
     )
 
 
@@ -147,14 +197,14 @@ def test_a_command_that_is_not_on_path_is_refused_rather_than_reported_as_a_pass
     property it names, and the sharpest instance is a check that never ran. The message says the
     gate reached no server, which is what a reader of a red log needs first.
     """
-    result = run("--kb", str(kb), "--expect-version", INSTALLED, "--command", "pnk-not-installed")
+    result = run("--kb", str(kb), "--expect-version", EXPECTED, "--command", "pnk-not-installed")
     assert result.returncode == 1, result.stdout + result.stderr
     assert "never reached a server" in result.stderr, result.stderr
 
 
 def test_a_kb_that_does_not_exist_is_refused(tmp_path: Path) -> None:
     """`pnk serve` on a missing directory fails inside the session with a much worse message."""
-    result = run("--kb", str(tmp_path / "absent"), "--expect-version", INSTALLED)
+    result = run("--kb", str(tmp_path / "absent"), "--expect-version", EXPECTED)
     assert result.returncode == 1, result.stdout + result.stderr
     assert "no KB directory" in result.stderr, result.stderr
 
@@ -169,6 +219,69 @@ def test_expect_version_is_required_unless_the_snapshot_is_being_updated(kb: Pat
     result = run("--kb", str(kb))
     assert result.returncode == 2, result.stdout + result.stderr
     assert "--expect-version is required" in result.stderr, result.stderr
+
+
+def test_a_server_that_dies_on_import_is_reported_as_a_failed_session(
+    kb: Path, tmp_path: Path
+) -> None:
+    """**The branch this whole gate exists for, and it had no test until review found that.**
+
+    `pnk serve` raising `ModuleNotFoundError` at import is exactly the 0.27.2 outage: the child
+    dies, the client sees a closed connection, and the gate reaches its generic session-failure
+    path. A gate whose *only untested branch* is the one it was built for would have been found
+    out by the next dependency major and not before.
+
+    The shim exits non-zero without speaking MCP, which is what a server dead on import looks like
+    from the client's side.
+    """
+    command, spawned = shim(
+        tmp_path, "echo 'ModuleNotFoundError: mcp.server.mcpserver' >&2\nexit 1"
+    )
+    result = run("--kb", str(kb), "--expect-version", EXPECTED, "--command", command)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert spawned.exists(), "the server was never spawned, so this tested the wrong branch"
+    assert "the session failed" in result.stderr, result.stderr
+
+
+def test_a_server_answering_under_another_name_is_refused(kb: Path, tmp_path: Path) -> None:
+    """`serverInfo.name` had no test — and a wrong name is how a *different* server on the same
+    path would look, which is the one way a passing handshake could be about something else.
+
+    The shim is a real MCP server, so this reaches the name check rather than failing earlier: it
+    must get past `initialize` to be refused for what it called itself.
+    """
+    server = tmp_path / "impostor.py"
+    server.write_text(
+        "import sys\n"
+        "from mcp.server.mcpserver import MCPServer\n"
+        'server = MCPServer("not-pinakes", version="9.9.9")\n'
+        "server.run()\n",
+        encoding="utf-8",
+    )
+    command, spawned = shim(tmp_path, f'exec "{sys.executable}" "{server}" "$@"')
+    result = run("--kb", str(kb), "--expect-version", "9.9.9", "--command", command)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert spawned.exists(), "the impostor was never spawned"
+    assert "serverInfo.name is 'not-pinakes'" in result.stderr, result.stderr
+
+
+def test_a_server_that_never_answers_costs_the_timeout_and_not_the_job(
+    kb: Path, tmp_path: Path
+) -> None:
+    """The ceiling exists because how a session ends is a property of whichever `mcp` was resolved
+    — the thing that changes with no commit here.
+
+    Driven through `--timeout 1` rather than the 30-second default, which is a real option a slow
+    runner might want and not a seam cut for this test: the branch it reaches is the same one, and
+    a test that costs half a minute to prove a timeout works is a test people delete.
+    """
+    command, spawned = shim(tmp_path, "exec sleep 60")
+    result = run(
+        "--kb", str(kb), "--expect-version", EXPECTED, "--command", command, "--timeout", "1"
+    )
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert spawned.exists(), "nothing was spawned, so no timeout was exercised"
+    assert "no complete session in 1s" in result.stderr, result.stderr
 
 
 def test_update_snapshot_writes_what_the_server_lists_and_checks_nothing(

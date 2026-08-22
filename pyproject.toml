@@ -24,9 +24,15 @@ dependencies = [
     # 1.x — the constraint and the import move together, and a shim spanning both majors would be
     # more code than the module it serves. 0.27.2 capped this at `<2` as an outage fix, because
     # 2.0.0 removed `mcp.server.fastmcp` and `pnk serve` had been dead on every published release
-    # (measured 20260822 07:26). What makes dropping the ceiling safe rather than hopeful is the
-    # wheel-import gate and the MCP handshake in `.github/workflows/ci.yml` and `release.yml`:
-    # both resolve fresh, so the next major cannot reach a user's install unseen.
+    # (measured 20260822 07:26). No ceiling replaces it: a cap is a guess about a release nobody
+    # has seen, and the increment that ports the code has to lift it anyway.
+    #
+    # What that costs, stated rather than glossed: the wheel-import gate and the MCP handshake both
+    # resolve fresh, but they run on a **repository event** — a push, a pull request, a tag. A
+    # dependency's major arrives with no commit here, so between the last push and the next one an
+    # `mcp` 3.0 could reach a user's fresh install while every gate here is green and idle. What
+    # the two gates guarantee is narrower and still worth having: **nothing is published** into
+    # that state, because both run in front of `uv publish`.
     "mcp>=2",
     "numpy>=2.0",
     "python-ulid>=3.0",
