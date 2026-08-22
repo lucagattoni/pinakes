@@ -1,7 +1,26 @@
 # The mutation harness — a committed `tools/mutate.py`
 
-**Status: proposed 20260821 07:45 — not scheduled.** One increment, buildable whenever the deep
-release's queue allows; nothing blocks it and it blocks nothing.
+**Status: BUILT and released in 0.27.0, 20260822 06:19.** One increment, as planned.
+
+**What shipped beside what this plan asked for.** All six numbered steps and both controls are
+built as written. Five things the plan did not name were measured while building it, and each is
+now a refusal of its own: a **skipped** test exits 0 exactly like a passing one, so a selector that
+skips in this checkout reports SURVIVED for every mutant aimed at it; an **already-red** selector
+reports KILLED for every mutant, including the ones nothing catches — both closed by a pre-flight
+run per selector, which also times it and bounds the mutated run; **`SIGHUP` and `SIGQUIT` skip
+`finally` exactly as `SIGTERM` does**; **`PYTEST_ADDOPTS`** is inherited, so `-x` in the operator's
+shell narrows a two-test kill to one; and **`PYTHONPYCACHEPREFIX`** moves every `.pyc` out of the
+clearing's reach. One more came from review: pytest's `<error>` tag covers a *collection* failure
+**and** a *setup or teardown* failure, which are opposite events, and conflating them tallied a
+genuine assertion-kill as `0 killed`.
+
+**The two fields the record asks for and this plan does not specify, so they were not built**:
+`expect_green` (T4's *"control that had to stay green"* column) and a per-mutant zero-kill
+allowance. Both are decisions, not omissions.
+
+**Exit criteria, met:** the six tests are 52; the tool was used for its own increment's mutation
+pass — **25 mutants against its own guards, 25 killed** — and `docs/VERIFICATION.md` carries ten
+rows in § *Release machinery*.
 
 ## Why this exists
 
