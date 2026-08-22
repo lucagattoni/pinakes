@@ -10,6 +10,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.27.1] — 20260822 07:04
+
+### Fixed
+
+- **A changelog or retrospective fragment that opens with a `---` front-matter fence is refused.**
+  The category has always lived in the filename, so a fence inside a fragment was inert and nothing
+  objected to it — while `--apply` spliced it into the target document verbatim. Three fragments
+  written for 0.24.0 did exactly that, and all three fences are still published in `CHANGELOG.md`.
+  Only the *opening* fence is refused: a `---` further down a body is a horizontal rule, and bodies
+  are spliced unchanged by design.
+
+- **The release-order gate reads STATUS's *Published on PyPI* prose — the sixth sequence.**
+  `docs/RELEASING.md` named that list as one of the five places a release stales and said this gate
+  decides where the new entry goes, while no pattern in the gate matched it: the procedure
+  delegated the decision to a check that could not read the document. The list had been mis-ordered
+  since 20260821 — `0.25.1 → 0.25.3 → 0.25.2 → 0.25.4`, wrong on SemVer *and* on verification time
+  — through every green run since. Two supporting rules come with it: a sequence that began later
+  carries **its own floor** (this one starts at 0.16.0), and this list **may lag** the release
+  sequences, because an entry is held back until it has been verified from the index — but it may
+  never **lead** them, which would claim the index has a release nothing else records.
+
 ## [0.27.0] — 20260822 06:19
 
 ### Added
@@ -3535,7 +3556,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.27.1...HEAD
+[0.27.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.27.1
 [0.27.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.27.0
 [0.26.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.26.0
 [0.25.4]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.4
