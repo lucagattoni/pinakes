@@ -345,6 +345,29 @@ def test_no_suggestions_render_to_the_empty_string() -> None:
     assert render([]) == ""
 
 
+def test_the_shipped_relation_and_provenance_are_the_values_the_design_names() -> None:
+    """Spelled out, not imported into both sides of the comparison.
+
+    Found by the mutation pass: every other assertion here writes `REL`, so `REL = "related"` was
+    a mutant nothing caught — the constant moved and the expectation moved with it. The two values
+    are a *contract* with what a user pastes and with D-25's own wording (`links:` with `rel` and
+    `origin: deep`), so one test names them literally.
+
+    `rel` also has to be non-empty for a different reason: `sidecar._links` refuses an entry
+    without one, so an empty value here would make every pasted fragment unreadable.
+    """
+    assert (REL, ORIGIN) == ("co-cited", "deep")
+
+
+def test_the_documentation_quotes_the_header_this_build_prints() -> None:
+    """`docs/CLI.md` shows this line in a worked block, and a transcript of an older build is the
+    one kind of staleness a reader cannot tell from a correct one — the defect
+    `test_docs_quote_the_shipped_sentences.py` exists for, caught there only after it shipped
+    twice. Cheaper to assert forwards for a sentence that exists today."""
+    cli = (Path(__file__).parent.parent / "docs" / "CLI.md").read_text(encoding="utf-8")
+    assert HEADER in cli
+
+
 def test_the_fragment_names_the_sidecar_and_both_documents(kb: Kb) -> None:
     fragment = render(for_run(an_answer(a_block(kb, 0, "alpha", "beta")), manifest=manifest_of(kb)))
     assert fragment.startswith(f"{HEADER}\n\n")

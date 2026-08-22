@@ -331,8 +331,41 @@ therefore printed under the text that cites them.
 | `calls`, `call_ids`, `estimated_eur`, `spent_eur` | What it cost against what was reserved. Money as strings, at the cent. `call_ids` are the ledger's join key, so a script can price the run against `pnk budget` without re-deriving anything |
 | `blocks[]` | Per answering call: `round`, `asked`, `text`, and `citations[]` of `{number, doc_id, path, citation}` |
 
+`suggestions` is a key in every form of the command too — `null` without a paid run, and otherwise
+an object with `fragment` (the block below, verbatim) and `links[]` of
+`{sidecar, source, target, to, rel, rounds}`. The fragment is the same string the human surface
+prints, from one renderer, so a script pastes the bytes a person was shown.
+
 **Exit codes**: `0` when it answered, `1` when it did not — including a run that made calls and
 produced nothing, which is not an error (the money is accounted for) but is not a success either.
+
+### Suggested links
+
+A run that cites two documents in support of one answer has learned something about your KB that
+nothing records: those documents belong together. So it ends by printing the `links[]` entries that
+observation proposes — for you to paste, review and commit.
+
+```
+suggested links — documents this run cited together. Nothing was written: paste a block into the sidecar its first line names.
+
+# docs/volunteer-programme.md.pnk.yaml
+- to: pnk://01K2ZQ…ZQ/01K2ZR…ZR  # docs/catalogue-numbers-format.md, cited with it in 1 round
+  rel: co-cited
+  origin: deep
+```
+
+**It prints; it never writes.** `--write-suggestions`, which would stage them, is
+[not built](#planned--not-built-yet) and is deliberately a separate change: writing them touches the
+per-link sidecar shape and [INVARIANTS](INVARIANTS.md)' list of exceptions to *`docs/` belongs to
+the user*.
+
+| | |
+|---|---|
+| **`rel: co-cited`** | Names the evidence and nothing more — these two documents were cited in support of one answer. Rename it to whatever the relationship really is before you paste; that is the cheap half of reviewing a suggestion |
+| **`origin: deep`** | Provenance, so a committed entry says where it came from. Pinakes reads `to` and `rel` and round-trips every other key untouched, so it survives every later `pnk link` and `pnk sync` |
+| **Where the block goes** | The sidecar named on its first line. It carries a `links:` key when that sidecar has none, and says *already has `links:` — add these entries under it* when it does, because two `links:` keys in one file is a YAML duplicate key |
+| **What is never suggested** | A pair already linked in that sidecar, whatever its `rel`; and any document **this run did not cite**. The second is the rule that matters: a document's text cannot talk the model into proposing a link, because the model never sees a document identifier at all — it cites passage *numbers*, and the suggestion is derived from those |
+| **When nothing prints** | An answer citing one document per call observes no pair, so there is no section at all — not an empty one |
 
 ### The transcript
 

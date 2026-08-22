@@ -79,8 +79,10 @@ HEADER: Final = (
 )
 """The one line above the fragment.
 
-A constant because `tests/test_docs_quote_the_shipped_sentences.py` reads it: a sentence a
-documented command prints is one the documentation may quote, and the gate compares the two.
+A constant because `docs/CLI.md` shows it in a worked block, and
+`test_deep_suggest.py::test_the_documentation_quotes_the_header_this_build_prints` compares the two
+— the staleness a reader cannot tell from a correct transcript is a documented command's output
+drifting from the documentation of it (`test_docs_quote_the_shipped_sentences.py`, twice).
 """
 
 ALREADY_HAS_LINKS: Final = "already has `links:` — add these entries under it"
