@@ -18,6 +18,7 @@ import importlib.metadata
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -274,14 +275,26 @@ def test_a_server_that_never_answers_costs_the_timeout_and_not_the_job(
     Driven through `--timeout 1` rather than the 30-second default, which is a real option a slow
     runner might want and not a seam cut for this test: the branch it reaches is the same one, and
     a test that costs half a minute to prove a timeout works is a test people delete.
+
+    **The clock is asserted, not only the sentence.** Checking the message alone leaves the message
+    and the actual wait independent — the mutation battery reached that state and reported it, with
+    `timeout=` wired to a constant while the text still read the flag. The bound is loose on
+    purpose: what has to be true is *seconds rather than the job*, so a fixed delay somewhere below
+    it is not a defect, and a wait that ignores the flag entirely is.
     """
-    command, spawned = shim(tmp_path, "exec sleep 60")
+    command, spawned = shim(tmp_path, "exec sleep 30")
+    started = time.monotonic()
     result = run(
         "--kb", str(kb), "--expect-version", EXPECTED, "--command", command, "--timeout", "1"
     )
+    elapsed = time.monotonic() - started
     assert result.returncode == 1, result.stdout + result.stderr
     assert spawned.exists(), "nothing was spawned, so no timeout was exercised"
     assert "no complete session in 1s" in result.stderr, result.stderr
+    assert elapsed < 12.0, (
+        f"the gate waited {elapsed:.0f}s on a server that never answers, having been asked for 1 — "
+        f"the message reports the flag and the wait does not honour it"
+    )
 
 
 def test_update_snapshot_writes_what_the_server_lists_and_checks_nothing(
