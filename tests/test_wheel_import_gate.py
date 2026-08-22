@@ -335,3 +335,63 @@ def test_an_allowance_that_is_not_module_colon_library_is_refused(tmp_path: Path
     result = run(tmp_path, "--package", "synthkit", "--allow-missing", "pypdfium2")
     assert result.returncode == 2, "argparse rejects it before anything is imported"
     assert "MODULE:LIBRARY" in result.stderr
+
+
+def test_an_allowance_covers_only_the_module_it_names_even_for_the_same_library(
+    tmp_path: Path,
+) -> None:
+    """The other half of the scoping, and the half the first round of tests missed.
+
+    `test_an_allowance_cannot_excuse_a_module_failing_on_a_different_library` varies the
+    *library*, so a gate that had gone back to matching on the library alone still passed it — the
+    mutation battery found that by surviving. This varies the **module**: two of them fail on the
+    same absent library, one is named, and the other must still fail. That is the real shape of
+    the defect review caught, where `pinakes.serve` would have been excused by an allowance
+    written for `pinakes.extract.pdfium`.
+    """
+    build_package(
+        tmp_path,
+        "twinkit",
+        {
+            "declared": "import absent_shared_xyz\n",
+            "undeclared": "import absent_shared_xyz\n",
+            "fine": "value = 1\n",
+        },
+    )
+    result = run(
+        tmp_path,
+        "--package",
+        "twinkit",
+        "--min-modules",
+        "3",
+        "--allow-missing",
+        "twinkit.declared:absent_shared_xyz",
+    )
+    assert result.returncode == 1
+    assert "twinkit.undeclared" in result.stderr, (
+        "a second module failing on the same library was excused by an allowance written for the "
+        "first — the allowance is matching on the library, not on the module"
+    )
+    assert "twinkit.declared:" not in result.stderr, "the declared one must not be reported"
+
+
+def test_a_package_with_no_file_is_refused_rather_than_resolved_to_the_cwd(
+    tmp_path: Path,
+) -> None:
+    """A namespace package — a directory with no `__init__.py` — has `__file__ is None`.
+
+    Without an explicit refusal the location falls back to the working directory, which is neither
+    under `src/` nor anywhere near the install, so the source-tree check silently passes and the
+    run reports on a package whose provenance the gate never established. The real `pinakes` has a
+    `__file__`, so nothing else here can reach this branch: found by the mutation battery, where
+    deleting the refusal survived every other test.
+    """
+    namespace = tmp_path / "nskit"
+    namespace.mkdir()
+    (namespace / "mod.py").write_text("value = 1\n", encoding="utf-8")
+    assert not (namespace / "__init__.py").exists(), "the fixture must be a namespace package"
+
+    result = run(tmp_path, "--package", "nskit", "--min-modules", "1")
+    assert result.returncode == 1
+    assert "no __file__" in result.stderr
+    assert "working directory" in result.stderr

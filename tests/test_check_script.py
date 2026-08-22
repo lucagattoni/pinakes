@@ -406,6 +406,14 @@ def test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish() -> No
     )
     assert "serverInfo" in runs[exercised], "nothing asserts the server answered"
 
+    # **Unconditional.** `Publish to PyPI` is legitimately gated on a repository variable; a check
+    # in front of it must not be, because a gate that can be switched off is not a gate — and an
+    # `if: false` leaves the step's own body intact, so every assertion above still passes. Found
+    # by the mutation battery, where exactly that mutant survived.
+    assert "if" not in steps[exercised], (
+        "the pre-publish check is conditional — it can be skipped while still reading correctly"
+    )
+
     published = next((i for i, run in enumerate(runs) if "uv publish" in run), None)
     assert published is not None, "release.yml no longer publishes"
     assert exercised < published, (
