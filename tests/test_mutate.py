@@ -34,6 +34,7 @@ it keeps the nested run to a few hundred milliseconds.
 
 import importlib.util
 import os
+import signal
 import struct
 import subprocess
 import sys
@@ -438,10 +439,18 @@ def test_the_target_is_restored_byte_for_byte_after_a_run(repo: Path) -> None:
     assert git("status", "--porcelain", "--", "pkg/mod.py", cwd=repo) == ""
 
 
-def test_the_target_is_restored_when_the_run_is_killed_mid_flight(repo: Path) -> None:
-    """SIGTERM's default disposition ends the process without unwinding, so a plain `try/finally`
-    never runs and the mutant stays on disk — measured, 1 of 1, before the handler existed. SIGINT
-    already raises; SIGTERM, SIGHUP and SIGQUIT are the ones that needed turning back into one."""
+@pytest.mark.parametrize("signum", [signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT])
+def test_the_target_is_restored_when_the_run_is_killed_mid_flight(
+    repo: Path, signum: signal.Signals
+) -> None:
+    """These signals end the process without unwinding, so a plain `try/finally` never runs and the
+    mutant stays on disk — measured for SIGTERM, 1 of 1, before the handler existed.
+
+    Parametrised because handling one of them is not handling the others, and dropping the other
+    two from `UNWINDLESS_SIGNALS` is a one-word edit that a SIGTERM-only test cannot see. SIGINT is
+    absent: Python already raises `KeyboardInterrupt` for it, which is why the hazard is invisible
+    to anyone who only ever tests with Ctrl-C.
+    """
     source = repo / "pkg" / "mod.py"
     before = source.read_bytes()
     path = battery(
@@ -467,13 +476,13 @@ def test_the_target_is_restored_when_the_run_is_killed_mid_flight(repo: Path) ->
             assert time.monotonic() < deadline, "the mutant was never written"
             assert process.poll() is None, "the run ended before the mutant was applied"
             time.sleep(0.05)
-        process.terminate()
+        process.send_signal(signum)
         _, stderr = process.communicate(timeout=60)
     finally:
         if process.poll() is None:  # pragma: no cover — only on a failed run
             process.kill()
 
-    assert source.read_bytes() == before, "SIGTERM left the mutant on disk"
+    assert source.read_bytes() == before, f"{signum.name} left the mutant on disk"
     assert "restored" in stderr
 
 
@@ -543,6 +552,34 @@ def test_a_body_that_raises_still_restores(repo: Path) -> None:
         raise RuntimeError("the run blew up")
 
     assert source.read_bytes() == before
+
+
+def test_applied_refuses_a_bad_anchor_even_though_the_pre_flight_already_checked(
+    repo: Path,
+) -> None:
+    """The redundant check, which nothing reaching the CLI can ever exercise.
+
+    `run_battery` validates every anchor against the pristine files before the first write, so by
+    the time `applied()` runs the question is settled — and a mutant deleting `applied()`'s own
+    check would survive a battery-driven suite entirely. It is kept because `applied()` is a public
+    context manager that may never write a mutant it cannot place, and redundancy nothing tests is
+    indistinguishable from redundancy that has quietly stopped working.
+    """
+    module = tool_module()
+    mutant = module.Mutant(
+        name="an anchor that is not there",
+        path=repo / "pkg" / "mod.py",
+        old="min(value, CEILING)",
+        new="max(value, CEILING)",
+        selectors=("tests/test_pkg.py",),
+    )
+    before = (repo / "pkg" / "mod.py").read_bytes()
+
+    with pytest.raises(module.MutationError, match="occurs 0 times"):  # noqa: SIM117
+        with module.applied(mutant):
+            pytest.fail("the body must never run for a mutant that cannot be placed")
+
+    assert (repo / "pkg" / "mod.py").read_bytes() == before
 
 
 def test_a_later_mutant_is_measured_on_a_clean_file(repo: Path) -> None:
