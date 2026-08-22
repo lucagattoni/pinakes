@@ -464,3 +464,92 @@ def test_a_part_pattern_that_stops_matching_fails_rather_than_passing(tmp_path: 
 
     assert result.returncode == 1
     assert "`# Part` heading(s), fewer than the 4 floor" in result.stderr
+
+
+def test_the_real_documents_are_complete_from_their_declared_starts() -> None:
+    """The invariant itself. Also pins the arithmetic that makes the numbers reconcile: the
+    per-release sections are 45 with 0.11.0 declared absent, and STATUS's table is 41 because it
+    opens at 0.2.0 and the five 0.1.x engine releases predate it."""
+    result = run()
+    assert result.returncode == 0, result.stderr
+    assert "complete from 0.1.0 to" in result.stdout
+    assert "complete from 0.2.0 to" in result.stdout, "STATUS's table declares a later start"
+    assert "complete from 0.16.0 to" in result.stdout, "the prose list declares a later start"
+    assert "declared absent: 0.11.0" in result.stdout, (
+        "the one exception must be named on a green run — an allowance nobody can see is one "
+        "nobody retires"
+    )
+
+
+def test_a_deleted_first_row_is_caught_because_the_start_is_declared(tmp_path: Path) -> None:
+    """The whole reason the start is a constant rather than an observation.
+
+    Delete the *oldest* row of a sequence and a derived start simply moves up: the sequence is
+    still sorted, still contiguous, still internally consistent, and the gate reports green on
+    precisely the deletion it exists to catch. The fixture's STATUS table opens at 0.2.0 like the
+    real one, so removing 0.2.0 would move a derived start to 0.3.0 and hide itself.
+    """
+    versions = _versions()
+    opens_at_second = versions[1:]  # mirrors the real table, which starts at 0.2.0
+    without_first = opens_at_second[1:]
+
+    green = run(str(_tree(tmp_path / "a", versions=versions, status_versions=opens_at_second)))
+    assert green.returncode == 0, green.stderr
+
+    result = run(str(_tree(tmp_path / "b", versions=versions, status_versions=without_first)))
+
+    assert result.returncode == 1
+    assert "docs/STATUS.md — the release roadmap table: 1 release(s) missing — 0.2.0" in (
+        result.stderr
+    )
+    assert "declares it starts at 0.2.0" in result.stderr
+
+
+def test_a_release_missing_from_the_middle_is_caught(tmp_path: Path) -> None:
+    """The ordinary case, and the one a sorted-sequence check is blindest to: every remaining pair
+    is still in order, so nothing about the ordering changes."""
+    versions = _versions()
+    gapped = [v for v in versions if v != "0.20.0"]
+
+    result = run(str(_tree(tmp_path, versions=versions, status_versions=gapped)))
+
+    assert result.returncode == 1
+    assert "1 release(s) missing — 0.20.0" in result.stderr
+    assert "reads ascending" not in result.stderr, (
+        "a gap leaves every surviving pair sorted; if this fails on ordering the fixture is wrong"
+    )
+
+
+def test_a_release_before_a_sequences_declared_start_is_not_required(tmp_path: Path) -> None:
+    """STATUS's table opens at 0.2.0 and must not be asked for the 0.1.x releases that predate it.
+    Without this, the declared start would be decoration and every sequence would be required to
+    carry the union."""
+    versions = _versions()
+    result = run(str(_tree(tmp_path, versions=versions, status_versions=versions[1:])))
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_a_lagging_sequence_need_not_have_reached_the_newest_release(tmp_path: Path) -> None:
+    """The hold-back window, from the membership side: an entry is written only once it has been
+    verified from the index, so the newest release is legitimately absent for a while."""
+    versions = _versions()
+    result = run(str(_tree(tmp_path, versions=versions, prose_versions=versions[:-1])))
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_a_lagging_sequence_may_not_have_a_hole_below_its_own_newest(tmp_path: Path) -> None:
+    """The bound on that exemption, and the test that keeps it from becoming a hole.
+
+    Lagging permits *not having got there yet* — a suffix that is missing. It does not permit a gap
+    underneath, which is a lost entry rather than an unwritten one. Without this the exemption
+    would excuse any absence in the whole sequence.
+    """
+    versions = _versions()
+    lagging_with_hole = [v for v in versions[:-1] if v != "0.20.0"]
+
+    result = run(str(_tree(tmp_path, versions=versions, prose_versions=lagging_with_hole)))
+
+    assert result.returncode == 1
+    assert "the Published on PyPI prose: 1 release(s) missing — 0.20.0" in result.stderr

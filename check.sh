@@ -165,7 +165,10 @@ uv run --frozen python3 tools/status_header_gate.py
 # section landed inside `# Part 5 · What is not built` with all six sequences green — the sequence
 # was still sorted, because sorting says nothing about location. 0.25.3 did the same and 0.25.4
 # fixed it once already. The Part ranges are read out of the `# Part N` headings themselves rather
-# than from a mapping kept beside them. The sixth is STATUS's *Published on PyPI* prose, added
+# than from a mapping kept beside them. And every release at or after a sequence's DECLARED start
+# must appear in it: order is a property of the pairs, membership a property of the set, and a
+# deleted row leaves every surviving pair sorted. The start is a constant, never the sequence's own
+# oldest entry — deriving it would let a deleted first row move the start and hide itself. The sixth is STATUS's *Published on PyPI* prose, added
 # 20260822: docs/RELEASING.md named that list as a place a release stales and said this gate decides
 # where the new entry goes, while no pattern here matched it — so the procedure delegated the
 # decision to a check that could not read the document, and the list had been mis-ordered since

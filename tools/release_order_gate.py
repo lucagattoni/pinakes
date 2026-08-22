@@ -62,6 +62,28 @@ other than the document's contents. Stated because a check whose passing depends
 teardown timing has already been found in this repository, answering correctly 10 times out of 10
 under one version and 2 out of 10 under the next.
 
+**A sequence can also be sorted, correctly placed, and simply missing a release.** Order is a
+property of the pairs; membership is a property of the set, and no amount of the first sees the
+second. `check_membership` requires every release at or after a sequence's **declared** start to
+appear in it.
+
+**The start is declared, never derived.** Deriving it — "the oldest release this sequence contains"
+— would read the answer out of the document the check exists to police: delete STATUS's `0.2.0` row
+and the derived start becomes `0.2.1`, the sequence stays internally consistent, and the gate goes
+green on exactly the deletion it was built to catch. That is the same failure as inferring a
+sequence's direction from its own contents, refused two paragraphs above. Four constants, one per
+sequence, a closed set that changes only when a document's own history changes.
+
+**The reference set is the union of every sequence**, not `git tag -l`. Tags would be the truer
+authority, but reading them needs git and an unshallow clone, and every CI checkout here is shallow
+but one — a gate quietly weaker in CI than on a laptop is worse than one whose limit is written
+down. The limit: **a release absent from all six sequences is invisible here.** What catches that is
+the release procedure itself, which writes CHANGELOG before anything else.
+
+**A lagging sequence is required to be complete only up to its own newest entry**, since it is
+allowed not to have reached the latest release yet — the hold-back window. Below its own newest it
+must be as complete as any other, so the exemption cannot hide a hole in the middle.
+
 **What this gate cannot see: a count.** It reads an *order*. A sentence saying "thirty-six" beside
 a list of thirty-seven is invisible here, and one landed one line from its own correction through a
 green run of every gate in this repo (20260822). Counts are checked by reading the neighbourhood,
@@ -100,8 +122,10 @@ class Sequence:
         pattern: str,
         ascending: bool,
         *,
+        starts_at: Version,
         minimum: int = MINIMUM,
         newest_may_lag: bool = False,
+        absent: tuple[tuple[Version, str], ...] = (),
     ) -> None:
         self.path = path
         self.what = what
@@ -109,6 +133,8 @@ class Sequence:
         self.ascending = ascending
         self.minimum = minimum
         self.newest_may_lag = newest_may_lag
+        self.starts_at = starts_at
+        self.absent = dict(absent)
 
     def versions(self, root: Path) -> list[Version]:
         try:
@@ -134,11 +160,55 @@ ROADMAP = "docs/ROADMAP.md"
 ROADMAP_SECTION = rf"^## {NUM} — "
 
 SEQUENCES = (
-    Sequence("CHANGELOG.md", "the release headings", rf"^## \[{NUM}\] — ", ascending=False),
-    Sequence("CHANGELOG.md", "the link definitions", rf"^\[{NUM}\]: ", ascending=False),
-    Sequence("docs/ROADMAP.md", "the release table", rf"^\| \*\*\[{NUM}\]\(#", ascending=True),
-    Sequence("docs/ROADMAP.md", "the per-release sections", ROADMAP_SECTION, ascending=True),
-    Sequence("docs/STATUS.md", "the release roadmap table", rf"^\| \*\*{NUM}\*\* ", ascending=True),
+    Sequence(
+        "CHANGELOG.md",
+        "the release headings",
+        rf"^## \[{NUM}\] — ",
+        ascending=False,
+        starts_at=(0, 1, 0),
+    ),
+    Sequence(
+        "CHANGELOG.md",
+        "the link definitions",
+        rf"^\[{NUM}\]: ",
+        ascending=False,
+        starts_at=(0, 1, 0),
+    ),
+    Sequence(
+        "docs/ROADMAP.md",
+        "the release table",
+        rf"^\| \*\*\[{NUM}\]\(#",
+        ascending=True,
+        starts_at=(0, 1, 0),
+    ),
+    Sequence(
+        "docs/ROADMAP.md",
+        "the per-release sections",
+        ROADMAP_SECTION,
+        ascending=True,
+        starts_at=(0, 1, 0),
+        # 0.11.0 has no Part 4 section by design: its section is `## The graph release — shipped
+        # 0.11.0` in Part 5, and the release table links there deliberately. Matching a version
+        # anywhere in a `## ` heading would pick that up and then fail twice on a correct document
+        # — placement (Part 5 declares no range) and ordering (it sits after 0.27.2). So the
+        # exception is declared here rather than bought with a looser pattern. It retires the day
+        # 0.11.0 gets a Part 4 section of its own.
+        absent=(
+            (
+                (0, 11, 0),
+                "its section is the graph-release narrative in Part 5, which the "
+                "release table links to",
+            ),
+        ),
+    ),
+    Sequence(
+        "docs/STATUS.md",
+        "the release roadmap table",
+        rf"^\| \*\*{NUM}\*\* ",
+        ascending=True,
+        # The table opens at 0.2.0; the 0.1.x engine releases predate what it records.
+        starts_at=(0, 2, 0),
+    ),
     # The sixth, added 20260822. `docs/RELEASING.md`'s sweep table names this list as one of the
     # five places a release stales and says this gate decides where the new entry goes — while no
     # pattern here matched it, so the procedure delegated the decision to a check that could not
@@ -152,6 +222,7 @@ SEQUENCES = (
         "the Published on PyPI prose",
         rf"^\*\*{NUM}, ",
         ascending=True,
+        starts_at=(0, 16, 0),
         minimum=15,
         newest_may_lag=True,
     ),
@@ -288,10 +359,58 @@ def check_placement(root: Path, *, report: list[str] | None = None) -> list[str]
     return failures
 
 
+def check_membership(
+    found: dict[str, list[Version]], *, report: list[str] | None = None
+) -> list[str]:
+    """Every release at or after a sequence's declared start appears in it.
+
+    `found` is what each sequence actually matched, keyed by its `where` label — passed in rather
+    than re-read so the two checks cannot disagree about what a sequence contains.
+    """
+    failures: list[str] = []
+    universe = sorted({v for versions in found.values() for v in versions})
+    if not universe:
+        return failures
+
+    for sequence in SEQUENCES:
+        where = f"{sequence.path} — {sequence.what}"
+        versions = found.get(where)
+        if versions is None:  # its floor already failed; that failure is the one to report
+            continue
+        present = set(versions)
+        # A lagging sequence is complete up to its own newest, never beyond it.
+        ceiling = max(versions) if sequence.newest_may_lag else max(universe)
+        required = [
+            v for v in universe if sequence.starts_at <= v <= ceiling and v not in sequence.absent
+        ]
+        missing = [v for v in required if v not in present]
+        if missing:
+            failures.append(
+                f"{where}: {len(missing)} release(s) missing — "
+                f"{', '.join(_show(v) for v in missing)}. This sequence declares it starts at "
+                f"{_show(sequence.starts_at)}, and every release from there is expected in it. A "
+                "sorted sequence says nothing about what is absent from it."
+            )
+        if report is not None and not missing:
+            note = ""
+            if sequence.absent:
+                note = (
+                    " (declared absent: "
+                    + ", ".join(f"{_show(v)} — {why}" for v, why in sorted(sequence.absent.items()))
+                    + ")"
+                )
+            report.append(
+                f"{where}: complete from {_show(sequence.starts_at)} to {_show(ceiling)}"
+                f" — {len(required)} release(s){note}"
+            )
+    return failures
+
+
 def check(root: Path, *, report: list[str] | None = None) -> list[str]:
     failures: list[str] = []
     newest: dict[str, Version] = {}
     lagging: dict[str, Version] = {}
+    found: dict[str, list[Version]] = {}
 
     for sequence in SEQUENCES:
         where = f"{sequence.path} — {sequence.what}"
@@ -305,6 +424,7 @@ def check(root: Path, *, report: list[str] | None = None) -> list[str]:
             )
             continue
 
+        found[where] = versions
         direction = "ascending" if sequence.ascending else "descending"
         for first, second in pairwise(versions):
             if (first < second) != sequence.ascending:
@@ -350,6 +470,7 @@ def check(root: Path, *, report: list[str] | None = None) -> list[str]:
                     "not."
                 )
 
+    failures.extend(check_membership(found, report=report))
     failures.extend(check_placement(root, report=report))
 
     return failures
