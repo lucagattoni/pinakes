@@ -550,3 +550,27 @@ def test_every_invocation_of_the_wheel_import_gate_carries_its_floor_and_its_sen
                 f"{path}: an invocation with no sentinel: {joined!r}"
             )
     assert invocations >= 4, f"only {invocations} invocation(s) found; the call sites have moved"
+
+
+def test_make_smoke_exercises_the_wheel_rather_than_only_its_version() -> None:
+    """`make smoke`'s help text says *what release does*, and for 45 releases what it did was
+    `pnk --version` — a fresh resolve asked one question that touches no dependency.
+
+    It is the local pre-tag check a maintainer runs, so it must carry the same two checks the two
+    workflows do. And the output must not go into a pipe: `pnk serve | grep -q` returns *grep's*
+    status, and grep closing the pipe on its first match kills the server with a BrokenPipeError
+    that the target then reports as success — measured 20260822, printing a 70-line traceback and
+    exiting 0.
+    """
+    makefile = (Path(__file__).parent.parent / "Makefile").read_text(encoding="utf-8")
+    target = re.search(r"^smoke:.*?\n(?P<body>(?:\t.*\n|\n)*)", makefile, re.MULTILINE)
+    assert target is not None, "the Makefile has no smoke target"
+    body = target.group("body")
+    assert "tools/wheel_import_gate.py" in body, "make smoke no longer imports the wheel"
+    assert '"method":"initialize"' in body, "make smoke no longer drives a handshake"
+    assert "serverInfo" in body, "nothing asserts the server answered"
+    assert "pinakes_search" in body, "nothing asserts it registered any tools"
+    assert not re.search(r"pnk serve[^\n]*\|", body), (
+        "pnk serve's output is piped, so the target reports grep's exit status and grep closing "
+        "the pipe kills the server it is reading"
+    )
