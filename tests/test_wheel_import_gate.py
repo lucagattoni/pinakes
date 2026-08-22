@@ -26,6 +26,12 @@ FAILURE_HEADLINE = "did not import against the resolved dependency set"
 """Duplicated from the tool on purpose: an assertion importing the constant it checks would pass
 whatever the constant said, and CI's negative check greps this string literally."""
 
+PACKAGE_HEADLINE = "is not importable at all"
+"""And this one must stay *different* from the line above. They were the same string until review
+found that an environment where `--with` installed nothing printed the phrase CI's "the gate can
+still fail" step greps for — so that step would have been satisfied by a run in which the gate
+never executed."""
+
 
 def run(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     """Run the gate with `root` on `PYTHONPATH`, so a synthetic package is importable."""
@@ -106,10 +112,10 @@ def test_an_expected_missing_dependency_is_permitted_and_reported(tmp_path: Path
         "--min-modules",
         "3",
         "--allow-missing",
-        "absent_extra_xyz",
+        "extraskit.needs_extra:absent_extra_xyz",
     )
     assert result.returncode == 0, result.stderr
-    assert "--allow-missing absent_extra_xyz: extraskit.needs_extra" in result.stdout
+    assert "extraskit.needs_extra: no absent_extra_xyz, as declared" in result.stdout
 
 
 def test_an_allowance_nothing_uses_fails(tmp_path: Path) -> None:
@@ -118,10 +124,16 @@ def test_an_allowance_nothing_uses_fails(tmp_path: Path) -> None:
     that quietly imported nothing would otherwise report a clean pass."""
     clean_package(tmp_path)
     result = run(
-        tmp_path, "--package", "synthkit", "--min-modules", "4", "--allow-missing", "unused_xyz"
+        tmp_path,
+        "--package",
+        "synthkit",
+        "--min-modules",
+        "4",
+        "--allow-missing",
+        "synthkit.mod0:unused_xyz",
     )
     assert result.returncode == 1
-    assert "unused_xyz" in result.stderr
+    assert "synthkit.mod0:unused_xyz" in result.stderr
     assert "stale" in result.stderr
 
 
@@ -146,7 +158,7 @@ def test_a_missing_dependency_is_only_permitted_for_the_module_that_names_it(
         "--min-modules",
         "3",
         "--allow-missing",
-        "absent_extra_xyz",
+        "mixedkit.needs_extra:absent_extra_xyz",
     )
     assert result.returncode == 1
     assert "mixedkit.needs_core" in result.stderr
@@ -240,7 +252,11 @@ def test_a_package_that_does_not_exist_at_all_fails(tmp_path: Path) -> None:
     said so rather than walking zero modules and passing."""
     result = run(tmp_path, "--package", "not_installed_at_all_xyz")
     assert result.returncode == 1
-    assert FAILURE_HEADLINE in result.stderr
+    assert PACKAGE_HEADLINE in result.stderr
+    assert FAILURE_HEADLINE not in result.stderr, (
+        "this must not print the phrase CI's negative check greps for: an environment where "
+        "--with installed nothing would then satisfy a step asserting the gate can still fail"
+    )
 
 
 def test_the_real_package_is_refused_from_the_source_tree() -> None:
@@ -256,3 +272,66 @@ def test_the_real_package_is_refused_from_the_source_tree() -> None:
     assert result.returncode == 1
     assert "resolved to the source tree" in result.stderr
     assert "src/pinakes" in result.stderr.replace("\\", "/")
+
+
+def test_an_allowance_cannot_excuse_a_module_failing_on_a_different_library(
+    tmp_path: Path,
+) -> None:
+    """An allowance is `MODULE:LIBRARY`, and both halves bind.
+
+    The first version of this gate keyed allowances on the **library** alone. That forgives any
+    module failing on it, so a `--require`d module was excused and the run went green — reproduced
+    by review, 20260822, with a `serve` module importing the permitted library. Here the allowance
+    names a different library from the one that is actually missing, and must not apply.
+    """
+    build_package(
+        tmp_path,
+        "scopedkit",
+        {"a": "value = 1\n", "b": "value = 2\n", "needs_extra": "import absent_extra_xyz\n"},
+    )
+    result = run(
+        tmp_path,
+        "--package",
+        "scopedkit",
+        "--min-modules",
+        "3",
+        "--allow-missing",
+        "scopedkit.needs_extra:some_other_library_xyz",
+    )
+    assert result.returncode == 1
+    assert "scopedkit.needs_extra" in result.stderr
+    assert "absent_extra_xyz" in result.stderr
+
+
+def test_a_required_module_may_not_also_be_allowed_to_fail(tmp_path: Path) -> None:
+    """The refusal that makes `--require pinakes.serve` mean what it says.
+
+    `--require` asserts the walk *reached* a module, which is a claim about discovery and not
+    about importing — so without this, an allowance covering that same module would let it fail
+    while the gate reported a clean run. Refused before anything is imported, because the two
+    flags contradict each other whatever the wheel contains.
+    """
+    build_package(tmp_path, "guardkit", {"serve": "import absent_extra_xyz\n", "b": "value = 1\n"})
+    result = run(
+        tmp_path,
+        "--package",
+        "guardkit",
+        "--min-modules",
+        "2",
+        "--require",
+        "guardkit.serve",
+        "--allow-missing",
+        "guardkit.serve:absent_extra_xyz",
+    )
+    assert result.returncode == 1
+    assert "guardkit.serve" in result.stderr
+    assert "cannot also be excused" in result.stderr
+
+
+def test_an_allowance_that_is_not_module_colon_library_is_refused(tmp_path: Path) -> None:
+    """The old spelling — a bare library name — must not be silently accepted as a module name,
+    which would make every allowance stale and every run red for the wrong reason."""
+    clean_package(tmp_path)
+    result = run(tmp_path, "--package", "synthkit", "--allow-missing", "pypdfium2")
+    assert result.returncode == 2, "argparse rejects it before anything is imported"
+    assert "MODULE:LIBRARY" in result.stderr

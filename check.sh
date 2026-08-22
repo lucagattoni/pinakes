@@ -38,8 +38,10 @@ python3 tools/paid_path_gate.py
 # comment inside the block that merely mentions a library fails the gate. Found 20260822, by a
 # comment above `mcp` explaining why anthropic was measured and deliberately *not* capped — the
 # gate read the word and reported the library as a core dependency. Requirement strings here carry
-# no `#`, so stripping comments removes false positives and no true ones; the parsed-side test
-# named above never had the problem, because it reads the list rather than the lines.
+# no `#`, so stripping comments removes false positives and no true ones — a **constraint** this
+# gate now depends on, not just an observation: a PEP 508 direct URL carrying a `#sha256=` fragment
+# would be truncated here. None exists, and the parsed-side test named above never had the problem
+# either way, because it reads the requirement list rather than the lines.
 if awk '/^dependencies = \[/,/^\]/' pyproject.toml | sed 's/#.*//' \
     | grep -qiE 'pypdfium2|anthropic'; then
     echo "pypdfium2 or anthropic found inside [project.dependencies] — they must stay extras" >&2
@@ -56,7 +58,8 @@ fi
 # `tools/wheel_import_gate.py` imports every module of an *installed* Pinakes against a freshly
 # resolved dependency set — which needs `uv build` and a network resolve, and this script must stay
 # offline-capable and fast. It runs in CI's `build` job, the only job that resolves anything: every
-# other `uv` invocation in `ci.yml` carries `--frozen`. That is exactly how `mcp` 2.0.0 removing
+# other `uv` invocation in `ci.yml` carries `--frozen`; `release.yml` carries the same two checks
+# in front of `uv publish`. That is exactly how `mcp` 2.0.0 removing
 # `mcp.server.fastmcp` left `pnk serve` dead on every fresh install from the first PyPI release to
 # 0.27.1 with every gate here green — a local `./check.sh` cannot see a dependency resolve, and
 # nothing it runs ever will.

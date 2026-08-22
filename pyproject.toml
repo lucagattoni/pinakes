@@ -23,8 +23,9 @@ dependencies = [
     # Capped below 2.0 because `mcp` 2.0.0 removed `mcp.server.fastmcp`, which `serve.py` imports
     # at module scope: every fresh install from the first PyPI release to 0.27.1 raised
     # `ModuleNotFoundError` on `pnk serve`, and nothing here could see it — `uv.lock` pins 1.28.1
-    # and all 37 `uv` invocations in `.github/workflows/ci.yml` carried `--frozen`, so no job had
-    # ever resolved this dependency (measured 20260822 07:26). The cap is the outage fix and not
+    # and all 37 `uv` invocations in `.github/workflows/ci.yml` *outside the one job that resolves
+    # fresh* carried `--frozen`, so no job had ever resolved this dependency and the one that could
+    # never imported `pinakes.serve` (measured 20260822 07:26). The cap is the outage fix and not
     # the answer: porting `serve.py` to the 2.x API is its own increment, and lifts it. What stops
     # the *next* dependency's major doing the same thing unseen is the wheel-import gate in
     # `.github/workflows/ci.yml`, not a habit of capping — the other two lower-bound-only

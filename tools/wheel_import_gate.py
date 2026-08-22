@@ -1,10 +1,11 @@
 """Every module of the *installed* Pinakes imports, against a freshly-resolved dependency set.
 
 **Why this exists.** `pnk serve` raised `ModuleNotFoundError: No module named
-'mcp.server.fastmcp'` on every fresh install from the first PyPI release until 0.27.2 — a whole
-command dead for the entire published life of the project. `pyproject.toml` said `mcp>=1.28` with
-no upper bound, `uv.lock` pins 1.28.1, and all 37 `uv run` invocations in
-`.github/workflows/ci.yml` carry `--frozen`, so **no job in this repository had ever resolved that
+'mcp.server.fastmcp'` on every fresh install from the first PyPI release until this was written
+(20260822) — a whole command dead for the entire published life of the project. `pyproject.toml`
+said `mcp>=1.28` with no upper bound, `uv.lock` pins 1.28.1, and all 37 `uv` invocations in
+`.github/workflows/ci.yml` *outside the one job that resolves fresh* carry `--frozen` (28
+`uv run`, 9 `uv sync`), so **no job in this repository had ever resolved that
 dependency**. The one job that does resolve fresh — `build`, through `uv run --isolated
 --no-project --with dist/*.whl` — ran `pnk --version`, `pnk init`, two `find_spec` calls and two
 data files, and never imported `pinakes.serve`: `grep -c 'pinakes.serve' .github/workflows/ci.yml`
@@ -28,19 +29,25 @@ module added tomorrow is covered without anyone remembering that this file exist
 * **Only the install states it is run against.** It knows nothing about `[st]` or `[light]` unless
   a caller installs them.
 
-**Three ways a walk like this reports a pass it did not earn**, each refused here:
+**Four ways a walk like this reports a pass it did not earn**, each refused here:
 
 * **importing the source tree instead of the install.** `src/pinakes` is not importable without
   `src` on `sys.path`, but a future `pinakes/` beside the tools directory, or a venv inside the
   checkout, would make it so — and the gate would then be evidence about the repository rather
-  than about the wheel. Refused by location.
+  than about the wheel. Refused by location, and a package with no `__file__` at all is refused
+  too rather than resolving to the working directory.
 * **walking nothing.** `pkgutil` returning an empty iterator reports zero failures, exactly like a
   clean run. `--min-modules` refuses it, and `--require` names the modules that must have been
   reached — `pinakes.serve` above all, since it is the one this gate was written for.
-* **an allowance that no longer applies.** `--allow-missing pypdfium2` on a bare wheel is how the
-  one module needing an extra is permitted to fail; if *nothing* fails on it, either the extras
-  moved or the walk stopped detecting missing dependencies. Either way this exits non-zero, which
-  is what makes the positive run its own negative check.
+* **an allowance that no longer applies.** `--allow-missing pinakes.extract.pdfium:pypdfium2` on a
+  bare wheel is how the one module needing an extra is permitted to fail; if it *does not* fail,
+  either the extras moved or the walk stopped detecting missing dependencies. Either way this
+  exits non-zero, which is what makes the positive run its own negative check.
+* **an allowance that excuses the wrong module.** An allowance naming only the library would
+  forgive *any* module failing on it — including `pinakes.serve`, the module the gate exists for,
+  had anything on its import chain ever reached `pypdfium2`. Found by review, 20260822, against a
+  first version that did exactly that and reported a green run. So an allowance names the
+  **module and the library**, and a `--require`d module may never appear in one.
 
 Discovery is `pkgutil.iter_modules` over the package's *paths*, recursively — the filesystem,
 never an import. `pkgutil.walk_packages` recurses by importing each subpackage and hands failures
@@ -51,8 +58,10 @@ Stdlib-only, and it imports nothing from this repository, because it runs inside
 environment that holds the built wheel and its dependencies and nothing else:
 
     uv run --isolated --no-project --with dist/pinakes-x.y.z-py3-none-any.whl \\
-        python tools/wheel_import_gate.py --require pinakes.serve --allow-missing pypdfium2
-    uv run --isolated --no-project --with 'dist/pinakes-x.y.z-py3-none-any.whl[pdf,claude]' \\
+        python tools/wheel_import_gate.py --require pinakes.serve \\
+        --allow-missing pinakes.extract.pdfium:pypdfium2
+    uv run --isolated --no-project --with \\
+        'pinakes[light,pdf,claude] @ file:///abs/dist/pinakes-x.y.z-py3-none-any.whl' \\
         python tools/wheel_import_gate.py --require pinakes.serve --also-import anthropic
 
 `--package` exists for the tests, which point it at a synthetic package rather than at a wheel
@@ -78,8 +87,14 @@ SOURCE_TREE = REPO / "src"
 DISTRIBUTION = re.compile(r"^([A-Za-z0-9._-]+)")
 
 FAILURE_HEADLINE = "did not import against the resolved dependency set"
-"""The stated reason CI's negative check greps for. A crash, a missing wheel or `uv` falling over
-all produce a non-zero exit too, and none of them prints this."""
+"""Printed only when a *module of the walked package* failed. A crash, a missing wheel or `uv`
+falling over all produce a non-zero exit too, and none of them prints this."""
+
+PACKAGE_HEADLINE = "is not importable at all"
+"""Deliberately **not** `FAILURE_HEADLINE`. A `--with` that installed nothing — a mistyped extra
+syntax does exactly that, measured 20260822 — would otherwise print the string CI's negative check
+greps for, and a step asserting "the gate can still fail" would be satisfied by an environment
+where the gate never ran. Found by review, in the step written to prevent that class."""
 
 
 def _module_names(package_name: str, paths: list[str]) -> list[str]:
@@ -96,11 +111,31 @@ def _module_names(package_name: str, paths: list[str]) -> list[str]:
     return sorted(found)
 
 
+def _allowance(value: str) -> tuple[str, str]:
+    """Parse `MODULE:LIBRARY`, the only shape an allowance may take.
+
+    Both halves, never the library alone: an allowance keyed on the library forgives every module
+    that fails on it, which is how the first version of this gate reported a green run for a
+    `pinakes.serve` that had not imported (review, 20260822).
+    """
+    module, separator, library = value.partition(":")
+    if not separator or not module.strip() or not library.strip():
+        raise argparse.ArgumentTypeError(
+            f"{value!r} is not MODULE:LIBRARY — an allowance names the module permitted to fail "
+            f"and the library it may be missing, e.g. pinakes.extract.pdfium:pypdfium2"
+        )
+    return module.strip(), library.strip()
+
+
 def _resolved_versions(package_name: str) -> list[str]:
     """What the resolve actually took, per declared dependency — the log's own evidence.
 
     Read from the *installed* distribution's metadata, so it describes the environment the walk
     ran in and not what `pyproject.toml` in this checkout happens to say.
+
+    `metadata.requires`/`metadata.version` take a **distribution** name and are handed the
+    `--package` import name, which coincide for `pinakes` and need not for anything else. This
+    output is informational; a mismatch prints nothing rather than reporting anything false.
     """
     try:
         declared = metadata.requires(package_name) or []
@@ -136,10 +171,12 @@ def main(argv: list[str] | None = None) -> int:
         "--allow-missing",
         action="append",
         default=[],
-        metavar="MODULE",
+        type=_allowance,
+        metavar="MODULE:LIBRARY",
         help=(
-            "a top-level module whose absence is expected on this install state, e.g. pypdfium2 "
-            "on a bare wheel. An allowance nothing uses fails the gate"
+            "one module permitted to fail, and the one library it may be missing — e.g. "
+            "pinakes.extract.pdfium:pypdfium2 on a bare wheel. An allowance nothing uses fails "
+            "the gate, and a --require'd module may never appear in one"
         ),
     )
     parser.add_argument(
@@ -164,21 +201,40 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     package_name: str = args.package
-    allow_missing: list[str] = args.allow_missing
+    allowances: dict[str, str] = dict(args.allow_missing)
     also_import: list[str] = args.also_import
     required: list[str] = args.require
     min_modules: int = args.min_modules
+
+    shielded = sorted(set(required) & set(allowances))
+    if shielded:
+        print(
+            f"wheel-import: {', '.join(shielded)} is both --require'd and --allow-missing. A "
+            f"module the gate exists to import cannot also be excused from importing",
+            file=sys.stderr,
+        )
+        return 1
 
     try:
         package = importlib.import_module(package_name)
     except Exception as exc:  # noqa: BLE001 — any import failure is the answer, not a surprise
         print(
-            f"wheel-import: {package_name} {FAILURE_HEADLINE}: {type(exc).__name__}: {exc}",
+            f"wheel-import: {package_name} {PACKAGE_HEADLINE}: {type(exc).__name__}: {exc}",
             file=sys.stderr,
         )
         return 1
 
-    location = Path(str(getattr(package, "__file__", "") or "")).resolve()
+    origin = getattr(package, "__file__", None)
+    if origin is None:
+        print(
+            f"wheel-import: {package_name} has no __file__, so this gate cannot tell an installed "
+            f"copy from the source tree. It refuses rather than resolving to the working "
+            f"directory and reporting a pass it did not earn",
+            file=sys.stderr,
+        )
+        return 1
+
+    location = Path(str(origin)).resolve()
     if location.is_relative_to(SOURCE_TREE):
         print(
             f"wheel-import: {package_name} resolved to the source tree at {location}, not to an "
@@ -212,15 +268,15 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     failures: list[str] = []
-    permitted: dict[str, list[str]] = {name: [] for name in allow_missing}
+    used: dict[str, str] = {}
 
     for name in modules:
         try:
             importlib.import_module(name)
         except ModuleNotFoundError as exc:
             root = (exc.name or "").split(".")[0]
-            if root in permitted:
-                permitted[root].append(name)
+            if allowances.get(name) == root:
+                used[name] = root
             else:
                 failures.append(f"{name}: ModuleNotFoundError: {exc}")
         except Exception as exc:  # noqa: BLE001 — an import that raises anything is a failure
@@ -240,11 +296,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    unused = sorted(name for name, hit in permitted.items() if not hit)
+    unused = sorted(f"{name}:{library}" for name, library in allowances.items() if name not in used)
     if unused:
         print(
-            f"wheel-import: --allow-missing named {', '.join(unused)} and nothing failed on it. "
-            f"Either the allowance is stale, or this walk has stopped detecting a missing "
+            f"wheel-import: --allow-missing named {', '.join(unused)} and it did not fail that "
+            f"way. Either the allowance is stale, or this walk has stopped detecting a missing "
             f"dependency — which is the only thing between it and a pass it did not earn",
             file=sys.stderr,
         )
@@ -253,8 +309,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"wheel-import: {len(modules)} module(s) imported from {location.parent}")
     for line in _resolved_versions(package_name):
         print(f"  {line}")
-    for name, skipped in sorted(permitted.items()):
-        print(f"  --allow-missing {name}: {', '.join(skipped)}")
+    for name, library in sorted(used.items()):
+        print(f"  --allow-missing {name}: no {library}, as declared")
     return 0
 
 

@@ -279,7 +279,7 @@ def test_the_release_workflow_creates_the_github_release_after_publishing() -> N
 
 
 def test_ci_imports_every_module_out_of_a_freshly_resolved_wheel_and_proves_it_can_fail() -> None:
-    """The durable half of the `mcp` 2.0 outage fix (0.27.2), and the half that matters.
+    """The durable half of the `mcp` 2.0 outage fix, and the half that matters.
 
     `pnk serve` raised `ModuleNotFoundError: No module named 'mcp.server.fastmcp'` on every fresh
     install from the first PyPI release to 0.27.1, and CI stayed green throughout: all 37 other
@@ -300,18 +300,45 @@ def test_ci_imports_every_module_out_of_a_freshly_resolved_wheel_and_proves_it_c
     assert re.search(r"^[ \t]*(?![ \t#]).*--require pinakes\.serve", workflow, re.MULTILINE), (
         "nothing requires the walk to have reached pinakes.serve — the module the gate exists for"
     )
-    assert re.search(r"^[ \t]*(?![ \t#]).*--allow-missing pypdfium2", workflow, re.MULTILINE), (
-        "the bare-wheel leg is gone, and with it the run that proves the gate sees a missing "
-        "dependency"
-    )
     assert re.search(
-        r"^[ \t]*(?![ \t#]).*pinakes\[pdf,claude\] @ file://", workflow, re.MULTILINE
-    ), "the extras leg is gone — the four modules behind [pdf] and [claude] are unwalked"
-    assert re.search(
-        r'^[ \t]*(?![ \t#]).*grep -q "did not import against the resolved dependency set"',
+        r"^[ \t]*(?![ \t#]).*--allow-missing pinakes\.extract\.pdfium:pypdfium2",
         workflow,
         re.MULTILINE,
-    ), "the negative check no longer requires the stated reason, so a crash would satisfy it"
+    ), (
+        "the bare-wheel leg is gone, and with it the run that proves the gate sees a missing "
+        "dependency. The allowance must stay `MODULE:LIBRARY`: keyed on the library alone it "
+        "would excuse any module failing on pypdfium2, pinakes.serve included"
+    )
+    assert re.search(
+        r"^[ \t]*(?![ \t#]).*pinakes\[light,pdf,claude\] @ file://", workflow, re.MULTILINE
+    ), "the extras leg is gone — the modules behind [light], [pdf] and [claude] are unwalked"
+    for lazy in ("anthropic", "fastembed", "fastembed.rerank.cross_encoder"):
+        assert re.search(
+            rf"^[ \t]*(?![ \t#]).*--also-import {re.escape(lazy)}(\s|$)", workflow, re.MULTILINE
+        ), f"{lazy} is imported lazily by src/, so only --also-import reaches it"
+
+
+def test_cis_negative_check_names_the_failure_it_expects_not_the_generic_headline() -> None:
+    """A gate nobody has watched fail is a gate nobody knows works — and the watching has to be
+    of the right failure.
+
+    The first version grepped for the tool's generic headline. An environment where `--with`
+    installed nothing prints that headline too, so the step was satisfiable by a run in which the
+    gate never executed — the repository's own recorded defect class, inside the step written to
+    prevent it. It now requires the one failure the bare wheel genuinely has.
+    """
+    workflow = _workflow()
+    job = re.search(r"^  build:\n(?P<body>(?:    .*\n|\n)*)", workflow, re.MULTILINE)
+    assert job is not None, "ci.yml has no build job"
+    body = job.group("body")
+    assert re.search(
+        r"""^[ \t]*(?![ \t#]).*grep -q "pinakes\.extract\.pdfium: ModuleNotFoundError""",
+        body,
+        re.MULTILINE,
+    ), "the negative check no longer names the failure it expects"
+    assert "did not import against the resolved dependency set" not in body, (
+        "grepping the generic headline lets a wheel that installed nothing satisfy this step"
+    )
 
 
 def test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install() -> None:
@@ -322,20 +349,68 @@ def test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install() -> 
     Both halves are required. A server that initialises and registers nothing would satisfy
     `"serverInfo"` alone, and that is the shape of an assertion this project keeps catching: one
     satisfied by something other than the property it names.
+
+    The KB path is asserted against the step that *creates* it rather than as a literal, because
+    renaming it in one place and not the other fails at runtime and nowhere else.
     """
     workflow = _workflow()
     job = re.search(r"^  build:\n(?P<body>(?:    .*\n|\n)*)", workflow, re.MULTILINE)
     assert job is not None, "ci.yml has no build job"
     body = job.group("body")
-    assert re.search(r"^[ \t]*(?![ \t#]).*pnk serve /tmp/smoke/kb", body, re.MULTILINE), (
-        "the build job no longer starts the MCP server out of the freshly-resolved wheel"
+
+    created = re.search(r"^[ \t]*(?![ \t#]).*pnk init (?P<kb>/\S+)", body, re.MULTILINE)
+    assert created is not None, "the build job no longer creates a smoke KB"
+    kb = created.group("kb")
+    assert re.search(rf"^[ \t]*(?![ \t#]).*pnk serve {re.escape(kb)}(\s|$)", body, re.MULTILINE), (
+        f"the handshake does not serve the KB the job creates ({kb})"
     )
-    assert '"method":"initialize"' in body, "nothing drives the handshake"
+    assert re.search(r'^[ \t]*(?![ \t#]).*"method":"initialize"', body, re.MULTILINE), (
+        "nothing drives the handshake"
+    )
     assert re.search(r"""^[ \t]*(?![ \t#]).*grep -q '"serverInfo"'""", body, re.MULTILINE), (
         "nothing asserts the server answered"
     )
     assert re.search(r"^[ \t]*(?![ \t#]).*grep -q 'pinakes_search'", body, re.MULTILINE), (
         "a server that answers initialize and registers no tools would pass"
+    )
+    assert re.search(r"^[ \t]*(?![ \t#]).*timeout \d+ uv run", body, re.MULTILINE), (
+        "exiting on stdin EOF is a property of whichever mcp the fresh resolve took — the very "
+        "thing that changes with no commit here — so a hang must cost seconds, not the job"
+    )
+    assert re.search(r"^    timeout-minutes: \d+$", body, re.MULTILINE), (
+        "the only job here whose runtime a third party can change has no ceiling on it"
+    )
+
+
+def test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish() -> None:
+    """`ci.yml` runs on push and pull_request, and a dependency's major arrives with **no commit
+    in this repository**. So `main` can be green on Monday, the break can publish on Wednesday,
+    and a tag on Thursday would carry it to PyPI, which never takes a version back.
+
+    Until 0.27.2 the pre-publish smoke test was `pnk --version` + `pnk init` — a fresh resolve
+    asked two questions that touch no dependency, which is how every release from the first to
+    0.27.1 shipped with `pnk serve` dead. Both checks must sit **in front of** `uv publish`: a
+    failure before the upload costs a deleted tag, a failure after it costs the version number.
+    """
+    import yaml
+
+    workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
+    document = yaml.safe_load(workflow)
+    steps = document["jobs"]["publish"]["steps"]
+    runs = [str(step.get("run", "")) for step in steps]
+
+    exercised = next((i for i, run in enumerate(runs) if "tools/wheel_import_gate.py" in run), None)
+    assert exercised is not None, "release.yml does not import the wheel it is about to publish"
+    assert '"method":"initialize"' in runs[exercised], (
+        "it imports the wheel and never starts the server the outage was in"
+    )
+    assert "serverInfo" in runs[exercised], "nothing asserts the server answered"
+
+    published = next((i for i, run in enumerate(runs) if "uv publish" in run), None)
+    assert published is not None, "release.yml no longer publishes"
+    assert exercised < published, (
+        "the check runs after the upload, where a failure costs the version number rather than a "
+        "deleted tag"
     )
 
 

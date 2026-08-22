@@ -372,6 +372,10 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    # The only job here that resolves dependencies, and therefore the only one whose runtime is a
+    # third party's to change. A step that hangs instead of failing costs the default 360 minutes
+    # and reads as flake; 20 is generous against a job that takes about three.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -404,13 +408,19 @@ jobs:
       # **0**. The cap in `pyproject.toml` closes that instance; the three steps below close the
       # class, and matter more than the cap.
       #
+      # **A resolve break arrives with no commit here**, so this job runs only when something is
+      # pushed. `release.yml` carries the same two checks in front of `uv publish`, which is the
+      # step that cannot be taken back.
+      #
       # The handshake first, because it is the deepest: `import pinakes.serve` proves the module
       # loads, and this proves the server it builds actually answers — FastMCP constructed, the
       # tools registered, a real JSON-RPC session over stdio, on a **core-only** install with no
       # extras, which is what `pip install pinakes` gives. Closing stdin ends the session, so it
       # exits in about two seconds (measured 20260822 07:47). `"serverInfo"` and a tool name are
       # both required: a server that initialises and registers nothing would satisfy the first
-      # alone.
+      # alone. `timeout` because exiting on EOF is a property of whichever `mcp` the resolve took,
+      # which is the thing that changes without a commit — a future one that blocks would burn the
+      # job's whole budget and read as flake rather than as a dependency break.
       - name: A freshly-resolved core install answers an MCP handshake
         run: |
           set -e
@@ -420,7 +430,7 @@ jobs:
             '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
             > "$RUNNER_TEMP/mcp-session.jsonl"
           set +e
-          out=$(uv run --isolated --no-project --with dist/*.whl \
+          out=$(timeout 300 uv run --isolated --no-project --with dist/*.whl \
             pnk serve /tmp/smoke/kb < "$RUNNER_TEMP/mcp-session.jsonl" 2>&1)
           code=$?
           set -e
@@ -441,35 +451,52 @@ jobs:
       - name: Every module in the wheel imports against a fresh dependency resolve
         run: |
           set -e
-          wheel="$PWD/$(echo dist/*.whl)"
+          set -- dist/*.whl                      # one wheel, or this fails loudly rather than
+          test -f "$1" && test $# -eq 1          # shifting a second one into the command position
+          wheel="$PWD/$1"
           # (i) the bare wheel — what `pip install pinakes` gets. `pinakes.extract.pdfium` is the
           #     one module that legitimately needs an extra, and naming it here is also how the
-          #     gate proves it can still see a missing dependency: an --allow-missing that nothing
-          #     uses fails the run.
+          #     gate proves it can still see a missing dependency: an allowance nothing uses fails
+          #     the run. The allowance names the **module and the library**, so it can never
+          #     excuse `pinakes.serve` for failing on something else.
           uv run --isolated --no-project --with "$wheel" python tools/wheel_import_gate.py \
-            --require pinakes.serve --allow-missing pypdfium2
-          # (ii) the two cheap extras on top, so the four modules gated behind them are covered
+            --require pinakes.serve --min-modules 50 \
+            --allow-missing pinakes.extract.pdfium:pypdfium2
+          # (ii) every extra whose install is cheap, so the modules gated behind them are covered
           #      too, and `anthropic` — which `src/` imports lazily on purpose, so no walk reaches
-          #      it — is imported by name. `[st]` and `[light]` are deliberately absent: both
-          #      embedding backends are loaded through `importlib.import_module` at *runtime*, so
-          #      no import walk reaches either, and `[st]` is a ~2GB torch download this job will
-          #      not take (docs/DESIGN.md §4.5). That gap is real and is not closed here.
-          uv run --isolated --no-project --with "pinakes[pdf,claude] @ file://$wheel" \
-            python tools/wheel_import_gate.py --require pinakes.serve --also-import anthropic
+          #      it — is imported by name, as are the two `fastembed` modules `embed.py` reaches
+          #      through `importlib.import_module`. **`[st]` is the one gap and it is deliberate**:
+          #      it is a ~2GB torch download this job will not take (docs/DESIGN.md §4.5), so the
+          #      default backend is never resolved here by anything.
+          uv run --isolated --no-project --with "pinakes[light,pdf,claude] @ file://$wheel" \
+            python tools/wheel_import_gate.py --require pinakes.serve --min-modules 50 \
+            --also-import anthropic \
+            --also-import fastembed --also-import fastembed.rerank.cross_encoder
 
       - name: The wheel-import gate can still fail
         # A gate nobody has watched fail is a gate nobody knows works. The bare wheel genuinely
         # cannot import `pinakes.extract.pdfium`; run it with the allowance removed and it must
-        # exit non-zero AND say why — a crash, a missing wheel or `uv` falling over all satisfy a
-        # bare non-zero exit too.
+        # exit non-zero AND name that exact failure. **Not the generic headline**: an environment
+        # where `--with` installed nothing prints one too, so grepping for it would let this step
+        # be satisfied by a run in which the gate never executed (found by review, 20260822, in
+        # the step written to prevent exactly that). One run, not two, so the two cannot disagree.
         run: |
-          wheel="$PWD/$(echo dist/*.whl)"
-          if uv run --isolated --no-project --with "$wheel" python tools/wheel_import_gate.py; then
-            echo "wheel-import passed on a wheel with a module it cannot import — it is not gating" >&2
+          set -e
+          set -- dist/*.whl
+          wheel="$PWD/$1"
+          set +e
+          out=$(uv run --isolated --no-project --with "$wheel" \
+            python tools/wheel_import_gate.py --require pinakes.serve --min-modules 50 2>&1)
+          code=$?
+          set -e
+          echo "$out"
+          if [ "$code" -eq 0 ]; then
+            echo "::error::wheel-import passed on a wheel with a module it cannot import — it is not gating"
             exit 1
           fi
-          uv run --isolated --no-project --with "$wheel" python tools/wheel_import_gate.py 2>&1 \
-            | grep -q "did not import against the resolved dependency set"
+          echo "$out" \
+            | grep -q "pinakes.extract.pdfium: ModuleNotFoundError: No module named 'pypdfium2'" \
+            || { echo "::error::it failed for some other reason than the one it was pointed at"; exit 1; }
 
       # The dependency swap, asserted on an *installed* copy rather than in the source tree. L5b's
       # AST scan and free-path check both run against the repo; neither can see what the wheel
