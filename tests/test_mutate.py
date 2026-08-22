@@ -94,6 +94,43 @@ SLOW_TEST = textwrap.dedent(
     """
 )
 
+FIXTURE_TESTS = textwrap.dedent(
+    """\
+    from collections.abc import Iterator
+
+    import pytest
+
+    import pkg.mod
+
+
+    @pytest.fixture
+    def capped() -> int:
+        value = pkg.mod.clamp(10)
+        if value != 3:
+            raise RuntimeError(f"the cap did not hold in setup: {value}")
+        return value
+
+
+    @pytest.fixture
+    def checked_after() -> Iterator[None]:
+        yield
+        if pkg.mod.clamp(10) != 3:
+            raise RuntimeError("the cap did not hold in teardown")
+
+
+    def test_the_cap_holds_plainly() -> None:
+        assert pkg.mod.clamp(10) == 3
+
+
+    def test_the_cap_holds_through_a_setup_fixture(capped: int) -> None:
+        assert capped == 3
+
+
+    def test_the_cap_holds_at_teardown(checked_after: None) -> None:
+        assert True
+    """
+)
+
 SKIPPABLE_TEST = textwrap.dedent(
     """\
     import pytest
@@ -135,6 +172,7 @@ def repo(tmp_path: Path) -> Path:
     (root / "tests" / "test_pkg.py").write_text(PINNING_TESTS, encoding="utf-8")
     (root / "tests" / "test_slow.py").write_text(SLOW_TEST, encoding="utf-8")
     (root / "tests" / "test_skippable.py").write_text(SKIPPABLE_TEST, encoding="utf-8")
+    (root / "tests" / "test_fixtures.py").write_text(FIXTURE_TESTS, encoding="utf-8")
     (root / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
 
     _ = git("init", "-q", "--initial-branch=main", ".", cwd=root)
@@ -304,7 +342,19 @@ def test_a_timed_out_run_is_errored_even_if_it_somehow_reported_passing_tests() 
     passing would otherwise read SURVIVED.
     """
     module = tool_module()
-    run = module.PytestRun(0, "", 1, (), (), (), ("tests/test_pkg.py::test_x",), timed_out=True)
+    # Keywords, not positions: this constructor gained a field once already, and a positional
+    # call turned a test about `classify` into a test about `PytestRun.__init__`.
+    run = module.PytestRun(
+        exit_code=0,
+        output="",
+        collected=1,
+        failed=(),
+        collection_errors=(),
+        setup_errors=(),
+        skipped=(),
+        passed=("tests/test_pkg.py::test_x",),
+        timed_out=True,
+    )
 
     assert run.ran == 1, "the constructed state must be one the fall-through would let through"
     assert module.classify(run) is module.Outcome.ERRORED
@@ -340,6 +390,64 @@ def test_a_restore_that_git_still_sees_voids_the_whole_report(
 
     monkeypatch.undo()
     source.write_text(ORIGINAL_MODULE, encoding="utf-8")
+
+
+def test_a_setup_error_beside_a_real_failure_is_still_a_kill(repo: Path) -> None:
+    """pytest's `<error>` tag covers two opposite events, and conflating them tallied a genuine
+    assertion-kill as `0 killed`.
+
+    A **collection** error is the invalid mutant — nothing ran. A **setup** error is a real node
+    the mutant broke on the way in, which in this repository is the common shape: fixtures build
+    indexes, manifests and KBs out of `src/`. When a mutant trips a fixture *and* fails a plain
+    assertion in the same selector, the assertion is a real kill and the row must say so.
+    """
+    result = mutate(str(battery(repo, clamp_mutant(kills="tests/test_fixtures.py"))), cwd=repo)
+
+    assert "KILLED" in result.stdout, result.stdout
+    assert "tests/test_fixtures.py::test_the_cap_holds_plainly" in result.stdout
+    assert "assert 10 == 3" in result.stdout, "the assertion that fired must be printed"
+    assert "the mutant did not run" not in result.stdout, "it ran; that sentence was false"
+    assert "broke setup or teardown" in result.stdout, "the errors are still reported, as a caveat"
+    assert "1 killed, 0 survived, 0 errored" in result.stdout
+    assert result.returncode == 0
+
+
+def test_a_setup_error_with_no_failure_beside_it_is_not_a_kill(repo: Path) -> None:
+    """The other half, and the reason the conservative direction is kept: a mutant noticed only by
+    a fixture has had **no assertion** fire, so nobody may write "pinned by test X" for it. It is
+    ERRORED with text that says exactly that, rather than the false "the mutant did not run"."""
+    path = battery(
+        repo,
+        clamp_mutant(kills="tests/test_fixtures.py::test_the_cap_holds_through_a_setup_fixture"),
+    )
+    result = mutate(str(path), cwd=repo)
+
+    assert "KILLED" not in result.stdout, result.stdout
+    assert "broke setup or teardown" in result.stdout
+    assert "the mutant did not run" not in result.stdout
+    assert result.returncode == 1
+
+
+def test_a_teardown_error_is_not_a_kill_either(repo: Path) -> None:
+    """A test that passed and then broke on the way out has asserted nothing about the mutant."""
+    path = battery(
+        repo, clamp_mutant(kills="tests/test_fixtures.py::test_the_cap_holds_at_teardown")
+    )
+    result = mutate(str(path), cwd=repo)
+
+    assert "KILLED" not in result.stdout, result.stdout
+    assert "broke setup or teardown" in result.stdout
+    assert result.returncode == 1
+
+
+def test_the_pasteable_table_never_names_a_killer_on_a_row_it_calls_errored(repo: Path) -> None:
+    """The summary is written to be pasted into a commit message, where it outlives the run. A row
+    labelled ERRORED that lists a test under "Killed by" is a self-contradicting artefact."""
+    path = battery(repo, clamp_mutant(name="invalid", new="min(value, MAX"))
+    result = mutate(str(path), cwd=repo)
+
+    row = next(line for line in result.stdout.splitlines() if line.startswith("| invalid |"))
+    assert row.endswith("| ERRORED | — |"), row
 
 
 # ---------------------------------------------------------------------------------------------

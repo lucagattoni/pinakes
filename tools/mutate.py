@@ -32,7 +32,11 @@ refusal here:
   `PYTEST_ADDOPTS="-x"` in the operator's shell turns a mutant that two tests catch into a row
   saying one did;
 * **an invalid mutant is its own outcome** — pytest exits 2 with a collection `<error>`, not a
-  `<failure>`. T4 misread that in both directions: once as a kill, once as a survival;
+  `<failure>`. T4 misread that in both directions: once as a kill, once as a survival. The same
+  `<error>` tag also covers a **setup or teardown** failure on a real node, which is the opposite
+  event — the mutant ran and a fixture noticed it — so the two are told apart structurally (a
+  collection failure carries no `line`) rather than folded together, which tallied a genuine
+  assertion-kill beside one as `0 killed`;
 * **the restore happens in a `finally`, and its bytes are verified** — a run killed mid-battery must
   not poison the mutants after it (L6). `SIGTERM`, `SIGHUP` and `SIGQUIT` are turned back into an
   unwind, because their default disposition ends the process *without* running `finally` and leaves
@@ -191,7 +195,8 @@ class PytestRun:
     output: str
     collected: int
     failed: tuple[tuple[str, str], ...]
-    errored: tuple[tuple[str, str], ...]
+    collection_errors: tuple[tuple[str, str], ...]
+    setup_errors: tuple[tuple[str, str], ...]
     skipped: tuple[str, ...]
     passed: tuple[str, ...]
     seconds: float = 0.0
@@ -199,8 +204,9 @@ class PytestRun:
 
     @property
     def ran(self) -> int:
-        """Tests that actually executed. A skipped test is collected but never run."""
-        return len(self.failed) + len(self.errored) + len(self.passed)
+        """Tests that actually executed. A skipped test is collected but never run, and neither is
+        a test whose *module* failed to import — but one whose fixture raised did run."""
+        return len(self.failed) + len(self.setup_errors) + len(self.passed)
 
 
 @dataclass(frozen=True)
@@ -572,6 +578,7 @@ def run_pytest(
                 (),
                 (),
                 (),
+                (),
                 seconds=time.monotonic() - started,
                 timed_out=True,
             )
@@ -583,7 +590,7 @@ def run_pytest(
         seconds = time.monotonic() - started
         output = completed.stdout + completed.stderr
         if not report.is_file():
-            return PytestRun(completed.returncode, output, 0, (), (), (), (), seconds=seconds)
+            return PytestRun(completed.returncode, output, 0, (), (), (), (), (), seconds=seconds)
         try:
             suites = ElementTree.parse(report).getroot()
         except ElementTree.ParseError as exc:
@@ -593,7 +600,8 @@ def run_pytest(
             ) from exc
 
     failed: list[tuple[str, str]] = []
-    errored: list[tuple[str, str]] = []
+    collection_errors: list[tuple[str, str]] = []
+    setup_errors: list[tuple[str, str]] = []
     skipped: list[str] = []
     passed: list[str] = []
     collected = 0
@@ -605,7 +613,16 @@ def run_pytest(
         if failure is not None:
             failed.append((node, _first_line(failure.get("message"))))
         elif error is not None:
-            errored.append((node, _first_line(error.get("message"))))
+            # Two different events wear the same tag. A **collection** failure is not a test at
+            # all: pytest synthesises a testcase for the module, with an empty classname and no
+            # `line`, and exits 2 — that is the invalid mutant. A **setup or teardown** error is a
+            # real node that pytest reached and could not run to completion, and the mutant is
+            # usually why. Measured on pytest 9.1.1: the `line` attribute is present for the second
+            # and absent for the first, which is a structural test rather than a message match.
+            if case.get("line") is None and not case.get("classname"):
+                collection_errors.append((node, _first_line(error.get("message"))))
+            else:
+                setup_errors.append((node, _first_line(error.get("message"))))
         elif case.find("skipped") is not None:
             skipped.append(node)
         else:
@@ -616,7 +633,8 @@ def run_pytest(
         output,
         collected,
         tuple(failed),
-        tuple(errored),
+        tuple(collection_errors),
+        tuple(setup_errors),
         tuple(skipped),
         tuple(passed),
         seconds=seconds,
@@ -655,6 +673,14 @@ def check_baseline(root: Path, command: Sequence[str], selectors: Sequence[str])
             f"exist, and an empty selector reports SURVIVED for every mutant aimed at it."
             + (f"\n{_tail(run.output)}" if run.output.strip() else "")
         )
+    if run.exit_code != 0:
+        broken = [node for node, _ in (*run.failed, *run.collection_errors, *run.setup_errors)]
+        raise MutationError(
+            f"`{shown}` is not green before any mutation, so every mutant aimed at it would read "
+            f"KILLED whatever the code does:\n  " + "\n  ".join(broken) + f"\n{_tail(run.output)}"
+        )
+    # After the exit-code check, not before it: a run that collected only skips exits 0, while one
+    # that errored exits non-zero and belongs to the branch above.
     if run.ran == 0:
         raise MutationError(
             f"every test in `{shown}` skipped in this checkout, and a skipped test exits 0 exactly "
@@ -662,27 +688,29 @@ def check_baseline(root: Path, command: Sequence[str], selectors: Sequence[str])
             f"  skipped: {', '.join(run.skipped)}\n"
             f"Install the extra the marker needs, or aim the battery at a test that runs here."
         )
-    if run.exit_code != 0:
-        broken = [node for node, _ in (*run.failed, *run.errored)]
-        raise MutationError(
-            f"`{shown}` is not green before any mutation, so every mutant aimed at it would read "
-            f"KILLED whatever the code does:\n  " + "\n  ".join(broken) + f"\n{_tail(run.output)}"
-        )
     return run
 
 
 def classify(run: PytestRun) -> Outcome:
     """KILLED, SURVIVED, or neither — and `neither` is never quietly folded into one of them.
 
-    `errored` is tested first and wins even when there are real failures beside it. A run that
-    partly failed to *execute* cannot support "this assertion is pinned": the baseline proved the
-    selector green, so an error here is the mutant's doing, and crediting a kill from the half that
-    ran would be reading a broken run as a good one.
+    Two events wear pytest's `<error>` tag and they mean opposite things here.
+
+    A **collection** error is the invalid mutant: the module did not import, nothing ran, and no
+    assertion was tested. It wins over everything — that is T4's case.
+
+    A **setup or teardown** error is a real node the mutant broke on the way in or out. It is not a
+    kill: no assertion fired, so nobody may write "pinned by test X" for it. But it must not erase
+    a genuine `<failure>` beside it either — the baseline proved this selector green, so a failing
+    assertion in the same run is a real kill, and tallying it as `0 killed` was this classifier's
+    own defect (found by review, reproduced, `git log`).
     """
-    if run.timed_out or run.errored:
+    if run.timed_out or run.collection_errors:
         return Outcome.ERRORED
     if run.failed:
         return Outcome.KILLED
+    if run.setup_errors:
+        return Outcome.ERRORED
     if run.exit_code == 0 and run.ran > 0:
         return Outcome.SURVIVED
     return Outcome.ERRORED
@@ -852,7 +880,14 @@ def _render(result: Result, baseline: PytestRun) -> str:
     scale = f"{{}} of {baseline.ran} test(s) in the selector"
     if result.outcome is Outcome.KILLED:
         killers = "\n        ".join(f"{node} — {why}" for node, why in run.failed)
-        return f"KILLED — {scale.format(len(run.failed))} failed:\n        {killers}"
+        caveat = ""
+        if run.setup_errors:
+            broke = ", ".join(node for node, _ in run.setup_errors)
+            caveat = (
+                f"\n        (and it broke setup or teardown for {broke}, which is not a kill — "
+                f"no assertion there fired)"
+            )
+        return f"KILLED — {scale.format(len(run.failed))} failed:\n        {killers}{caveat}"
     if result.outcome is Outcome.SURVIVED:
         return (
             f"SURVIVED — all {baseline.ran} test(s) in the selector passed with the mutant in "
@@ -865,10 +900,16 @@ def _render(result: Result, baseline: PytestRun) -> str:
             f"{TIMEOUT_FACTOR} times its baseline. The mutant probably removed something's exit "
             f"condition; nothing is known about the assertion."
         )
-    if run.errored:
-        detail = "\n        ".join(f"{node} — {why}" for node, why in run.errored)
-        ran_too = f" ({len(run.failed)} other test(s) did fail)" if run.failed else ""
-        return f"ERRORED (not a kill){ran_too} — the mutant did not run:\n        {detail}"
+    if run.collection_errors:
+        detail = "\n        ".join(f"{node} — {why}" for node, why in run.collection_errors)
+        return f"ERRORED (not a kill) — the mutant did not run:\n        {detail}"
+    if run.setup_errors:
+        detail = "\n        ".join(f"{node} — {why}" for node, why in run.setup_errors)
+        return (
+            f"ERRORED (not a kill) — the mutant broke setup or teardown, so it was noticed but no "
+            f"assertion fired. This does not pin anything; give the behaviour a test that asserts "
+            f"it directly:\n        {detail}"
+        )
     return (
         f"ERRORED (not a kill) — pytest exited {run.exit_code} with "
         f"{run.collected} test(s) collected and {run.ran} run:\n{_tail(run.output)}"
@@ -888,7 +929,11 @@ def report(results: Sequence[Result], *, allow_zero_kills: bool) -> int:
     print("|---|---|---|")
     for outcome in Outcome:
         for result in tally[outcome]:
-            killers = ", ".join(f"`{node}`" for node, _ in result.run.failed) or "—"
+            killers = (
+                ", ".join(f"`{node}`" for node, _ in result.run.failed)
+                if outcome is Outcome.KILLED
+                else "—"
+            ) or "—"
             print(f"| {result.mutant.name} | {outcome.value} | {killers} |")
     print(
         f"\n{len(results)} mutant(s): {len(tally[Outcome.KILLED])} killed, "
@@ -897,8 +942,9 @@ def report(results: Sequence[Result], *, allow_zero_kills: bool) -> int:
 
     if tally[Outcome.ERRORED]:
         print(
-            "\nmutate: an ERRORED mutant is neither killed nor survived — it never ran, or never "
-            "finished. Fix the battery; this report says nothing about those assertions.",
+            "\nmutate: an ERRORED mutant is neither killed nor survived. It never ran (an invalid "
+            "mutant), never finished, or broke setup rather than an assertion — read the rows to "
+            "see which. Nothing here pins the assertions those mutants aimed at.",
             file=sys.stderr,
         )
         return 1
