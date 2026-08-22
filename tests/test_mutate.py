@@ -1,23 +1,30 @@
-"""`tools/mutate.py` — the CLI as a subprocess, the invalidation in-process.
+"""`tools/mutate.py` — the CLI as a subprocess, the guards a subprocess cannot see in-process.
 
 A subprocess for the reason `tests/test_land.py` gives: it exercises the same artifact a human
-runs, argument parsing included, with no `sys.path` surgery. The in-process half exists for the one
-property a subprocess cannot observe — whether a `.pyc` existed *during* a mutation — in the sense
-`tests/test_deep_reservation.py` uses.
+runs, argument parsing included, with no `sys.path` surgery. The in-process half exists for the
+properties a subprocess cannot observe — whether a `.pyc` existed *during* a mutation, and what
+happens when a restore does not take — in the sense `tests/test_deep_reservation.py` uses.
 
 **The assertion that matters is not "it ran a battery".** It is that the harness refuses, or reports
 its own brokenness, in each of the ways a mutation run has silently lied here before. A suite that
-only drove the happy path would pass with every guard deleted, and the guards *are* the tool: a
-broken harness prints SURVIVED and KILLED in the same shape a working one does.
+only drove the happy path would pass with every guard deleted, and the guards *are* the tool.
 
-So two rules hold throughout:
+Three rules hold throughout:
 
 * **every refusal asserts the stated reason**, never merely a non-zero exit;
-* **every guard has a control that proves it is not ceremony.** The bytecode-invalidation pin
-  (`test_the_bytecode_cache_is_cleared_after_the_write_and_after_the_restore`) is followed by
-  `test_a_stale_pyc_really_does_report_a_same_length_mutant_as_survived`, which forges the exact
-  condition by hand and watches the mutant vanish. If the second ever stops reproducing, the first
-  is guarding nothing.
+* **a refusal that claims to happen "before the first write" asserts that nothing ran** — not just
+  that the file came back unchanged, which is equally true of a mutation that was applied and then
+  restored. That distinction is the one this file got wrong first;
+* **every guard has a control that proves it is not ceremony.** The bytecode-invalidation pin is
+  followed by `test_a_stale_pyc_really_does_report_a_same_length_mutant_as_survived`, which forges
+  the exact condition by hand and watches the mutant vanish. If the control ever stops reproducing,
+  the pin is guarding nothing.
+
+**The fixture sources are `textwrap.dedent`ed on purpose.** `tests/test_verification.py` resolves a
+named test by scanning a file for `^def (\\w+)` with `re.MULTILINE`, so a `def test_…` at column 0
+*inside a string literal here* would make that gate resolve a test this module does not define — a
+false positive in the one gate built so the table "can go stale exactly once, in the commit that
+breaks it". Indenting the literals keeps them out of its way.
 
 The scratch repository runs `sys.executable -m pytest` rather than the battery's default
 `uv run --frozen pytest`: `-m` puts the working directory on `sys.path`, which is how a package
@@ -30,6 +37,7 @@ import os
 import struct
 import subprocess
 import sys
+import textwrap
 import time
 from collections.abc import Sequence
 from pathlib import Path
@@ -39,46 +47,63 @@ import pytest
 
 TOOL = Path(__file__).parent.parent / "tools" / "mutate.py"
 
-ORIGINAL_MODULE = '''\
-"""A scratch module with one pinned assertion, one unpinned function, and a marker."""
+ORIGINAL_MODULE = textwrap.dedent(
+    '''\
+    """A scratch module: one pinned assertion, one unpinned function, and two markers."""
 
-MAX = 3
-MARKER = "original"
-
-
-def clamp(value: int) -> int:
-    return min(value, MAX)
+    MAX = 3
+    MARKER = "original"
+    RUNNABLE = True
 
 
-def describe() -> str:
-    return "nothing asserts this"
-'''
-
-PINNING_TESTS = """\
-from pkg.mod import clamp
+    def clamp(value: int) -> int:
+        return min(value, MAX)
 
 
-def test_clamp_caps_at_the_maximum() -> None:
-    assert clamp(10) == MAX_EXPECTED
+    def describe() -> str:
+        return "nothing asserts this"
+    '''
+)
+
+PINNING_TESTS = textwrap.dedent(
+    """\
+    from pkg.mod import clamp
 
 
-MAX_EXPECTED = 3
-"""
+    def test_clamp_caps_at_the_maximum() -> None:
+        assert clamp(10) == 3
+    """
+)
 
-SLOW_TEST = """\
-import time
+SLOW_TEST = textwrap.dedent(
+    """\
+    import time
 
-import pkg.mod
-from pkg.mod import clamp
+    import pkg.mod
+    from pkg.mod import clamp
 
 
-def test_clamp_caps_at_the_maximum_slowly() -> None:
-    # Fast at baseline, thirty seconds once the marker mutant is in place: that is what gives the
-    # kill-it-mid-run test a window it does not have to race for.
-    if pkg.mod.MARKER != "original":
-        time.sleep(30)
-    assert clamp(10) == 3
-"""
+    def test_clamp_caps_at_the_maximum_slowly() -> None:
+        # Fast at baseline, thirty seconds once the marker mutant is in place: that is what gives
+        # the kill-it-mid-run and the timeout tests a window they do not have to race for.
+        if pkg.mod.MARKER != "original":
+            time.sleep(30)
+        assert clamp(10) == 3
+    """
+)
+
+SKIPPABLE_TEST = textwrap.dedent(
+    """\
+    import pytest
+
+    import pkg.mod
+
+
+    @pytest.mark.skipif(not pkg.mod.RUNNABLE, reason="the extra is absent")
+    def test_clamp_caps_when_it_can_run() -> None:
+        assert pkg.mod.clamp(10) == 3
+    """
+)
 
 
 def git(*args: str, cwd: Path) -> str:
@@ -94,7 +119,7 @@ def mutate(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
 
 @pytest.fixture
 def repo(tmp_path: Path) -> Path:
-    """A committed scratch repository: a package, a test that pins one line of it, and a config.
+    """A committed scratch repository: a package, tests that pin one line of it, and a config.
 
     `pytest.ini` is not decoration — without it the nested pytest walks up out of `tmp_path`
     looking for a rootdir, and on a machine where that search reaches a real project it would
@@ -107,6 +132,7 @@ def repo(tmp_path: Path) -> Path:
     (root / "pkg" / "mod.py").write_text(ORIGINAL_MODULE, encoding="utf-8")
     (root / "tests" / "test_pkg.py").write_text(PINNING_TESTS, encoding="utf-8")
     (root / "tests" / "test_slow.py").write_text(SLOW_TEST, encoding="utf-8")
+    (root / "tests" / "test_skippable.py").write_text(SKIPPABLE_TEST, encoding="utf-8")
     (root / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
 
     _ = git("init", "-q", "--initial-branch=main", ".", cwd=root)
@@ -177,21 +203,33 @@ def tool_module() -> ModuleType:
     return module
 
 
+def assert_nothing_ran(result: subprocess.CompletedProcess[str]) -> None:
+    """A refusal that claims to precede the first write must precede the first *run* too.
+
+    Asserting only that the target's bytes are unchanged is satisfied by a mutation that was
+    applied and then restored, which is exactly what the guard is supposed to prevent. The absence
+    of any `[n/N]` header and of any baseline line is what says no work began.
+    """
+    assert "[1/" not in result.stdout, f"a mutant was attempted:\n{result.stdout}"
+    assert "baseline:" not in result.stdout, f"a baseline run happened:\n{result.stdout}"
+
+
 # ---------------------------------------------------------------------------------------------
-# The two outcomes a battery is allowed to report
+# The three outcomes, and only three
 # ---------------------------------------------------------------------------------------------
 
 
 def test_a_mutant_the_tests_catch_is_killed_and_names_the_test_that_caught_it(repo: Path) -> None:
-    """KILLED is not "a test failed" — it is *which* test failed, and on what assertion. A row that
-    named neither would be satisfied by a selector that is simply red (see the baseline tests)."""
+    """KILLED is not "a test failed" — it is *which* test failed, on what assertion, and how many
+    of the selector's tests that was. The count is what makes a silently narrowed selection
+    visible: the record holds a battery where a `-k` filter selected four of six tests and a mutant
+    read as caught by one test when three catch it."""
     result = mutate(str(battery(repo, clamp_mutant())), cwd=repo)
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "KILLED" in result.stdout
+    assert "KILLED — 1 of 1 test(s) in the selector failed" in result.stdout
     assert "tests/test_pkg.py::test_clamp_caps_at_the_maximum" in result.stdout
     assert "assert 10 == 3" in result.stdout
-    assert "1 killed, 0 survived, 0 errored" in result.stdout
 
 
 def test_a_mutant_nothing_catches_survives_and_the_run_still_exits_zero(repo: Path) -> None:
@@ -219,10 +257,7 @@ def test_an_invalid_mutant_is_its_own_outcome_never_killed_and_never_survived(re
     """T4 misread a collection `ERROR` in both directions: once as a kill, once as a survival.
     pytest exits 2 for it, and the JUnit report carries `<error>` where a real failure carries
     `<failure>` — which is why the classification reads the report and not the exit code."""
-    path = battery(
-        repo,
-        clamp_mutant(name="a mutant that does not parse", new="min(value, MAX"),
-    )
+    path = battery(repo, clamp_mutant(name="a mutant that does not parse", new="min(value, MAX"))
     result = mutate(str(path), cwd=repo)
 
     assert result.returncode == 1, result.stdout + result.stderr
@@ -231,6 +266,29 @@ def test_an_invalid_mutant_is_its_own_outcome_never_killed_and_never_survived(re
     assert "SURVIVED" not in result.stdout
     assert "0 killed, 0 survived, 1 errored" in result.stdout
     assert "neither killed nor survived" in result.stderr
+
+
+def test_a_mutant_that_makes_every_test_skip_is_not_a_survivor(repo: Path) -> None:
+    """The mutant-time half of the skip problem, and the one `check_baseline` cannot reach.
+
+    A mutant that flips a `skipif` predicate leaves pytest exiting 0 with nothing having run — the
+    SURVIVED signal, produced by the mutant switching off its own judge. `classify` requires
+    `ran > 0` for SURVIVED; deleting that clause is invisible to every other test here.
+    """
+    path = battery(
+        repo,
+        clamp_mutant(
+            name="the mutant switches its own test off",
+            old="RUNNABLE = True",
+            new="RUNNABLE = False",
+            kills="tests/test_skippable.py::test_clamp_caps_when_it_can_run",
+        ),
+    )
+    result = mutate(str(path), cwd=repo)
+
+    assert "SURVIVED" not in result.stdout, result.stdout
+    assert "ERRORED" in result.stdout
+    assert result.returncode == 1
 
 
 # ---------------------------------------------------------------------------------------------
@@ -242,25 +300,45 @@ def test_an_anchor_that_matches_nothing_refuses_before_writing_anything(repo: Pa
     """`str.replace` that matches nothing returns the string unchanged and reports to no one: the
     file is untouched, every test passes, and the row reads SURVIVED."""
     before = (repo / "pkg" / "mod.py").read_bytes()
-    path = battery(repo, clamp_mutant(old="min(value, CEILING)"))
-    result = mutate(str(path), cwd=repo)
+    result = mutate(str(battery(repo, clamp_mutant(old="min(value, CEILING)"))), cwd=repo)
 
     assert result.returncode == 1
     assert "occurs 0 times" in result.stderr
     assert "would read SURVIVED" in result.stderr
     assert "min(value, CEILING)" in result.stderr
     assert (repo / "pkg" / "mod.py").read_bytes() == before
+    assert_nothing_ran(result)
 
 
 def test_an_anchor_that_matches_twice_refuses_rather_than_choosing(repo: Path) -> None:
     """Two matches mean the battery did not say which line it meant. Replacing both is a different
-    mutant from the one that was written down, and replacing the first is a coin toss."""
-    path = battery(repo, clamp_mutant(old="value", new="other"))
+    mutant from the one written down, and replacing the first is a coin toss."""
+    result = mutate(str(battery(repo, clamp_mutant(old="value", new="other"))), cwd=repo)
+
+    assert result.returncode == 1
+    assert "exactly once" in result.stderr
+    assert "not stated" in result.stderr
+    assert_nothing_ran(result)
+
+
+def test_a_stale_anchor_in_the_last_mutant_refuses_before_the_first_one_runs(repo: Path) -> None:
+    """Why the anchor check is a pre-flight and not only a per-mutant check.
+
+    A typo in the third anchor is the commonest battery error, since anchors are hand-copied source
+    fragments. Checked only at write time it would mutate and run two mutants first, then unwind
+    with no summary at all — two pytest runs whose results are discarded.
+    """
+    path = battery(
+        repo,
+        clamp_mutant(name="one"),
+        clamp_mutant(name="two", old="nothing asserts this", new="x"),
+        clamp_mutant(name="three, with a stale anchor", old="min(value, GONE)"),
+    )
     result = mutate(str(path), cwd=repo)
 
     assert result.returncode == 1
-    assert "times" in result.stderr and "exactly once" in result.stderr
-    assert "not stated" in result.stderr
+    assert "occurs 0 times" in result.stderr
+    assert_nothing_ran(result)
 
 
 def test_a_mutant_whose_old_and_new_are_identical_is_refused(repo: Path) -> None:
@@ -269,6 +347,24 @@ def test_a_mutant_whose_old_and_new_are_identical_is_refused(repo: Path) -> None
 
     assert result.returncode == 1
     assert "identical" in result.stderr
+
+
+def test_an_indentation_only_mutant_is_not_rendered_as_a_no_op(repo: Path) -> None:
+    """The report collapses a multi-line anchor to one line by stripping each line, which erases an
+    indentation-only mutant: both sides of the arrow print the same string and the row says nothing
+    about what changed. It falls back to `repr` when that would happen."""
+    path = battery(
+        repo,
+        clamp_mutant(
+            name="the return is indented one level deeper",
+            old="    return min(value, MAX)",
+            new="        return min(value, MAX)",
+        ),
+    )
+    result = mutate(str(path), cwd=repo)
+
+    assert "`return min(value, MAX)` → `return min(value, MAX)`" not in result.stdout
+    assert "'    return min(value, MAX)'" in result.stdout
 
 
 # ---------------------------------------------------------------------------------------------
@@ -290,6 +386,45 @@ def test_a_target_that_differs_from_head_is_refused_before_the_first_write(repo:
     assert "differ from HEAD" in result.stderr
     assert "pkg/mod.py" in result.stderr
     assert source.read_bytes() == before, "the refusal must not have touched the file"
+    assert_nothing_ran(result)
+
+
+def test_a_gitignored_target_is_refused_because_git_checkout_could_not_recover_it(
+    repo: Path,
+) -> None:
+    """`git status --porcelain` prints nothing for an ignored file, so cleanliness alone passes a
+    file with no `HEAD` version at all — and for that file the `git checkout --` this refusal
+    exists to guarantee answers "did not match any file(s) known to git"."""
+    (repo / ".gitignore").write_text("generated.py\n", encoding="utf-8")
+    (repo / "generated.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _ = git("add", "-A", cwd=repo)
+    _ = git("commit", "-q", "-m", "ignore a generated module", cwd=repo)
+    assert git("status", "--porcelain", "--", "generated.py", cwd=repo) == "", (
+        "fixture: git must consider this file clean, which is the whole trap"
+    )
+
+    path = battery(repo, clamp_mutant(file="generated.py", old="VALUE = 1", new="VALUE = 2"))
+    result = mutate(str(path), cwd=repo)
+
+    assert result.returncode == 1
+    assert "not tracked by git" in result.stderr
+    assert "generated.py" in result.stderr
+    assert_nothing_ran(result)
+
+
+def test_a_test_file_target_is_refused_because_mutating_a_test_stays_manual(repo: Path) -> None:
+    """A mutant in the file its own selector runs can make that test vacuous — delete the
+    assertion and the test still passes — and SURVIVED is then a statement about nothing."""
+    path = battery(
+        repo,
+        clamp_mutant(file="tests/test_pkg.py", old="clamp(10) == 3", new="clamp(10) == clamp(10)"),
+    )
+    result = mutate(str(path), cwd=repo)
+
+    assert result.returncode == 1
+    assert "mutating a test stays manual" in result.stderr
+    assert "tests/test_pkg.py" in result.stderr
+    assert_nothing_ran(result)
 
 
 def test_the_target_is_restored_byte_for_byte_after_a_run(repo: Path) -> None:
@@ -306,7 +441,7 @@ def test_the_target_is_restored_byte_for_byte_after_a_run(repo: Path) -> None:
 def test_the_target_is_restored_when_the_run_is_killed_mid_flight(repo: Path) -> None:
     """SIGTERM's default disposition ends the process without unwinding, so a plain `try/finally`
     never runs and the mutant stays on disk — measured, 1 of 1, before the handler existed. SIGINT
-    already raises; SIGTERM is the one that needed turning back into an exception."""
+    already raises; SIGTERM, SIGHUP and SIGQUIT are the ones that needed turning back into one."""
     source = repo / "pkg" / "mod.py"
     before = source.read_bytes()
     path = battery(
@@ -342,10 +477,76 @@ def test_the_target_is_restored_when_the_run_is_killed_mid_flight(repo: Path) ->
     assert "restored" in stderr
 
 
-def test_a_run_that_errored_does_not_poison_the_mutants_after_it(repo: Path) -> None:
-    """L6: the restore is in a `finally` so that a mutant which blew up cannot leave its edit in
-    place for the next one to be measured on top of. Ordering matters here — the invalid mutant
-    goes first, and the valid one after it must still be killed on a clean file."""
+def test_a_restore_that_did_not_take_is_caught_rather_than_trusted(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The plan's step 5, and the guard nothing had ever watched fire.
+
+    Verifying the restored bytes is the last line of defence for the failure class the tool exists
+    for, and it can only be observed by making the write silently not take — which no battery can
+    do. The seam is `Path.write_bytes`, neutered for the *restore* call and nothing else; the region
+    it removes from coverage is one statement wide, and the test above drives the real thing.
+    """
+    module = tool_module()
+    source = repo / "pkg" / "mod.py"
+    mutant = module.Mutant(
+        name="the restore is sabotaged",
+        path=source,
+        old="min(value, MAX)",
+        new="max(value, MAX)",
+        selectors=("tests/test_pkg.py",),
+    )
+
+    real_write = Path.write_bytes
+    writes: list[int] = []
+
+    def flaky(self: Path, data: bytes) -> int:
+        writes.append(1)
+        if len(writes) == 2 and self == source:  # the restore, and only the restore
+            return len(data)
+        return real_write(self, data)
+
+    monkeypatch.setattr(Path, "write_bytes", flaky)
+    with (
+        pytest.raises(module.MutationError, match="was NOT restored"),
+        module.applied(mutant),
+    ):
+        pass
+    monkeypatch.undo()
+
+    assert "max(value, MAX)" in source.read_text(encoding="utf-8"), (
+        "fixture: the sabotage should have left the mutant in place — that is what was detected"
+    )
+    source.write_text(ORIGINAL_MODULE, encoding="utf-8")
+
+
+def test_a_body_that_raises_still_restores(repo: Path) -> None:
+    """L6, exercised on the `finally` itself rather than inferred from a later mutant's result.
+
+    A syntactically invalid mutant does not raise in *this* process — pytest merely exits 2 — so
+    the batch-ordering test below never enters an exception path at all. Raising inside the body is
+    what proves the restore is in a `finally` and not merely at the end of the block.
+    """
+    module = tool_module()
+    source = repo / "pkg" / "mod.py"
+    before = source.read_bytes()
+    mutant = module.Mutant(
+        name="raise inside the body",
+        path=source,
+        old="min(value, MAX)",
+        new="max(value, MAX)",
+        selectors=("tests/test_pkg.py",),
+    )
+
+    with pytest.raises(RuntimeError, match="the run blew up"), module.applied(mutant):
+        assert source.read_bytes() != before, "the mutant should be on disk here"
+        raise RuntimeError("the run blew up")
+
+    assert source.read_bytes() == before
+
+
+def test_a_later_mutant_is_measured_on_a_clean_file(repo: Path) -> None:
+    """Ordering: the invalid mutant goes first, and the valid one after it must still be killed."""
     path = battery(
         repo,
         clamp_mutant(name="a mutant that does not parse", new="min(value, MAX"),
@@ -353,8 +554,8 @@ def test_a_run_that_errored_does_not_poison_the_mutants_after_it(repo: Path) -> 
     )
     result = mutate(str(path), cwd=repo)
 
-    assert "ERRORED   a mutant that does not parse" in result.stdout
-    assert "KILLED    the good one, which must be unaffected" in result.stdout
+    assert "| a mutant that does not parse | ERRORED |" in result.stdout
+    assert "| the good one, which must be unaffected | KILLED |" in result.stdout
     assert "1 killed, 0 survived, 1 errored" in result.stdout
     assert git("status", "--porcelain", "--", "pkg/mod.py", cwd=repo) == ""
 
@@ -373,10 +574,10 @@ def pyc_of(source: Path) -> Path:
 def test_the_bytecode_cache_is_cleared_after_the_write_and_after_the_restore(repo: Path) -> None:
     """The invalidation, pinned directly rather than through its consequence.
 
-    Asserting the *outcome* of a same-length mutant would not pin this: whether the stale `.pyc`
-    is used depends on the write landing in the same wall-clock second as the previous compile,
-    which a slower machine would lose. The absence of the file is the same fact with no clock in
-    it — and deleting either `clear_pycache` call turns this red.
+    Asserting the *outcome* of a same-length mutant would not pin this: whether the stale `.pyc` is
+    used depends on the write landing in the same wall-clock second as the previous compile, which
+    a slower machine would lose. The absence of the file is the same fact with no clock in it — and
+    deleting either `clear_pycache` call turns this red.
     """
     module = tool_module()
     source = repo / "pkg" / "mod.py"
@@ -451,16 +652,85 @@ def test_a_same_length_mutant_is_killed_end_to_end(repo: Path) -> None:
     assert "1 killed" in result.stdout
 
 
+def test_a_relocated_bytecode_cache_is_refused_rather_than_guessed_at(repo: Path) -> None:
+    """`PYTHONPYCACHEPREFIX` puts every `.pyc` in a mirrored tree. Measured: with it set,
+    `pkg/__pycache__` is never created at all — so the clearing finds nothing, removes nothing,
+    reports success, and a same-length mutant reads SURVIVED off bytecode never seen."""
+    result = subprocess.run(
+        [sys.executable, str(TOOL), str(battery(repo, clamp_mutant()))],
+        cwd=repo,
+        env=dict(os.environ, PYTHONPYCACHEPREFIX=str(repo / "elsewhere")),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "PYTHONPYCACHEPREFIX" in result.stderr
+    assert_nothing_ran(result)
+
+
+# ---------------------------------------------------------------------------------------------
+# `-x`, from all three directions it can arrive from
+# ---------------------------------------------------------------------------------------------
+
+
+def test_a_battery_that_asks_for_x_in_its_pytest_command_is_refused(repo: Path) -> None:
+    path = battery(repo, clamp_mutant(), command=[sys.executable, "-m", "pytest", "-x"])
+    result = mutate(str(path), cwd=repo)
+
+    assert result.returncode == 1
+    assert "stops at the first failure" in result.stderr
+
+
+def test_a_selector_that_smuggles_x_in_is_refused_too(repo: Path) -> None:
+    """`kills` is passed to pytest verbatim, so it is the second door into the same room."""
+    result = mutate(str(battery(repo, clamp_mutant(kills=["-x", "tests/test_pkg.py"]))), cwd=repo)
+
+    assert result.returncode == 1
+    assert "stops at the first failure" in result.stderr
+
+
+def test_pytest_addopts_in_the_environment_cannot_narrow_the_run(repo: Path) -> None:
+    """Measured: `PYTEST_ADDOPTS="-x"` turns a two-failure kill into a one-failure kill. It is
+    inherited by any pytest, so without dropping it the "never `-x`" promise depends on the
+    operator's shell — and the row would under-report which tests catch the mutant."""
+    (repo / "tests" / "test_second.py").write_text(
+        textwrap.dedent(
+            """\
+            from pkg.mod import clamp
+
+
+            def test_clamp_caps_from_the_other_side() -> None:
+                assert clamp(99) == 3
+            """
+        ),
+        encoding="utf-8",
+    )
+    _ = git("add", "-A", cwd=repo)
+    _ = git("commit", "-q", "-m", "a second test that catches the same mutant", cwd=repo)
+
+    path = battery(repo, clamp_mutant(kills=["tests/test_pkg.py", "tests/test_second.py"]))
+    result = subprocess.run(
+        [sys.executable, str(TOOL), str(path)],
+        cwd=repo,
+        env=dict(os.environ, PYTEST_ADDOPTS="-x"),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "KILLED — 2 of 2 test(s) in the selector failed" in result.stdout, result.stdout
+
+
 # ---------------------------------------------------------------------------------------------
 # The controls the report refuses to run without
 # ---------------------------------------------------------------------------------------------
 
 
-def test_a_batch_with_no_kills_exits_non_zero_as_a_broken_harness(repo: Path) -> None:
-    """A run where nothing died is the signature of a harness that is not reaching the code at
-    all — an uninstalled package, a stale cache, a selector aimed elsewhere. Reporting it as a
-    clean bill is the single most expensive thing this tool could do."""
-    path = battery(
+def unpinned_battery(repo: Path) -> Path:
+    return battery(
         repo,
         clamp_mutant(
             name="nothing asserts the description",
@@ -468,7 +738,13 @@ def test_a_batch_with_no_kills_exits_non_zero_as_a_broken_harness(repo: Path) ->
             new="something else entirely",
         ),
     )
-    result = mutate(str(path), cwd=repo)
+
+
+def test_a_batch_with_no_kills_exits_non_zero_as_a_broken_harness(repo: Path) -> None:
+    """A run where nothing died is the signature of a harness that is not reaching the code at
+    all — a `.venv` carried into a copied tree, a non-editable install, a selector aimed elsewhere.
+    Reporting it as a clean bill is the most expensive thing this tool could do."""
+    result = mutate(str(unpinned_battery(repo)), cwd=repo)
 
     assert result.returncode == 1
     assert "0 killed, 1 survived" in result.stdout
@@ -479,15 +755,7 @@ def test_a_batch_with_no_kills_exits_non_zero_as_a_broken_harness(repo: Path) ->
 def test_allow_zero_kills_accepts_the_same_batch(repo: Path) -> None:
     """The escape hatch the plan asks for: a deliberate probe of a backstop already documented as
     unpinned. It must change the exit status and nothing else about the report."""
-    path = battery(
-        repo,
-        clamp_mutant(
-            name="nothing asserts the description",
-            old="nothing asserts this",
-            new="something else entirely",
-        ),
-    )
-    result = mutate(str(path), "--allow-zero-kills", cwd=repo)
+    result = mutate(str(unpinned_battery(repo)), "--allow-zero-kills", cwd=repo)
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "0 killed, 1 survived" in result.stdout
@@ -495,41 +763,47 @@ def test_allow_zero_kills_accepts_the_same_batch(repo: Path) -> None:
 
 
 # ---------------------------------------------------------------------------------------------
-# The baseline — two ways a battery reports confidently on a question it never asked
+# The baseline — the ways a battery reports on a question it never asked
 # ---------------------------------------------------------------------------------------------
 
 
-def test_a_selector_whose_tests_all_skip_is_refused_before_anything_is_written(
-    repo: Path,
-) -> None:
-    """Measured while building this, and not in the plan: a skipped test exits 0, byte for byte
-    the SURVIVED signal. Pinakes skips on a missing extra as a matter of course (`pdf`, `paid`,
+def test_a_selector_whose_tests_all_skip_is_refused_before_anything_is_written(repo: Path) -> None:
+    """Measured while building this, and not in the plan: a skipped test exits 0, byte for byte the
+    SURVIVED signal. Pinakes skips on a missing extra as a matter of course (`pdf`, `paid`,
     `model`), so a battery aimed at one of those in a `[light]` checkout would report SURVIVED for
     every mutant in it and read as a clean bill."""
     (repo / "tests" / "test_skipped.py").write_text(
-        'import pytest\n\n\n@pytest.mark.skip(reason="needs an extra")\ndef test_skipped() -> None:'
-        "\n    assert False\n",
+        textwrap.dedent(
+            """\
+            import pytest
+
+
+            @pytest.mark.skip(reason="needs an extra")
+            def test_needs_an_extra() -> None:
+                assert False
+            """
+        ),
         encoding="utf-8",
     )
     _ = git("add", "-A", cwd=repo)
     _ = git("commit", "-q", "-m", "a test that skips here", cwd=repo)
     before = (repo / "pkg" / "mod.py").read_bytes()
 
-    path = battery(repo, clamp_mutant(kills="tests/test_skipped.py"))
-    result = mutate(str(path), cwd=repo)
+    result = mutate(str(battery(repo, clamp_mutant(kills="tests/test_skipped.py"))), cwd=repo)
 
     assert result.returncode == 1
     assert "skipped in this checkout" in result.stderr
     assert "would read SURVIVED" in result.stderr
     assert (repo / "pkg" / "mod.py").read_bytes() == before
+    assert "[1/" not in result.stdout
 
 
 def test_a_selector_that_is_already_red_is_refused_rather_than_killing_every_mutant(
     repo: Path,
 ) -> None:
     """The other direction, and the worse one: against a red selector every mutant reads KILLED,
-    including the ones nothing catches. The report is then a list of assertions certified as
-    pinned by a test that was failing before the run began."""
+    including the ones nothing catches. The report is then a list of assertions certified as pinned
+    by a test that was failing before the run began."""
     (repo / "tests" / "test_red.py").write_text(
         "def test_already_failing() -> None:\n    assert 1 == 2\n", encoding="utf-8"
     )
@@ -542,6 +816,7 @@ def test_a_selector_that_is_already_red_is_refused_rather_than_killing_every_mut
     assert result.returncode == 1
     assert "not green before any mutation" in result.stderr
     assert "tests/test_red.py::test_already_failing" in result.stderr
+    assert "[1/" not in result.stdout
 
 
 def test_a_selector_that_collects_nothing_is_refused(repo: Path) -> None:
@@ -565,8 +840,46 @@ def test_a_selector_pytest_rejects_is_refused_naming_it(repo: Path) -> None:
     assert "test_renamed_last_week" in result.stderr
 
 
+def test_the_baseline_reports_how_many_tests_it_ran(repo: Path) -> None:
+    """The count is the only thing that makes a silently narrowed selector visible — the recorded
+    `-k` battery that selected four of six tests looked exactly like a correct one."""
+    result = mutate(str(battery(repo, clamp_mutant(kills="tests/test_pkg.py"))), cwd=repo)
+
+    assert "baseline: 1 test(s) ran and passed" in result.stdout
+
+
+def test_a_mutant_that_never_terminates_is_errored_rather_than_hanging_the_battery(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A mutant that removes a loop's exit condition would otherwise block forever with itself on
+    disk. The bound is derived from the selector's own measured baseline rather than configured, so
+    it needs no knob and cannot be set to something meaningless; the two constants are lowered here
+    so the test costs a second instead of a minute."""
+    module = tool_module()
+    monkeypatch.setattr(module, "TIMEOUT_FLOOR_SECONDS", 1.0)
+    monkeypatch.setattr(module, "TIMEOUT_FACTOR", 1)
+
+    path = battery(
+        repo,
+        clamp_mutant(
+            name="the marker mutant, which makes the slow test sleep",
+            old='MARKER = "original"',
+            new='MARKER = "mutated!"',
+            kills="tests/test_slow.py::test_clamp_caps_at_the_maximum_slowly",
+        ),
+    )
+    root = module.repo_root(repo)
+    results = module.run_battery(root, module.load_battery(path, root))
+    _ = capsys.readouterr()
+
+    assert len(results) == 1
+    assert results[0].outcome is module.Outcome.ERRORED
+    assert results[0].run.timed_out
+    assert (repo / "pkg" / "mod.py").read_text(encoding="utf-8") == ORIGINAL_MODULE
+
+
 # ---------------------------------------------------------------------------------------------
-# The battery file itself
+# The battery file, and the command line
 # ---------------------------------------------------------------------------------------------
 
 
@@ -574,6 +887,14 @@ def test_a_malformed_battery_is_a_refusal_not_a_traceback(repo: Path) -> None:
     path = repo / "broken.toml"
     path.write_text("[[mutant]\nfile = ", encoding="utf-8")
     result = mutate(str(path), cwd=repo)
+
+    assert result.returncode == 1
+    assert "Traceback" not in result.stderr
+    assert result.stderr.startswith("mutate: ")
+
+
+def test_a_battery_that_does_not_exist_is_a_refusal_not_a_traceback(repo: Path) -> None:
+    result = mutate(str(repo / "absent.toml"), cwd=repo)
 
     assert result.returncode == 1
     assert "Traceback" not in result.stderr
@@ -600,8 +921,7 @@ def test_a_mutant_missing_a_key_is_refused_naming_the_key(repo: Path) -> None:
 
 def test_a_target_outside_the_repository_is_refused(repo: Path) -> None:
     """A battery may only mutate the tree it is being run against — `../` is not a mutation."""
-    path = battery(repo, clamp_mutant(file="../outside.py"))
-    result = mutate(str(path), cwd=repo)
+    result = mutate(str(battery(repo, clamp_mutant(file="../outside.py"))), cwd=repo)
 
     assert result.returncode == 1
     assert "outside the repository" in result.stderr
@@ -612,3 +932,36 @@ def test_a_target_that_does_not_exist_is_refused(repo: Path) -> None:
 
     assert result.returncode == 1
     assert "no such file" in result.stderr
+
+
+def test_repo_selects_the_working_tree_to_mutate(tmp_path: Path, repo: Path) -> None:
+    """`--repo` decides which files on disk get written to, which makes it the one argument worth
+    being sure of. Driven from a directory that is not a git working tree at all, so a default
+    would fail rather than quietly succeed against the wrong tree."""
+    elsewhere = tmp_path / "not-a-repo"
+    elsewhere.mkdir()
+    path = battery(repo, clamp_mutant())
+
+    result = mutate(str(path), "--repo", str(repo), cwd=elsewhere)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "1 killed" in result.stdout
+    assert str(repo) in result.stdout
+
+
+def test_a_repo_that_does_not_exist_is_a_refusal_not_a_traceback(repo: Path) -> None:
+    result = mutate(str(battery(repo, clamp_mutant())), "--repo", str(repo / "absent"), cwd=repo)
+
+    assert result.returncode == 1
+    assert "Traceback" not in result.stderr
+    assert "not a directory" in result.stderr
+
+
+def test_a_directory_that_is_not_a_git_working_tree_is_refused(tmp_path: Path, repo: Path) -> None:
+    outside = tmp_path / "bare"
+    outside.mkdir()
+    result = mutate(str(battery(repo, clamp_mutant())), "--repo", str(outside), cwd=repo)
+
+    assert result.returncode == 1
+    assert "Traceback" not in result.stderr
+    assert "not inside a git working tree" in result.stderr
