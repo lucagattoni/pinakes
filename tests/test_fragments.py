@@ -296,3 +296,66 @@ def test_the_error_names_what_the_author_wrote_not_the_date_it_stripped(repo: Pa
     output = result.stdout + result.stderr
     assert "nonsense" in output
     assert "'20260804_0700'" not in output
+
+
+def test_a_fragment_that_opens_with_front_matter_is_refused(repo: Path) -> None:
+    """The defect this check was written for, in the exact shape it shipped in.
+
+    Three 0.24.0 fragments carried `---` / `category: added` / `---`. The category was read from
+    the filename, so the fence was inert and nothing here objected; `--apply` then copied it into
+    `CHANGELOG.md`, where all three are still published. The fence is the only observable — the
+    body below it is well-formed — so that is what this refuses.
+    """
+    write(repo, "changelog.d/added-one.md", "---\ncategory: added\n---\n\n- **A new thing.**\n")
+
+    result = run(repo, "--check")
+
+    assert result.returncode == 1
+    assert "added-one.md" in result.stderr
+    assert "front-matter" in result.stderr
+    assert "CHANGELOG.md" in result.stderr, (
+        "the message must name the document the fence would be spliced into — that consequence "
+        "is the whole reason this is refused rather than ignored"
+    )
+
+
+def test_a_leading_blank_line_does_not_hide_the_fence(repo: Path) -> None:
+    """`render` strips leading newlines before splicing, so a fence behind one reaches the
+    document exactly as a fence on line 1 does. A check reading only the literal first line would
+    pass it."""
+    write(repo, "changelog.d/added-one.md", "\n\n---\ncategory: added\n---\n\n- **A thing.**\n")
+
+    result = run(repo, "--check")
+
+    assert result.returncode == 1
+    assert "added-one.md" in result.stderr
+
+
+def test_a_horizontal_rule_inside_a_body_is_left_alone(repo: Path) -> None:
+    """The discriminating case. Refusing every `---` would be wrong: a body is spliced verbatim,
+    so a rule between two paragraphs is legitimate markdown. Only the opening fence declares
+    metadata. Without this test the check could be `"---" in body` and look correct."""
+    write(
+        repo,
+        "changelog.d/added-one.md",
+        "- **A new thing.**\n\n---\n\n  and a second paragraph after a rule.\n",
+    )
+
+    result = run(repo, "--check")
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_front_matter_is_refused_before_apply_can_splice_it(repo: Path) -> None:
+    """`--apply` deletes the fragments it consumed, so a fragment found malformed *afterwards* is
+    found with the evidence already gone. The target must be byte-identical after the refusal."""
+    before = changelog(repo)
+    write(repo, "changelog.d/added-one.md", "---\ncategory: added\n---\n\n- **A new thing.**\n")
+
+    result = run(repo, "--stream", "changelog", "--apply")
+
+    assert result.returncode == 1
+    assert changelog(repo) == before, "a refused run must not have written to the document"
+    assert (repo / "changelog.d" / "added-one.md").exists(), (
+        "nor deleted the fragment that explains the failure"
+    )

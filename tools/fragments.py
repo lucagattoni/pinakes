@@ -22,6 +22,13 @@ changes is only which file it lands in.
 that cannot drift from its content is one fewer thing to check, and `ls changelog.d/` is then a
 readable summary of everything unreleased.
 
+That rule is now a gate rather than a convention, because it was silently not followed: three
+fragments written for 0.24.0 carried YAML front matter (`---` / `category: added` / `---`), and
+`--apply` spliced all three verbatim into `CHANGELOG.md`, where they are still published. Nothing
+here could see it — the category was read from the filename, so the front matter was inert, and a
+body is copied unchanged by design. `check` therefore refuses a fragment whose first non-blank line
+is a `---` fence, which is the one shape that means "front matter" rather than "a horizontal rule".
+
 **Existing `[Unreleased]` prose is left exactly where it is.** Splicing puts fragments *after* the
 anchor without touching what is already below, so this can be adopted without a migration commit
 that would itself collide with whatever the other agents are holding.
@@ -121,6 +128,20 @@ def category_of(stream: Stream, path: Path) -> str | None:
     return head
 
 
+def opens_with_front_matter(text: str) -> bool:
+    """A `---` fence as the fragment's first non-blank line.
+
+    Only the *opening* fence counts. A body is spliced verbatim, so a `---` further down is a
+    legitimate horizontal rule between paragraphs and refusing it would be wrong; a fragment that
+    opens with one is declaring metadata this assembler never reads.
+    """
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        return line.rstrip() == "---"
+    return False
+
+
 def check(stream: Stream, repo: Path) -> list[str]:
     """Every problem found, rather than the first.
 
@@ -137,8 +158,15 @@ def check(stream: Stream, repo: Path) -> list[str]:
         slug = stem.split("-", 1)[1] if category and "-" in stem else stem
         if not _SLUG.fullmatch(slug):
             problems.append(f"{stream.directory}/{path.name}: name must be lowercase-with-hyphens")
-        if not path.read_text(encoding="utf-8").strip():
+        body = path.read_text(encoding="utf-8")
+        if not body.strip():
             problems.append(f"{stream.directory}/{path.name}: is empty")
+        elif opens_with_front_matter(body):
+            problems.append(
+                f"{stream.directory}/{path.name}: opens with a `---` front-matter fence, which is "
+                f"spliced verbatim into {stream.target}. The category lives in the filename, "
+                "never inside the file — delete the fence and start with the entry body."
+            )
     return problems
 
 
