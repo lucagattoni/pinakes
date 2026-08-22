@@ -17,10 +17,10 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260822 07:13 UTC
+## Where things stand right now — 20260822 10:01 UTC
 
-- **45 releases in 28 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.27.1`](#0271--the-gates-read-what-they-were-cited-for--20260822-0704) on 20260822.
+- **46 releases in 28 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.27.2`](#0272--the-install-is-a-region-no-test-reached--20260822-1001) on 20260822.
 - **Latest on PyPI: `0.27.1`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
@@ -165,6 +165,7 @@ number belongs to a release only when it is cut
 | **[0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** | 20260822 01:32 | a paid run tells you what it learned about your KB | • **E7 — printed suggestions.** Two documents cited in support of one answer is a fact nothing records; the run prints the `links[]` entries that observation proposes, to paste and commit<br>• **It prints; it never writes** — `--write-suggestions` is deferred (D-25 A) and unplanned<br>• `rel: co-cited`, `origin: deep`, the sidecar named on the block's first line; `--json` carries the same fragment verbatim<br>• **A document cannot talk the model into suggesting a link** — suggestions come from *citations*, and a citation is a passage number the schema bounds<br>• Both endpoints re-checked against what the run cited, resolved through `pnk link`'s own containment check<br>• **Four defects the tests could not see**, three found by mutating — including a surviving *control* mutant, and a containment test satisfied by absence<br>• **DESIGN §9's risk row, false since E4**, corrected<br>• *The deep release, **final** cut (D-9) — the name leaves the unbuilt-work table* |
 | **[0.27.0](#0270--the-mutation-step-gets-its-guard--20260822-0619)** | 20260822 06:19 | the mutation step gets its guard | • **`tools/mutate.py`** — the per-increment mutation battery, run by a tool rather than by hand. `docs/BUILDING.md` § 4 was the procedure's one *silently-failing* step<br>• Each written rule is a refusal: tracked-and-committed target, anchor matched **exactly once** before the first write, `__pycache__` cleared either side, never `-x`, restore in a `finally` with its bytes verified, **zero kills exits non-zero**<br>• **Five ways a run can lie that the rules did not cover, all measured** — a skipped test exits 0 like a passing one; an already-red selector kills everything; `SIGTERM`/`SIGHUP`/`SIGQUIT` skip `finally`; `PYTEST_ADDOPTS` smuggles in `-x`; `PYTHONPYCACHEPREFIX` hides the cache<br>• pytest's `<error>` tag covers a collection failure **and** a setup/teardown failure, which are opposite events — conflating them threw away real kills<br>• **25 mutants against its own guards, 25 killed.** Three rounds of that found four clauses no battery-driven test could reach<br>• *A developer tool — it ships in no wheel and changes nothing for any KB* |
 | **[0.27.1](#0271--the-gates-read-what-they-were-cited-for--20260822-0704)** | 20260822 07:04 | the gates read what they were cited for | • **The release-order gate reads a sixth sequence** — STATUS's *Published on PyPI* prose, which `RELEASING.md` had delegated to it while no pattern matched it<br>• That list had been mis-ordered since 20260821, through every green run<br>• It may **lag** the other five (an entry is held back until verified from the index) and may never **lead** them — an exemption without a direction is a hole<br>• **A fragment opening with a `---` front-matter fence is refused** — three 0.24.0 fragments carried one and `--apply` published all three<br>• No code path changed: no `schema_version`, no rebuild |
+| **[0.27.2](#0272--the-install-is-a-region-no-test-reached--20260822-1001)** | 20260822 10:01 | the install is a region no test reached | • **`pnk serve` was dead on every fresh install of all 38 published releases** — `mcp>=1.28` uncapped, and mcp 2.0.0 dropped `mcp.server.fastmcp` 3.5 h before Pinakes first published<br>• 31 green tests never saw it: they run against a **locked** mcp, and 37 `--frozen` CI invocations never resolve the dependency at all<br>• **`tools/wheel_import_gate.py`** installs the built wheel and imports all **57** modules, so the next module is covered without anyone remembering<br>• It runs **in front of `uv publish`** — a dependency major arrives with no commit here, and PyPI never takes a version back<br>• `anthropic` and `sentence-transformers` measured, deliberately **not** capped — the remedy is testing the resolve, not capping on reflex<br>• Three adversarial rounds, each finding defects in the previous round's **remedies**; 47 mutants, 0 survivors |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -1552,8 +1553,6 @@ SURVIVED row is a claim about a **pair**, and either half can be wrong.
 approximated: cross-file mutants, generated operators, and mutating a test file, where a mutant in
 the file its own selector runs can make that test vacuous.
 
-# Part 5 · What is not built
-
 ## 0.27.1 — the gates read what they were cited for · 20260822 07:04
 
 **A document naming a tool as the authority for something is a claim about that tool's coverage —
@@ -1594,6 +1593,64 @@ correct and be wrong.
 step, which sits eleven lines above its own correction.
 
 **No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
+
+## 0.27.2 — the install is a region no test reached · 20260822 10:01
+
+**`pnk serve` had never worked on a fresh install, in any published version.** `pyproject.toml`
+pinned `mcp>=1.28` with no ceiling. mcp 2.0.0 removed `mcp.server.fastmcp` and reached PyPI at
+13:45Z on 20260728 — **three and a half hours before Pinakes published its own first version** at
+17:16Z. Every one of the 38 releases on the index has shipped a command that exits with an
+unhandled `ModuleNotFoundError` and no remedy.
+
+**Nothing in this repository could see it, and the reasons are worth naming separately.**
+`tests/test_serve.py` has 31 tests and they were all green — against `uv.lock`'s pinned mcp 1.28.1.
+All 37 CI invocations are `--frozen`, so CI has never resolved this dependency. The one job that
+*does* resolve fresh, `build`, exercised `pnk --version`, `pnk init` and two data files, and never
+imported the module. `pnk doctor` has 18 checks and no MCP check, so it exits 0 on a broken
+install. Every instrument was working and every one was pointed somewhere else.
+
+**It was not found by a test, a gate or a review.** It was found by installing the product to
+answer the question *what should we build next*. `docs/BUILDING.md` warns that a test seam defines
+a region no test reaches; here **the region no test reached was the install itself.**
+
+**The cap is the small half.** `mcp>=1.28,<2` stops the bleeding and buys the port its own
+increment. What closes the class is `tools/wheel_import_gate.py`: it installs the built wheel into
+an isolated environment, discovers the installed package's modules from the filesystem and imports
+**all 57** — so a module added later is covered without anyone remembering the step exists, which
+is precisely what did not happen for `pinakes.serve`. It refuses four ways a walk can report a pass
+it did not earn: run against a source tree, walked nothing, a stale allowance, or an allowance
+excusing the wrong module. `pkgutil.walk_packages` was rejected because its `onerror` default
+swallows an import failure, so one broken `__init__.py` would hide everything beneath it.
+
+**It runs in front of `uv publish`, and that placement is the argument.** A dependency's major
+arrives with **no commit in this repository**: `ci.yml` runs on push and pull_request, so `main`
+can be green on Monday, the break can publish on Wednesday, and a tag on Thursday would carry it to
+an index that never takes a version back. In front of the publish step a failure costs a deleted
+tag and nothing else.
+
+**Two siblings were measured and deliberately not capped.** `anthropic` resolves fresh to 1.0.0 and
+`sentence-transformers` to 6.0.0; both were checked at the level that matters — not just
+constructors but the response-model fields, because `extract/claude.py` consumes
+`response.model_dump()` as a dict and a renamed `Usage` field would compute a cost of **0**,
+disabling the spending guard with no exception. Both are compatible. **The remedy for the class is
+testing the resolve, not capping on reflex** — a ceiling on `[st]`, the default backend, would
+change the install contract for every user to prevent a break that does not exist.
+
+**Three adversarial rounds, and the pattern is the finding: each round's defects were in the
+previous round's remedies.** The allowance was keyed on the library, so `--allow-missing pypdfium2`
+would have excused `pinakes.serve`; it is `MODULE:LIBRARY` now. The *"can still fail"* step was
+satisfiable by an environment where `--with` installed nothing, because both branches printed the
+same headline — it greps the specific failure now. `exit 1` → `exit 0` survived in five places, one
+of them in front of `uv publish`. `make smoke` exited **0 while printing a traceback**, because
+`pnk serve | grep -q` returns grep's status. 47 mutants, 0 survivors.
+
+**What the leg still cannot see, stated so it is not trusted past:** import-time breaks only, on
+the install states CI runs. A dependency that keeps its module layout and changes a signature
+passes everything here. `[st]` is resolved fresh by nothing, because torch is ~2 GB. And `ci.yml`
+runs on push and pull_request, so a third party's release is caught at the next push or tag rather
+than when it happens.
+
+# Part 5 · What is not built
 
 ## Open corrections — one live
 
