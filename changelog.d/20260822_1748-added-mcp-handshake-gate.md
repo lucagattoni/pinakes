@@ -14,3 +14,8 @@
   would agree with itself — and that the tools listed match `tools/mcp_tool_schemas.json` exactly.
   Against a fresh resolve, that snapshot is what turns a future `mcp` quietly reshaping the
   published tool contract into a red run instead of a silent change to every client's view.
+
+  **`make smoke` runs the same gate**, which it did not until review found it: it was a third copy
+  of the hand-rolled session, left behind by a change that fixed the other two, and against `mcp`
+  2.x it was **red on every run** — a maintainer's pre-tag check failing on a healthy wheel. One
+  implementation, three call sites.
