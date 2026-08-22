@@ -95,8 +95,11 @@ name:
 
 | Name | What it is |
 |---|---|
-| **the deep release** | `pnk ask --deep` |
 | **the template release** | Template ecosystem, `pnk upgrade`, the `sqlite-vec` tier |
+
+**The deep release left this table at 0.26.0**, its final cut (D-9) — `pnk ask --deep` is built,
+measured and complete, including E7's printed suggestions. `--write-suggestions` is deferred and
+**unplanned**; when it is planned it needs a name of its own here, not the old one.
 
 **A release that cuts more than once keeps its name here until the *final* cut.** Dropping it at an
 interim cut deletes a name the later increments still need.
@@ -144,16 +147,19 @@ file" there ([`docs/README.md`](docs/README.md) tells them apart).
 **What is live right now** — one line per plan here; the full routing table, with what each
 closed plan still binds, is [`docs/README.md`](docs/README.md):
 
-- **[`plans/20260811_1358-deep-release.md`](plans/20260811_1358-deep-release.md) is the live build
-  order — the only plan with *scheduled* unbuilt work.** All ten decisions (D-21 to D-30) are taken and
-  it is the authority for them; re-run its § 2 before trusting any `file:line`. **E1 to E6 are
-  built, so `pnk ask --deep` is measured as well as bounded — the plan's E6 status block carries
-  the over-reservation figures and the four things the run learned that the plan did not
-  anticipate.** **E7 — printed suggestions — is the only increment left**, and it is unstarted.
-  **Read the E6 retrospective (*a seam the tests never crossed*) before
-  trusting any fixture-backed claim about the deep path** — `pnk ask --deep` `400`d on every live
-  call from 0.22.0 until 0.25.1. A cut after E4 was already a complete release, so the name stays
-  in the unbuilt-work table until the final cut (D-9).
+- **🛑 No plan has scheduled unbuilt work. `plans/` is entirely closed, answered, deferred or
+  proposed-unscheduled**, for the first time since this line existed. **Do not read that as
+  *nothing to do*** — read it as *the next thing to build has not been planned yet*, which makes
+  planning the work rather than an interruption to it. `docs/ROADMAP.md` Part 5 and
+  `docs/README.md`'s routing table are where the candidates are.
+- **[`plans/20260811_1358-deep-release.md`](plans/20260811_1358-deep-release.md) closed at
+  0.26.0.** All ten decisions (D-21 to D-30) are taken and it remains the authority for them;
+  re-run its § 2 before trusting any `file:line`. Every increment E1 to E7 is built, and each
+  carries a status block saying what shipped *beside* what its section asked for. **Two to read
+  before touching the deep path**: E6's retrospective (*a seam the tests never crossed*) before
+  trusting any fixture-backed claim — `pnk ask --deep` `400`d on every live call from 0.22.0 until
+  0.25.1; and E7's, before adding a guard — a guard whose input is built by its own validator is
+  not a guard, and its test is a tautology.
 - **Everything else in `plans/` is closed, answered, deferred or proposed-unscheduled** — the
   routing table classifies every file, and says what
   each still binds: the metadata plan's frozen golden set and its unapproved no-gos, the template

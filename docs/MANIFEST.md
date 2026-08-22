@@ -295,6 +295,7 @@ provenance:
 | `created` | sync | Optional, **UTC**; date filters use the document's mtime instead, since every document has one |
 | `links[].to` | you / [`pnk link`](CLI.md#pnk-link) | A `pnk://` URI, ULIDs only. `self` expands to this KB's own ULID on write. An **alias** here is a hard error at read — `pnk link` resolves `<alias>:<path>` on the command line, before anything reaches disk, so what is stored survives being shared |
 | `links[].rel` | you / [`pnk link`](CLI.md#pnk-link) | Free-form relation, e.g. `cites`, `supersedes` |
+| `links[].origin` | **you**, from what [`pnk ask --deep`](CLI.md#suggested-links) prints | Not written by Pinakes and not read by it. A deep run *proposes* `origin: deep` on the entries it suggests, so an entry you paste says where it came from; it round-trips like any other key you write, and it does not change what `pnk links` reports — a committed entry is an authored link |
 | `provenance.source` | you | Where the document came from |
 | `provenance.extraction` | **sync, paid PDFs only** | `{backend, fingerprint, extracted, content_hash}` |
 

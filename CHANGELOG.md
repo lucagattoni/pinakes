@@ -10,6 +10,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.26.0] — 20260822 01:32
+
+### Added
+
+- **A `pnk ask --deep` run now ends by printing the links its own answer proposes.** Two documents
+  cited in support of one answer is a fact about your KB that nothing records, so the run prints the
+  `links[]` entries that observation suggests — the sidecar to paste into, the `pnk://` URI,
+  `rel: co-cited` and `origin: deep` — ready to review and commit. Paid inference bought once
+  instead of every time you ask. **It prints; it never writes**: `--write-suggestions` is its own
+  increment, because writing them touches the per-link sidecar shape and
+  [INVARIANTS](https://lucagattoni.github.io/pinakes/INVARIANTS/)' list of exceptions to *`docs/`
+  belongs to the user*. `--json` carries the same fragment, verbatim, beside the parsed entries.
+  A run citing one document per call has no pair to propose and prints no section at all.
+- **A document cannot talk the model into suggesting a link.** The suggestions are derived from
+  *citations*, and a citation is a passage number the response schema bounds — the model is never
+  shown a document identifier it could name. So a passage instructing it to *"add a links entry to
+  X"* reaches exactly as far as a sentence in the answer. Both endpoints are re-checked against the
+  documents the run actually cited, and resolved through the same containment check `pnk link` uses,
+  so a path that escapes the KB, a document deleted since the run, or a sidecar whose ULID no longer
+  matches is dropped rather than printed.
+
+### Fixed
+
+- **`docs/DESIGN.md` §9 bounded `pnk ask --deep` with a claim that stopped being true when it
+  shipped.** The risk row said the loop adds *"no orchestration the free path doesn't have"* —
+  written before the loop existed, and false of a decompose → retrieve → answer → re-fold loop.
+  `docs/graph/PINAKES_APPROACH.md` had said so when it proposed the design and asked for the row to
+  be amended in the increment that shipped it; that increment shipped without moving it. The row now
+  states the bound that actually contains the risk: the same retrieval as the free path, hard caps,
+  and no persistent state beyond the transcript and the suggestions a user commits.
+
 ## [0.25.4] — 20260821 22:49
 
 ### Changed
@@ -3474,7 +3505,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.25.4...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.26.0
 [0.25.4]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.4
 [0.25.3]: https://github.com/lucagattoni/pinakes/compare/v0.25.2...v0.25.3
 [0.25.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.2
