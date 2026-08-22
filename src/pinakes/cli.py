@@ -30,6 +30,7 @@ if TYPE_CHECKING:  # `sync` pulls numpy and the store; the CLI stays fast to sta
     from decimal import Decimal
 
     from pinakes.deep.loop import DeepAnswer
+    from pinakes.deep.suggest import Suggestion
     from pinakes.embed import EmbeddingBackend, Reranker
     from pinakes.search import Filters, Passage, SearchResult
     from pinakes.sync import SyncReport
@@ -717,6 +718,10 @@ def run_ask(args: argparse.Namespace) -> int:
         # printing where *this machine* keeps the KB would put a fact about the machine into a
         # script's input.
         payload["transcript"] = run.relative_transcript if run is not None else None
+        # And so is `suggestions` — `null` without a paid run, an object with one. It carries the
+        # rendered fragment beside the parsed entries so a script pastes the same bytes a human
+        # was shown, from one renderer rather than two that are free to drift.
+        payload["suggestions"] = _suggestions_payload(run.suggestions) if run is not None else None
         payload["escalation"] = {
             "branch": escalation.branch,
             "work": escalation.work,
@@ -736,6 +741,7 @@ def run_ask(args: argparse.Namespace) -> int:
     print(f"confidence: {result.confidence} — {result.confidence_reason}")
     if run is not None:
         _print_answer(run.answer, run.relative_transcript)
+        _print_suggestions(run.suggestions)
         return EXIT_OK if run.answer.answered else EXIT_FAILURE
 
     print(NO_ANSWER_SYNTHESISED)
@@ -762,6 +768,14 @@ class _DeepRun:
     A POSIX string, computed once: the citations above it are printed KB-relative too, so a reader
     already reads paths that way, and `--json` must not carry a separator that depends on which
     machine ran the command. It is inside `.pinakes/` by construction (E5), so it never escapes."""
+
+    suggestions: tuple["Suggestion", ...]
+    """The links this run's own citations propose (E7) — printed, never written.
+
+    Computed here rather than at print time because it needs the manifest and the sidecars on
+    disk, and `run_ask` has closed the index by then. Empty is the ordinary case: an answer citing
+    one document per block observes no pair.
+    """
 
 
 def _run_deep(
@@ -792,6 +806,7 @@ def _run_deep(
     from pinakes.budget.accountant import Accountant
     from pinakes.budget.estimate import TIMESTAMP_FORMAT
     from pinakes.budget.prices import load_prices
+    from pinakes.deep import suggest as suggest_module
     from pinakes.deep import transcript as transcript_module
     from pinakes.deep.client import PROMPT_VERSION, SCHEMA_VERSION, default_transport
     from pinakes.deep.loop import NothingToAnswerError, run_deep
@@ -847,6 +862,9 @@ def _run_deep(
     return _DeepRun(
         answer=answer,
         relative_transcript=written.relative_to(pipeline.manifest.root).as_posix(),
+        # After the transcript, deliberately: the record of what was paid for is on disk before
+        # anything derived from it is computed.
+        suggestions=suggest_module.for_run(answer, manifest=pipeline.manifest),
     )
 
 
@@ -890,6 +908,32 @@ def _answer_payload(deep: "DeepAnswer") -> dict[str, object]:
     from pinakes.deep.transcript import answer_payload
 
     return answer_payload(deep)
+
+
+def _suggestions_payload(suggestions: "tuple[Suggestion, ...]") -> dict[str, object]:
+    """`--json`'s `suggestions` object (E7): the fragment, and its entries parsed out.
+
+    **Not folded into `answer`**, which is the object the transcript stores: a suggestion is
+    resolved against the sidecars on disk *now*, not against what the run was answered from, and
+    putting it inside the record of what was paid for would date the record to whichever of the two
+    was read last.
+    """
+    from pinakes.deep.suggest import render
+
+    return {
+        "fragment": render(suggestions),
+        "links": [
+            {
+                "sidecar": item.sidecar,
+                "source": item.source,
+                "target": item.target,
+                "to": str(item.to),
+                "rel": item.rel,
+                "rounds": list(item.rounds),
+            }
+            for item in suggestions
+        ],
+    }
 
 
 NO_ANSWER_FROM_A_PAID_RUN = (
@@ -955,6 +999,20 @@ def _print_answer(deep: "DeepAnswer", transcript: str) -> None:
         "record."
     )
     print(f"{TRANSCRIPT_PREFIX}{transcript}")
+
+
+def _print_suggestions(suggestions: "tuple[Suggestion, ...]") -> None:
+    """The sidecar fragment a run's own citations propose (E7), or nothing at all.
+
+    **Nothing at all is the common case and prints nothing** — no header, no empty section. A
+    question answered from one document per block observes no pair, and a line saying so on every
+    such run would be noise under an answer that is already long.
+    """
+    from pinakes.deep.suggest import render
+
+    fragment = render(suggestions)
+    if fragment:
+        print(f"\n{fragment}")
 
 
 def _doctor_arguments(parser: argparse.ArgumentParser) -> None:

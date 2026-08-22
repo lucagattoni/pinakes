@@ -34,6 +34,8 @@ from pinakes.cli import (
     TRANSCRIPT_PREFIX,
     main,
 )
+from pinakes.deep.suggest import HEADER as SUGGESTIONS_HEADER
+from pinakes.deep.suggest import REL as SUGGESTED_REL
 from pinakes.embed import (
     ModelInfo,
     Vectors,
@@ -353,11 +355,13 @@ def test_json_carries_a_null_answer_and_an_escalation_block(
         "answer",
         "escalation",
         "transcript",
+        "suggestions",
     }
     assert payload["answer"] is None
     # Present and `null` for the same reason `answer` is: one schema parses either way, and a free
-    # run wrote no transcript because it paid for nothing (E5).
+    # run wrote no transcript because it paid for nothing (E5) and proposed no links (E7).
     assert payload["transcript"] is None
+    assert payload["suggestions"] is None
     assert set(payload["escalation"]) == {"branch", "work", "cost_eur", "remedy"}
     assert payload["escalation"]["branch"] == "synthesis"
     # A string, never a float: JSON has no decimal type, and a float here would reintroduce the
@@ -839,3 +843,89 @@ def test_two_runs_leave_two_transcripts(
     capsys.readouterr()
 
     assert len(_transcripts(confident_kb)) == 2
+
+
+# ---------------------------------------------------------------------------------------------
+# Printed suggestions (E7)
+# ---------------------------------------------------------------------------------------------
+
+
+def test_deep_ends_by_printing_the_links_its_own_citations_propose(
+    confident_kb: Path, scripted: Callable[..., _Script], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The whole of E7 through the command: `answer-cited` cites two documents, and what the run
+    prints under the cost line is a `links:` block naming the sidecar to paste it into.
+
+    Asserted through the CLI as well as in `test_deep_suggest.py` because a tool written to be run
+    by hand has one exercised path — the one the author typed — and this fragment is printed by
+    nothing else (0.25.3, `tools/deep_reservation.py --json`).
+    """
+    scripted("answer-cited")
+
+    assert main(["ask", "sourdough", "--kb", str(confident_kb), "--deep", "--yes"]) == 0
+    out = capsys.readouterr().out
+
+    assert SUGGESTIONS_HEADER in out
+    assert "# docs/b.md.pnk.yaml\nlinks:\n- to: pnk://" in out
+    assert f"  rel: {SUGGESTED_REL}\n  origin: deep" in out
+    # Under the run's own accounting, not above it: the answer and what it cost come first.
+    assert out.index(TRANSCRIPT_PREFIX) < out.index(SUGGESTIONS_HEADER)
+
+
+def test_a_run_whose_citations_name_one_document_prints_no_suggestion_section(
+    confident_kb: Path, scripted: Callable[..., _Script], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """No header, no empty section. The answer cites one passage, so there is no pair to observe —
+    the common case on a narrow question, and the reason `render` returns the empty string rather
+    than a header with nothing under it."""
+    scripted("answer-citing-one-document")
+
+    assert main(["ask", "sourdough", "--kb", str(confident_kb), "--deep", "--yes"]) == 0
+    out = capsys.readouterr().out
+
+    assert ANSWER_SYNTHESISED in out, "there was still an answer"
+    assert SUGGESTIONS_HEADER not in out
+
+
+def test_the_json_suggestions_object_carries_the_fragment_the_human_surface_prints(
+    confident_kb: Path, scripted: Callable[..., _Script], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """One renderer, both surfaces: a script pastes the same bytes a person was shown, and the
+    parsed entries sit beside them so nothing has to be scraped out of the text."""
+    scripted("answer-cited")
+    assert main(["ask", "sourdough", "--kb", str(confident_kb), "--deep", "--yes", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    suggestions = payload["suggestions"]
+    assert set(suggestions) == {"fragment", "links"}
+    assert suggestions["links"] == [
+        {
+            "sidecar": "docs/b.md.pnk.yaml",
+            "source": "docs/b.md",
+            "target": "docs/c.txt",
+            "to": suggestions["links"][0]["to"],
+            "rel": SUGGESTED_REL,
+            "rounds": [0],
+        }
+    ]
+    assert suggestions["links"][0]["to"].startswith("pnk://")
+    assert suggestions["links"][0]["to"] in suggestions["fragment"]
+
+    scripted("answer-cited")
+    assert main(["ask", "sourdough", "--kb", str(confident_kb), "--deep", "--yes"]) == 0
+    assert suggestions["fragment"] in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("extra", [[], ["--json"]])
+def test_a_free_ask_suggests_nothing(
+    confident_kb: Path, extra: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`suggestions` is a key in every form of the command, `null` when nothing was paid for — the
+    promise `answer` and `transcript` already make, so a consumer parses one schema either way."""
+    assert main(["ask", "sourdough", "--kb", str(confident_kb), *extra]) == 0
+    out = capsys.readouterr().out
+
+    if extra:
+        assert json.loads(out)["suggestions"] is None
+    else:
+        assert SUGGESTIONS_HEADER not in out
