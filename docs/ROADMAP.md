@@ -17,10 +17,10 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260821 22:49 UTC
+## Where things stand right now — 20260822 01:32 UTC
 
-- **42 releases in 27 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.25.3`](#0253--the-deep-loop-is-measured--20260821-2234) and [`0.25.4`](#0254--what-the-mutation-battery-cannot-reach--20260821-2249) on 20260821.
+- **43 releases in 28 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.26.0`](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132) on 20260822.
 - **Latest on PyPI: `0.25.4`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by reading the
   schema builders out of the published wheel, because a matching version string says nothing about
@@ -29,20 +29,22 @@ precision nobody measured.
   version while `pnk ask --deep` could not make one successful call. Every release from `0.2.2` on
   is published — **thirty-five**, counted from the index's own `json` endpoint rather than from this
   list's previous number.
-- **Two of the four named releases have shipped, and a third has started.** The links release across
+- **Three of the four named releases have shipped; the fourth is a trigger rather than a queue.** The links release across
   [`0.5.0`](#050--links-you-can-walk--20260731-1127)–[`0.6.0`](#060--links-you-can-write--20260801-1051),
   the graph release in [`0.11.0`](#the-graph-release--shipped-0110). **The template release has
   shipped every increment it scheduled** — T1 to T5 and T7 across 0.17.0–0.21.0, cutting more than
   once by D-9 — **and both of its gated increments are now answered**, so what is left under that
-  name is a trigger rather than a queue. **The deep release has shipped the thing it is named for**: its plan
+  name is a trigger rather than a queue. **The deep release is complete as of
+  [`0.26.0`](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)**: its plan
   landed 20260811 with all eight decisions taken the same day, two more followed at E3's boundary,
-  and **E1 to E5 are built — `pnk ask --deep` answers, in [`0.24.0`](#0240--pnk-ask---deep-answers--20260811-2224), and since
-  [`0.25.0`](#0250--a-paid-run-leaves-a-record-of-what-it-was-asked--20260812-0531) it leaves a record of what it was asked**. **It did not
+  and **all seven increments are built** — the free question surface, the estimator, the paid
+  client, the loop, the run transcript, the measurement run, and E7's printed suggestions, so a
+  `--deep` run now ends by offering the `links[]` entries its own citations propose. **It did not
   answer against the live API until [`0.25.1`](#0251--pnk-ask---deep-works-against-the-live-api--20260821-0717), which is E6's first
   finding rather than a separate defect**: both response schemas carried keywords structured
   outputs refuses, so every call `400`d before it billed, and no fixture-driven test could have
-  seen it. What is left is the rest of E6's measurement run — **the only increment that spends
-  real money** — and E7's printed suggestions.
+  seen it. **The name left the unbuilt-work table at 0.26.0** (D-9), and the one thing D-25
+  deferred — `--write-suggestions` — is **not planned**.
 - **Is document metadata retrieval context? Measured, and the answer was no — on one corpus, through
   one channel**
   ([`plans/20260805_1721-metadata-as-retrieval-context.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260805_1721-metadata-as-retrieval-context.md),
@@ -90,16 +92,16 @@ precision nobody measured.
   entries came from **building** 2d and are invisible from reading the code, one from **reading**
   under adversarial review, one was **created** by the increment that closed another, and one came
   from **generalising a fix** — asking where else the defect just repaired still lives.
-- **One thing is scheduled, and it is waiting on eight answers.** The open-corrections list is
-  empty and what is left of the older work is gated rather than queued: T6 waits on a **trigger** (a
-  queried KB past ~50 000 chunks *with* felt latency), the staged graph channels wait on a
-  **corpus**. **[The deep release](#the-deep-release--the-loop-shipped-in-0240) has shipped the thing it is named for** —
+- **🛑 Nothing is scheduled — for the first time.** Every named body of work is shipped or gated:
+  the open-corrections list holds one live *decision*, T6 waits on a **trigger** (a queried KB past
+  ~50 000 chunks *with* felt latency), the staged graph channels wait on a **corpus**, and
+  **[the deep release](#the-deep-release--the-loop-shipped-in-0240) closed at
+  [`0.26.0`](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** —
   [`plans/20260811_1358-deep-release.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260811_1358-deep-release.md),
-  written 20260811 13:58, **all ten of its decisions taken**. Seven increments; **E1 to E5 have
-  landed** — the free question surface, the round estimator, the paid client with the second
-  allowlist entry, the loop itself, so `pnk ask --deep` answers in [`0.24.0`](#0240--pnk-ask---deep-answers--20260811-2224), and the run
-  transcript in [`0.25.0`](#0250--a-paid-run-leaves-a-record-of-what-it-was-asked--20260812-0531). **E6 is built — the measurement run is done and its figures are published**, and it is the
-  only increment that spends real money. It is the only named release with unbuilt work in it.
+  written 20260811 13:58, **all ten decisions taken, all seven increments built**. **Read that as
+  *the next thing to build has not been planned yet*, never as *finished*** — the same reading this
+  page's open-corrections list has earned three times over. Part 5 below is where the candidates
+  are, and planning is now the work rather than an interruption to it.
 
 ---
 
@@ -157,7 +159,8 @@ number belongs to a release only when it is cut
 | **[0.25.2](#0252--the-guidance-carries-its-own-lessons--20260821-1447)** | 20260821 14:47 | the guidance carries its own lessons | • **Documentation only** — the recurring lessons routed into `docs/BUILDING.md` (mutation-harness discipline, gate exit status, the CI-matrix leg check, two plan-reading rules) and RETROSPECTIVES' own § *Start here* (four new rows)<br>• `CLAUDE.md` § *Changing retrieval* names which corpus can license a change; the live-plan block slims to pointers, the E6 status moving into the plan itself<br>• A committed mutation harness, `tools/mutate.py`, proposed in `plans/` |
 | **[0.25.3](#0253--the-deep-loop-is-measured--20260821-2234)** | 20260821 22:34 | the deep loop is measured | • **E6 is built** — the measurement run published the over-reservation factor: **29.75×** on the cheap `synthesis` branch, **50.92×** and **22.35×** on the two loop branches, for €0.2131 against a €5.1836 worst case<br>• Every `deep/estimate.py` constant carries its measurement and the command that produced it; **none lowered**, the corpus being synthetic<br>• Six defects in `tools/deep_reservation.py`, which had no tests — now 27, mutation-verified 10/10<br>• Two defects in the runbook's own step (c) |
 | **[0.25.4](#0254--what-the-mutation-battery-cannot-reach--20260821-2249)** | 20260821 22:49 | what the mutation battery cannot reach | • **Documentation only** — BUILDING § 4 names the mutation step's own blind spot, with 0.25.3's rewrapped-command case (`4d5debf`)<br>• The lesson filed as a retrospective entry<br>• 0.25.3's section on this page moved out of Part 5, where its sweep had landed it |
-| | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **E1 to E6 are done** — the free surface, the estimator, the client, the loop, the run transcript and the measurement run<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7** — printed sidecar suggestions (`--write-suggestions` is deferred to its own increment, D-25 A) |
+| **[0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** | 20260822 01:32 | a paid run tells you what it learned about your KB | • **E7 — printed suggestions.** Two documents cited in support of one answer is a fact nothing records; the run prints the `links[]` entries that observation proposes, to paste and commit<br>• **It prints; it never writes** — `--write-suggestions` is deferred (D-25 A) and unplanned<br>• `rel: co-cited`, `origin: deep`, the sidecar named on the block's first line; `--json` carries the same fragment verbatim<br>• **A document cannot talk the model into suggesting a link** — suggestions come from *citations*, and a citation is a passage number the schema bounds<br>• Both endpoints re-checked against what the run cited, resolved through `pnk link`'s own containment check<br>• **Four defects the tests could not see**, three found by mutating — including a surviving *control* mutant, and a containment test satisfied by absence<br>• **DESIGN §9's risk row, false since E4**, corrected<br>• *The deep release, **final** cut (D-9) — the name leaves the unbuilt-work table* |
+| | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
 ---
@@ -1430,6 +1433,57 @@ time with its mechanism identified from the script rather than guessed.
 
 **PATCH: docs and fragments only; the wheel diff is the `__version__` string.**
 
+## 0.26.0 — a paid run tells you what it learned about your KB · 20260822 01:32
+
+**The deep release's final cut.** E7 — printed suggestions — is the last of its seven increments,
+so `plans/20260811_1358-deep-release.md` is closed and the name leaves the unbuilt-work table
+(D-9).
+
+**Two documents cited in support of one answer is a fact about a KB that nothing records.** Every
+system investigated for this design throws that away per query; here the run ends by printing the
+`links[]` entries the observation proposes — the sidecar to paste into, the `pnk://` URI,
+`rel: co-cited` and `origin: deep`. Paste it, rename the relation to whatever the relationship
+really is, commit it, and it is free forever: visible to every future query, to `pnk links`, to the
+graph channel and to every connected KB. Paid inference bought once instead of every time you ask.
+
+**It prints; it never writes.** `--write-suggestions` is deferred to its own increment by D-25
+option A and is **not planned** — writing them touches the per-link sidecar shape and
+[INVARIANTS](INVARIANTS.md)' list of exceptions to *`docs/` belongs to the user*, and that deserves
+its own diff. `--json` carries the same fragment verbatim beside the parsed entries, from one
+renderer, so a script pastes the bytes a person was shown. A run citing one document per call
+observes no pair and prints no section at all — not an empty one.
+
+**A document cannot talk the model into suggesting a link**, and the reason is structural rather
+than a filter. Suggestions are derived from *citations*, and a citation is a passage **number** the
+response schema bounds by an `enum` — the model is never shown a document identifier it could name,
+so a passage instructing it to *"add a links entry to X"* reaches exactly as far as a sentence in
+the answer. Nothing in the suggestion path reads the answer's prose. Both endpoints are then
+re-checked against the documents the run actually cited, and resolved through the same containment
+check `pnk link` uses, so a path escaping the KB, a document deleted since the run, or a sidecar
+whose ULID no longer matches is dropped rather than printed.
+
+**Four defects the tests could not see, three of them found by mutating rather than by reading.**
+The mutation step's own control mutant **survived** — `rel = "co-cited"` → `"related"` left all 71
+tests green, because every assertion imported the constant it checked, so the shipped value of the
+thing a user pastes was pinned by nothing. A containment test was **satisfied by absence**: it
+cited a path with no file at the end of it, so the read failed for the wrong reason, and only the
+mutation pass separated the two. A fixture's ULID order and path order **agreed by accident**
+(ULIDs are monotonic and its documents were created in path order), so three tests about which
+sidecar an entry lands in could observe nothing. And a **newline in a filename** would have broken
+the printed YAML, because the fragment writes document paths into comments and a value safe as a
+YAML *scalar* is not thereby safe as a YAML *comment*. Ten of ten mutants killed after the fixes.
+
+**And a risk row that had been false since E4.** [DESIGN §9](DESIGN.md) bounded `--deep` with *"no
+orchestration the free path doesn't have"* — written before the loop existed and contradicted by it
+the moment it shipped. `docs/graph/PINAKES_APPROACH.md` § 6 had asked for that exact row to be
+amended in the increment that shipped the design, and named the replacement bound: the same
+retrieval as the free path, hard caps, and no persistent state beyond the transcript and the
+suggestions a user commits. Found by auditing the neighbourhood rather than the diff — the
+increment that closes a release is the last cheap chance to fix what the release made false.
+
+**No `schema_version` bump and no rebuild.** Nothing about an existing KB changes until you type
+`--deep`, and nothing is written even then.
+
 ---
 
 # Part 5 · What is not built
@@ -1622,10 +1676,14 @@ personalization vector, not one edge kind of seven.
 **`pnk ask --deep`** — the budgeted agentic loop that escalates when free retrieval is not enough,
 writing its discoveries back into sidecars.
 
-▶ **The thing it is named for is built.** E1 to E4 landed on 20260811; `pnk ask --deep` answers,
-bounded by `[deep]` and `[budget]`, in [`0.24.0`](#0240--pnk-ask---deep-answers--20260811-2224), and E5's run transcript followed in
-[`0.25.0`](#0250--a-paid-run-leaves-a-record-of-what-it-was-asked--20260812-0531). **The name stays here** (D-9) because two
-increments remain, and it leaves at the final cut rather than at this one.
+▶ **✅ Complete as of [`0.26.0`](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132).** E1 to E4 landed on 20260811; `pnk ask --deep` answers,
+bounded by `[deep]` and `[budget]`, in [`0.24.0`](#0240--pnk-ask---deep-answers--20260811-2224); E5's run transcript followed in
+[`0.25.0`](#0250--a-paid-run-leaves-a-record-of-what-it-was-asked--20260812-0531), E6's measurement run in
+[`0.25.3`](#0253--the-deep-loop-is-measured--20260821-2234), and E7's printed suggestions in
+[`0.26.0`](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132). **The name
+left the unbuilt-work table at that final cut** (D-9). This block stays here beside the graph
+release's, which is also shipped: Part 5 holds the *named bodies of work*, and moving a completed
+one would break every anchor that points at it.
 
 - The **last paid entry point**: E3 added `src/pinakes/deep/client.py` to the allowlist, with
   [DESIGN § 1](DESIGN.md#1-what-this-is) and [INVARIANTS.md](INVARIANTS.md), in one commit. **The
@@ -1635,13 +1693,19 @@ increments remain, and it leaves at the final cut rather than at this one.
   money to produce (D-26 A), removed only by `--clear-cache=transcripts`. Its other half was already
   closed: `pnk budget` shows `ask` operations beside `sync` ones, verified at E4 rather than assumed,
   and nothing in `budget/` had to move.
-- **What is left, in order.** **E6** — the measurement run, **the
-  only increment that spends real money**, under
-  [MEASUREMENT-RUN.md](MEASUREMENT-RUN.md): it calibrates E2's constants against real calls on a
-  synthetic corpus, measures *both* branches, and publishes the over-reservation factor (the
-  extractor's first live call over-reserved 11.5x). **E7** — printed sidecar suggestions;
-  `--write-suggestions` is deferred to its own increment (D-25 A), because writing them changes the
-  per-link sidecar shape and adds to INVARIANTS' exceptions to *`docs/` belongs to the user*.
+- **E6's measurement run shipped in [`0.25.3`](#0253--the-deep-loop-is-measured--20260821-2234)** —
+  the only increment that spends real money, under [MEASUREMENT-RUN.md](MEASUREMENT-RUN.md). It
+  calibrated E2's constants against real calls on a synthetic corpus, measured both branches, and
+  published the over-reservation factor: **29.75x**, **50.92x** and **22.35x**, with no ceiling
+  lowered.
+- **E7's printed suggestions shipped in
+  [`0.26.0`](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)**, the final
+  cut. `--write-suggestions` is deferred to its own increment (D-25 A) and is **not planned**,
+  because writing them changes the per-link sidecar shape and adds to INVARIANTS' exceptions to
+  *`docs/` belongs to the user*.
+- **Nothing under this name is left to build.** The one design finding worth carrying into
+  `--write-suggestions` is in the plan's E7 status block: a guard whose input is built by its own
+  validator is not a guard, and its test is a tautology in test clothing.
 - **A plan exists as of 20260811 13:58** —
   [`plans/20260811_1358-deep-release.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260811_1358-deep-release.md).
   Seven increments, **eight decisions taken 20260811 14:17 and two more at E3's boundary**. It had

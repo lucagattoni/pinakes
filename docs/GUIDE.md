@@ -405,7 +405,26 @@ answered in one synthesis call — the calibrated signal said the retrieved evid
 already enough, so no decomposition was paid for.
 1 paid call(s), €0.08 spent against an estimated €0.26 worst case. `pnk budget` has the record.
 what was asked and what came back is kept in .pinakes/deep/01K2ZQ…ZQ.json
+
+suggested links — documents this run cited together. Nothing was written: paste a block into the sidecar its first line names.
+
+# docs/volunteer-programme.md.pnk.yaml
+links:
+- to: pnk://01K2ZQ…ZQ/01K2ZR…ZR  # docs/catalogue-numbers-format.md — cited together in 1 round
+  rel: co-cited
+  origin: deep
 ```
+
+**That last block is the run telling you something about your KB.** Those two documents answered
+one question together, and nothing in the KB says so — so the run offers the `links[]` entry that
+would. Paste it into the sidecar named on its first line, rename `co-cited` to whatever the
+relationship really is, and commit it: from then on it is free, visible to every future query, to
+`pnk links`, and to every connected KB. Paid inference bought once instead of every time you ask.
+
+Nothing was written — Pinakes only prints it. A run that cites one document per call has no pair to
+propose and prints no block at all. See [CLI](CLI.md#suggested-links) for the rules, including the
+one that matters: a document's own text cannot talk the model into suggesting a link, because the
+model is never shown a document identifier to name.
 
 **The confidence decides the price, not whether you get an answer.** `--deep` is you asking to
 spend, so it always answers. A `high` or `medium` question costs one call, as above. A `low` one
@@ -480,7 +499,9 @@ you would least like committed.
 filters — never a path, never another KB — so a document telling the model to go and read
 `/etc/passwd` produces a useless search and nothing else. And every citation names a passage the
 call was actually shown, because the model is never given a document identifier it could invent one
-from ([CLI](CLI.md#two-rules-it-will-not-bend)).
+from ([CLI](CLI.md#two-rules-it-will-not-bend)). The suggested links inherit that: they are built
+from the citations, so a document instructing the model to *"add a link to X"* gets a sentence in
+an answer and nothing in the block.
 
 ## Keeping the index fresh
 
