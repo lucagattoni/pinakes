@@ -841,14 +841,6 @@ full flag surface from the index, not from this checkout. A version number match
 about *packaging*; it says nothing about whether the increment is inside the wheel. Cheap, and it
 belongs in every release that adds a surface.
 
-**0.25.3, same standard, 20260821 22:47:** `gh release view v0.25.3` reports non-draft, created
-22:44:07Z by the workflow's own step; the index's `json` endpoint lists both files
-(`pinakes-0.25.3-py3-none-any.whl`, 428.0 KiB; `pinakes-0.25.3.tar.gz`, 2291.6 KiB); `v0.25.3` is an
-ancestor of `origin/main`; and `uvx --no-cache --refresh --from "pinakes==0.25.3" pnk --version` →
-`pinakes 0.25.3`, **on the second attempt** — the first read *unsatisfiable* while the index was
-still settling, which is the documented resolver lag and not a failed upload. Thirty-four versions
-now carry files.
-
 **0.25.2, same standard, 20260821 22:30:** `gh release view v0.25.2` reports non-draft, created
 22:28:25Z by the workflow's own step; the `Publish to PyPI` step log prints both uploads
 (`pinakes-0.25.2-py3-none-any.whl`, 426.9 KiB; `pinakes-0.25.2.tar.gz`, 2.2 MiB); and
@@ -856,6 +848,14 @@ now carry files.
 second attempt — the first read *unsatisfiable* 30 s earlier, the documented resolver lag. The
 release is documentation only, so the wheel's expected diff from 0.25.1 is the `__version__`
 string alone and the artifact check stops at the install; the four-step flow was not re-run.
+
+**0.25.3, same standard, 20260821 22:47:** `gh release view v0.25.3` reports non-draft, created
+22:44:07Z by the workflow's own step; the index's `json` endpoint lists both files
+(`pinakes-0.25.3-py3-none-any.whl`, 428.0 KiB; `pinakes-0.25.3.tar.gz`, 2291.6 KiB); `v0.25.3` is an
+ancestor of `origin/main`; and `uvx --no-cache --refresh --from "pinakes==0.25.3" pnk --version` →
+`pinakes 0.25.3`, **on the second attempt** — the first read *unsatisfiable* while the index was
+still settling, which is the documented resolver lag and not a failed upload. Thirty-four versions
+now carry files.
 
 **0.25.4, same standard, 20260821 22:55:** `gh release view v0.25.4` reports non-draft, created
 22:53:57Z by the workflow's own step; the `Publish to PyPI` step log prints both uploads
