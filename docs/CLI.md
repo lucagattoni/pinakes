@@ -363,8 +363,9 @@ the user*.
 | | |
 |---|---|
 | **`rel: co-cited`** | Names the evidence and nothing more — these two documents were cited in support of one answer. Rename it to whatever the relationship really is before you paste; that is the cheap half of reviewing a suggestion |
-| **`origin: deep`** | Provenance, so a committed entry says where it came from. Pinakes reads `to` and `rel` and round-trips every other key untouched, so it survives every later `pnk link` and `pnk sync` |
-| **Where the block goes** | The sidecar named on its first line. It carries a `links:` key when that sidecar has none, and says *already has `links:` — add these entries under it* when it does, because two `links:` keys in one file is a YAML duplicate key |
+| **`origin: deep`** | Provenance, so a committed entry says where it came from. Pinakes reads `to` and `rel` and round-trips every other key untouched, so it survives every later `pnk link` and `pnk sync`. It does **not** change what [`pnk links`](#pnk-links) reports: a committed suggestion is read from the sidecar like any other, so its row is `origin: sidecar` at authored weight — committing it is what promotes it |
+| **Where the block goes** | The sidecar named on its first line. It carries a `links:` key when that sidecar has none, and says *already has `links:` — add these entries under it* when it does, because two `links:` keys in one file is a YAML duplicate key. The entries are written at the indentation Pinakes uses; a sidecar you have hand-indented takes the same entries at *its* indentation |
+| **Not in the transcript** | It records what the run was asked and what came back; these are resolved against your sidecars as they are **now**. Nothing is lost — the citations they are derived from are in it, so re-deriving is free, while storing them would date the record to whichever half was read last |
 | **What is never suggested** | A pair already linked in that sidecar, whatever its `rel`; and any document **this run did not cite**. The second is the rule that matters: a document's text cannot talk the model into proposing a link, because the model never sees a document identifier at all — it cites passage *numbers*, and the suggestion is derived from those |
 | **When nothing prints** | An answer citing one document per call observes no pair, so there is no section at all — not an empty one |
 
