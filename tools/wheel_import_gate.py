@@ -214,7 +214,10 @@ def main(argv: list[str] | None = None) -> int:
         "--min-modules",
         type=int,
         default=20,
-        help="fewer modules than this and the walk found nothing to import (default: 20)",
+        # `%(default)s`, never a typed-out number: the help text and the default are then one
+        # value. They were two, and lowering the default to 0 left the help still saying 20 —
+        # which is what a test reading `--help` would have believed (battery, 20260822).
+        help="fewer modules than this and the walk found nothing to import (default: %(default)s)",
     )
     args = parser.parse_args(argv)
     package_name: str = args.package

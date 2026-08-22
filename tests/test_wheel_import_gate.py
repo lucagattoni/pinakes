@@ -527,14 +527,24 @@ def test_an_install_with_a_dist_info_beside_it_is_accepted_wherever_it_lives(
     assert "dist-info" in refused.stderr
 
 
-def test_the_default_floor_is_not_zero() -> None:
+def test_the_default_floor_is_not_zero(tmp_path: Path) -> None:
     """`--min-modules` has a default, and a default of 0 makes every call site's flag the only
-    thing standing between the gate and a walk that found nothing. Pinned because lowering the
-    default is invisible at every call site that passes the flag — which is all of them."""
-    result = subprocess.run(
+    thing between the gate and a walk that found nothing. Lowering it is invisible at every call
+    site that passes the flag — which is all of them.
+
+    Asserted by **running with the flag absent**, against a package too small to clear the
+    default. The first version of this read `--help` for the string "default: 20", and the help
+    text was a typed-out number that `default=0` did not change: the mutant survived, in the test
+    written to catch it. The help string interpolates `%(default)s` now, and this checks the
+    behaviour rather than the description of it.
+    """
+    build_package(tmp_path, "tinykit", {"a": "value = 1\n", "b": "value = 2\n"})
+    result = run(tmp_path, "--package", "tinykit")
+    assert result.returncode == 1
+    assert "fewer than the 20 required" in result.stderr
+
+    # And the help text says the same number, so a reader and the code cannot disagree.
+    described = subprocess.run(
         [sys.executable, str(TOOL), "--help"], capture_output=True, text=True, check=False
     )
-    assert result.returncode == 0
-    assert "default: 20" in result.stdout, (
-        "the help text and the default have drifted, or the default has been lowered"
-    )
+    assert "default: 20" in described.stdout
