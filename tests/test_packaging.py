@@ -417,10 +417,13 @@ def test_the_mcp_requirement_excludes_the_major_that_removed_fastmcp() -> None:
     requirements = [Requirement(entry) for entry in _pyproject()["project"]["dependencies"]]
     mcp = next((entry for entry in requirements if entry.name == "mcp"), None)
     assert mcp is not None, "mcp is a core dependency — pnk serve is not optional"
-    assert not mcp.specifier.contains("2.0.0"), (
-        f"'{mcp}' admits mcp 2.0.0, which has no mcp.server.fastmcp. Lifting the cap means "
-        f"porting src/pinakes/serve.py to the 2.x API in the same change"
-    )
+    # Every 2.x and beyond, not just 2.0.0: `>=1.28,!=2.0.0` excludes the point version and
+    # admits 2.0.1, which has no `mcp.server.fastmcp` either.
+    for excluded in ("2.0.0", "2.0.1", "2.4.0", "3.0.0"):
+        assert not mcp.specifier.contains(excluded), (
+            f"'{mcp}' admits mcp {excluded}, which has no mcp.server.fastmcp. Lifting the cap "
+            f"means porting src/pinakes/serve.py to the 2.x API in the same change"
+        )
     assert mcp.specifier.contains("1.28.1"), (
         "the cap must not exclude the version uv.lock pins, or every --frozen job here would be "
         "resolving something the declaration forbids"

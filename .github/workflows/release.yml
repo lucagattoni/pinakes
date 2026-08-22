@@ -17,6 +17,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # The pre-publish check below resolves fresh and starts a server, so this job's runtime is a
+    # third party's to change too. `timeout 300` bounds the handshake; this bounds the job.
+    timeout-minutes: 20
     environment: release
     permissions:
       id-token: write        # trusted publishing; no API token is stored anywhere
@@ -63,8 +66,13 @@ jobs:
       - name: The wheel it is about to publish can actually serve
         run: |
           set -e
+          # Exactly one wheel — an `if`, not `test A && test B`, which under `set -e` lets a
+          # failing first command through (measured 20260822).
           set -- dist/*.whl
-          test -f "$1" && test $# -eq 1
+          if [ $# -ne 1 ] || [ ! -f "$1" ]; then
+            echo "::error::expected exactly one built wheel in dist/, found: $*"
+            exit 1
+          fi
           wheel="$PWD/$1"
           uv run --isolated --no-project --with "$wheel" python tools/wheel_import_gate.py \
             --require pinakes.serve --min-modules 50 \
@@ -74,9 +82,19 @@ jobs:
             '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
             '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
             > "$RUNNER_TEMP/mcp-session.jsonl"
+          # `set +e` around the capture, because `out=$(...)` under `set -e` aborts the step
+          # *before* `echo "$out"` — a red release job with no reason printed, which is the
+          # "verify the artifact, never the run status" class this project keeps recording.
+          set +e
           out=$(timeout 300 uv run --isolated --no-project --with "$wheel" \
             pnk serve /tmp/release-smoke < "$RUNNER_TEMP/mcp-session.jsonl" 2>&1)
+          code=$?
+          set -e
           echo "$out"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::the wheel about to be published exited $code starting the MCP server"
+            exit 1
+          fi
           echo "$out" | grep -q '"serverInfo"' \
             || { echo "::error::the wheel about to be published cannot start the MCP server"; exit 1; }
           echo "$out" | grep -q 'pinakes_search' \

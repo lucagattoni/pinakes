@@ -7,9 +7,12 @@ tree. So the leg was verified the only way left — `git archive HEAD | tar -x` 
 deleted from the copy, `uv build`, and both new steps pointed at the resulting wheel:
 
     wheel-import: 1 module(s) did not import against the resolved dependency set:
-      pinakes.extract.pdfium → the declared allowance; pinakes.serve: ModuleNotFoundError:
-      No module named 'mcp.server.fastmcp'
-    pnk serve → exit 1, no "serverInfo" anywhere in the output
+      pinakes.serve: ModuleNotFoundError: No module named 'mcp.server.fastmcp'
+
+and `pnk serve` exited 1 with no `"serverInfo"` anywhere in its output. (That block is the run's
+real stdout, pasted. The first draft of this fragment paraphrased it into two module lines — in
+the fragment whose whole thesis is that the artifact has to be run. Caught by review; a quoted
+output that was retyped is a claim wearing evidence's clothes.)
 
 Without that, *"the leg would have caught it"* is a statement about a check that has only ever
 been run against a fixed tree — the shape [`docs/BUILDING.md`](BUILDING.md) already refuses for a
@@ -39,6 +42,37 @@ different if the remedy were absent?* — is the uncapped wheel above. It exists
 answer to the question this increment turns on: without it, the cap is the only real change and
 the CI leg is decoration.
 
+**HIGH — and then the remedies for *those* had defects, in the same shape, found by a second
+review that was asked only to refute them.** Three rounds, each finding less than the last, and
+the third still finding four things that mattered:
+
+- **The guard against a missing wheel failed open.** `set -- dist/*.whl; test -f "$1" && test $#
+  -eq 1` — under `set -e`, a failing *first* command of an `&&` list does not abort, so an empty
+  `dist/` fell through to `wheel="$PWD/dist/*.whl"` and carried on. The two-wheel case aborted,
+  which is why it looked right. It is an `if` now. Two sessions found this independently within
+  minutes of each other; it came in as a review suggestion and was implemented verbatim.
+- **`make smoke` exited 0 while printing a traceback.** `pnk serve … | grep -q '"serverInfo"'` —
+  grep matches, closes the pipe, the server dies on `BrokenPipeError`, and the pipeline's status
+  is grep's. The target printed *"answers an MCP handshake"* over a crashed server, and a
+  changelog entry claimed it ran the same checks as CI. Output to a file, then grep it twice.
+- **`continue-on-error: true` defeats an assertion written against `if:`.** The test said *a gate
+  that can be switched off is not a gate* and then checked one of the two ways to switch one off.
+  On the step in front of `uv publish`, where being wrong is a version number PyPI will not take
+  back.
+- **The source-tree refusal was scoped to the checkout the script lives in.** This project mandates
+  a worktree per change, so *another* checkout's editable install is a path the gate has never
+  heard of — demonstrated with one checkout's interpreter and another's gate: a clean green pass
+  over `src/pinakes`. A negative check has to enumerate every wrong answer; the positive one —
+  the package must be inside a `site-packages` or `dist-packages` directory — has one right
+  answer, and that is the difference between the two shapes.
+
+**And a declaration test only pins the file the last edit touched.** `--min-modules 50` sat at
+four call sites across three files; deleting it from any one of them survived every test, and the
+tool then falls back to a floor of 20 against a package of 57 modules. The assertion now iterates
+the invocations rather than grepping the tree, which is the same lesson as *read the sequence, not
+the neighbourhood* in [`docs/RELEASING.md`](RELEASING.md): a property of a set is not a property of
+any member of it.
+
 **MEDIUM — a gate that reads a range of lines reads the prose inside the range.** `check.sh`'s
 extras-not-core gate is `awk '/^dependencies = \[/,/^\]/' pyproject.toml | grep -qiE
 'pypdfium2|anthropic'`. The comment added above `mcp` — explaining that `anthropic` was measured
@@ -66,6 +100,12 @@ compute a cost of **0** — the spending guard silently disabled, with no except
 constructor signature says nothing about that. **The remedy for the class is testing the resolve,
 not capping on reflex**; a project that caps everywhere buys the same silence with a different
 cause.
+
+**The battery is what turned three rounds of prose into three rounds of evidence.** Round one:
+11 mutants, 11 killed. Round two, after the first review's fixes: 21 mutants, **3 survived** — and
+all three were tests written from the fix's own description, which is a test of the description.
+Round three, after the second review: 12 of 26 survived, every one of them in surface the remedies
+had added. **A remedy is new code, and new code that nothing has tried to break is a claim.**
 
 **What the new legs still cannot see, named so nobody reads them as more.** Import-time breaks
 only, on the install states CI runs. A dependency that keeps its module layout and changes a

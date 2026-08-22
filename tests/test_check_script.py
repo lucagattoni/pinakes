@@ -336,9 +336,15 @@ def test_cis_negative_check_names_the_failure_it_expects_not_the_generic_headlin
         body,
         re.MULTILINE,
     ), "the negative check no longer names the failure it expects"
-    assert "did not import against the resolved dependency set" not in body, (
-        "grepping the generic headline lets a wheel that installed nothing satisfy this step"
-    )
+    assert not re.search(
+        r"^[ \t]*(?![ \t#]).*did not import against the resolved dependency set",
+        body,
+        re.MULTILINE,
+    ), "grepping the generic headline lets a wheel that installed nothing satisfy this step"
+    # Matched as a *command*, not as a substring of the whole body: a comment explaining the
+    # distinction between the two headlines is exactly what a reader of this step needs, and a
+    # bare `not in body` would turn that comment red — the line-shaped-tool-on-structure class
+    # this repository keeps recording, in the assertion guarding against it.
 
 
 def test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install() -> None:
@@ -387,10 +393,11 @@ def test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish() -> No
     in this repository**. So `main` can be green on Monday, the break can publish on Wednesday,
     and a tag on Thursday would carry it to PyPI, which never takes a version back.
 
-    Until 0.27.2 the pre-publish smoke test was `pnk --version` + `pnk init` — a fresh resolve
-    asked two questions that touch no dependency, which is how every release from the first to
-    0.27.1 shipped with `pnk serve` dead. Both checks must sit **in front of** `uv publish`: a
-    failure before the upload costs a deleted tag, a failure after it costs the version number.
+    Until this was written (20260822) the pre-publish smoke test was `pnk --version` + `pnk
+    init` — a fresh resolve asked two questions that touch no dependency, which is how every
+    release from the first to 0.27.1 shipped with `pnk serve` dead. Both checks must sit **in
+    front of** `uv publish`: a failure before the upload costs a deleted tag, a failure after it
+    costs the version number.
     """
     import yaml
 
@@ -406,12 +413,35 @@ def test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish() -> No
     )
     assert "serverInfo" in runs[exercised], "nothing asserts the server answered"
 
-    # **Unconditional.** `Publish to PyPI` is legitimately gated on a repository variable; a check
-    # in front of it must not be, because a gate that can be switched off is not a gate — and an
-    # `if: false` leaves the step's own body intact, so every assertion above still passes. Found
-    # by the mutation battery, where exactly that mutant survived.
-    assert "if" not in steps[exercised], (
-        "the pre-publish check is conditional — it can be skipped while still reading correctly"
+    # The same assertions its `ci.yml` twin makes, and for the same reasons: the release path is
+    # the one where being wrong is irreversible, so it may not check *less*. Each of these
+    # survived deletion from release.yml while this test stayed green (second review, 20260822).
+    assert "pinakes_search" in runs[exercised], (
+        "a server that initialises and registers nothing would satisfy serverInfo alone"
+    )
+    assert "--require pinakes.serve" in runs[exercised], (
+        "nothing requires the walk to have reached the module the whole gate exists for"
+    )
+    assert "--min-modules" in runs[exercised], (
+        "without it the gate falls back to a floor a half-empty wheel would clear"
+    )
+    assert re.search(r"timeout \d+ uv run", runs[exercised]), (
+        "an mcp that blocks on a closed stdin would hang the job that publishes"
+    )
+    assert re.search(r"^\s*code=\$\?", runs[exercised], re.MULTILINE), (
+        "`out=$(...)` under `set -e` aborts before anything is echoed, so the release job goes "
+        "red with no reason printed — capture the status and print the output first"
+    )
+
+    # **Unconditional, in both senses.** `Publish to PyPI` is legitimately gated on a repository
+    # variable; a check in front of it must not be, because a gate that can be switched off is not
+    # a gate. `if:` is the obvious way to switch one off and `continue-on-error:` is the quiet one
+    # — the step fails, the job carries on, and `uv publish` runs anyway. Both leave the step's own
+    # body intact, so every assertion above still passes; the mutation battery found the second.
+    disabling = {"if", "continue-on-error"} & set(steps[exercised])
+    assert not disabling, (
+        f"the pre-publish check carries {sorted(disabling)} — it can be skipped or ignored while "
+        f"still reading correctly, and what it guards is an upload PyPI will not take back"
     )
 
     published = next((i for i, run in enumerate(runs) if "uv publish" in run), None)
@@ -464,3 +494,59 @@ def test_the_extras_not_core_gate_reads_requirements_and_not_the_comments_around
         assert fires('dependencies = [\n    "pypdfium2>=5.12",\n]\n', tmp), (
             "the pdf half of the gate no longer fires either"
         )
+
+
+def test_no_step_that_resolves_fresh_can_be_switched_off() -> None:
+    """`if:` is the obvious way to disable a step; `continue-on-error:` is the quiet one — the
+    step fails, the job carries on, and everything after it runs as though it had passed.
+
+    These four steps are the entire fresh-resolve leg. Each reads correctly with either key
+    attached, because neither touches the step's body, so nothing else here would notice. Found by
+    the second review's mutation battery, 20260822.
+    """
+    import yaml
+
+    document = yaml.safe_load(_workflow())
+    guarded = [
+        step
+        for step in document["jobs"]["build"]["steps"]
+        if "wheel_import_gate.py" in str(step.get("run", ""))
+        or "pnk serve" in str(step.get("run", ""))
+    ]
+    assert len(guarded) >= 3, f"the fresh-resolve leg has shrunk to {len(guarded)} step(s)"
+    for step in guarded:
+        disabling = {"if", "continue-on-error"} & set(step)
+        assert not disabling, f"{step.get('name')!r} carries {sorted(disabling)}"
+
+
+def test_every_invocation_of_the_wheel_import_gate_carries_its_floor_and_its_sentinel() -> None:
+    """`--min-modules` and `--require` are the two flags that stop a walk finding nothing from
+    reading exactly like a clean run, and both live at the call site rather than in the tool.
+
+    Four call sites across three files, so "the flag is present" was true of the file the last
+    edit touched and unpinned everywhere else: deleting `--min-modules 50` from any one of them
+    survived every test, and the tool then falls silently back to a default of 20 against a
+    package of 57 modules. Asserted per invocation, not per file.
+    """
+    sources = {
+        path: (Path(__file__).parent.parent / path).read_text(encoding="utf-8")
+        for path in (".github/workflows/ci.yml", ".github/workflows/release.yml", "Makefile")
+    }
+    invocations = 0
+    for path, text in sources.items():
+        # An invocation is a command line naming the script; the continuation lines that follow
+        # carry its flags, so the block is read up to the first line that does not continue.
+        lines = text.splitlines()
+        for index, line in enumerate(lines):
+            if "wheel_import_gate.py" not in line or line.lstrip().startswith("#"):
+                continue
+            block = [line]
+            while block[-1].rstrip().endswith("\\") and index + len(block) < len(lines):
+                block.append(lines[index + len(block)])
+            joined = " ".join(block)
+            invocations += 1
+            assert "--min-modules" in joined, f"{path}: an invocation with no floor: {joined!r}"
+            assert "--require pinakes.serve" in joined, (
+                f"{path}: an invocation with no sentinel: {joined!r}"
+            )
+    assert invocations >= 4, f"only {invocations} invocation(s) found; the call sites have moved"

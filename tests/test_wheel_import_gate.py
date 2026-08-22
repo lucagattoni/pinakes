@@ -33,14 +33,28 @@ still fail" step greps for — so that step would have been satisfied by a run i
 never executed."""
 
 
+def installed(root: Path) -> Path:
+    """The directory synthetic packages are written to.
+
+    Named `site-packages` because the gate refuses a package that is in no `site-packages` or
+    `dist-packages` directory — the positive test for "this is an install". A fixture living
+    anywhere else would be refused before any branch under test was reached, so the fixture has to
+    look like an install; `test_a_package_outside_site_packages_is_refused` is the same fact from
+    the other side.
+    """
+    path = root / "site-packages"
+    path.mkdir(exist_ok=True)
+    return path
+
+
 def run(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    """Run the gate with `root` on `PYTHONPATH`, so a synthetic package is importable."""
+    """Run the gate with `root/site-packages` on `PYTHONPATH`."""
     return subprocess.run(
         [sys.executable, str(TOOL), *args],
         capture_output=True,
         text=True,
         check=False,
-        env={**os.environ, "PYTHONPATH": str(root)},
+        env={**os.environ, "PYTHONPATH": str(installed(root))},
     )
 
 
@@ -50,7 +64,7 @@ def build_package(root: Path, name: str, modules: dict[str, str]) -> None:
     `modules` maps a dotted name *relative to the package* onto its source; a key ending in
     `.__init__` writes a subpackage's `__init__.py`.
     """
-    package = root / name
+    package = installed(root) / name
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
     for relative, source in modules.items():
@@ -186,7 +200,7 @@ def test_a_broken_subpackage_does_not_hide_the_modules_beneath_it(tmp_path: Path
     # `deep.__init__` above lands as `deep/__init__.py` only if written as a module named
     # `__init__`; assert the fixture really did that before reading anything into the result.
     assert (
-        (tmp_path / "nestedkit" / "deep" / "__init__.py")
+        (installed(tmp_path) / "nestedkit" / "deep" / "__init__.py")
         .read_text(encoding="utf-8")
         .startswith("raise")
     )
@@ -386,7 +400,7 @@ def test_a_package_with_no_file_is_refused_rather_than_resolved_to_the_cwd(
     `__file__`, so nothing else here can reach this branch: found by the mutation battery, where
     deleting the refusal survived every other test.
     """
-    namespace = tmp_path / "nskit"
+    namespace = installed(tmp_path) / "nskit"
     namespace.mkdir()
     (namespace / "mod.py").write_text("value = 1\n", encoding="utf-8")
     assert not (namespace / "__init__.py").exists(), "the fixture must be a namespace package"
@@ -395,3 +409,53 @@ def test_a_package_with_no_file_is_refused_rather_than_resolved_to_the_cwd(
     assert result.returncode == 1
     assert "no __file__" in result.stderr
     assert "working directory" in result.stderr
+
+
+def test_a_package_outside_site_packages_is_refused(tmp_path: Path) -> None:
+    """Any source tree, not only this checkout's.
+
+    Refusing `<this checkout>/src` is what the gate did first, and it is not enough: this project
+    mandates a worktree per change, so another checkout's editable install sits at a path this one
+    has never heard of. Review demonstrated it — one checkout's interpreter, another checkout's
+    gate, a clean green run over `src/pinakes` (20260822). The check is now positive: an installed
+    package lives in a `site-packages` or `dist-packages` directory, and a checkout never does.
+    """
+    outside = tmp_path / "not-an-install"
+    outside.mkdir()
+    package = outside / "loosekit"
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    for index in range(4):
+        (package / f"mod{index}.py").write_text("value = 1\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(TOOL), "--package", "loosekit", "--min-modules", "4"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONPATH": str(outside)},
+    )
+    assert result.returncode == 1
+    assert "site-packages" in result.stderr
+    assert "not an installed copy" in result.stderr
+
+
+def test_one_module_may_carry_only_one_allowance(tmp_path: Path) -> None:
+    """Two allowances for the same module: only the last could ever apply, so the first can never
+    go stale and can never fail the run — an allowance nobody can retire is not an allowance, and
+    it is a silent way to park a module the gate has stopped checking."""
+    build_package(tmp_path, "dupkit", {"a": "import absent_one_xyz\n", "b": "value = 1\n"})
+    result = run(
+        tmp_path,
+        "--package",
+        "dupkit",
+        "--min-modules",
+        "2",
+        "--allow-missing",
+        "dupkit.a:absent_stale_xyz",
+        "--allow-missing",
+        "dupkit.a:absent_one_xyz",
+    )
+    assert result.returncode == 1
+    assert "dupkit.a" in result.stderr
+    assert "more than one --allow-missing" in result.stderr

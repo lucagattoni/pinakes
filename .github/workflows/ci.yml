@@ -451,8 +451,15 @@ jobs:
       - name: Every module in the wheel imports against a fresh dependency resolve
         run: |
           set -e
-          set -- dist/*.whl                      # one wheel, or this fails loudly rather than
-          test -f "$1" && test $# -eq 1          # shifting a second one into the command position
+          # Exactly one wheel, checked with an `if` and not with `test A && test B`: under
+          # `set -e` a failing *first* command of an `&&` list does not abort, so the no-wheel
+          # case fell straight through to `wheel="$PWD/dist/*.whl"` and exit 0. Measured
+          # 20260822, in the guard written to make that impossible.
+          set -- dist/*.whl
+          if [ $# -ne 1 ] || [ ! -f "$1" ]; then
+            echo "::error::expected exactly one built wheel in dist/, found: $*"
+            exit 1
+          fi
           wheel="$PWD/$1"
           # (i) the bare wheel — what `pip install pinakes` gets. `pinakes.extract.pdfium` is the
           #     one module that legitimately needs an extra, and naming it here is also how the
@@ -482,7 +489,15 @@ jobs:
         # the step written to prevent exactly that). One run, not two, so the two cannot disagree.
         run: |
           set -e
+          # Exactly one wheel, checked with an `if` and not with `test A && test B`: under
+          # `set -e` a failing *first* command of an `&&` list does not abort, so the no-wheel
+          # case fell straight through to `wheel="$PWD/dist/*.whl"` and exit 0. Measured
+          # 20260822, in the guard written to make that impossible.
           set -- dist/*.whl
+          if [ $# -ne 1 ] || [ ! -f "$1" ]; then
+            echo "::error::expected exactly one built wheel in dist/, found: $*"
+            exit 1
+          fi
           wheel="$PWD/$1"
           set +e
           out=$(uv run --isolated --no-project --with "$wheel" \

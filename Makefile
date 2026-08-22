@@ -75,6 +75,11 @@ build:  ## Build wheel and sdist
 # `--version` touches no dependency. The import gate is the one `ci.yml` and `release.yml` run;
 # the handshake is the same session. Deliberately without `timeout`, which CI has and macOS does
 # not — locally a hang is a person's Ctrl-C, in CI it is a burnt job budget.
+#
+# **The output goes to a file, never into `grep -q`.** A pipe closes the moment grep matches, so
+# `pnk serve` died on a broken pipe, dumped an ExceptionGroup to stderr, and `make` exited **0** —
+# the whole target reporting success off a crashed server, printing a line claiming a handshake.
+# A pipeline also hides `pnk serve`'s own exit status. Measured 20260822, by review.
 smoke: build  ## Install the built wheel in isolation and exercise it — what release does
 	uv run --isolated --no-project --with dist/*.whl pnk --version
 	rm -rf /tmp/pinakes-smoke && mkdir -p /tmp/pinakes-smoke
@@ -88,7 +93,9 @@ smoke: build  ## Install the built wheel in isolation and exercise it — what r
 		'{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
 		> /tmp/pinakes-smoke/session.jsonl
 	uv run --isolated --no-project --with dist/*.whl pnk serve /tmp/pinakes-smoke/kb \
-		< /tmp/pinakes-smoke/session.jsonl | grep -q '"serverInfo"'
+		< /tmp/pinakes-smoke/session.jsonl > /tmp/pinakes-smoke/out.jsonl
+	grep -q '"serverInfo"' /tmp/pinakes-smoke/out.jsonl
+	grep -q 'pinakes_search' /tmp/pinakes-smoke/out.jsonl
 	@echo "smoke: the built wheel installs, imports every module and answers an MCP handshake."
 
 release-check:  ## Verify the git tag you are about to push matches pinakes.__version__

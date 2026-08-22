@@ -31,11 +31,14 @@ module added tomorrow is covered without anyone remembering that this file exist
 
 **Four ways a walk like this reports a pass it did not earn**, each refused here:
 
-* **importing the source tree instead of the install.** `src/pinakes` is not importable without
-  `src` on `sys.path`, but a future `pinakes/` beside the tools directory, or a venv inside the
-  checkout, would make it so — and the gate would then be evidence about the repository rather
-  than about the wheel. Refused by location, and a package with no `__file__` at all is refused
-  too rather than resolving to the working directory.
+* **importing a source tree instead of the install.** The gate would then be evidence about a
+  repository, where every dependency comes from `uv.lock`, while its output claimed to be about a
+  fresh resolve. Refusing `<this checkout>/src` is not enough: this project mandates a worktree
+  per change, so *another* checkout's editable install passes that test — demonstrated by review,
+  20260822, with a clean green run over `src/pinakes`. So the check is **positive**: the package
+  must live in a `site-packages` or `dist-packages` directory, which is what installing produces
+  and what an editable checkout never is. A package with no `__file__` at all is refused rather
+  than resolving to the working directory.
 * **walking nothing.** `pkgutil` returning an empty iterator reports zero failures, exactly like a
   clean run. `--min-modules` refuses it, and `--require` names the modules that must have been
   reached — `pinakes.serve` above all, since it is the one this gate was written for.
@@ -80,7 +83,13 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 SOURCE_TREE = REPO / "src"
-"""The one location an installed package must **not** resolve to."""
+"""This checkout's source tree — named separately only so its refusal can say so. It is **not**
+the check: a sibling worktree's `src/` is somebody else's path and passes it."""
+
+INSTALL_DIRECTORIES = ("site-packages", "dist-packages")
+"""Where installing a wheel puts a package, on every layout this runs on — a virtualenv, `uv`'s
+isolated environment cache, a Debian interpreter. An editable checkout is in none of them, which
+is the whole point: the test is what an install *is*, not what one particular source tree is."""
 
 #: The distribution name at the head of a `Requires-Dist` entry — `mcp>=1.28,<2`,
 #: `pinakes[pdf]`, `sentence-transformers>=5.0; extra == 'st'`.
@@ -201,7 +210,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     package_name: str = args.package
-    allowances: dict[str, str] = dict(args.allow_missing)
+    given: list[tuple[str, str]] = args.allow_missing
+    repeated = sorted({name for name, _ in given if [n for n, _ in given].count(name) > 1})
+    if repeated:
+        print(
+            f"wheel-import: {', '.join(repeated)} carries more than one --allow-missing. Only the "
+            f"last would apply, so the earlier ones could never go stale and could never fail "
+            f"this run — an allowance nobody can retire is not an allowance",
+            file=sys.stderr,
+        )
+        return 1
+    allowances: dict[str, str] = dict(given)
     also_import: list[str] = args.also_import
     required: list[str] = args.require
     min_modules: int = args.min_modules
@@ -235,11 +254,13 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     location = Path(str(origin)).resolve()
-    if location.is_relative_to(SOURCE_TREE):
+    if not set(INSTALL_DIRECTORIES) & set(location.parts):
+        where = "the source tree" if location.is_relative_to(SOURCE_TREE) else "a source tree"
         print(
-            f"wheel-import: {package_name} resolved to the source tree at {location}, not to an "
-            f"installed copy. This gate is only ever evidence about an install, so it refuses "
-            f"rather than reporting a pass it did not earn — run it inside "
+            f"wheel-import: {package_name} resolved to {where} at {location}, which is in no "
+            f"{' or '.join(INSTALL_DIRECTORIES)} directory and so is not an installed copy. This "
+            f"gate is only ever evidence about an install, so it refuses rather than reporting a "
+            f"pass it did not earn — run it inside "
             f"`uv run --isolated --no-project --with <wheel>`",
             file=sys.stderr,
         )
