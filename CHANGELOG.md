@@ -10,6 +10,49 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.27.2] — 20260822 10:01
+
+### Added
+
+- **CI now resolves dependencies the way a user's install does, and exercises what it resolves.**
+  The `build` job is the only one that resolves fresh, and it asked `pnk --version`, `pnk init`,
+  two `find_spec` calls and two data files — `grep -c 'pinakes.serve' ci.yml` returned **0**. It
+  now drives a real MCP handshake against the freshly-resolved wheel (`initialize`, then
+  `tools/list`, asserting the server answered *and* registered tools), and runs
+  **`tools/wheel_import_gate.py`**, which discovers every module in the *installed* package from
+  the filesystem and imports it — on the bare wheel, and again with `[light]`, `[pdf]` and
+  `[claude]`, plus the libraries `src/` imports lazily and no walk can reach. A module added later
+  is covered without anyone remembering the step exists, which is the thing that did not happen
+  for `pinakes.serve`. **`[st]` is the one gap and it is deliberate**: a ~2GB torch download CI
+  will not take, so the default backend is still never resolved by anything.
+- **The release workflow exercises the wheel it is about to publish.** Its pre-publish smoke test
+  was `pnk --version` + `pnk init`, which is how all **38** published releases shipped with
+  `pnk serve` dead — `mcp` 2.0.0 reached PyPI 3.5 hours before Pinakes' first published
+  version did, so there has never been one that worked on a fresh install. The
+  import gate and the handshake now run **in front of** `uv publish`, where a failure costs a
+  deleted tag rather than a version number PyPI will never release again. `make smoke` runs the
+  same two checks locally.
+
+### Fixed
+
+- **`pnk serve` no longer dies on a fresh install — it had, on every one since the first PyPI
+  release.** `mcp` 2.0.0 removed `mcp.server.fastmcp`, which `serve.py` imports at module scope,
+  so a freshly-resolved `pinakes` raised `ModuleNotFoundError` the moment the command started.
+  `pyproject.toml` declared `mcp>=1.28` with no upper bound; `uv.lock` pins 1.28.1 and all 37 `uv`
+  invocations in `.github/workflows/ci.yml` outside the one job that resolves fresh carried
+  `--frozen`, so **no job in this repository had ever resolved that dependency** — and the job
+  that could never imported `pinakes.serve`. `mcp` is now capped below 2.0. **The cap is the
+  outage fix, not the answer**: porting `serve.py` to the 2.x API is its own increment and lifts
+  it. The other two lower-bound-only requirements were measured rather than capped by reflex —
+  `anthropic` 1.0.0 and `sentence-transformers` 6.0.0, what a fresh resolve takes today, both keep
+  every symbol, constructor parameter and response field Pinakes reads — because a cap on the
+  default embedding backend would change the install contract for every user to prevent a break
+  that does not exist.
+- **`check.sh`'s extras-not-core gate no longer reads the comments around a requirement.** It
+  greps a *range of lines*, so a comment inside `[project.dependencies]` that merely mentioned
+  `anthropic` reported it as a core dependency. Comments are stripped first, and both directions
+  are pinned: a mention must not fire it, a real entry must.
+
 ## [0.27.1] — 20260822 07:04
 
 ### Fixed
@@ -3556,7 +3599,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.27.1...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.27.2...HEAD
+[0.27.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.27.2
 [0.27.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.27.1
 [0.27.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.27.0
 [0.26.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.26.0
