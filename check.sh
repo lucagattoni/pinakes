@@ -136,8 +136,12 @@ uv run --frozen python3 tools/eval_reproducibility_gate.py
 # commit (docs/RELEASING.md step 2 + sweep table), and between releases neither moves.
 uv run --frozen python3 tools/status_header_gate.py
 
-# release-order: the five ordered release sequences in CHANGELOG.md, docs/ROADMAP.md and
-# docs/STATUS.md read in release order. A sweep adds one row to each, and a row added in the wrong
+# release-order: the six ordered release sequences in CHANGELOG.md, docs/ROADMAP.md and
+# docs/STATUS.md read in release order. The sixth is STATUS's *Published on PyPI* prose, added
+# 20260822: docs/RELEASING.md named that list as a place a release stales and said this gate decides
+# where the new entry goes, while no pattern here matched it — so the procedure delegated the
+# decision to a check that could not read the document, and the list had been mis-ordered since
+# 20260821 through every green run. A sweep adds one row to each, and a row added in the wrong
 # position is invisible to everything else here — the table is complete, every link resolves and
 # mkdocs is green, because ordering is a property of the sequence and not of any row. Four
 # consecutive sweeps put their section in the same slot while the correct slot moved (docs/

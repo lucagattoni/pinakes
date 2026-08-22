@@ -485,7 +485,7 @@ jobs:
         run: python3 tools/paid_path_gate.py
 
       # Same reasoning and the same job: stdlib-only, imports nothing from this project, and needs
-      # no install. A release sweep adds one row to each of five ordered sequences, and a row added
+      # no install. A release sweep adds one row to each of six ordered sequences, and a row added
       # in the wrong position is invisible to every other gate here — the table is complete, the
       # links resolve, mkdocs is green. Four consecutive sweeps did exactly that (docs/RELEASING.md).
       - name: The release history reads in release order
