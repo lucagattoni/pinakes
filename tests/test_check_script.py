@@ -386,6 +386,16 @@ def test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install() -> 
     assert re.search(r"^    timeout-minutes: \d+$", body, re.MULTILINE), (
         "the only job here whose runtime a third party can change has no ceiling on it"
     )
+    # And the exit status is captured *and compared against zero*. Capturing `code=$?` and never
+    # testing it — or testing it against something other than success — leaves a step grepping the
+    # output of a command whose failure it has stopped reading. Survived the battery until
+    # asserted.
+    assert re.search(r"^\s*code=\$\?", body, re.MULTILINE), (
+        "pnk serve's exit status is not captured"
+    )
+    assert re.search(r'^\s*if \[ "\$code" -ne 0 \]; then', body, re.MULTILINE), (
+        "the captured status is compared against something other than success"
+    )
 
 
 def test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish() -> None:
@@ -570,7 +580,12 @@ def test_make_smoke_exercises_the_wheel_rather_than_only_its_version() -> None:
     assert '"method":"initialize"' in body, "make smoke no longer drives a handshake"
     assert "serverInfo" in body, "nothing asserts the server answered"
     assert "pinakes_search" in body, "nothing asserts it registered any tools"
-    assert not re.search(r"pnk serve[^\n]*\|", body), (
-        "pnk serve's output is piped, so the target reports grep's exit status and grep closing "
-        "the pipe kills the server it is reading"
+    # Continuation lines joined first: the pipe that caused this lived on the line *after*
+    # `pnk serve`, so a per-line check saw nothing and reintroducing `| tee` survived the battery.
+    # The same shape as reading a sequence rather than a neighbourhood.
+    logical = re.sub(r"\\\n\s*", " ", body)
+    piped = [line for line in logical.splitlines() if "pnk serve" in line and "|" in line]
+    assert not piped, (
+        f"pnk serve's output is piped, so the target reports the last stage's exit status and a "
+        f"`grep -q` closing the pipe kills the server it is reading: {piped}"
     )
