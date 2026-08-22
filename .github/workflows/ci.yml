@@ -395,6 +395,82 @@ jobs:
           test -f /tmp/smoke/kb/eval/questions.yaml
           grep -q '.pinakes/' /tmp/smoke/kb/.gitignore
 
+      # **This job is the only one here that resolves dependencies.** All 37 other `uv`
+      # invocations in this file carry `--frozen`, so every one of them reads `uv.lock`, which
+      # pins `mcp` 1.28.1. `mcp` 2.0.0 removed `mcp.server.fastmcp`, which `serve.py` imports at
+      # module scope, so `pnk serve` raised `ModuleNotFoundError` on every fresh install from the
+      # first PyPI release to 0.27.1 while this job stayed green: it ran `pnk --version`, `pnk
+      # init`, two `find_spec` calls and two data files, and `grep -c 'pinakes.serve' ci.yml` was
+      # **0**. The cap in `pyproject.toml` closes that instance; the three steps below close the
+      # class, and matter more than the cap.
+      #
+      # The handshake first, because it is the deepest: `import pinakes.serve` proves the module
+      # loads, and this proves the server it builds actually answers — FastMCP constructed, the
+      # tools registered, a real JSON-RPC session over stdio, on a **core-only** install with no
+      # extras, which is what `pip install pinakes` gives. Closing stdin ends the session, so it
+      # exits in about two seconds (measured 20260822 07:47). `"serverInfo"` and a tool name are
+      # both required: a server that initialises and registers nothing would satisfy the first
+      # alone.
+      - name: A freshly-resolved core install answers an MCP handshake
+        run: |
+          set -e
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            > "$RUNNER_TEMP/mcp-session.jsonl"
+          set +e
+          out=$(uv run --isolated --no-project --with dist/*.whl \
+            pnk serve /tmp/smoke/kb < "$RUNNER_TEMP/mcp-session.jsonl" 2>&1)
+          code=$?
+          set -e
+          echo "$out"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::pnk serve exited $code against a freshly-resolved dependency set"
+            exit 1
+          fi
+          echo "$out" | grep -q '"serverInfo"' \
+            || { echo "::error::pnk serve never answered initialize"; exit 1; }
+          echo "$out" | grep -q 'pinakes_search' \
+            || { echo "::error::pnk serve answered initialize and registered no tools"; exit 1; }
+
+      # And the generic half. `tools/wheel_import_gate.py` walks the *installed* package and
+      # imports every module in it, so a module added later is covered without anyone remembering
+      # this step exists — which is exactly what did not happen for `pinakes.serve`. Its docstring
+      # names what an import walk cannot see.
+      - name: Every module in the wheel imports against a fresh dependency resolve
+        run: |
+          set -e
+          wheel="$PWD/$(echo dist/*.whl)"
+          # (i) the bare wheel — what `pip install pinakes` gets. `pinakes.extract.pdfium` is the
+          #     one module that legitimately needs an extra, and naming it here is also how the
+          #     gate proves it can still see a missing dependency: an --allow-missing that nothing
+          #     uses fails the run.
+          uv run --isolated --no-project --with "$wheel" python tools/wheel_import_gate.py \
+            --require pinakes.serve --allow-missing pypdfium2
+          # (ii) the two cheap extras on top, so the four modules gated behind them are covered
+          #      too, and `anthropic` — which `src/` imports lazily on purpose, so no walk reaches
+          #      it — is imported by name. `[st]` and `[light]` are deliberately absent: both
+          #      embedding backends are loaded through `importlib.import_module` at *runtime*, so
+          #      no import walk reaches either, and `[st]` is a ~2GB torch download this job will
+          #      not take (docs/DESIGN.md §4.5). That gap is real and is not closed here.
+          uv run --isolated --no-project --with "pinakes[pdf,claude] @ file://$wheel" \
+            python tools/wheel_import_gate.py --require pinakes.serve --also-import anthropic
+
+      - name: The wheel-import gate can still fail
+        # A gate nobody has watched fail is a gate nobody knows works. The bare wheel genuinely
+        # cannot import `pinakes.extract.pdfium`; run it with the allowance removed and it must
+        # exit non-zero AND say why — a crash, a missing wheel or `uv` falling over all satisfy a
+        # bare non-zero exit too.
+        run: |
+          wheel="$PWD/$(echo dist/*.whl)"
+          if uv run --isolated --no-project --with "$wheel" python tools/wheel_import_gate.py; then
+            echo "wheel-import passed on a wheel with a module it cannot import — it is not gating" >&2
+            exit 1
+          fi
+          uv run --isolated --no-project --with "$wheel" python tools/wheel_import_gate.py 2>&1 \
+            | grep -q "did not import against the resolved dependency set"
+
       # The dependency swap, asserted on an *installed* copy rather than in the source tree. L5b's
       # AST scan and free-path check both run against the repo; neither can see what the wheel
       # actually declares, so a `pyyaml` that crept back into `[project.dependencies]` would be

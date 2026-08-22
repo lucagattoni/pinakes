@@ -15,6 +15,7 @@ pypdfium2's absence inside an environment where it is, in this checkout, actuall
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 CHECK_SH = Path(__file__).parent.parent / "check.sh"
@@ -275,3 +276,108 @@ def test_the_release_workflow_creates_the_github_release_after_publishing() -> N
     assert "--notes-from-tag" in invocation, (
         "the notes are the maintainer's tag annotation, not a generated diff nobody reviewed"
     )
+
+
+def test_ci_imports_every_module_out_of_a_freshly_resolved_wheel_and_proves_it_can_fail() -> None:
+    """The durable half of the `mcp` 2.0 outage fix (0.27.2), and the half that matters.
+
+    `pnk serve` raised `ModuleNotFoundError: No module named 'mcp.server.fastmcp'` on every fresh
+    install from the first PyPI release to 0.27.1, and CI stayed green throughout: all 37 other
+    `uv` invocations in `ci.yml` carry `--frozen`, and the one job that does resolve fresh never
+    imported `pinakes.serve`. Capping `mcp` closes that instance; the wheel-import gate is what
+    closes the class, so a cap without this leg would be the whole fix undone by the next
+    dependency's major.
+
+    Matched as *commands* — a line whose first non-space character is not `#` — for the reason
+    `test_ci_runs_the_status_header_gate_and_proves_it_can_fail` gives: the step is preceded by a
+    comment that names the same strings, and a bare substring assertion would be satisfied by the
+    explanation after the command was deleted.
+    """
+    workflow = _workflow()
+    assert re.search(r"^[ \t]*(?![ \t#]).*tools/wheel_import_gate\.py", workflow, re.MULTILINE), (
+        "ci.yml no longer invokes the wheel-import gate"
+    )
+    assert re.search(r"^[ \t]*(?![ \t#]).*--require pinakes\.serve", workflow, re.MULTILINE), (
+        "nothing requires the walk to have reached pinakes.serve — the module the gate exists for"
+    )
+    assert re.search(r"^[ \t]*(?![ \t#]).*--allow-missing pypdfium2", workflow, re.MULTILINE), (
+        "the bare-wheel leg is gone, and with it the run that proves the gate sees a missing "
+        "dependency"
+    )
+    assert re.search(
+        r"^[ \t]*(?![ \t#]).*pinakes\[pdf,claude\] @ file://", workflow, re.MULTILINE
+    ), "the extras leg is gone — the four modules behind [pdf] and [claude] are unwalked"
+    assert re.search(
+        r'^[ \t]*(?![ \t#]).*grep -q "did not import against the resolved dependency set"',
+        workflow,
+        re.MULTILINE,
+    ), "the negative check no longer requires the stated reason, so a crash would satisfy it"
+
+
+def test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install() -> None:
+    """An import is not a session. `import pinakes.serve` proves the module loads; only a
+    handshake proves FastMCP was constructed, the tools were registered and the stdio transport
+    answered — which is what `pnk serve` actually is.
+
+    Both halves are required. A server that initialises and registers nothing would satisfy
+    `"serverInfo"` alone, and that is the shape of an assertion this project keeps catching: one
+    satisfied by something other than the property it names.
+    """
+    workflow = _workflow()
+    job = re.search(r"^  build:\n(?P<body>(?:    .*\n|\n)*)", workflow, re.MULTILINE)
+    assert job is not None, "ci.yml has no build job"
+    body = job.group("body")
+    assert re.search(r"^[ \t]*(?![ \t#]).*pnk serve /tmp/smoke/kb", body, re.MULTILINE), (
+        "the build job no longer starts the MCP server out of the freshly-resolved wheel"
+    )
+    assert '"method":"initialize"' in body, "nothing drives the handshake"
+    assert re.search(r"""^[ \t]*(?![ \t#]).*grep -q '"serverInfo"'""", body, re.MULTILINE), (
+        "nothing asserts the server answered"
+    )
+    assert re.search(r"^[ \t]*(?![ \t#]).*grep -q 'pinakes_search'", body, re.MULTILINE), (
+        "a server that answers initialize and registers no tools would pass"
+    )
+
+
+def test_the_extras_not_core_gate_reads_requirements_and_not_the_comments_around_them() -> None:
+    """`check.sh`'s extras-not-core gate greps a *range of lines*, so it used to fail on a comment
+    that merely mentioned a library — measured 20260822, when a comment above `mcp` explaining why
+    `anthropic` was deliberately left uncapped turned the gate red and reported it as a core
+    dependency.
+
+    Both directions, against the real pipeline lifted out of `check.sh`: a mention inside a comment
+    must not fire, and a real entry must. Stripping comments could have silenced the gate outright,
+    and only the second half can tell that apart from a fix.
+    """
+    text = CHECK_SH.read_text(encoding="utf-8")
+    match = re.search(
+        r"^(?P<pipeline>if awk .*?)\s*; then$",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None, "check.sh's extras-not-core pipeline was not found"
+    pipeline = match.group("pipeline").removeprefix("if ").replace("\\\n", " ")
+    assert "pyproject.toml" in pipeline
+
+    def fires(manifest: str, tmp: Path) -> bool:
+        (tmp / "pyproject.toml").write_text(manifest, encoding="utf-8")
+        return (
+            subprocess.run(
+                ["sh", "-c", pipeline], cwd=tmp, capture_output=True, text=True
+            ).returncode
+            == 0
+        )
+
+    with tempfile.TemporaryDirectory() as directory:
+        tmp = Path(directory)
+        commented = (
+            'dependencies = [\n    # anthropic and pypdfium2 are extras\n    "mcp>=1.28",\n]\n'
+        )
+        assert not fires(commented, tmp), "a comment mentioning the library must not fire the gate"
+        declared = 'dependencies = [\n    "mcp>=1.28",\n    "anthropic>=1.0",\n]\n'
+        assert fires(declared, tmp), (
+            "stripping comments has silenced the gate — a real core entry no longer fires it"
+        )
+        assert fires('dependencies = [\n    "pypdfium2>=5.12",\n]\n', tmp), (
+            "the pdf half of the gate no longer fires either"
+        )

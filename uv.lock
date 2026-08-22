@@ -1142,6 +1142,7 @@ st = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "packaging" },
     { name = "pillow" },
     { name = "pyright" },
     { name = "pytest" },
@@ -1155,7 +1156,7 @@ requires-dist = [
     { name = "anthropic", marker = "extra == 'claude'", specifier = ">=0.116" },
     { name = "fastembed", marker = "extra == 'light'", specifier = ">=0.8" },
     { name = "jinja2", specifier = ">=3.1" },
-    { name = "mcp", specifier = ">=1.28" },
+    { name = "mcp", specifier = ">=1.28,<2" },
     { name = "numpy", specifier = ">=2.0" },
     { name = "pypdfium2", marker = "extra == 'claude'", specifier = ">=5.12" },
     { name = "pypdfium2", marker = "extra == 'pdf'", specifier = ">=5.12" },
@@ -1167,6 +1168,7 @@ provides-extras = ["claude", "light", "pdf", "st"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "packaging", specifier = ">=24.0" },
     { name = "pillow", specifier = ">=12.3.0" },
     { name = "pyright", specifier = ">=1.1.390" },
     { name = "pytest", specifier = ">=8.0" },
