@@ -772,9 +772,13 @@ class _DeepRun:
     suggestions: tuple["Suggestion", ...]
     """The links this run's own citations propose (E7) — printed, never written.
 
-    Computed here rather than at print time because it needs the manifest and the sidecars on
-    disk, and `run_ask` has closed the index by then. Empty is the ordinary case: an answer citing
-    one document per block observes no pair.
+    Computed in `_run_deep`, beside the transcript, because it is part of what this run produced.
+    **Not** because `run_ask` could not: the index is closed by then but `pipeline.manifest` is a
+    plain dataclass that outlives its context, and an earlier draft of this docstring claimed a
+    constraint that does not exist. Reaching back into a context manager's object after it has
+    exited is a habit worth not forming, which is a weaker reason and the true one.
+
+    Empty is the ordinary case: an answer citing one document per block observes no pair.
     """
 
 
