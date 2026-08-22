@@ -59,6 +59,14 @@ was dropped in the move.
 release notes. A CHANGELOG entry and a `__version__` are only claims: v0.1.0 had both for two days
 with no tag, no release and nothing published (`RETROSPECTIVES.md`, 20260727).
 
+**When a release's subject is not in the wheel, verify its absence.** 0.25.1's rule is to read the
+release's own subject out of the published artifact rather than trust a matching version string. A
+release whose subject *deliberately* ships in no wheel — a `tools/` script, a gate, a CI change —
+still has an artifact claim, and it is the negative one: fetch the wheel from the index and confirm
+the thing is not in it. 0.27.0 did this (78 files, no `tools/` entry, `METADATA` reporting its own
+version), and 0.27.1 repeated it. Skipping the check because the subject "isn't in the wheel anyway"
+is assuming the very fact the check exists to establish.
+
 ## Sweep the three documents a release stales, in five places — in the release commit, not later
 
 | Document | What goes stale |
@@ -68,7 +76,7 @@ with no tag, no release and nothing published (`RETROSPECTIVES.md`, 20260727).
 | `docs/STATUS.md` — *Release roadmap* | Tick the row, and drop the name from the unbuilt-work table above it — **only at a release's final cut**, never at an interim one |
 | `README.md` | The install lines, if the release added an extra or a capability a new user would look for |
 | `docs/ROADMAP.md` | **Five places, and the last two were missed by five consecutive sweeps.** The summary table needs a row; Part 4 needs a `## x.y.z — <title> · <stamp>` section (the table's row links to its anchor, so the two are written together or the link dies); Part 5's *Open corrections* heading carries its own **item count in the anchor** — closing an item there changes the anchor and silently breaks every in-page link to it. **Then the two prose blocks: `## Where things stand right now` — its stamp, its release count and its per-release-name state — and `## The template release`.** Added 20260805 18:02 after 0.12.0's sweep; the prose blocks added 20260811 12:26 after they sat three releases behind while every table in the same file was current |
-| **Where** the new row and section go | **After the newest one that is already there — found by reading it, never by repeating last time's position.** Both of ROADMAP's sequences and STATUS's roadmap table read oldest-first; `CHANGELOG.md` reads newest-first, headings and link definitions both. `python3 tools/release_order_gate.py` decides it, and `./check.sh` runs it. Added 20260811 13:27 — see below |
+| **Where** the new row and section go | **After the newest one that is already there — found by reading it, never by repeating last time's position.** Both of ROADMAP's sequences and STATUS's roadmap table read oldest-first; `CHANGELOG.md` reads newest-first, headings and link definitions both. **STATUS's *Published on PyPI* prose is the sixth sequence, gated since 20260822** — this row named that list as a place a release stales and delegated its placement to the gate for eleven days while no pattern in the gate matched it, and it drifted (`0.25.1 → 0.25.3 → 0.25.2 → 0.25.4`). That list **may lag** the other five, because an entry is held back until it is verified from the index, and may never lead them. `python3 tools/release_order_gate.py` decides it, and `./check.sh` runs it. Added 20260811 13:27 — see below |
 
 **Also grep the whole tree for claims the release just falsified** — the class a checklist of
 *sections* cannot catch, found eight times on 20260803, in three docs contradicting a fourth:

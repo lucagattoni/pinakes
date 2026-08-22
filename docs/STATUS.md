@@ -904,11 +904,13 @@ inverted as 0.27.0's did: the published wheel was opened to confirm **78 files, 
 otherwise the wheel it claims to be. Thirty-eight versions now carry files.
 
 **The manual-release step recurred a sixth time, and on the sixth someone finally read the
-workflow. It is not a failure at all: there is no step that creates a release.**
-`.github/workflows/release.yml` validates the tag against `__version__`, builds, smoke-tests the
-wheel and runs `uv publish`. That is the whole job. `grep -rn 'gh release\|action-gh-release'
-.github/` returns nothing, and `git log -S` finds it never returned anything — **no workflow in this
-repository's history has ever contained a release-creating step.**
+workflow. It was not a failure at all: at that point there was no step that created a release.**
+`.github/workflows/release.yml` validated the tag against `__version__`, built, smoke-tested the
+wheel and ran `uv publish`. That was the whole job. `grep -rn 'gh release\|action-gh-release'
+.github/` returned nothing, and `git log -S` found it never had — **up to 0.22.0, no workflow in
+this repository's history had ever contained a release-creating step.** It has one now: see *Ended
+at 0.22.0* below, which is this passage's own correction and sat eleven lines under a claim written
+in the present tense.
 
 So `Release: success` was honest every time; it did everything it was asked to. What was recorded
 here six times as a recurring flake was an **absent feature diagnosed as a broken one**, and the
