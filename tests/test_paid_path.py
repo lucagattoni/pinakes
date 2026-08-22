@@ -11,7 +11,7 @@ Gates 1 and 2 are exercised through `tools/paid_path_gate.py` as a subprocess â€
 while the shipped script does something else.
 
 Gate 3 (`anthropic` must never reach `[project.dependencies]`) is I1's, already owned by
-`test_packaging.py::test_paid_and_pdf_clients_stay_out_of_core`, and is not duplicated here.
+`test_packaging.py::test_extractors_stay_extras`, and is not duplicated here.
 
 Gate 4 is the one that actually matters, and it is a runtime check rather than a grep: no spelling
 of an import can hide from `sys.modules`.

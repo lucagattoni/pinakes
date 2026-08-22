@@ -70,8 +70,33 @@ pdf-eval:  ## Extraction-quality baseline + floor-drift check against tests/pdf-
 build:  ## Build wheel and sdist
 	uv build
 
-smoke: build  ## Install the built wheel in isolation and run it — what release does
+# `pnk --version` alone is what this was, and it is the shape of check that let `pnk serve` ship
+# dead in every release from the first to 0.27.1: `--isolated --no-project` resolves *fresh*, and
+# `--version` touches no dependency. The import gate is the one `ci.yml` and `release.yml` run;
+# the handshake is the same session. Deliberately without `timeout`, which CI has and macOS does
+# not — locally a hang is a person's Ctrl-C, in CI it is a burnt job budget.
+#
+# **The output goes to a file, never into `grep -q`.** A pipe closes the moment grep matches, so
+# `pnk serve` died on a broken pipe, dumped an ExceptionGroup to stderr, and `make` exited **0** —
+# the whole target reporting success off a crashed server, printing a line claiming a handshake.
+# A pipeline also hides `pnk serve`'s own exit status. Measured 20260822, by review.
+smoke: build  ## Install the built wheel in isolation and exercise it — what release does
 	uv run --isolated --no-project --with dist/*.whl pnk --version
+	rm -rf /tmp/pinakes-smoke && mkdir -p /tmp/pinakes-smoke
+	uv run --isolated --no-project --with dist/*.whl pnk init /tmp/pinakes-smoke/kb
+	uv run --isolated --no-project --with dist/*.whl python tools/wheel_import_gate.py \
+		--require pinakes.serve --min-modules 50 \
+		--allow-missing pinakes.extract.pdfium:pypdfium2
+	printf '%s\n' \
+		'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"make","version":"0"}}}' \
+		'{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+		'{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+		> /tmp/pinakes-smoke/session.jsonl
+	uv run --isolated --no-project --with dist/*.whl pnk serve /tmp/pinakes-smoke/kb \
+		< /tmp/pinakes-smoke/session.jsonl > /tmp/pinakes-smoke/out.jsonl
+	grep -q '"serverInfo"' /tmp/pinakes-smoke/out.jsonl
+	grep -q 'pinakes_search' /tmp/pinakes-smoke/out.jsonl
+	@echo "smoke: the built wheel installs, imports every module and answers an MCP handshake."
 
 release-check:  ## Verify the git tag you are about to push matches pinakes.__version__
 	@version="$$(uv run --frozen python -c 'import pinakes; print(pinakes.__version__)')"; \

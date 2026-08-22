@@ -29,8 +29,21 @@ python3 tools/paid_path_gate.py
 # extras-not-core (I1), reused as the allowlist's gate 3: pypdfium2/anthropic must never enter
 # [project.dependencies] — a light core install is torch-free by design, and a PDF extractor is
 # opt-in (docs/DESIGN.md §4.5). Also asserted from the other side by
-# tests/test_packaging.py::test_paid_and_pdf_clients_stay_out_of_core, which is how CI gets it.
-if awk '/^dependencies = \[/,/^\]/' pyproject.toml | grep -qiE 'pypdfium2|anthropic'; then
+# tests/test_packaging.py::test_extractors_stay_extras, which is how CI gets it. (That name was
+# `test_paid_and_pdf_clients_stay_out_of_core` here and in tests/test_paid_path.py until
+# 20260822 — a test that has never existed under either file's history. Nothing resolves a
+# test path written in a comment, which is the whole reason docs/VERIFICATION.md is gated.)
+#
+# `sed 's/#.*//'` because this reads a *range of lines*, not a list of requirements: without it a
+# comment inside the block that merely mentions a library fails the gate. Found 20260822, by a
+# comment above `mcp` explaining why anthropic was measured and deliberately *not* capped — the
+# gate read the word and reported the library as a core dependency. Requirement strings here carry
+# no `#`, so stripping comments removes false positives and no true ones — a **constraint** this
+# gate now depends on, not just an observation: a PEP 508 direct URL carrying a `#sha256=` fragment
+# would be truncated here. None exists, and the parsed-side test named above never had the problem
+# either way, because it reads the requirement list rather than the lines.
+if awk '/^dependencies = \[/,/^\]/' pyproject.toml | sed 's/#.*//' \
+    | grep -qiE 'pypdfium2|anthropic'; then
     echo "pypdfium2 or anthropic found inside [project.dependencies] — they must stay extras" >&2
     exit 1
 fi
@@ -40,6 +53,16 @@ fi
 # that actually matters and the one a reader of this file would otherwise assume is missing; it
 # skips with a printed reason when pinakes[claude] is absent, and CI's [light,pdf,claude] leg is
 # where it is meaningful.
+
+# wheel-import: **deliberately not here, and named so nobody reads its absence as an oversight.**
+# `tools/wheel_import_gate.py` imports every module of an *installed* Pinakes against a freshly
+# resolved dependency set — which needs `uv build` and a network resolve, and this script must stay
+# offline-capable and fast. It runs in CI's `build` job, the only job that resolves anything: every
+# other `uv` invocation in `ci.yml` carries `--frozen`; `release.yml` carries the same two checks
+# in front of `uv publish`. That is exactly how `mcp` 2.0.0 removing
+# `mcp.server.fastmcp` left `pnk serve` dead on every fresh install from the first PyPI release to
+# 0.27.1 with every gate here green — a local `./check.sh` cannot see a dependency resolve, and
+# nothing it runs ever will.
 
 # corpus-regenerates (I2): the sixteen text-layer fixtures must reproduce byte-identically from
 # their own committed generator, and the three scanned ones within the pixel tolerance.

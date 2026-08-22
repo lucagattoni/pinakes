@@ -17,6 +17,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # The pre-publish check below resolves fresh and starts a server, so this job's runtime is a
+    # third party's to change too. `timeout 300` bounds the handshake; this bounds the job.
+    timeout-minutes: 20
     environment: release
     permissions:
       id-token: write        # trusted publishing; no API token is stored anywhere
@@ -46,6 +49,56 @@ jobs:
           uv run --isolated --no-project --with dist/*.whl pnk --version
           uv run --isolated --no-project --with dist/*.whl pnk init /tmp/release-smoke
           test -f /tmp/release-smoke/pinakes.toml
+
+      # **This is the step that had to exist, and did not.** `--isolated --no-project --with
+      # dist/*.whl` resolves fresh, so the smoke test above ran against whatever the index offered
+      # on the day — and it asked `pnk --version` and `pnk init`, neither of which touches `mcp`.
+      # `mcp` 2.0.0 removed `mcp.server.fastmcp`; `serve.py` imports it at module scope; every
+      # release from the first to 0.27.1 was published with `pnk serve` dead, and this job was
+      # green for all of them.
+      #
+      # It belongs **here** and not only in `ci.yml`, because a dependency's major arrives with no
+      # commit in this repository: `ci.yml` runs on push and pull_request, so `main` can be green
+      # on Monday, the break can publish on Wednesday, and a tag on Thursday would carry it to
+      # PyPI — which never takes a version back. `uv publish` is the irreversible step and nothing
+      # able to fail may sit behind it, so both checks run in front of it, where a failure costs a
+      # deleted tag and nothing else.
+      - name: The wheel it is about to publish can actually serve
+        run: |
+          set -e
+          # Exactly one wheel — an `if`, not `test A && test B`, which under `set -e` lets a
+          # failing first command through (measured 20260822).
+          set -- dist/*.whl
+          if [ $# -ne 1 ] || [ ! -f "$1" ]; then
+            echo "::error::expected exactly one built wheel in dist/, found: $*"
+            exit 1
+          fi
+          wheel="$PWD/$1"
+          uv run --isolated --no-project --with "$wheel" python tools/wheel_import_gate.py \
+            --require pinakes.serve --min-modules 50 \
+            --allow-missing pinakes.extract.pdfium:pypdfium2
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"release","version":"0"}}}' \
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            > "$RUNNER_TEMP/mcp-session.jsonl"
+          # `set +e` around the capture, because `out=$(...)` under `set -e` aborts the step
+          # *before* `echo "$out"` — a red release job with no reason printed, which is the
+          # "verify the artifact, never the run status" class this project keeps recording.
+          set +e
+          out=$(timeout 300 uv run --isolated --no-project --with "$wheel" \
+            pnk serve /tmp/release-smoke < "$RUNNER_TEMP/mcp-session.jsonl" 2>&1)
+          code=$?
+          set -e
+          echo "$out"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::the wheel about to be published exited $code starting the MCP server"
+            exit 1
+          fi
+          echo "$out" | grep -q '"serverInfo"' \
+            || { echo "::error::the wheel about to be published cannot start the MCP server"; exit 1; }
+          echo "$out" | grep -q 'pinakes_search' \
+            || { echo "::error::it answered initialize and registered no tools"; exit 1; }
 
       - name: Publish to PyPI
         if: vars.PUBLISH_TO_PYPI == 'true'

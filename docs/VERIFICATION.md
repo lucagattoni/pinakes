@@ -39,6 +39,10 @@ test, or write **none** and say why in the same commit.
 | no extractor library enters `[project.dependencies]` | I1 | `check.sh` gate + `tests/test_packaging.py::test_extractors_stay_extras` |
 | `pinakes[claude]` cannot be installed without `[pdf]` | I1 | `tests/test_packaging.py::test_claude_extra_requires_pdf_extra` |
 | Pillow stays dev-only — never core, never an extra | I2 | `tests/test_packaging.py::test_pillow_is_dev_only_never_core_and_never_an_extra` |
+| the `mcp` requirement cannot admit the major that removed `mcp.server.fastmcp` | fix | `tests/test_packaging.py::test_the_mcp_requirement_excludes_the_major_that_removed_fastmcp` |
+| every module of an *installed* Pinakes imports against a fresh resolve | fix | CI `build` + `release.yml`, pinned by `tests/test_check_script.py::test_ci_imports_every_module_out_of_a_freshly_resolved_wheel_and_proves_it_can_fail` |
+| …and the gate cannot report a pass it did not earn | fix | `tests/test_wheel_import_gate.py::test_an_allowance_covers_only_the_module_it_names_even_for_the_same_library` + `tests/test_wheel_import_gate.py::test_a_required_module_may_not_also_be_allowed_to_fail` + `tests/test_wheel_import_gate.py::test_a_package_outside_site_packages_is_refused` + `tests/test_wheel_import_gate.py::test_a_package_with_no_file_is_refused_rather_than_resolved_to_the_cwd` |
+| a freshly-resolved install answers an MCP handshake, before publishing | fix | CI `build` + `release.yml`, pinned by `tests/test_check_script.py::test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install` + `tests/test_check_script.py::test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish` |
 | a core-only install fails naming the extra | I1 | `tests/test_extract.py::test_a_missing_extra_names_the_install_command` |
 | every backend's missing-extra error names its own extra | I1 | `tests/test_extract.py::test_backend_requirement_names_the_extra_a_user_is_told_to_install` |
 | an unknown backend is rejected from the manifest | I1 | `tests/test_manifest.py::test_extraction_backend_must_be_registered` |
