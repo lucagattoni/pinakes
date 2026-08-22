@@ -20,18 +20,14 @@ classifiers = [
 # Embedding backends are extras — torch is ~2GB and must not be forced on anyone.
 dependencies = [
     "jinja2>=3.1",
-    # Capped below 2.0 because `mcp` 2.0.0 removed `mcp.server.fastmcp`, which `serve.py` imports
-    # at module scope: every fresh install from the first PyPI release to 0.27.1 raised
-    # `ModuleNotFoundError` on `pnk serve`, and nothing here could see it — `uv.lock` pins 1.28.1
-    # and all 37 `uv` invocations in `.github/workflows/ci.yml` *outside the one job that resolves
-    # fresh* carried `--frozen`, so no job had ever resolved this dependency and the one that could
-    # never imported `pinakes.serve` (measured 20260822 07:26). The cap is the outage fix and not
-    # the answer: porting `serve.py` to the 2.x API is its own increment, and lifts it. What stops
-    # the *next* dependency's major doing the same thing unseen is the wheel-import gate in
-    # `.github/workflows/ci.yml`, not a habit of capping — the other two lower-bound-only
-    # requirements were measured against their fresh majors (anthropic 1.0.0,
-    # sentence-transformers 6.0.0) and neither breaks what Pinakes calls, so neither is capped.
-    "mcp>=1.28,<2",
+    # `>=2` because `serve.py` imports `mcp.server.mcpserver.MCPServer`, which does not exist in
+    # 1.x — the constraint and the import move together, and a shim spanning both majors would be
+    # more code than the module it serves. 0.27.2 capped this at `<2` as an outage fix, because
+    # 2.0.0 removed `mcp.server.fastmcp` and `pnk serve` had been dead on every published release
+    # (measured 20260822 07:26). What makes dropping the ceiling safe rather than hopeful is the
+    # wheel-import gate and the MCP handshake in `.github/workflows/ci.yml` and `release.yml`:
+    # both resolve fresh, so the next major cannot reach a user's install unseen.
+    "mcp>=2",
     "numpy>=2.0",
     "python-ulid>=3.0",
     "ruamel.yaml>=0.19",

@@ -22,10 +22,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
+from pinakes import __version__, store
 from pinakes import manifest as manifest_module
-from pinakes import store
 from pinakes.embed import EmbeddingBackend, Reranker, load_backend, load_reranker
 from pinakes.errors import PinakesError, ServeError
 from pinakes.extract import ExtractedText
@@ -498,9 +498,25 @@ def _links_suggestion(result: "TraverseResult", *, filtered: bool) -> str:
     return "Read a neighbour in full with pinakes_get, or widen the walk with depth=2."
 
 
-def build(roots: list[Path], *, offline: bool = False) -> tuple[FastMCP, Server]:
+def build(roots: list[Path], *, offline: bool = False) -> tuple[MCPServer, Server]:
+    """The MCP surface, and the `Server` behind it.
+
+    `MCPServer` is `mcp` 2.x's successor to `FastMCP`, which 2.0.0 removed outright — the reason
+    `pnk serve` raised `ModuleNotFoundError` on every fresh install up to 0.27.1. The two derive a
+    tool's JSON schema from the same Python signature, and the four `pinakes_*` schemas were
+    captured from a live session on each and diffed before this landed: `docs/VERIFICATION.md`
+    names the test that keeps them from drifting.
+
+    **`version=` is not incidental.** `FastMCP` had no such parameter, so it passed the *`mcp`
+    library's* version to the low-level server and every client's `initialize` came back
+    `"serverInfo":{"name":"pinakes","version":"1.28.1"}` — the library's version presented as
+    Pinakes'. Nothing in the repo looked at that field until a CI handshake did (0.27.2).
+
+    `Server` here is this module's own class, not `mcp.server.lowlevel.Server`: the returned tuple
+    never touched the mcp low-level API and is unaffected by the major.
+    """
     server = Server(roots, offline=offline)
-    mcp = FastMCP("pinakes")
+    mcp = MCPServer("pinakes", version=__version__)
 
     def pinakes_search(
         query: str,
