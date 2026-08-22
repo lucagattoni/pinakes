@@ -360,6 +360,66 @@ def test_a_timed_out_run_is_errored_even_if_it_somehow_reported_passing_tests() 
     assert module.classify(run) is module.Outcome.ERRORED
 
 
+def test_a_setup_error_is_errored_even_if_the_run_somehow_exited_zero() -> None:
+    """`classify`'s `run.setup_errors` clause, redundant for the same reason and kept for it.
+
+    A setup error makes pytest exit non-zero, so the fall-through already returns ERRORED and the
+    battery reported this clause SURVIVED. The state it guards is a setup error on a run that
+    nonetheless exited 0 — one plugin away — which without the clause reads SURVIVED: the harness
+    saying "nothing noticed this mutant" about a mutant a fixture noticed.
+    """
+    module = tool_module()
+    run = module.PytestRun(
+        exit_code=0,
+        output="",
+        collected=1,
+        failed=(),
+        collection_errors=(),
+        setup_errors=(("tests/test_fixtures.py::test_x", 'failed on setup with "RuntimeError"'),),
+        skipped=(),
+        passed=(),
+    )
+
+    assert module.classify(run) is module.Outcome.ERRORED
+
+
+def test_the_table_withholds_a_killer_even_when_an_errored_row_has_failures(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """`report`'s guard, tested on the state no battery can produce.
+
+    An ERRORED row with failing tests beside it needs one selector to hold both a module that will
+    not import and a test that fails — and a mutant lives in one file, so the CLI cannot arrange
+    it. Two files in one selector can, the day someone writes that battery. The table outlives the
+    run in a commit message, so a row labelled ERRORED that names a test under "Killed by" is a
+    contradiction shipped into the record.
+    """
+    module = tool_module()
+    run = module.PytestRun(
+        exit_code=2,
+        output="",
+        collected=2,
+        failed=(("tests/test_a.py::test_one", "assert 10 == 3"),),
+        collection_errors=(("tests/test_b.py", "collection failure"),),
+        setup_errors=(),
+        skipped=(),
+        passed=(),
+    )
+    mutant = module.Mutant(
+        name="both at once", path=Path("pkg/mod.py"), old="a", new="b", selectors=("x",)
+    )
+    result = module.Result(mutant, module.classify(run), run)
+
+    assert result.outcome is module.Outcome.ERRORED
+    assert run.failed, "the constructed state must carry a failure the table could wrongly name"
+    _ = module.report([result], allow_zero_kills=True)
+
+    row = next(
+        line for line in capsys.readouterr().out.splitlines() if line.startswith("| both at once")
+    )
+    assert row == "| both at once | ERRORED | — |", row
+
+
 def test_a_restore_that_git_still_sees_voids_the_whole_report(
     repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
