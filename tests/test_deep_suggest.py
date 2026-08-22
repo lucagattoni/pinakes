@@ -72,8 +72,22 @@ def kb(tmp_path: Path) -> Kb:
     `test_sync_links.make_kb` rather than `make_fake_kb`: what this module resolves is a *sidecar*,
     so the fixture has to be a KB with documents on disk, and this is the builder that makes them
     with known ids and no sync run.
+
+    **Minted in reverse path order, deliberately.** ULIDs are monotonic, so a KB built
+    `alpha, beta, gamma` has its ids ascending in the same order as its paths — and every test
+    below that asserts a *direction* would then pass whether the code ordered by path or by id.
+    Building it backwards makes the two orders disagree, which is what lets `sorted(..., key=path)`
+    be told apart from a bare `sorted(...)`. Asserted rather than assumed, in
+    `test_the_fixture_mints_ids_in_the_opposite_order_to_the_paths`.
     """
-    return make_kb(tmp_path / "kb", "suggest", ["alpha", "beta", "gamma"])
+    return make_kb(tmp_path / "kb", "suggest", ["gamma", "beta", "alpha"])
+
+
+def test_the_fixture_mints_ids_in_the_opposite_order_to_the_paths(kb: Kb) -> None:
+    """The property the direction tests rest on. If a future `make_kb` stopped minting
+    monotonically this would go red here, rather than quietly making three other tests vacuous."""
+    assert sorted(kb.docs, key=lambda name: kb.docs[name]) == ["gamma", "beta", "alpha"]
+    assert sorted(kb.docs) == ["alpha", "beta", "gamma"]
 
 
 def manifest_of(kb: Kb) -> Manifest:
@@ -174,7 +188,11 @@ def test_the_same_pair_cited_twice_is_one_suggestion_naming_both_rounds(kb: Kb) 
 
 def test_the_direction_does_not_depend_on_the_order_the_model_cited_in(kb: Kb) -> None:
     """The pair is ordered by path, so two runs over the same evidence suggest the same entry —
-    a user who pasted one and re-asked must not meet its mirror image."""
+    a user who pasted one and re-asked must not meet its mirror image.
+
+    The fixture mints ids in the *opposite* order to the paths, so this also discriminates against
+    ordering by ULID: `alpha` has the largest id and the smallest path.
+    """
     forward = for_run(an_answer(a_block(kb, 0, "alpha", "beta")), manifest=manifest_of(kb))
     backward = for_run(an_answer(a_block(kb, 0, "beta", "alpha")), manifest=manifest_of(kb))
     assert (

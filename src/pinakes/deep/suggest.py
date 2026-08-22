@@ -257,7 +257,10 @@ def propose(
                 into_existing=source.has_links_key,
             )
         )
-    suggestions.sort(key=lambda item: (item.sidecar, str(item.to)))
+    # **By path at both levels, never by URI.** A ULID's order is its mint order, which is
+    # arbitrary to a reader and to this KB's shape alike — so sorting the entries inside one
+    # sidecar by `to` would print them in an order nothing on screen explains.
+    suggestions.sort(key=lambda item: (item.sidecar, item.target))
     return tuple(suggestions)
 
 
