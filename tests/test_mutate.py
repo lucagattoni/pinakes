@@ -40,7 +40,8 @@ import subprocess
 import sys
 import textwrap
 import time
-from collections.abc import Sequence
+from collections.abc import Generator, Sequence
+from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
 
@@ -290,6 +291,55 @@ def test_a_mutant_that_makes_every_test_skip_is_not_a_survivor(repo: Path) -> No
     assert "SURVIVED" not in result.stdout, result.stdout
     assert "ERRORED" in result.stdout
     assert result.returncode == 1
+
+
+def test_a_timed_out_run_is_errored_even_if_it_somehow_reported_passing_tests() -> None:
+    """`classify`'s `run.timed_out` clause, which the batch cannot reach.
+
+    `run_pytest` stamps a timed-out run with exit code -1 and no tests, so the fall-through at the
+    end of `classify` already returns ERRORED for it and the explicit clause is redundant — the
+    harness's own battery reported it SURVIVED, which is how it was found. The clause stays,
+    because it says what is meant where the fall-through only implies it, and the state it guards
+    against is one line of drift away: a timeout stamped with exit code 0 and any test recorded as
+    passing would otherwise read SURVIVED.
+    """
+    module = tool_module()
+    run = module.PytestRun(0, "", 1, (), (), (), ("tests/test_pkg.py::test_x",), timed_out=True)
+
+    assert run.ran == 1, "the constructed state must be one the fall-through would let through"
+    assert module.classify(run) is module.Outcome.ERRORED
+
+
+def test_a_restore_that_git_still_sees_voids_the_whole_report(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The end-of-batch backstop: git is asked, independently, whether every target came back.
+
+    `applied()` already compares the restored bytes against its own snapshot, so this can only fire
+    when the harness disagrees with itself — which no battery can arrange. The seam is `applied`
+    itself, replaced with a context manager that writes the mutant and never restores it. Without
+    the check the batch would exit 0 with a report about a tree it had quietly left modified.
+    """
+    module = tool_module()
+    source = repo / "pkg" / "mod.py"
+
+    @contextmanager
+    def never_restores(mutant: object) -> Generator[None]:
+        source.write_text(
+            ORIGINAL_MODULE.replace("min(value, MAX)", "max(value, MAX)"), encoding="utf-8"
+        )
+        yield
+
+    monkeypatch.setattr(module, "applied", never_restores)
+    path = battery(repo, clamp_mutant())
+    root = module.repo_root(repo)
+
+    with pytest.raises(module.MutationError, match="git still sees a change"):
+        _ = module.run_battery(root, module.load_battery(path, root))
+    _ = capsys.readouterr()
+
+    monkeypatch.undo()
+    source.write_text(ORIGINAL_MODULE, encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------------------------
