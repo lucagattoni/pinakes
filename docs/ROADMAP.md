@@ -21,14 +21,16 @@ precision nobody measured.
 
 - **44 releases in 28 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
   [`0.27.0`](#0270--the-mutation-step-gets-its-guard--20260822-0619) on 20260822.
-- **Latest on PyPI: `0.26.0`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.27.0`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by reading
   `pinakes/deep/suggest.py` out of the published wheel, because a matching version string says
   nothing about whether the release's own subject is inside it. **0.25.1 is the sharpest case this
   project has had of that distinction**: every release from 0.22.0 on installed cleanly and
   reported the right version while `pnk ask --deep` could not make one successful call. Every
-  release from `0.2.2` on is published — **thirty-six**, counted from the index's own `json`
-  endpoint rather than from this list's previous number.
+  release from `0.2.2` on is published — **thirty-seven**, counted from the index's own `json`
+  endpoint rather than from this list's previous number. **0.27.0's artifact check ran inverted**:
+  its subject is a developer tool, so the published wheel was opened to confirm `tools/mutate.py`
+  is **absent** from its 78 files, which is exactly what *"it ships in no wheel"* claims.
 - **Three of the four named releases have shipped; the fourth is a trigger rather than a queue.** The links release across
   [`0.5.0`](#050--links-you-can-walk--20260731-1127)–[`0.6.0`](#060--links-you-can-write--20260801-1051),
   the graph release in [`0.11.0`](#the-graph-release--shipped-0110). **The template release has
