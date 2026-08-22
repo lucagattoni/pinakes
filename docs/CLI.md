@@ -572,6 +572,13 @@ Runs the MCP server over stdio, exposing four tools:
 (`pinakes_list_kbs` takes no arguments — it *is* the list). `pinakes_links` caps `depth` at 3
 server-side and has no query language, ever.
 
+**The `initialize` response reports Pinakes' own version.** A client asking which server it is
+talking to gets `{"name": "pinakes", "version": "<the installed version>"}`. Before 0.28.0 that
+field carried the version of the **`mcp` library** instead — a client was told `1.28.1` — because
+the 1.x server class had no way to be given one. The four tool schemas are unchanged by that move
+and are committed at `tools/mcp_tool_schemas.json`, which CI compares against a live session on
+every push.
+
 A neighbour's `score` is comparable only among rows carrying the same `scored_by_query`: with a
 `query`, a neighbour with no local chunks to embed falls back to its edge weight, which is not on
 the same scale as a cosine. The list comes back in rank order, so re-sorting it by `score` is a
