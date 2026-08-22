@@ -152,6 +152,12 @@ closed plan still binds, is [`docs/README.md`](docs/README.md):
   *nothing to do*** — read it as *the next thing to build has not been planned yet*, which makes
   planning the work rather than an interruption to it. `docs/ROADMAP.md` Part 5 and
   `docs/README.md`'s routing table are where the candidates are.
+- **The mutation step of `docs/BUILDING.md` § 4 is now a tool: `python3 tools/mutate.py
+  <battery.toml>`** (shipped 0.27.0, `plans/20260821_0745-mutation-harness.md`, built). It refuses
+  every way a mutation run has silently lied here — including three the written rules never named:
+  a **skipped** selector exits 0 like a passing one, an **already-red** one kills every mutant, and
+  `PYTEST_ADDOPTS` smuggles in `-x`. Prefer it to mutating by hand; a target under `tests/` it
+  refuses, and that stays manual.
 - **[`plans/20260811_1358-deep-release.md`](plans/20260811_1358-deep-release.md) closed at
   0.26.0.** All ten decisions (D-21 to D-30) are taken and it remains the authority for them;
   re-run its § 2 before trusting any `file:line`. Every increment E1 to E7 is built, and each

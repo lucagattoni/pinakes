@@ -10,6 +10,36 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.27.0] — 20260822 06:19
+
+### Added
+
+- **`tools/mutate.py` runs the per-increment mutation battery, and refuses rather than reporting a
+  clean bill it has not earned.** The mutation step of
+  [BUILDING § 4](https://github.com/lucagattoni/pinakes/blob/main/docs/BUILDING.md) is the
+  procedure's one *silently-failing* step: a broken harness prints SURVIVED and KILLED in exactly
+  the shape a working one does. The plan counts more than a dozen invalid or destructive runs
+  across ten increments, and the `git checkout` trap alone is recorded **six times**. Each written
+  rule is now a refusal: the target must be tracked and match `HEAD`; the anchor must occur
+  **exactly once**, checked across the whole battery before the first write; `__pycache__` is
+  cleared after the write *and* after the restore; pytest never sees `-x`; an invalid mutant is its
+  own outcome rather than a kill; the restore happens in a `finally` and its bytes are verified;
+  and a batch where **nothing died exits non-zero**, because a run with no kills is a broken
+  harness and not a clean bill (`--allow-zero-kills` for a backstop already documented as
+  unpinned). The battery is a TOML file of `[[mutant]]` rows — `file`, `old`, `new`, `kills` —
+  where `'''…'''` carries an anchor's quotes, backslashes and indentation without escaping, and the
+  summary is a Markdown table written to be pasted into the commit message that claims the pass.
+- **Five ways a mutation run can lie that the written rules did not cover, all measured, all now
+  refusals.** A **skipped** test exits 0 — byte for byte the SURVIVED signal — and Pinakes skips on
+  a missing extra as a matter of course, so a battery aimed at a `pdf`, `paid` or `model` selector
+  in a `[light]` checkout would have reported every mutant unpinned. An **already-red** selector
+  reports KILLED for every mutant aimed at it, including the ones nothing catches. Both are caught
+  by one pre-flight run per selector — collect a test, actually *run* a test, be green — before any
+  file is touched. **`SIGTERM`, `SIGHUP` and `SIGQUIT`** end a process without unwinding, so a
+  plain `finally` never runs and the mutant stays on disk. **`PYTEST_ADDOPTS`** is inherited, so
+  `-x` in the operator's shell narrows a two-test kill to one. **`PYTHONPYCACHEPREFIX`** moves every
+  `.pyc` into a mirrored tree the clearing cannot reach.
+
 ## [0.26.0] — 20260822 01:32
 
 ### Added
@@ -3505,7 +3535,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.27.0
 [0.26.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.26.0
 [0.25.4]: https://github.com/lucagattoni/pinakes/releases/tag/v0.25.4
 [0.25.3]: https://github.com/lucagattoni/pinakes/compare/v0.25.2...v0.25.3

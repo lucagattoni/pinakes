@@ -17,10 +17,10 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260822 01:32 UTC
+## Where things stand right now — 20260822 06:19 UTC
 
-- **43 releases in 28 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.26.0`](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132) on 20260822.
+- **44 releases in 28 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.27.0`](#0270--the-mutation-step-gets-its-guard--20260822-0619) on 20260822.
 - **Latest on PyPI: `0.26.0`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by reading
   `pinakes/deep/suggest.py` out of the published wheel, because a matching version string says
@@ -160,6 +160,7 @@ number belongs to a release only when it is cut
 | **[0.25.3](#0253--the-deep-loop-is-measured--20260821-2234)** | 20260821 22:34 | the deep loop is measured | • **E6 is built** — the measurement run published the over-reservation factor: **29.75×** on the cheap `synthesis` branch, **50.92×** and **22.35×** on the two loop branches, for €0.2131 against a €5.1836 worst case<br>• Every `deep/estimate.py` constant carries its measurement and the command that produced it; **none lowered**, the corpus being synthetic<br>• Six defects in `tools/deep_reservation.py`, which had no tests — now 27, mutation-verified 10/10<br>• Two defects in the runbook's own step (c) |
 | **[0.25.4](#0254--what-the-mutation-battery-cannot-reach--20260821-2249)** | 20260821 22:49 | what the mutation battery cannot reach | • **Documentation only** — BUILDING § 4 names the mutation step's own blind spot, with 0.25.3's rewrapped-command case (`4d5debf`)<br>• The lesson filed as a retrospective entry<br>• 0.25.3's section on this page moved out of Part 5, where its sweep had landed it |
 | **[0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** | 20260822 01:32 | a paid run tells you what it learned about your KB | • **E7 — printed suggestions.** Two documents cited in support of one answer is a fact nothing records; the run prints the `links[]` entries that observation proposes, to paste and commit<br>• **It prints; it never writes** — `--write-suggestions` is deferred (D-25 A) and unplanned<br>• `rel: co-cited`, `origin: deep`, the sidecar named on the block's first line; `--json` carries the same fragment verbatim<br>• **A document cannot talk the model into suggesting a link** — suggestions come from *citations*, and a citation is a passage number the schema bounds<br>• Both endpoints re-checked against what the run cited, resolved through `pnk link`'s own containment check<br>• **Four defects the tests could not see**, three found by mutating — including a surviving *control* mutant, and a containment test satisfied by absence<br>• **DESIGN §9's risk row, false since E4**, corrected<br>• *The deep release, **final** cut (D-9) — the name leaves the unbuilt-work table* |
+| **[0.27.0](#0270--the-mutation-step-gets-its-guard--20260822-0619)** | 20260822 06:19 | the mutation step gets its guard | • **`tools/mutate.py`** — the per-increment mutation battery, run by a tool rather than by hand. `docs/BUILDING.md` § 4 was the procedure's one *silently-failing* step<br>• Each written rule is a refusal: tracked-and-committed target, anchor matched **exactly once** before the first write, `__pycache__` cleared either side, never `-x`, restore in a `finally` with its bytes verified, **zero kills exits non-zero**<br>• **Five ways a run can lie that the rules did not cover, all measured** — a skipped test exits 0 like a passing one; an already-red selector kills everything; `SIGTERM`/`SIGHUP`/`SIGQUIT` skip `finally`; `PYTEST_ADDOPTS` smuggles in `-x`; `PYTHONPYCACHEPREFIX` hides the cache<br>• pytest's `<error>` tag covers a collection failure **and** a setup/teardown failure, which are opposite events — conflating them threw away real kills<br>• **25 mutants against its own guards, 25 killed.** Three rounds of that found four clauses no battery-driven test could reach<br>• *A developer tool — it ships in no wheel and changes nothing for any KB* |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -1485,6 +1486,67 @@ increment that closes a release is the last cheap chance to fix what the release
 `--deep`, and nothing is written even then.
 
 ---
+
+## 0.27.0 — the mutation step gets its guard · 20260822 06:19
+
+**`docs/BUILDING.md` § 4 was the procedure's one silently-failing step.** A broken mutation harness
+prints SURVIVED and KILLED in exactly the shape a working one does, so its report reads as evidence
+either way — and `plans/20260821_0745-mutation-harness.md` counts more than a dozen invalid or
+destructive runs across ten increments, the `git checkout` trap alone recorded **six times**, still
+recurring after four write-ups. E5's own words: *"knowing the trap was not enough to avoid it."*
+
+The precedent is `tools/land.py`: when prose
+has failed repeatedly against a class of mistake that fails *silently*, the rule stops being a rule
+and becomes a tool. `tools/mutate.py` takes a TOML battery of `[[mutant]]` rows — `file`, `old`,
+`new`, `kills` — and turns every written rule into a refusal: the target must be **tracked** by git
+and match `HEAD`; the anchor must occur **exactly once**, checked across the whole battery before
+the first write; `__pycache__` is cleared after the write *and* after the restore; pytest never sees
+`-x`; an invalid mutant is its own outcome rather than a kill; the restore happens in a `finally`
+and its bytes are verified; and **a batch where nothing died exits non-zero**, because a run with no
+kills is a broken harness and not a clean bill.
+
+**Five ways a run can lie that the written rules did not cover**, each measured while building it,
+each the harness reporting confidently on a question it never asked. A **skipped** test exits 0 —
+byte for byte the SURVIVED signal — and Pinakes skips on a missing extra as a matter of course, so a
+battery aimed at a `pdf`, `paid` or `model` selector in a `[light]` checkout would have reported
+every mutant unpinned. An **already-red** selector reports KILLED for every mutant aimed at it,
+including the ones nothing catches; both are caught by one pre-flight run per selector, before any
+file is touched. **`SIGTERM`, `SIGHUP` and `SIGQUIT`** end a process without unwinding, so a
+`try/finally` restore is not a restore — `SIGINT` already raises, which is why the hazard is
+invisible to anyone who only tests with Ctrl-C. **`PYTEST_ADDOPTS`** is inherited, so `-x` in the
+operator's shell narrows a two-test kill to one. **`PYTHONPYCACHEPREFIX`** moves every `.pyc` into a
+mirrored tree the clearing cannot reach, and is refused rather than guessed at.
+
+**The T3 trap was reproduced before it was fixed, and that is what made its test honest.** A
+same-length mutant (`min` → `max`) written in the same wall-clock second as the previous compile
+passes every test 6 times out of 6, because CPython validates a `.pyc` on
+`(mtime-to-the-second, size)`. The obvious test — assert the same-length mutant is KILLED end to
+end — goes green on a slow machine with the invalidation deleted, because the second boundary is
+crossed anyway. Two tests replace it: one asserts no bytecode cache **exists** during a mutation,
+which has no clock in it at all; the other forges the stale condition with `os.utime` and watches
+the mutant vanish.
+
+**pytest's `<error>` tag covers two opposite events.** A *collection* error is the invalid mutant —
+nothing ran. A *setup or teardown* error is a real node the mutant broke on the way in or out, and
+in this repository fixtures build indexes, manifests and KBs out of `src/`, so fixture-mediated
+detection is the common shape. Treating both alike reported a mutant that tripped a fixture *and*
+failed a plain assertion as *"the mutant did not run"*, tallied `0 killed`. They are told apart
+structurally now — a collection failure carries no `line` attribute — rather than by matching
+pytest's message text. **The reviewer who found it also proposed routing setup errors into KILLED,
+and an independent skeptic rejected that remedy while confirming the defect**: no assertion fired,
+so nobody may write *"pinned by test X"*, and the fix would have manufactured the false green the
+tool exists to prevent.
+
+**Verified the only way it could be: run against its own guards.** 25 mutants, each disarming one
+refusal, **25 killed**, each by the test named beside it — and three separate rounds of that found
+four clauses no battery-driven test could reach, every one surfacing as a SURVIVED row rather than
+a failure. Twice, the thing that was stale was the *battery's own selector* rather than the code: a
+SURVIVED row is a claim about a **pair**, and either half can be wrong.
+
+**A developer tool.** It ships in no wheel and changes nothing for any KB — no code path, no
+`schema_version`, no rebuild. What it does not do stays manual and is refused rather than
+approximated: cross-file mutants, generated operators, and mutating a test file, where a mutant in
+the file its own selector runs can make that test vacuous.
 
 # Part 5 · What is not built
 
