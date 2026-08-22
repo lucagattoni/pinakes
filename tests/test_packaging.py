@@ -396,35 +396,49 @@ def test_the_stub_signature_test_catches_a_fabricated_parameter() -> None:
     assert not {"output", "plug_ins", "pure"} - real
 
 
-def test_the_mcp_requirement_excludes_the_major_that_removed_fastmcp() -> None:
-    """`mcp` 2.0.0 removed `mcp.server.fastmcp`, which `src/pinakes/serve.py` imports at module
-    scope, so `pnk serve` raised `ModuleNotFoundError` on every fresh install from the first PyPI
-    release to 0.27.1 (measured 20260822 07:26).
+def test_the_mcp_requirement_excludes_every_major_without_mcpserver() -> None:
+    """`src/pinakes/serve.py` imports `mcp.server.mcpserver.MCPServer` at module scope, and no 1.x
+    release has that module — the 1.x name was `mcp.server.fastmcp.FastMCP`, which 2.0.0 removed.
+    The requirement is therefore a **floor**, and it and the import move together or `pnk serve`
+    dies with `ModuleNotFoundError` on a fresh install. That has happened: every release from the
+    first to 0.27.1 shipped exactly that, under `mcp>=1.28` with no ceiling (measured
+    20260822 07:26).
 
-    **What this test can and cannot see, said plainly.** It reads the *declaration* and asks
-    whether a resolver could take 2.0.0. It cannot resolve anything: pytest runs under
-    `uv.lock`, which pins 1.28.1, so the environment this assertion executes in is precisely the
-    one that could never observe the defect. The real guard is CI's `build` job — the only job
-    that resolves fresh — and `tests/test_check_script.py` pins that leg's existence. This test
-    exists so the declaration cannot be relaxed silently, and for nothing more than that.
+    **There is deliberately no ceiling, which is the position 0.27.2 argued for and this increment
+    is the first to rely on.** A cap is a guess about a release nobody has seen, and it has to be
+    lifted by the increment that ports the code anyway. What actually catches a dependency's next
+    major is resolving fresh and running the thing: `tools/wheel_import_gate.py` and
+    `tools/mcp_handshake_gate.py`, in CI's `build` job and again in front of `uv publish`.
 
-    Asked through `packaging` rather than by grepping for `<2`: a comment reading `<2` satisfies
+    **What this test can and cannot see, said plainly.** It reads the *declaration* and asks which
+    versions a resolver could take. It cannot resolve anything: pytest runs under `uv.lock`, so
+    the environment this assertion executes in is the one that could never observe the defect.
+    This test exists so the declaration cannot be relaxed silently, and for nothing more.
+
+    Asked through `packaging` rather than by grepping for `>=2`: a comment reading `>=2` satisfies
     a substring check with the bound deleted from the requirement, which is this repository's
     recorded defect class — an assertion satisfied by something other than the property it names.
     """
+    import importlib.metadata
+
     from packaging.requirements import Requirement
 
     requirements = [Requirement(entry) for entry in _pyproject()["project"]["dependencies"]]
     mcp = next((entry for entry in requirements if entry.name == "mcp"), None)
     assert mcp is not None, "mcp is a core dependency — pnk serve is not optional"
-    # Every 2.x and beyond, not just 2.0.0: `>=1.28,!=2.0.0` excludes the point version and
-    # admits 2.0.1, which has no `mcp.server.fastmcp` either.
-    for excluded in ("2.0.0", "2.0.1", "2.4.0", "3.0.0"):
+    # Every 1.x, not just the last one: `>=1.28` reads like a bound and admits the whole major that
+    # has no `mcp.server.mcpserver`.
+    for excluded in ("1.0.0", "1.28.1", "1.29.0", "1.99.0"):
         assert not mcp.specifier.contains(excluded), (
-            f"'{mcp}' admits mcp {excluded}, which has no mcp.server.fastmcp. Lifting the cap "
-            f"means porting src/pinakes/serve.py to the 2.x API in the same change"
+            f"'{mcp}' admits mcp {excluded}, which has no mcp.server.mcpserver — the module "
+            f"src/pinakes/serve.py imports. Lowering the floor means porting serve.py back to the "
+            f"1.x API in the same change"
         )
-    assert mcp.specifier.contains("1.28.1"), (
-        "the cap must not exclude the version uv.lock pins, or every --frozen job here would be "
-        "resolving something the declaration forbids"
+    # The installed version rather than a literal: it is what `uv.lock` resolved to for this run,
+    # so a lock bump that outgrew the declaration fails here instead of in whichever job noticed
+    # first. A literal would go on agreeing with itself after the lock moved.
+    installed = importlib.metadata.version("mcp")
+    assert mcp.specifier.contains(installed), (
+        f"the floor excludes mcp {installed}, which is what this environment resolved — every "
+        f"--frozen job here would be running something the declaration forbids"
     )

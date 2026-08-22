@@ -391,12 +391,19 @@ def test_cis_negative_check_names_the_failure_it_expects_not_the_generic_headlin
 
 def test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install() -> None:
     """An import is not a session. `import pinakes.serve` proves the module loads; only a
-    handshake proves FastMCP was constructed, the tools were registered and the stdio transport
+    handshake proves the server was constructed, the tools were registered and the stdio transport
     answered — which is what `pnk serve` actually is.
 
-    Both halves are required. A server that initialises and registers nothing would satisfy
-    `"serverInfo"` alone, and that is the shape of an assertion this project keeps catching: one
-    satisfied by something other than the property it names.
+    **The session is driven by `tools/mcp_handshake_gate.py`, and this test's job is to keep it
+    from going back to hand-rolled JSON-RPC.** That version wrote three lines and closed stdin;
+    `mcp` 1.28.1 drained the queue before exiting and answered `tools/list` 10 times in 10, while
+    2.0.0 answered 2 in 10 (measured 20260822 14:35). A step that fails four runs in five for a
+    server that works is not a weaker gate, it is a gate that teaches people to re-run it.
+
+    `--expect-version` is required and must *not* come from `pnk --version`: the field it checks
+    carried the `mcp` library's version on every release to 0.27.2, and asking the same install
+    which version it is would agree with itself while both were wrong. The wheel's filename is the
+    independent source.
 
     The KB path is asserted against the step that *creates* it rather than as a literal, because
     renaming it in one place and not the other fails at runtime and nowhere else.
@@ -409,34 +416,46 @@ def test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install() -> 
     created = re.search(r"^[ \t]*(?![ \t#]).*pnk init (?P<kb>/\S+)", body, re.MULTILINE)
     assert created is not None, "the build job no longer creates a smoke KB"
     kb = created.group("kb")
-    assert re.search(rf"^[ \t]*(?![ \t#]).*pnk serve {re.escape(kb)}(\s|$)", body, re.MULTILINE), (
+    gate = re.search(
+        r"^[ \t]*(?![ \t#]).*tools/mcp_handshake_gate\.py.*\n(?:[ \t]*(?![ \t#]).*\n)*",
+        body,
+        re.MULTILINE,
+    )
+    assert gate is not None, (
+        "ci.yml no longer drives a handshake against the freshly-resolved wheel"
+    )
+    invocation = gate.group(0)
+    assert re.search(rf"--kb {re.escape(kb)}(\s|$)", invocation), (
         f"the handshake does not serve the KB the job creates ({kb})"
     )
-    assert re.search(r'^[ \t]*(?![ \t#]).*"method":"initialize"', body, re.MULTILINE), (
-        "nothing drives the handshake"
+    assert "--expect-version" in invocation, (
+        "nothing asserts which version the server tells a client it is — the field that carried "
+        "the mcp library's version on every release to 0.27.2"
     )
-    assert re.search(r"""^[ \t]*(?![ \t#]).*grep -q '"serverInfo"'""", body, re.MULTILINE), (
-        "nothing asserts the server answered"
+    assert not re.search(r"--expect-version[= ]\"?\$\(.*pnk --version", invocation), (
+        "the expected version is read from the install under test, so it would agree with itself"
     )
-    assert re.search(r"^[ \t]*(?![ \t#]).*grep -q 'pinakes_search'", body, re.MULTILINE), (
-        "a server that answers initialize and registers no tools would pass"
+    assert re.search(
+        r"^[ \t]*(?![ \t#]).*version=\$\(basename .*cut -d- -f2", body, re.MULTILINE
+    ), (
+        "the expected version no longer comes from the built wheel's filename, the one source "
+        "here that is independent of the process being checked"
     )
     assert re.search(r"^[ \t]*(?![ \t#]).*timeout \d+ uv run", body, re.MULTILINE), (
-        "exiting on stdin EOF is a property of whichever mcp the fresh resolve took — the very "
+        "how a session ends is a property of whichever mcp the fresh resolve took — the very "
         "thing that changes with no commit here — so a hang must cost seconds, not the job"
     )
     assert re.search(r"^    timeout-minutes: \d+$", body, re.MULTILINE), (
         "the only job here whose runtime a third party can change has no ceiling on it"
     )
-    # And the exit status is captured *and compared against zero*. Capturing `code=$?` and never
-    # testing it — or testing it against something other than success — leaves a step grepping the
-    # output of a command whose failure it has stopped reading. Survived the battery until
-    # asserted.
-    assert re.search(r"^\s*code=\$\?", body, re.MULTILINE), (
-        "pnk serve's exit status is not captured"
-    )
-    assert re.search(r'^\s*if \[ "\$code" -ne 0 \]; then', body, re.MULTILINE), (
-        "the captured status is compared against something other than success"
+    # **The gate's own exit status is the step's.** The previous shape captured the output into a
+    # variable, tested `code=$?` and grepped what it had captured — three places to get wrong, and
+    # the battery had to pin each one. Running the gate bare removes them: `set -e` plus a
+    # non-zero exit is the whole mechanism. So what has to be asserted now is the *absence* of a
+    # capture, because reintroducing one is how this step would quietly stop reading failures.
+    assert not re.search(r"^\s*out=\$\(timeout", body, re.MULTILINE), (
+        "the handshake's output is captured into a variable again — a gate is only a gate when "
+        "its exit status is what the next command reads"
     )
     import yaml
 
@@ -444,10 +463,46 @@ def test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install() -> 
     handshake = next(
         step
         for step in document["jobs"]["build"]["steps"]
-        if "pnk serve" in str(step.get("run", ""))
+        if "tools/mcp_handshake_gate.py" in str(step.get("run", ""))
+        and "--expect-version 0.0.0" not in str(step.get("run", ""))
     )
     _no_failure_path_exits_zero(str(handshake["run"]), "ci.yml's handshake")
     _job_cannot_be_switched_off(document, "build")
+
+
+def test_the_handshake_gate_is_watched_failing_for_the_reason_it_claims() -> None:
+    """A gate nobody has watched fail is a gate nobody knows works — and `ci.yml` already carries
+    that check for the wheel-import gate. This is its twin for the handshake, and it exists because
+    the two ways this gate can fail are not equally informative.
+
+    `--expect-version 0.0.0` must be refused **by the version assertion**, not by a missing `pnk`,
+    an absent KB or a session that never started. Each of those also exits non-zero, so a negative
+    check reading only the exit status would be satisfied by a run in which the gate never reached
+    a server — the repository's recorded defect class, inside the step written to prevent it. The
+    grep therefore names `serverInfo.version`, a string no other failure path prints.
+    """
+    import yaml
+
+    workflow = _workflow()
+    document = yaml.safe_load(workflow)
+    negative = next(
+        (
+            step
+            for step in document["jobs"]["build"]["steps"]
+            if "--expect-version 0.0.0" in str(step.get("run", ""))
+        ),
+        None,
+    )
+    assert negative is not None, (
+        "nothing in ci.yml watches the handshake gate fail, so a gate that silently passes "
+        "everything would look exactly like this one does now"
+    )
+    run = str(negative["run"])
+    assert "serverInfo.version is" in run, (
+        "the negative check does not name the failure it expects, so a run where the gate never "
+        "reached a server would satisfy it"
+    )
+    _no_failure_path_exits_zero(run, "ci.yml's handshake negative check")
 
 
 def test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish() -> None:
@@ -470,16 +525,20 @@ def test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish() -> No
 
     exercised = next((i for i, run in enumerate(runs) if "tools/wheel_import_gate.py" in run), None)
     assert exercised is not None, "release.yml does not import the wheel it is about to publish"
-    assert '"method":"initialize"' in runs[exercised], (
+    assert "tools/mcp_handshake_gate.py" in runs[exercised], (
         "it imports the wheel and never starts the server the outage was in"
     )
-    assert "serverInfo" in runs[exercised], "nothing asserts the server answered"
 
     # The same assertions its `ci.yml` twin makes, and for the same reasons: the release path is
     # the one where being wrong is irreversible, so it may not check *less*. Each of these
     # survived deletion from release.yml while this test stayed green (second review, 20260822).
-    assert "pinakes_search" in runs[exercised], (
-        "a server that initialises and registers nothing would satisfy serverInfo alone"
+    assert "--expect-version" in runs[exercised], (
+        "the wheel about to be uploaded is never asked which version it tells a client it is — "
+        "the field that carried the mcp library's version on every release to 0.27.2"
+    )
+    assert re.search(r"version=\$\(basename .*cut -d- -f2", runs[exercised]), (
+        "the expected version no longer comes from the wheel's own filename, so it could be read "
+        "from the install under test and agree with itself"
     )
     assert "--require pinakes.serve" in runs[exercised], (
         "nothing requires the walk to have reached the module the whole gate exists for"
@@ -488,11 +547,11 @@ def test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish() -> No
         "without it the gate falls back to a floor a half-empty wheel would clear"
     )
     assert re.search(r"timeout \d+ uv run", runs[exercised]), (
-        "an mcp that blocks on a closed stdin would hang the job that publishes"
+        "an mcp whose session never ends would hang the job that publishes"
     )
-    assert re.search(r"^\s*code=\$\?", runs[exercised], re.MULTILINE), (
-        "`out=$(...)` under `set -e` aborts before anything is echoed, so the release job goes "
-        "red with no reason printed — capture the status and print the output first"
+    assert not re.search(r"^\s*out=\$\(timeout", runs[exercised], re.MULTILINE), (
+        "the handshake's output is captured into a variable again — on the publish path above all, "
+        "the gate's own exit status must be what `set -e` reads"
     )
 
     # **Unconditional, in both senses.** `Publish to PyPI` is legitimately gated on a repository
@@ -576,9 +635,13 @@ def test_no_step_that_resolves_fresh_can_be_switched_off() -> None:
         step
         for step in document["jobs"]["build"]["steps"]
         if "wheel_import_gate.py" in str(step.get("run", ""))
-        or "pnk serve" in str(step.get("run", ""))
+        or "mcp_handshake_gate.py" in str(step.get("run", ""))
     ]
-    assert len(guarded) >= 3, f"the fresh-resolve leg has shrunk to {len(guarded)} step(s)"
+    # Four: two wheel-import steps and two handshake steps, each pair being the gate and the run
+    # that watches it fail. The selector names the two *tools* — it read `pnk serve` until the
+    # handshake became a script that spawns `pnk` itself, at which point it silently stopped
+    # matching the steps it exists to guard and the floor is what said so.
+    assert len(guarded) >= 4, f"the fresh-resolve leg has shrunk to {len(guarded)} step(s)"
     for step in guarded:
         disabling = {"if", "continue-on-error"} & set(step)
         assert not disabling, f"{step.get('name')!r} carries {sorted(disabling)}"
