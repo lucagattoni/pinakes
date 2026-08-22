@@ -33,6 +33,13 @@ for a release the release documents have never heard of, and it fails. Removing 
 turn an intended, documented window red; removing the direction with it would let the list drift
 behind forever with nothing watching.
 
+**What `newest_may_lag` costs, said plainly.** A missing newest entry is legal for that sequence,
+so an entry written in a shape the pattern does not match is indistinguishable from one that has
+not been written yet — it is silently unchecked rather than reported. The floor still catches
+wholesale pattern rot; a single mis-shaped newest entry it cannot catch. That is the price of not
+turning the hold-back window red, and it is stated here rather than left for a reader to discover,
+because a gate whose limits are undocumented gets trusted past them.
+
 **What this gate cannot see: a count.** It reads an *order*. A sentence saying "thirty-six" beside
 a list of thirty-seven is invisible here, and one landed one line from its own correction through a
 green run of every gate in this repo (20260822). Counts are checked by reading the neighbourhood,
