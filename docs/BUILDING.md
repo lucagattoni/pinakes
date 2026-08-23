@@ -55,9 +55,26 @@ Never batch increments; each is a separate, bisectable landing:
    which pulls the ~2 GB `[st]` extra the matrix deliberately omits) — `uv run --extra X` does **not** prune extras a
    previous sync installed.
 4. **Break the code on purpose — after committing.** Mutate the 3–5 most safety-critical
-   assertions, confirm the *right* test fails for the *right reason*, restore. The harness rules,
-   each earned at least twice ([RETROSPECTIVES.md](RETROSPECTIVES.md) § *Start here* → "run a
-   mutation pass"):
+   assertions, confirm the *right* test fails for the *right reason*, restore.
+
+       python3 tools/mutate.py tools/batteries/tools-release_order_gate.toml
+       python3 tools/mutate.py --check-anchors tools/batteries/*.toml   # do they still hold?
+
+   **The battery is a committed file, one per target, and you append to the one your target
+   already has** — never a second file for it, which is how two increments end up maintaining two
+   sets of mutants that disagree. `grep -l 'file = "src/pinakes/x.py"' tools/batteries/*.toml` says
+   which; no hit means start one, named for the path with `/` → `-` and the extension dropped. The
+   rule, and what to do when an anchor rots, are in
+   [`tools/batteries/README.md`](https://github.com/lucagattoni/pinakes/blob/main/tools/batteries/README.md);
+   `tests/test_batteries.py` fails if an anchor stops resolving, if a `kills` selector names a test
+   that no longer exists, or if two batteries claim one file.
+
+   **What the comments in a battery are for.** The proof is re-derivable — an afternoon per gate,
+   measured. The *reasoning about which mutants were worth writing* is not, and it is the only
+   thing in the file that the code does not already contain. Write it down beside the mutant.
+
+   The harness rules, each earned at least twice ([RETROSPECTIVES.md](RETROSPECTIVES.md) §
+   *Start here* → "run a mutation pass") and each a refusal in `tools/mutate.py`:
    - **Commit before mutating** — `git checkout <file>` restores to the last commit, not to the
      pre-mutation state, and has silently reverted uncommitted fixes six times here. After any
      restore, grep for the thing that was supposed to survive it.

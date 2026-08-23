@@ -1282,6 +1282,9 @@ def test_check_anchors_reports_every_stale_anchor_not_only_the_first(repo: Path)
     assert "gone: the anchor occurs 0 times" in result.stderr
     assert "also gone: the anchor occurs 0 times" in result.stderr
     assert "2 problem(s)" in result.stderr
+    # The per-battery line is a summary of the same batch, so it must not read `all resolve` while
+    # two problems are printed below it — a mutation pass found nothing asserting that.
+    assert "3 anchor(s) over 1 file(s) — 2 stale" in result.stdout
     assert_nothing_ran(result)
 
 
