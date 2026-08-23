@@ -1,7 +1,13 @@
 # Guide — using Pinakes
 
-How to build, feed, search and share a knowledge base. Every command here was run against 0.2.0
-(20260728 16:40); the output shown is real.
+How to build, feed, search and share a knowledge base. Every command here was re-run against
+**0.28.1** (20260823, 02:26–02:39 UTC) and the output shown is what it printed, with three exceptions
+named where they appear: the paid `--deep` run in [Paying for an answer](#paying-for-an-answer) is
+a real transcript from 0.24.0 kept rather than re-bought, and the two-KB walkthrough in [Following
+links](#following-links-between-two-kbs) keeps its original ULIDs, since re-running it would change
+every identifier in the section without making a single sentence truer. **The previous stamp said
+0.2.0 (20260728), twenty-six releases back** — it had been wrong on the published site for most of
+this project's life, and **nine output blocks and four prose claims** below had drifted with it.
 
 For the flag-by-flag reference see [CLI.md](CLI.md); for every manifest and sidecar field see
 [MANIFEST.md](MANIFEST.md); for whether a feature exists yet see [STATUS.md](STATUS.md).
@@ -87,7 +93,7 @@ pnk templates
 ```
 
 ```
-notes  1.1  Plain Markdown notes: the smallest useful knowledge base.
+notes  1.2  Plain Markdown notes: the smallest useful knowledge base.
 ```
 
 It takes no `--kb` — the answer is a property of the install, not of a KB. Once you have one,
@@ -95,7 +101,7 @@ It takes no `--kb` — the answer is a property of the install, not of a KB. Onc
 changed since.
 
 ```
-created /path/to/my-kb from notes@1.1
+created /path/to/my-kb from notes@1.2
   kb id: 01KYMJMH8ECH945D5056CJD72V  (permanent — never edit it)
 
 Next:
@@ -110,6 +116,9 @@ You get:
 my-kb/
 ├── pinakes.toml     # the manifest — sources, models, chunking, budget
 ├── docs/            # SOURCE OF TRUTH: your files, never modified
+├── eval/
+│   └── questions.yaml   # the golden set, shipped empty on purpose
+├── README.md        # the template's own — replace it with yours
 └── .gitignore       # ships covering .pinakes/
 ```
 
@@ -129,7 +138,7 @@ pnk init . --name "Team notes"
 ```
 
 ```
-created /path/to/team-notes from notes@1.1
+created /path/to/team-notes from notes@1.2
   kb id: 01KZ9ZEX1A4RYP0BSZFSSBATQG  (permanent — never edit it)
   left as they were: .gitignore, README.md
 
@@ -344,7 +353,7 @@ pnk ask "who may assign catalogue numbers" --kb my-kb -k 2
 confidence: high — top rerank score 3.514 is above -3.5016
 no answer was synthesised — this is evidence, not a conclusion.
 answering this would take one synthesis call over the passages above.
-`pnk ask --deep` pays to turn this evidence into an answer, estimated at €0.26 worst case — every call is reconciled to what it actually cost, which `pnk budget` shows.
+`pnk ask --deep` pays to turn this evidence into an answer, estimated at €0.20 worst case — every call is reconciled to what it actually cost, which `pnk budget` shows.
 ```
 
 **There is no answer there, and nothing free will produce one.** What `ask` can do is say honestly
@@ -359,7 +368,7 @@ read instead:
 confidence: unknown — no calibrated thresholds in the manifest ([retrieval.confidence])
 no answer was synthesised — this is evidence, not a conclusion.
 how much answering this would take cannot be told from here: with no calibrated signal, a run ends at its caps rather than at sufficiency.
-`pnk ask --deep` pays to turn this evidence into an answer, estimated at €1.69 worst case — every call is reconciled to what it actually cost, which `pnk budget` shows.
+`pnk ask --deep` pays to turn this evidence into an answer, estimated at €1.33 worst case — every call is reconciled to what it actually cost, which `pnk budget` shows.
 fit [retrieval.confidence] with `python -m pinakes.calibrate <kb>` — with reranking on, and with the fitted reranker the one actually in use.
 ```
 
@@ -391,6 +400,16 @@ into an answer:
 ```bash
 pnk ask "who may assign catalogue numbers" --kb my-kb --deep --yes
 ```
+
+⚠️ **This one block is a real run from 0.24.0, kept rather than re-bought** — it is the only output
+on this page not re-run against 0.28.1, because reproducing it means paying for it again. Two
+figures in it are therefore historical. The **€0.08 actually spent** is what that run cost and does
+not depend on the estimator. The **€0.26 estimate** does: `deep/estimate.py` was re-measured against
+the live API in 0.25.3, and **this exact command — no `-k`, so the default passage count — is now
+quoted at €0.21.** The €0.20 under [Asking a question](#asking-a-question) above is the *same
+question* at `-k 2`: fewer passages, one cent less. They are two invocations, not one number
+measured twice, and quoting either as "the" new figure would be inventing a precision nobody ran.
+Everything else here — the answer, the citations, the suggested-links block — is unchanged.
 
 ```
 answer — synthesised from the evidence above, and cited back into it:
@@ -452,21 +471,29 @@ default caps were raised so a deep run fits, but your manifest stamped the old o
 not rewrite your manifest. The refusal is the remedy:
 
 ```
-error: refused: answering this question with claude-opus-5 is estimated at €1.69 (the
-decomposition branch: 6 paid call(s) across 3 round(s), worst case), which exceeds 2 of the
-three budget windows:
+error: refused: answering this question with claude-opus-5 is estimated at €1.38 (the unknown
+branch: 6 paid call(s) across 3 round(s), worst case), which exceeds 2 of the three budget
+windows:
   - per_operation_eur: cap €0.30, already spent €0.00 this window, headroom €0.30 — this run
-    needs €1.69.
-  - daily_eur: cap €1.00, already spent €0.00 this window, headroom €1.00 — this run needs €1.69.
+    needs €1.38.
+  - daily_eur: cap €1.00, already spent €0.00 this window, headroom €1.00 — this run needs €1.38.
 The complete manifest edit that would admit this run:
   [budget]
-  per_operation_eur = 1.69
-  daily_eur = 1.69
+  per_operation_eur = 1.38
+  daily_eur = 1.38
 Raising a cap is a permanent, ongoing exposure to every future run at that ceiling. Two cheaper
 routes exist first: lower `[deep] max_rounds`, which is what the estimate multiplies; or fit
 `[retrieval.confidence]` with `python -m pinakes.calibrate <kb>`, after which a confident question
 costs one call instead of a loop.
+Raise the named cap in `[budget]`, or wait for the window to roll over. `pnk budget` shows what
+has been spent and against which ceiling.
 ```
+
+**It exits `1`**, measured without a pipe — a refusal is something you asked for that could not be
+done, not a report. The branch is named **`unknown`** rather than `decomposition` because this KB
+has no calibrated signal. It is priced *identically* to `decomposition` — the missing signal
+changes when a run **stops**, never what a round **costs** — so the euro figure is the same either
+way and only the name differs. A calibrated KB whose question reads `low` says `decomposition` here.
 
 Every blocked window at once, with the exact edit — because raising one cap, retrying, and
 discovering the next is the experience that shape exists to avoid. `pnk upgrade` will show you the
@@ -539,9 +566,10 @@ sync finding a live lock exits 0 quietly, and `pnk doctor` reports any held lock
 
 ## Watching what it costs
 
-The only shipped surface that spends is the opt-in Claude-vision extractor (0.3.0), and the
-accounting is already there for it — every call is priced and reserved before it is made, and
-`pnk budget` reads it:
+**Two shipped surfaces can spend**, both opt-in: the Claude-vision PDF extractor (0.3.0) and
+`pnk ask --deep` (0.24.0). Neither runs unless you ask for it — the free extractor is the default
+and `pnk ask` without `--deep` never spends — and the accounting is the same for both: every call
+is priced and reserved before it is made, and `pnk budget` reads it:
 
 ```bash
 pnk budget --kb my-kb
@@ -552,8 +580,9 @@ or left with an **unknown outcome**, and the last few operations. On a KB that h
 prints zeros; it can only ever read.
 
 Caps live in `[budget]` ([MANIFEST](MANIFEST.md#budget)) and there are three, all enforced before
-every call: `per_operation_eur` bounds one `pnk sync`, while `daily_eur` and `monthly_eur` bound
-*sequences* of them — a per-operation cap alone is no protection against a hook-driven KB syncing
+every call: `per_operation_eur` bounds one whole **command** — one `pnk sync`, or one
+`pnk ask --deep` run including every round it pays for — while `daily_eur` and `monthly_eur` bound
+*sequences* of them: a per-operation cap alone is no protection against a hook-driven KB syncing
 thirty times a day. **They are per KB**: ten paid KBs have ten monthly allowances, and there is no
 global cap in this release.
 
@@ -689,7 +718,8 @@ one, under their own heading:
 ```
 ⚠️  a spending cap changes:
 
-  per_operation_eur: 0.05 → 0.30
+  per_operation_eur: 0.30 → 2.00
+  daily_eur: not set → 6.00
 ```
 
 It appears only when a cap really would move, so seeing nothing means nothing moved. A raised cap
@@ -705,19 +735,23 @@ If an applied change touches a key your index was built under — a chunking siz
 — the output names the key and tells you to run `pnk sync --rebuild`. `--apply` never syncs,
 re-chunks or re-embeds by itself.
 
-**On every KB that exists today it says this instead** — run 20260807 23:52, on a KB created
-before the version archive existed:
+**On a KB stamped `notes@1.0` it says this instead** — re-run against 0.28.1 in the same pass as
+the rest of this page, on a KB created before the version archive existed:
 
 ```
 cannot compare: notes@1.0 is not in this build's archive
 
 Nothing is wrong with your KB and nothing needs changing. A manifest records a version
-string, never the content that version meant, and this build ships the content of notes@1.1
-— so there is no baseline to diff against, and there will not be a later one: an unarchived
-version's content is gone, not pending. To see what moved, compare it by hand: run
-`pnk init` on a throwaway directory and diff its pinakes.toml against yours. A KB stamped
-from notes@1.1 or later is compared automatically.
+string, never the content that version meant, and this build ships the content of notes@1.1,
+notes@1.2 — so there is no baseline to diff against, and there will not be a later one: an
+unarchived version's content is gone, not pending. To see what moved, compare it by hand:
+run `pnk init` on a throwaway directory and diff its pinakes.toml against yours. A KB
+stamped from notes@1.1 or later is compared automatically.
 ```
+
+**The archive list in that message grows with each template version**, which is why it now reads
+`notes@1.1, notes@1.2` where it once read `notes@1.1` alone — the message enumerates what this
+build actually ships rather than naming a latest.
 
 That is not a fault in your KB and there is nothing to fix. A manifest records `notes@1.0` — a
 *name*. The content behind that name changed ten times while the name stayed the same, so no
@@ -765,10 +799,11 @@ them and `pnk links` traverses them: see [Following links between two KBs](#foll
 | `` `vector_tier` must be one of 'auto', 'numpy' `` | The manifest says `vector_tier = "sqlite-vec"` — a tier that is **not built**. It used to be accepted and ignored; the KB now refuses to load on **every** command rather than pretend | `vector_tier = "auto"`. It changes nothing about how that KB behaves: it was already getting the NumPy tier ([MANIFEST](MANIFEST.md)) |
 | Searches slow past ~50k chunks | NumPy tier is exact, not sublinear | Expected; `pnk doctor` warns. **The `sqlite-vec` tier is deferred rather than scheduled** — it returns if a queried KB crosses ~50 000 chunks with latency you actually feel, which is a good reason to say so. **Setting `vector_tier = "sqlite-vec"` is refused, not a workaround.** Splitting the KB is the honest answer today |
 
-Everything in this section is free. The one path that can spend is the opt-in `claude-vision`
-extractor above, which needs `pinakes[claude]`, an explicit `--extract=claude-vision` or manifest
-key, **and** a real `PINAKES_ANTHROPIC_API_KEY`; it is bounded by the three `[budget]` caps and recorded in
-`pnk budget` ([STATUS](STATUS.md#the-surface-you-can-use-today)).
+Everything in this section is free. **Two paths can spend, and neither is reachable by accident.**
+The `claude-vision` extractor above needs `pinakes[claude]`, an explicit `--extract=claude-vision`
+or manifest key, **and** a real `PINAKES_ANTHROPIC_API_KEY`; `pnk ask --deep` needs the `--deep`
+flag and the same key. Both are bounded by the three `[budget]` caps and recorded in `pnk budget`
+([STATUS](STATUS.md#the-surface-you-can-use-today)).
 
 ## Following links between two KBs
 
