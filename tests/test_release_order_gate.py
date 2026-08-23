@@ -29,6 +29,17 @@ def run(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def failures_of(result: subprocess.CompletedProcess[str]) -> list[str]:
+    """The gate's failure lines. Each is printed as `  {failure}` under one headline.
+
+    Exists so a fixture can assert **exactly one failure, and which one** rather than
+    `assert "reads ascending" not in stderr`. The negative form is satisfied by a reworded message
+    and by a second failure appearing beside the one under test: it asserts the absence of a
+    spelling, where what the test means is the presence of exactly one thing.
+    """
+    return [line[2:] for line in result.stderr.splitlines() if line.startswith("  ")]
+
+
 def _tree(
     root: Path,
     *,
@@ -281,13 +292,18 @@ def test_the_prose_pattern_does_not_match_the_roadmap_table(tmp_path: Path) -> N
     The count is the observable — six sequences, and the prose one names exactly its own entries.
     """
     versions = _versions()
-    result = run(str(_tree(tmp_path, versions=versions, prose_versions=versions[:20])))
+    # Two behind, not ten: `MAX_VERIFICATION_LAG` makes a ten-behind fixture illegitimate, and a
+    # fixture the gate would reject in production proves nothing about production.
+    prose = versions[:-2]
+    result = run(str(_tree(tmp_path, versions=versions, prose_versions=prose)))
 
     assert result.returncode == 0, result.stderr
     match = re.search(r"the Published on PyPI prose: (\d+) releases,", result.stdout)
     assert match is not None, result.stdout
-    assert int(match.group(1)) == 20, (
-        f"the prose sequence must match its own 20 entries and nothing else: {result.stdout}"
+    assert int(match.group(1)) == len(prose), (
+        f"the prose sequence must match its own {len(prose)} entries and nothing else — the "
+        f"STATUS table beside it carries {len(versions)}, so a pattern reaching into the table "
+        f"would report more: {result.stdout}"
     )
 
 
@@ -325,12 +341,13 @@ def test_a_section_under_a_rangeless_part_fails_while_every_sequence_stays_sorte
     result = run(str(root))
 
     assert result.returncode == 1
-    assert f"the section for {versions[-1]} sits under Part 5" in result.stderr
-    assert "Part 5 declares no release range" in result.stderr
-    assert "reads ascending" not in result.stderr, (
-        "the fixture must fail for placement alone — an ordering failure here means the test no "
-        "longer distinguishes the two, which is the whole point of the check:\n" + result.stderr
+    only = failures_of(result)
+    assert len(only) == 1, (
+        "the fixture must fail for placement ALONE — a second failure means it no longer "
+        f"distinguishes placement from ordering, which is the whole point:\n{only}"
     )
+    assert f"the section for {versions[-1]} sits under Part 5" in only[0]
+    assert "Part 5 declares no release range" in only[0]
 
 
 def test_a_section_one_part_early_is_caught_and_names_both_parts(tmp_path: Path) -> None:
@@ -354,9 +371,10 @@ def test_a_section_one_part_early_is_caught_and_names_both_parts(tmp_path: Path)
     result = run(str(root))
 
     assert result.returncode == 1
-    assert "the section for 0.8.0 sits under Part 3, but belongs under Part 4" in result.stderr
-    assert "Part 3 declares 0.5.0 → 0.7.0" in result.stderr
-    assert "reads ascending" not in result.stderr, result.stderr
+    only = failures_of(result)
+    assert len(only) == 1, f"placement alone, or the fixture has stopped discriminating:\n{only}"
+    assert "the section for 0.8.0 sits under Part 3, but belongs under Part 4" in only[0]
+    assert "Part 3 declares 0.5.0 → 0.7.0" in only[0]
 
 
 def test_a_part_whose_range_stops_parsing_holds_nothing_rather_than_everything(
@@ -463,7 +481,7 @@ def test_a_part_pattern_that_stops_matching_fails_rather_than_passing(tmp_path: 
     result = run(str(root))
 
     assert result.returncode == 1
-    assert "`# Part` heading(s), fewer than the 4 floor" in result.stderr
+    assert "`# Part` heading(s), fewer than the 5 floor" in result.stderr
 
 
 def test_the_real_documents_are_complete_from_their_declared_starts() -> None:
@@ -514,10 +532,11 @@ def test_a_release_missing_from_the_middle_is_caught(tmp_path: Path) -> None:
     result = run(str(_tree(tmp_path, versions=versions, status_versions=gapped)))
 
     assert result.returncode == 1
-    assert "1 release(s) missing — 0.20.0" in result.stderr
-    assert "reads ascending" not in result.stderr, (
-        "a gap leaves every surviving pair sorted; if this fails on ordering the fixture is wrong"
+    only = failures_of(result)
+    assert len(only) == 1, (
+        f"a gap leaves every surviving pair sorted, so membership must be the only failure:\n{only}"
     )
+    assert "1 release(s) missing — 0.20.0" in only[0]
 
 
 def test_a_release_before_a_sequences_declared_start_is_not_required(tmp_path: Path) -> None:
@@ -553,3 +572,158 @@ def test_a_lagging_sequence_may_not_have_a_hole_below_its_own_newest(tmp_path: P
 
     assert result.returncode == 1
     assert "the Published on PyPI prose: 1 release(s) missing — 0.20.0" in result.stderr
+
+
+def test_a_lag_within_the_declared_bound_stays_green(tmp_path: Path) -> None:
+    """The half that gets skipped.
+
+    `MAX_VERIFICATION_LAG` is 2, so a list two releases behind is still legitimate — one unverified
+    cut plus one slip. A bound that also reddened the normal hold-back window would be turned off
+    within a week, so the green case is as much the specification as the red one.
+    """
+    versions = _versions()
+    result = run(str(_tree(tmp_path, versions=versions, prose_versions=versions[:-2])))
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_a_lag_past_the_declared_bound_fails_and_names_both_causes(tmp_path: Path) -> None:
+    """Three behind is not latency any more.
+
+    The ceiling for a lagging sequence is that sequence's own maximum — an echo of the document
+    being checked — so without this bound, deleting its newest entry drops the ceiling with it and
+    the deletion hides itself. That is the defect refused at the *lower* bound surviving four lines
+    away at the upper one.
+
+    The message must name **both** causes and choose neither: an entry deleted and an entry not yet
+    written are indistinguishable from the documents, and a gate that guessed would be wrong half
+    the time and confident every time.
+    """
+    versions = _versions()
+    result = run(str(_tree(tmp_path, versions=versions, prose_versions=versions[:-3])))
+
+    assert result.returncode == 1
+    only = failures_of(result)
+    assert len(only) == 1, f"the lag bound alone should fire here:\n{only}"
+    assert "3 releases behind" in only[0]
+    assert "past the declared lag of 2" in only[0]
+    assert "an entry was deleted" in only[0] and "verification has stopped" in only[0], (
+        "naming one cause would be a guess the documents cannot support"
+    )
+
+
+def test_the_lag_bound_does_not_apply_to_a_sequence_that_may_not_lag(tmp_path: Path) -> None:
+    """A strict sequence that is behind is caught by the newest-differs check, never by the lag
+    bound — and it is the *ceiling* that scopes this, not a second condition.
+
+    A strict sequence's ceiling is the newest release overall, so nothing can be above it and the
+    lag branch cannot fire. That is why there is no `newest_may_lag` test beside the bound: a
+    mutation run deleted one and survived, because the condition was unobservable. What this test
+    pins is the observable consequence — a strict sequence three behind reports the newest-differs
+    failure and no lag failure.
+    """
+    versions = _versions()
+    result = run(str(_tree(tmp_path, versions=versions, status_versions=versions[:-3])))
+
+    assert result.returncode == 1
+    assert "releases behind" not in result.stderr, (
+        "a strict sequence is caught by the newest-differs check, not by the lag bound"
+    )
+    assert "the newest release differs between sequences" in result.stderr
+
+
+def _roadmap_of(root: Path) -> Path:
+    return root / "docs" / "ROADMAP.md"
+
+
+def test_a_range_appended_to_a_rangeless_part_cannot_silence_placement(tmp_path: Path) -> None:
+    """The exploit an adversarial audit found in this check, reproduced.
+
+    File a release section under the rangeless final Part — the 0.25.3 and 0.27.1 defect — and the
+    gate says so. Then append that Part's *missing* range to its heading and the same tree passes:
+    twenty characters, exit 0, and the only trace is a green line changing `holding no releases:
+    Part 5` to `holding no releases: none`.
+
+    The range cannot be declared in the tool (reading it from the heading is what stops the mapping
+    drifting), so it is constrained instead — two Parts may not claim the same version. Part 4
+    already declares `0.8.0` onward, which is exactly what stops Part 5 doing so.
+    """
+    versions = _versions()
+    root = _tree(tmp_path, versions=versions)
+    _roadmap_of(root).write_text(
+        "| Release | Adds |\n|---|---|\n"
+        + "".join(f"| **[{v}](#anchor-{v})** | 20260101 00:00 | something |\n" for v in versions)
+        + "\n"
+        + _parts(versions, misfile=versions[-1], into=4),
+        encoding="utf-8",
+    )
+    caught = run(str(root))
+    assert caught.returncode == 1, "the misfiling itself must be caught first"
+    assert f"the section for {versions[-1]} sits under Part 5" in caught.stderr
+
+    roadmap = _roadmap_of(root)
+    roadmap.write_text(
+        roadmap.read_text(encoding="utf-8").replace(
+            "# Part 5 · What is not built",
+            "# Part 5 · What is not built — `0.8.0` onward",  # the twenty characters
+        ),
+        encoding="utf-8",
+    )
+    result = run(str(root))
+
+    assert result.returncode == 1, (
+        "appending a range to the Part must not make the misfiled section legitimate:\n"
+        + result.stdout
+    )
+    assert "Part 4 and Part 5 both claim releases in the same range" in result.stderr
+
+
+def test_parts_must_ascend_with_the_document(tmp_path: Path) -> None:
+    """A section's holder is the nearest Part above it, so position only means something if the
+    Parts run in version order. Descending Parts would make 'the nearest heading above' and 'the
+    Part whose range holds it' answer different questions without either being wrong."""
+    versions = _versions()
+    root = _tree(tmp_path, versions=versions)
+    roadmap = _roadmap_of(root)
+    roadmap.write_text(
+        roadmap.read_text(encoding="utf-8").replace(
+            "# Part 2 · The middle — `0.2.0` → `0.4.0`",
+            "# Part 2 · The middle — `0.9.0` → `0.9.9`",  # now above Part 3's range
+        ),
+        encoding="utf-8",
+    )
+
+    result = run(str(root))
+
+    assert result.returncode == 1
+    # Naming the pair, not just the sentence. A mutation run flipped the comparison and this test
+    # still passed: with `>` a *different*, correctly-ordered pair fires and prints the same words.
+    # Asserting the message is asserting that something went wrong, not that the right thing did.
+    assert "Part 3 declares 0.5.0 but follows Part 2 which declares 0.9.0" in result.stderr, (
+        result.stderr
+    )
+    assert "must ascend with the document" in result.stderr
+
+
+def test_demoting_the_last_part_heading_fails_the_floor(tmp_path: Path) -> None:
+    """The floor was one below the real count, which made it a floor with a bypass.
+
+    Demote `# Part 5` to `## Part 5` and the document has four Parts — passing a floor of four
+    exactly — while every section beneath the demoted heading is re-attributed to Part 4, whose
+    range is `0.8.0` onward and therefore holds everything. Parts are never removed, so a floor at
+    the real count only ever holds.
+    """
+    versions = _versions()
+    root = _tree(tmp_path, versions=versions)
+    roadmap = _roadmap_of(root)
+    roadmap.write_text(
+        roadmap.read_text(encoding="utf-8").replace(
+            "# Part 5 · What is not built", "## Part 5 · What is not built"
+        ),
+        encoding="utf-8",
+    )
+
+    result = run(str(root))
+
+    assert result.returncode == 1
+    assert "`# Part` heading(s), fewer than the 5 floor" in result.stderr

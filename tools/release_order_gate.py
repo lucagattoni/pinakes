@@ -84,6 +84,25 @@ the release procedure itself, which writes CHANGELOG before anything else.
 allowed not to have reached the latest release yet — the hold-back window. Below its own newest it
 must be as complete as any other, so the exemption cannot hide a hole in the middle.
 
+**And that ceiling is the sequence's own maximum, which is an echo — so how far it may lag is
+declared too.** Without a bound, deleting the *newest* entry of a lagging sequence drops the ceiling
+with it and the deletion hides itself: exactly the defect refused at the lower bound, surviving four
+lines away at the upper one. `MAX_VERIFICATION_LAG` closes it, and the number is not a tuning knob.
+*Verify the artifact, never the run status* is the rule this list exists to record. Two behind is
+one unverified cut plus one slip; **three behind means verification has stopped happening**, and a
+gate going red on that is the gate doing the job the list was created for. If it ever fires, the
+remedy is to verify the backlog, not to raise the constant.
+
+**What the bound buys, exactly.** It does not detect a deletion; it bounds how far the echo can
+drift before something says so. At a legitimate lag of 1, deleting the newest entry leaves a lag of
+2 and is still silent. Past that it is not. Unbounded silent drift becomes at most
+`MAX_VERIFICATION_LAG` releases of it, which is the honest description and not "the deletion hole is
+closed".
+
+**The message names both causes and picks neither**, because the documents genuinely cannot tell
+them apart: an entry deleted and an entry not yet written look identical. A gate that guessed would
+be wrong half the time and confident every time.
+
 **What this gate cannot see: a count.** It reads an *order*. A sentence saying "thirty-six" beside
 a list of thirty-seven is invisible here, and one landed one line from its own correction through a
 green run of every gate in this repo (20260822). Counts are checked by reading the neighbourhood,
@@ -103,6 +122,12 @@ from pathlib import Path
 #: A sequence shorter than this means the pattern stopped matching, not that the project un-released
 #: something. Releases are never deleted, so this floor only ever holds.
 MINIMUM = 25
+
+#: How many releases a sequence permitted to lag may be behind the newest release overall, before
+#: the lag stops being latency and becomes a lapse. Declared for the same reason `starts_at` is: the
+#: alternative is a ceiling read out of the sequence being checked, which moves when an entry is
+#: deleted and so hides the deletion. Raising this is a decision someone has to take deliberately.
+MAX_VERIFICATION_LAG = 2
 
 Version = tuple[int, int, int]
 
@@ -244,7 +269,12 @@ _RANGE_OPEN = re.compile(rf"`{NUM}`\s+onward\s*$")
 #: leaves no Parts, and a document with no Parts trivially satisfies "every section is under the
 #: right Part" if the check is written the wrong way round. It is written the right way round — a
 #: section under no Part fails — but the floor makes a rotted pattern say so directly.
-PARTS_MINIMUM = 4
+#:
+#: **Five, not four.** At four it sat exactly one below the real count, so *demoting* the last
+#: heading — `# Part 5` to `## Part 5` — passed the floor and handed every section beneath it to
+#: Part 4, whose range is `0.8.0` onward and therefore holds everything. A floor one below the truth
+#: is a floor with a documented bypass. Parts are never removed, so this only ever holds.
+PARTS_MINIMUM = 5
 
 
 class Part:
@@ -299,6 +329,55 @@ def _show(version: Version) -> str:
     return ".".join(str(part) for part in version)
 
 
+def _ranges_are_disjoint_and_ascending(parts: list[Part]) -> list[str]:
+    """No two Parts may claim the same version, and their ranges must ascend with the document.
+
+    Without this the placement check can be switched off by editing the document it polices: append
+    ``— `0.8.0` onward`` to `# Part 5 · What is not built` and a release section filed under it is
+    suddenly "correctly placed". Twenty characters, exit 0, and the only trace is a green report
+    line changing `holding no releases: Part 5` to `holding no releases: none`.
+
+    That is the third instance of one class in this file — a constant read out of the thing being
+    checked. The starts were fixed by declaring them and the lagging ceiling by bounding it; a Part
+    range cannot be declared here, because reading it from the heading is what keeps the mapping
+    from drifting. So it is constrained instead: overlapping ranges are refused, which is what makes
+    a *second* Part unable to claim versions the first already holds. `# Part 4` declaring
+    `0.8.0` onward is then exactly what stops `# Part 5` from doing the same.
+    """
+    failures: list[str] = []
+    # Built with a loop rather than a comprehension so `low` is narrowed to a real Version: a
+    # comprehension filtering on `p.low is not None` does not carry that narrowing to the result,
+    # and the conditional-expression version reads as correct and does not type-check.
+    ranged: list[tuple[Part, Version, Version | None]] = []
+    for part in parts:
+        low = part.low
+        if not part.declares_range or low is None:
+            continue
+        ranged.append((part, low, part.high))
+
+    for (first, first_low, _), (second, second_low, _) in pairwise(ranged):
+        if second_low < first_low:
+            failures.append(
+                f"{ROADMAP}: {second.label()} declares {_show(second_low)} but follows "
+                f"{first.label()} which declares {_show(first_low)}. The Parts must ascend with "
+                "the document, or a section's position says nothing about which Part holds it."
+            )
+
+    for index, (first, first_low, first_high) in enumerate(ranged):
+        for second, second_low, second_high in ranged[index + 1 :]:
+            overlaps = (first_high is None or second_low <= first_high) and (
+                second_high is None or first_low <= second_high
+            )
+            if overlaps:
+                failures.append(
+                    f"{ROADMAP}: {first.label()} and {second.label()} both claim releases in "
+                    f"the same range ({first.describe()}; {second.describe()}). Two Parts "
+                    "claiming one version means a section filed under either is 'correctly "
+                    "placed', which is how a heading edit can switch this check off."
+                )
+    return failures
+
+
 def check_placement(root: Path, *, report: list[str] | None = None) -> list[str]:
     """Every per-release section sits under the Part whose declared range contains its version.
 
@@ -322,6 +401,7 @@ def check_placement(root: Path, *, report: list[str] | None = None) -> list[str]
         )
         return failures
 
+    failures.extend(_ranges_are_disjoint_and_ascending(parts))
     unranged = [p for p in parts if not p.declares_range]
     sections = list(re.compile(ROADMAP_SECTION, re.MULTILINE).finditer(text))
     placed = 0
@@ -383,6 +463,22 @@ def check_membership(
         required = [
             v for v in universe if sequence.starts_at <= v <= ceiling and v not in sequence.absent
         ]
+        # No `newest_may_lag` test here: it would be dead. A strict sequence's ceiling is already
+        # the newest release overall, so `behind` is empty for it by construction and this branch
+        # cannot fire. A mutation run proved that by deleting the condition and surviving — the
+        # scoping comes from the ceiling, and a second guard saying the same thing is a condition
+        # no test can ever pin.
+        behind = [v for v in universe if v > ceiling]
+        if len(behind) > MAX_VERIFICATION_LAG:
+            failures.append(
+                f"{where}: {len(behind)} releases behind — newest here {_show(ceiling)}, newest "
+                f"overall {_show(max(universe))}, past the declared lag of "
+                f"{MAX_VERIFICATION_LAG}. Either an entry was deleted, or verification has stopped "
+                "happening. This list records a claim about the index that is only written once it "
+                "has been checked against the index, so falling this far behind is the state it "
+                "exists to make visible — the remedy is to verify the backlog, not to raise the "
+                "constant."
+            )
         missing = [v for v in required if v not in present]
         if missing:
             failures.append(
