@@ -5,9 +5,11 @@ broken — a regenerated ULID, a sidecar that still parses, a €0 record for mo
 account. That is why they are a list and not a convention.
 
 Extracted from [`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md) on
-20260806 00:00, when that file crossed its own size guardrail — as `RELEASING.md` was on 20260801.
-Nothing was dropped: each invariant below names the file that owns its detail, and the rules **no
-other file states** are written out in full further down.
+20260806 00:00, when that file crossed its own size guardrail — as `RELEASING.md` was on 20260801 —
+and extended on 20260823 when it crossed it again. Nothing was dropped in either move: each
+invariant below names the file that owns its detail, the rules **no other file states** are written
+out in full further down, and [§ The paid path's key is its own](#the-paid-paths-key-is-its-own)
+carries the one whose reasoning CLAUDE.md no longer has room for.
 
 ## The invariants, and who owns the detail
 
@@ -42,3 +44,23 @@ These are implementation rules, not restatements — nothing else in the tree sa
 - **Convert a TOML float via `Decimal(str(value))`, never `Decimal(value)`**, which reproduces
   float's binary imprecision instead of the decimal a human wrote:
   `Decimal(0.05) != Decimal("0.05")`.
+
+## The paid path's key is its own
+
+**Every paid path reads `PINAKES_ANTHROPIC_API_KEY`, and the rule is enforced in code** —
+[`paid.py: resolve_api_key`](https://github.com/lucagattoni/pinakes/blob/main/src/pinakes/paid.py),
+bound to its own surface by each of the two entry points (`extract/claude.py`, `deep/client.py`), so
+a refusal names the command the user actually typed rather than the layer that refused.
+
+**Machine hygiene cannot enforce it.** The SDK reads its own variable out of whatever environment it
+is handed, so on a machine where another tool exports `ANTHROPIC_API_KEY` the paid path would find a
+live key nobody aimed at it (measured 20260804). A name only Pinakes uses, passed explicitly, is what
+makes supplying the key a deliberate act rather than a property of a tidy machine.
+
+The key lives in `.env` (gitignored by pattern) and is passed per command:
+`uv run --env-file .env pnk …`. **Never teach Pinakes to load `.env` itself, and never add an
+`ANTHROPIC_API_KEY` fallback** — both are the same defect, one layer apart.
+
+**The invocation form is not what bounds spend.** [DESIGN.md](DESIGN.md) §5's caps and the paid-path
+allowlist above are; `uv run --env-file` only decides which process sees the key. See
+[MEASUREMENT-RUN.md](MEASUREMENT-RUN.md).
