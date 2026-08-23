@@ -24,10 +24,11 @@ from typing import Any
 REPO = Path(__file__).resolve().parent.parent
 BATTERIES = REPO / "tools" / "batteries"
 
-#: `tests/test_x.py::test_y` — the same form `docs/VERIFICATION.md` uses, and the only one a
-#: selector takes here. `tests/test_x.py` alone is a legal pytest selector but is deliberately not
-#: accepted: a mutant that names a whole file names no assertion.
-SELECTOR = re.compile(r"^(tests/[\w/]+\.py)::(\w+)$")
+#: `tests/test_x.py::test_y`, or `tests/test_x.py::TestClass::test_y`. A bare `tests/test_x.py`
+#: is a legal pytest selector and is deliberately refused: a mutant naming a whole file names no
+#: assertion. The class form is not hypothetical — `tests/test_extract_quality.py::TestCorpusGate`
+#: holds six, and they are the tests that die when the extraction floors move.
+SELECTOR = re.compile(r"^(tests/[\w/]+\.py)::(\w+)(?:::(\w+))?$")
 
 
 def _batteries() -> list[tuple[Path, dict[str, Any]]]:
@@ -51,7 +52,14 @@ def _selectors_of(mutant: dict[str, Any]) -> list[str]:
 
 
 def _defined_in(path: Path) -> set[str]:
-    return set(re.findall(r"^def (\w+)", path.read_text(encoding="utf-8"), re.MULTILINE))
+    """Every `def` and `class` name, at any indentation.
+
+    `tests/test_verification.py` anchors at column 0 because it resolves module-level test
+    functions only. A battery may name a class method, so this accepts an indented `def` — and
+    `class` too, since the middle segment of a three-part selector is a class.
+    """
+    text = path.read_text(encoding="utf-8")
+    return set(re.findall(r"^\s*(?:def|class) (\w+)", text, re.MULTILINE))
 
 
 def test_the_directory_is_not_empty_and_every_battery_carries_mutants() -> None:
@@ -90,7 +98,11 @@ def test_every_anchor_still_resolves_exactly_once_in_the_file_it_names() -> None
         if not target.is_file():
             stale.append(f"{path.name}[{index}] {mutant['file']}: the target no longer exists")
             continue
-        count = target.read_text(encoding="utf-8").count(str(mutant["old"]))
+        # `read_bytes().decode()`, not `read_text()`: the latter translates newlines, so on a
+        # CRLF target this gate would report an anchor resolving that `tools/mutate.py`'s own
+        # `_decoded` — which does not translate — refuses. Two implementations of one check must
+        # read the same bytes or the cheap one is worse than none.
+        count = target.read_bytes().decode("utf-8").count(str(mutant["old"]))
         if count != 1:
             stale.append(
                 f"{path.name}[{index}] {mutant['file']}: the anchor occurs {count} times, and it "
@@ -118,11 +130,15 @@ def test_every_kills_selector_resolves_to_a_test_that_exists() -> None:
             if match is None:
                 unresolved.append(f"{path.name}[{index}]: {selector!r} is not `tests/x.py::test_y`")
                 continue
-            file, name = match.group(1), match.group(2)
+            file = match.group(1)
+            names = [part for part in match.groups()[1:] if part]
             if not (REPO / file).is_file():
                 unresolved.append(f"{path.name}[{index}]: {file} does not exist")
-            elif name not in _defined_in(REPO / file):
-                unresolved.append(f"{path.name}[{index}]: {file} does not define {name}")
+                continue
+            defined = _defined_in(REPO / file)
+            for name in names:
+                if name not in defined:
+                    unresolved.append(f"{path.name}[{index}]: {file} does not define {name}")
 
     assert not unresolved, (
         "committed batteries name tests that do not exist. A mutant whose selector cannot be "
@@ -152,10 +168,14 @@ def test_every_battery_is_named_for_a_file_it_actually_mutates() -> None:
     dropped. It is what makes *which battery does this file belong to* answerable by looking."""
     misnamed: list[str] = []
     for path, data in _batteries():
-        stems = {
-            str(mutant["file"]).rsplit(".", 1)[0].replace("/", "-")
-            for mutant in data.get("mutant", [])
-        }
+        stems: set[str] = set()
+        for mutant in data.get("mutant", []):
+            flat = str(mutant["file"]).replace("/", "-")
+            stems.add(flat.rsplit(".", 1)[0])
+            # The documented tie-break, for the day two targets flatten to one stem —
+            # `src/pinakes/extract/floors.py` and `floors.toml` already do. The loser keeps its
+            # extension, and this is the check that has to accept that spelling.
+            stems.add(flat)
         if path.stem not in stems:
             misnamed.append(
                 f"{path.name}: mutates {', '.join(sorted(stems))} and is named for none of them"
@@ -176,4 +196,61 @@ def test_a_committed_battery_omits_pytest_and_takes_the_default() -> None:
         + ", ".join(declared)
         + ". The default `uv run --frozen pytest` is one fewer thing to keep current — keep the "
         "key only with a reason, and update this test with it."
+    )
+
+
+def test_no_battery_targets_a_file_under_tests() -> None:
+    """`mutate.py` refuses a `tests/` target in both modes, so a battery carrying one is committed,
+    green in CI, and impossible to run. This is the only structural refusal the tool makes that
+    this gate would otherwise not mirror."""
+    inside: list[str] = []
+    for path, index, mutant in _mutants():
+        if str(mutant["file"]).startswith("tests/"):
+            inside.append(f"{path.name}[{index}]: {mutant['file']}")
+
+    assert not inside, (
+        "mutating a test stays manual, and `tools/mutate.py` refuses the whole battery for it — a "
+        "mutant in the file its own selector runs can make that test vacuous, and no printed "
+        "outcome would say so:\n  " + "\n  ".join(inside)
+    )
+
+
+def test_every_battery_declares_how_many_mutants_it_carries() -> None:
+    """The inventory. Nothing else here is a count, so without it a battery can shrink to one
+    mutant with every other property green — and the sanctioned repair for a property that has
+    genuinely gone is to delete its mutant, which makes shrinking the cheapest path to green during
+    a refactor. `tools/mutate.py`'s `load_battery` enforces the number; this enforces that there
+    is one."""
+    undeclared = [path.name for path, data in _batteries() if "mutants" not in data]
+    assert not undeclared, (
+        "these batteries declare no `mutants = N`, so nothing notices if rows disappear: "
+        + ", ".join(undeclared)
+    )
+    wrong = [
+        f"{path.name}: declares {data['mutants']}, carries {len(data['mutant'])}"
+        for path, data in _batteries()
+        if data.get("mutants") != len(data.get("mutant", []))
+    ]
+    assert not wrong, "declared inventory does not match:\n  " + "\n  ".join(wrong)
+
+
+def test_the_committed_batteries_cover_only_tools_and_the_readme_says_so() -> None:
+    """A coverage index with a hidden denominator is the thing this repository keeps catching.
+
+    Four batteries over four primary targets, every one under `tools/`. **No module under `src/`
+    has a committed battery**, and neither does any invariant in `docs/INVARIANTS.md`. That is a
+    starting point rather than a coverage claim, and the README has to say the number out loud —
+    if this test fails because `src/` finally has one, the sentence there needs updating too.
+    """
+    primaries = {path.stem for path, _ in _batteries()}
+    assert all(stem.startswith("tools-") for stem in primaries), (
+        f"a battery outside tools/ now exists ({sorted(primaries)}) — update the denominator "
+        "sentence in tools/batteries/README.md, which currently says there are none"
+    )
+    # Whitespace-normalised: the sentence wraps, and a substring probe that breaks on a re-wrap
+    # would fail for a reason having nothing to do with what it is asserting.
+    readme = " ".join((BATTERIES / "README.md").read_text(encoding="utf-8").lower().split())
+    assert "module under `src/` has one" in readme, (
+        "tools/batteries/README.md must state what the corpus does NOT cover; without it the "
+        "directory reads as a coverage claim with a hidden denominator"
     )

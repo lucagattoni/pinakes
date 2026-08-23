@@ -62,7 +62,7 @@ Never batch increments; each is a separate, bisectable landing:
 
    **The battery is a committed file, one per target, and you append to the one your target
    already has** — never a second file for it, which is how two increments end up maintaining two
-   sets of mutants that disagree. `grep -l 'file = "src/pinakes/x.py"' tools/batteries/*.toml` says
+   sets of mutants that disagree. `grep -l 'file *= *"src/pinakes/x.py"' tools/batteries/*.toml` says
    which; no hit means start one, named for the path with `/` → `-` and the extension dropped. The
    rule, and what to do when an anchor rots, are in
    [`tools/batteries/README.md`](https://github.com/lucagattoni/pinakes/blob/main/tools/batteries/README.md);
