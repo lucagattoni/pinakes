@@ -164,8 +164,14 @@ def opens_with_front_matter(text: str) -> bool:
 _FENCE = re.compile(r"^[ \t]*(```+|~~~+)")
 
 
-def prose_lines(text: str) -> list[tuple[int, str]]:
-    """`(line number, line)` for every line *outside* a fenced code block.
+def prose_lines(text: str) -> tuple[list[tuple[int, str]], int | None]:
+    """Every line *outside* a fenced code block, and the line a fence was left open on.
+
+    **The second half of that return is the point.** An unclosed fence swallows every line after
+    it, so a scanner that just skips them reports a well-formed document having read half of one —
+    *"a clean bill it never earned"*, in `tools/markdown_link_gate.py`'s words about the same
+    failure in its own regex. Both documents are balanced today (two fences each); the caller
+    refuses rather than trusting that.
 
     **Fenced blocks are the only code form that needs skipping, and the fence may be indented.**
     Everything read below matches `#` at column zero, and an *indented* code block's lines begin
@@ -185,6 +191,7 @@ def prose_lines(text: str) -> list[tuple[int, str]]:
     """
     out: list[tuple[int, str]] = []
     fence: str | None = None
+    opened_at: int | None = None
     for number, line in enumerate(text.splitlines(), start=1):
         match = _FENCE.match(line)
         if fence is not None:
@@ -193,13 +200,13 @@ def prose_lines(text: str) -> list[tuple[int, str]]:
                 and match.group(1)[0] == fence[0]
                 and len(match.group(1)) >= len(fence)
             ):
-                fence = None
+                fence, opened_at = None, None
             continue
         if match is not None:
-            fence = match.group(1)
+            fence, opened_at = match.group(1), number
             continue
         out.append((number, line))
-    return out
+    return out, opened_at
 
 
 def document_problems(stream: Stream, text: str) -> list[str]:
@@ -228,18 +235,32 @@ def document_problems(stream: Stream, text: str) -> list[str]:
     over the full history of both documents.
     """
     problems: list[str] = []
-    lines = prose_lines(text)
+    lines, unclosed = prose_lines(text)
+    if unclosed is not None:
+        problems.append(
+            f"{stream.target}:{unclosed}: a code fence is opened here and never closed, so every "
+            "line below it was skipped and neither rule below has read them. Close the fence."
+        )
 
     previous: tuple[int, str] | None = None
     for number, line in lines:
         if line.startswith("#"):
             heading = line.rstrip()
             if previous is not None and previous[1] == heading:
+                # The consequence differs by stream, and naming the wrong one is its own defect:
+                # `_merge_into_section` runs only for a stream with a category vocabulary, so
+                # quoting it at `docs/RETROSPECTIVES.md` would explain a mechanism that never
+                # touches that file.
+                why = (
+                    "`_merge_into_section` reuses the first it finds, so nothing will ever merge "
+                    "into the second"
+                    if stream.categories is not None
+                    else "the second is dead weight a reader has no way to tell from the first"
+                )
                 problems.append(
                     f"{stream.target}:{number}: `{heading}` repeats the heading on line "
-                    f"{previous[0]} with nothing between them. `_merge_into_section` reuses the "
-                    "first it finds, so nothing will ever merge into the second, and a reader "
-                    "scanning for that category stops at the first."
+                    f"{previous[0]} with nothing between them. {why}, and a reader scanning for "
+                    "it stops at the first."
                 )
             previous = (number, heading)
         elif line.strip():

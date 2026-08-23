@@ -531,3 +531,48 @@ def test_the_real_documents_are_clean_which_is_this_checkers_only_control() -> N
     result = run(repo, "--check")
 
     assert result.returncode == 0, result.stderr
+
+
+def test_an_unclosed_fence_is_refused_rather_than_silently_swallowing_the_rest(repo: Path) -> None:
+    """A skipped region is not a checked region. An unclosed fence hides every line below it, so
+    without this the gate prints *well-formed* having read half the document — the shape
+    `tools/markdown_link_gate.py` names as "a clean bill it never earned". The malformed content
+    below the fence is real and would be caught if the fence were closed."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n- **A fix.**\n\n```text\nnever closed\n\n### Fixed\n\n### Fixed\n\nprose\n",
+    )
+
+    result = run(repo, "--stream", "changelog", "--check")
+
+    assert result.returncode == 1
+    assert "opened here and never closed" in result.stderr
+    assert "CHANGELOG.md:11" in result.stderr, "the fence's own line, not the damage below it"
+
+
+def test_the_duplicate_message_names_the_mechanism_that_belongs_to_the_stream(repo: Path) -> None:
+    """`_merge_into_section` runs only for a stream with a category vocabulary, so quoting it at
+    `docs/RETROSPECTIVES.md` would explain a mechanism that never touches that file. An error
+    message describing the wrong cause sends the reader to the wrong code."""
+    write(
+        repo,
+        "docs/RETROSPECTIVES.md",
+        "# Retrospectives\n\n## I1 - first (20260725 13:40)\n\n"
+        "## I1 - first (20260725 13:40)\n\nbody\n\n"
+        "## Design review passes 1-7 (pre-implementation)\n\nfooter\n",
+    )
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n### Fixed\n\n- **A fix.**\n",
+    )
+
+    retro = run(repo, "--stream", "retrospectives", "--check").stderr
+    changelog_err = run(repo, "--stream", "changelog", "--check").stderr
+
+    assert "repeats the heading" in retro and "repeats the heading" in changelog_err
+    assert "_merge_into_section" in changelog_err, "the stream that actually has that merge step"
+    assert "_merge_into_section" not in retro, "…and the stream that does not, must not claim it"

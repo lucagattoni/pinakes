@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 12
+mutants = 14
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -124,3 +124,21 @@ file = "tools/fragments.py"
 old = '''        if damage := document_problems(stream, spliced):'''
 new = '''        if False and document_problems(stream, spliced):'''
 kills = "tests/test_fragments.py::test_apply_refuses_to_write_a_document_it_would_leave_malformed"
+
+# Two more, from the adversarial pass over this increment's own diff. Both are *silent* failures:
+# a scanner that skips without saying so, and a message that explains a mechanism the stream it is
+# printed for does not have.
+
+[[mutant]]
+name = "an unclosed fence is skipped silently, so the rest of the document goes unread"
+file = "tools/fragments.py"
+old = '''    if unclosed is not None:'''
+new = '''    if False:'''
+kills = "tests/test_fragments.py::test_an_unclosed_fence_is_refused_rather_than_silently_swallowing_the_rest"
+
+[[mutant]]
+name = "the duplicate message quotes `_merge_into_section` at the stream that never calls it"
+file = "tools/fragments.py"
+old = '''                    if stream.categories is not None'''
+new = '''                    if True'''
+kills = "tests/test_fragments.py::test_the_duplicate_message_names_the_mechanism_that_belongs_to_the_stream"
