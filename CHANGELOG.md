@@ -1332,7 +1332,7 @@ STATUS corrections about a wedged CI run.
   **WARN is now reserved for `markdown` at 0%**, the one case a user can act on: the chunker reads
   ATX headings, so a Markdown corpus with none is being silently chunked by size. Everything else is
   reported **OK with a note**, and the note separates three facts that previously wore the same 0%:
-  `text` *can* carry a heading path (set [`[chunking] headings`](../docs/MANIFEST.md#chunking));
+  `text` *can* carry a heading path (set [`[chunking] headings`](docs/MANIFEST.md#chunking));
   `text` with that key **already set** means the grammar was offered those documents and **refused**
   them rather than inventing an outline; `code` and `pdf` cannot carry one today whatever they
   contain.
@@ -1366,7 +1366,7 @@ STATUS corrections about a wedged CI run.
   *the document* changed, so a manifest-only edit reports every file `unchanged` and the key does
   nothing until a rebuild. That is true of `max_tokens` and `overlap` too and is not new, but this
   is the key most likely to be flipped deliberately — so it is written on the key in
-  [MANIFEST](../docs/MANIFEST.md#chunking) and logged as its own open correction, rather than left
+  [MANIFEST](docs/MANIFEST.md#chunking) and logged as its own open correction, rather than left
   to be discovered.
 
   It is a **new key rather than a second `[chunking] strategy` value**: `strategy` is inert, and
@@ -1423,7 +1423,7 @@ STATUS corrections about a wedged CI run.
   `heading_path` still empty.
 
   The index now records which `[chunking]` settings it was built under. `pnk sync` names the key
-  that moved and points at `--rebuild`; [`pnk doctor`](../docs/CLI.md#pnk-doctor) reports the same
+  that moved and points at `--rebuild`; [`pnk doctor`](docs/CLI.md#pnk-doctor) reports the same
   as `chunking coherence`. **The warning persists until the rebuild actually happens** — the first
   draft wrote the new identity at the end of every sync, so it fired once and the index then
   claimed a coherence it did not have.
@@ -1897,7 +1897,7 @@ channel defaults on only if enough multi-hop golden-set questions *improve*, and
 only come from one that fails today: 7 were needed, **1 fails**. So the structural edge set and its
 `schema_version` 3 bump do not start, and this release is the evaluation work that measured it.
 Numbers, and the two findings behind them, in
-[`docs/STATUS.md`](docs/STATUS.md#can-the-graph-releases-gate-be-reached--measured-20260801-1214).
+[`docs/STATUS.md`](docs/STATUS.md#can-the-graph-releases-gate-be-reached--yes-measured-20260804).
 
 ### Added
 

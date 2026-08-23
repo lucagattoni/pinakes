@@ -2386,7 +2386,7 @@ consequence, and it is silent data loss.
 **Round 8 also claimed `pnk link` would write the decoy's ULID into the real sidecar, permanently.
 It would not, and round 9 reproduced the refusal.** `_document_in` compares an absolute
 `joined.parent.resolve()` against the *relative* `root`, which can never be `is_relative_to`, so it
-fires before any sidecar is read — `'docs/one.md' is outside \`partner\``, which tells the user the
+fires before any sidecar is read — `` 'docs/one.md' is outside `partner` ``, which tells the user the
 path they typed correctly is wrong and names neither the KB path nor the expansion failure. A
 message defect, not corruption.
 
