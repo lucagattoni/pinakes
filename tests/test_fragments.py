@@ -348,13 +348,22 @@ def test_a_horizontal_rule_inside_a_body_is_left_alone(repo: Path) -> None:
 
 def test_front_matter_is_refused_before_apply_can_splice_it(repo: Path) -> None:
     """`--apply` deletes the fragments it consumed, so a fragment found malformed *afterwards* is
-    found with the evidence already gone. The target must be byte-identical after the refusal."""
+    found with the evidence already gone. The target must be byte-identical after the refusal.
+
+    **The refusal is named, not just counted.** 0.30.0's document gate gave `--apply` a second
+    reason to refuse this same fragment — a spliced `---` is not a `- ` list item either — so
+    every assertion below passed whether or not the front-matter check still ran, and the battery
+    row claiming it did went from KILLED to SURVIVED. A test that cannot say *which* guard fired
+    stops pinning either of them once a second one exists."""
     before = changelog(repo)
     write(repo, "changelog.d/added-one.md", "---\ncategory: added\n---\n\n- **A new thing.**\n")
 
     result = run(repo, "--stream", "changelog", "--apply")
 
     assert result.returncode == 1
+    assert "front-matter fence" in result.stderr, (
+        "refused as front matter, not as a stray non-bullet"
+    )
     assert changelog(repo) == before, "a refused run must not have written to the document"
     assert (repo / "changelog.d" / "added-one.md").exists(), (
         "nor deleted the fragment that explains the failure"
@@ -454,12 +463,20 @@ def test_a_bullets_indented_continuation_is_not_read_as_a_second_entry(repo: Pat
 def test_the_bullet_rule_never_reaches_the_free_form_stream(repo: Path) -> None:
     """`retro.d/` fragments are free-form prose carrying their own `##` heading. A bullet
     requirement there would refuse the format that stream exists for — so the rule is scoped to
-    the stream with a category vocabulary, and this is the assertion that says so."""
+    the stream with a category vocabulary, and this is the assertion that says so.
+
+    **The `###` heading in the fixture is load-bearing.** The bullet rule only ever reads a `###`,
+    so a fixture built from `##` alone exercises nothing and the scoping guard could be deleted
+    with this test still green — which is what the mutation pass reported. The real document
+    carries thirty-four `###` headings, every one of them opening with prose."""
     write(
         repo,
         "docs/RETROSPECTIVES.md",
         "# Retrospectives\n\n## I1 - first (20260725 13:40)\n\n"
         "A paragraph, which is what this document is made of.\n\n"
+        "### The review pass over I1's own diff\n\n"
+        "Three defects, all in the new check — prose under a `###`, which the real document does "
+        "thirty-four times.\n\n"
         "## Design review passes 1-7 (pre-implementation)\n\nfooter\n",
     )
 
