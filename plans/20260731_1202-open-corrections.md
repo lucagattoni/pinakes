@@ -91,6 +91,31 @@ carry it, and whether it is a WARN or an OK-with-a-note, is exactly the shape of
 says an implementer may not take — the heading-coverage item below records what an un-actionable
 permanent WARN costs. **Decide before building.**
 
+### `tools/fragments.py` validates the fragments it reads and never the document it writes
+
+**What is true.** `--check` parses each pending fragment in `changelog.d/` and `retro.d/` and passes
+when every one is well-formed. It asserts nothing about the result of `--apply`. So a splice can
+produce a malformed `CHANGELOG.md` and every gate in this repository stays green.
+
+**The evidence was already in the tree, and is now repaired.** `## [0.28.3]` carried `### Fixed`
+**twice consecutively**, and its body — like one `### Changed` body further down — was a bare
+paragraph rather than the `- **claim.**` bullet [`changelog.d/README.md`](../changelog.d/README.md)
+requires. `python3 tools/fragments.py --check` exited **0** on both. Found 20260823 by reading a
+release precedent, not by any gate. The content is fixed in 0.30.0; the *hole* is this item.
+
+**Decided.** Two checks, both cheap, both on the **assembled document** rather than on a fragment:
+a stream heading never repeats consecutively, and a spliced body's first non-blank line starts with
+`- `. **The second applies to the `changelog` stream only** — `retro.d/` fragments are free-form
+prose carrying their own `##` heading, so a bullet requirement there would be wrong.
+
+**Why the first is worth more than it looks.** A duplicated heading is a property of *adjacency*,
+and every other check in this repo reads rows: `mkdocs build --strict` resolves links,
+`tools/release_order_gate.py` reads sequences, and both walk straight past two identical headings in
+a row. Nothing here has ever read the assembled file at all.
+
+**Ordering.** The content fix landed first, in 0.30.0. A consecutive-heading check written against
+an unrepaired `main` arrives red, and its first act is to block the commit that would satisfy it.
+
 ---
 
 ## Closed — recorded so nobody reopens them

@@ -147,10 +147,11 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   proposed-unscheduled.** **Do not read that as *nothing to do*** — read it as *the next thing to
   build has not been planned yet*, which makes planning the work rather than an interruption to it.
   `docs/ROADMAP.md` Part 5 and `docs/README.md`'s routing table hold the candidates.
-- **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) holds one
-  live item** — E5's gitignore-warning question, a decision rather than a task. The list has emptied
-  and refilled twice: **read an empty list as *nobody has run Pinakes lately*, never as *finished***,
-  and **an item that reads as a decision may only be an unchecked assumption**.
+- **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) holds two
+  live items** — E5's gitignore-warning question, a decision rather than a task, and
+  `tools/fragments.py` validating the fragments it reads but never the document it writes. The list
+  has emptied and refilled twice: **read an empty list as *nobody has run Pinakes lately*, never as
+  *finished***, and **an item that reads as a decision may only be an unchecked assumption**.
 
 ## Landing work: always push, always release
 
