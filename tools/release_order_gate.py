@@ -408,8 +408,13 @@ def check_membership(
         required = [
             v for v in universe if sequence.starts_at <= v <= ceiling and v not in sequence.absent
         ]
+        # No `newest_may_lag` test here: it would be dead. A strict sequence's ceiling is already
+        # the newest release overall, so `behind` is empty for it by construction and this branch
+        # cannot fire. A mutation run proved that by deleting the condition and surviving — the
+        # scoping comes from the ceiling, and a second guard saying the same thing is a condition
+        # no test can ever pin.
         behind = [v for v in universe if v > ceiling]
-        if sequence.newest_may_lag and len(behind) > MAX_VERIFICATION_LAG:
+        if len(behind) > MAX_VERIFICATION_LAG:
             failures.append(
                 f"{where}: {len(behind)} releases behind — newest here {_show(ceiling)}, newest "
                 f"overall {_show(max(universe))}, past the declared lag of "

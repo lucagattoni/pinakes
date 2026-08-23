@@ -613,9 +613,15 @@ def test_a_lag_past_the_declared_bound_fails_and_names_both_causes(tmp_path: Pat
 
 
 def test_the_lag_bound_does_not_apply_to_a_sequence_that_may_not_lag(tmp_path: Path) -> None:
-    """Discriminating: the bound is scoped to `newest_may_lag`. Applied to every sequence it would
-    be dead code — the cross-sequence agreement check already refuses a strict sequence that is
-    behind at all, and it fires on the first missing release rather than the third."""
+    """A strict sequence that is behind is caught by the newest-differs check, never by the lag
+    bound — and it is the *ceiling* that scopes this, not a second condition.
+
+    A strict sequence's ceiling is the newest release overall, so nothing can be above it and the
+    lag branch cannot fire. That is why there is no `newest_may_lag` test beside the bound: a
+    mutation run deleted one and survived, because the condition was unobservable. What this test
+    pins is the observable consequence — a strict sequence three behind reports the newest-differs
+    failure and no lag failure.
+    """
     versions = _versions()
     result = run(str(_tree(tmp_path, versions=versions, status_versions=versions[:-3])))
 
