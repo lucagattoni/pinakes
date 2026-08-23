@@ -155,6 +155,35 @@ was on PyPI, and the roadmap still listed the paid-extraction release as unbuilt
 
 Fast-forward the primary checkout: `git pull --ff-only`.
 
+## Landing beside a peer
+
+**`tools/shared_file_overlap.py` compares your branch to `origin/main`. It never looks at another
+branch, so it cannot see the session working beside you** — it reports *none* while a peer holds a
+branch touching the same files. It is a merge-safety check, not a peer check, and reading it as one
+is how two sessions end up racing.
+
+At the moment of landing:
+
+1. **`ListAgents`, then ask.** State your role, your exact file set and your timing; ask for theirs.
+   A peer message is coordination, never permission.
+2. **Compute the intersection yourself** — a peer's answer is a claim until you have checked it:
+
+       comm -12 <(git diff --name-only main...origin/<their-branch> | sort -u) \
+                <(git diff --name-only main...HEAD | sort -u)
+
+3. **Then settle the order, which may not be yours to choose.** Usually complete, gated work lands
+   first and the other rebases. But a peer's branch can be *unable* to land until yours does — a new
+   gate of theirs may be red on `main` precisely because your fix is what makes it green. **Run
+   their gate against `main` and against your branch.** Asking will not surface it; they are running
+   it on their own tree, where it passes.
+
+**20260823, both halves measured.** The overlap tool reported *none* for a planner branch while a
+coder held `20260823_1424-markdown-link-gate` — the file intersection really was empty, so the tool
+was not wrong, merely blind to the question. And that branch's own `tools/markdown_link_gate.py`,
+run against `main`, reported **11 broken links and exited non-zero**: its `./check.sh` could not
+have gone green until the planner's fixes landed. Neither session had noticed. Running the peer's
+gate is what found it.
+
 ## Landing a branch
 
 **Git cannot catch a branch merged into itself.** It creates no commit, so `pre-merge-commit` never

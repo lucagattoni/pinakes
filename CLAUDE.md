@@ -165,6 +165,11 @@ left local is invisible to every other agent, machine and scheduled run. **The p
   merges edits that do not overlap textually, never edits that *agree* (20260729). For the two
   documents every change writes to, the cause is removed rather than reported —
   [`changelog.d/`](changelog.d/README.md), [`retro.d/`](retro.d/README.md).
+- **That tool cannot see a peer.** It compares you to `origin/main`, never to another branch — so
+  before landing, intersect file sets with every live branch yourself, and settle the *order*,
+  which may be forced rather than agreed: a peer's new gate can be red on `main` until your fix
+  lands, and **running their gate is what finds that; asking them is not** (20260823).
+  [`docs/RELEASING.md` § Landing beside a peer](docs/RELEASING.md#landing-beside-a-peer).
 - **Cut the release** as soon as the work passes the SemVer table (feature = MINOR, fix/docs/deps =
   PATCH, breaking = MAJOR). Complete work never lingers in `[Unreleased]`.
 - **A tag publishes to PyPI** and PyPI never accepts a version twice: `make release-check` runs
