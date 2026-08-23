@@ -481,7 +481,7 @@ def test_a_part_pattern_that_stops_matching_fails_rather_than_passing(tmp_path: 
     result = run(str(root))
 
     assert result.returncode == 1
-    assert "`# Part` heading(s), fewer than the 4 floor" in result.stderr
+    assert "`# Part` heading(s), fewer than the 5 floor" in result.stderr
 
 
 def test_the_real_documents_are_complete_from_their_declared_starts() -> None:
@@ -630,3 +630,94 @@ def test_the_lag_bound_does_not_apply_to_a_sequence_that_may_not_lag(tmp_path: P
         "a strict sequence is caught by the newest-differs check, not by the lag bound"
     )
     assert "the newest release differs between sequences" in result.stderr
+
+
+def _roadmap_of(root: Path) -> Path:
+    return root / "docs" / "ROADMAP.md"
+
+
+def test_a_range_appended_to_a_rangeless_part_cannot_silence_placement(tmp_path: Path) -> None:
+    """The exploit an adversarial audit found in this check, reproduced.
+
+    File a release section under the rangeless final Part — the 0.25.3 and 0.27.1 defect — and the
+    gate says so. Then append that Part's *missing* range to its heading and the same tree passes:
+    twenty characters, exit 0, and the only trace is a green line changing `holding no releases:
+    Part 5` to `holding no releases: none`.
+
+    The range cannot be declared in the tool (reading it from the heading is what stops the mapping
+    drifting), so it is constrained instead — two Parts may not claim the same version. Part 4
+    already declares `0.8.0` onward, which is exactly what stops Part 5 doing so.
+    """
+    versions = _versions()
+    root = _tree(tmp_path, versions=versions)
+    _roadmap_of(root).write_text(
+        "| Release | Adds |\n|---|---|\n"
+        + "".join(f"| **[{v}](#anchor-{v})** | 20260101 00:00 | something |\n" for v in versions)
+        + "\n"
+        + _parts(versions, misfile=versions[-1], into=4),
+        encoding="utf-8",
+    )
+    caught = run(str(root))
+    assert caught.returncode == 1, "the misfiling itself must be caught first"
+    assert f"the section for {versions[-1]} sits under Part 5" in caught.stderr
+
+    roadmap = _roadmap_of(root)
+    roadmap.write_text(
+        roadmap.read_text(encoding="utf-8").replace(
+            "# Part 5 · What is not built",
+            "# Part 5 · What is not built — `0.8.0` onward",  # the twenty characters
+        ),
+        encoding="utf-8",
+    )
+    result = run(str(root))
+
+    assert result.returncode == 1, (
+        "appending a range to the Part must not make the misfiled section legitimate:\n"
+        + result.stdout
+    )
+    assert "Part 4 and Part 5 both claim releases in the same range" in result.stderr
+
+
+def test_parts_must_ascend_with_the_document(tmp_path: Path) -> None:
+    """A section's holder is the nearest Part above it, so position only means something if the
+    Parts run in version order. Descending Parts would make 'the nearest heading above' and 'the
+    Part whose range holds it' answer different questions without either being wrong."""
+    versions = _versions()
+    root = _tree(tmp_path, versions=versions)
+    roadmap = _roadmap_of(root)
+    roadmap.write_text(
+        roadmap.read_text(encoding="utf-8").replace(
+            "# Part 2 · The middle — `0.2.0` → `0.4.0`",
+            "# Part 2 · The middle — `0.9.0` → `0.9.9`",  # now above Part 3's range
+        ),
+        encoding="utf-8",
+    )
+
+    result = run(str(root))
+
+    assert result.returncode == 1
+    assert "must ascend with the document" in result.stderr
+
+
+def test_demoting_the_last_part_heading_fails_the_floor(tmp_path: Path) -> None:
+    """The floor was one below the real count, which made it a floor with a bypass.
+
+    Demote `# Part 5` to `## Part 5` and the document has four Parts — passing a floor of four
+    exactly — while every section beneath the demoted heading is re-attributed to Part 4, whose
+    range is `0.8.0` onward and therefore holds everything. Parts are never removed, so a floor at
+    the real count only ever holds.
+    """
+    versions = _versions()
+    root = _tree(tmp_path, versions=versions)
+    roadmap = _roadmap_of(root)
+    roadmap.write_text(
+        roadmap.read_text(encoding="utf-8").replace(
+            "# Part 5 · What is not built", "## Part 5 · What is not built"
+        ),
+        encoding="utf-8",
+    )
+
+    result = run(str(root))
+
+    assert result.returncode == 1
+    assert "`# Part` heading(s), fewer than the 5 floor" in result.stderr
