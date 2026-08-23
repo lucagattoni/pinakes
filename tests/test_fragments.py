@@ -646,3 +646,41 @@ def test_an_anchor_inside_a_fenced_block_is_not_the_splice_point(repo: Path) -> 
     assert after.index("A new thing") > after.index("```\n\n## [Unreleased]"), (
         "spliced at the quoted anchor rather than the real one"
     )
+
+
+def test_check_reads_the_document_apply_would_write_not_only_the_one_on_disk(repo: Path) -> None:
+    """The item's own sentence: *"It asserts nothing about the result of `--apply`."* Reading only
+    the file on disk answers whether the **last** splice went well, while the fragment that will
+    break the next one sits in the tree unread.
+
+    This fixture is the recurring cause, reduced. Both instances the item cites came from a
+    fragment whose body opens with its own `### Fixed`, which `render` then wraps in a second one —
+    `changelog.d/fixed-two-frozen-yaml-behaviours.md` at 0.6.0, hand-repaired seven minutes after
+    the release, and `…0233-fixed-published-versions-row…` at 0.28.3, twenty-two days later.
+    Replayed against the tree as it stood at each of those commits, this check exits 1."""
+    write(repo, "changelog.d/fixed-one.md", "### Fixed\n\n- **A fix.**\n")
+
+    result = run(repo, "--stream", "changelog", "--check")
+
+    assert result.returncode == 1
+    assert "repeats the heading" in result.stderr
+    assert "would write, not the one on disk" in result.stderr, "and says which document it read"
+    assert changelog(repo) == CHANGELOG_BEFORE, "a check writes nothing"
+
+
+def test_a_fault_already_in_the_document_is_reported_once_not_twice(repo: Path) -> None:
+    """The assembly contains the whole file, so every existing fault appears in both documents at
+    different line numbers. Reporting each twice would bury the one that is new."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n### Fixed\n\n- **A fix.**\n",
+    )
+    write(repo, "changelog.d/added-one.md", "- **A new thing.**")
+
+    result = run(repo, "--stream", "changelog", "--check")
+
+    assert result.returncode == 1
+    assert result.stderr.count("repeats the heading") == 1, "the pre-existing fault, once"
+    assert "would write, not the one on disk" not in result.stderr

@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 17
+mutants = 19
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -174,3 +174,21 @@ file = "tools/fragments.py"
 old = '''            if index in prose and line.rstrip("\n") == stream.insert_after:'''
 new = '''            if line.rstrip("\n") == stream.insert_after:'''
 kills = "tests/test_fragments.py::test_an_anchor_inside_a_fenced_block_is_not_the_splice_point"
+
+# `--check` reads the document `--apply` *would* write, which is the item's own sentence and the
+# half a first draft left out. Replayed against 0.6.0's and 0.28.3's trees, it exits 1 at the
+# commit that added the fragment.
+
+[[mutant]]
+name = "--check reads only the document on disk, so the fragment that breaks the next splice is unread"
+file = "tools/fragments.py"
+old = '''        assembled = prospective(stream, repo)'''
+new = '''        assembled = None'''
+kills = "tests/test_fragments.py::test_check_reads_the_document_apply_would_write_not_only_the_one_on_disk"
+
+[[mutant]]
+name = "DISCRIMINATING — an existing fault is reported twice, burying the one that is new"
+file = "tools/fragments.py"
+old = '''        if _without_position(problem) not in already:'''
+new = '''        if True:'''
+kills = "tests/test_fragments.py::test_a_fault_already_in_the_document_is_reported_once_not_twice"

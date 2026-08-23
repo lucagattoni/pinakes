@@ -285,12 +285,66 @@ def document_problems(stream: Stream, text: str) -> list[str]:
     return problems
 
 
+#: The two places a problem carries a line number: its `file:line:` prefix, and the `on line N`
+#: back-reference inside a duplicate-heading message. Both shift when the same fault is seen in the
+#: assembled document instead of the one on disk, and stripping only the prefix left the *other*
+#: number in the key — so every existing fault compared unequal to itself and was reported twice.
+_POSITION = re.compile(r"^[^:]*:\d+: |on line \d+")
+
+
+def _without_position(problem: str) -> str:
+    """A problem's text with every line number removed, for comparing it across two documents."""
+    return _POSITION.sub("", problem)
+
+
+def prospective(stream: Stream, repo: Path) -> str | None:
+    """The document `--apply` would write right now, or `None` when there is nothing to apply."""
+    rendered = render(stream, repo)
+    return splice(stream, rendered, repo) if rendered else None
+
+
 def validate_document(stream: Stream, repo: Path) -> list[str]:
-    """`document_problems` against the file on disk, or the fact that it is not there."""
+    """The document on disk **and the one `--apply` would write from the fragments now pending.**
+
+    The second half is the item's own sentence: *"It asserts nothing about the result of
+    `--apply`. So a splice can produce a malformed `CHANGELOG.md` and every gate in this
+    repository stays green."* Reading only the file on disk answers a narrower question — whether
+    the *last* splice went well — and the fragment that causes the next one is sitting in the tree
+    unread while it does.
+
+    **That is not hypothetical; it is the recurring cause.** Both instances the item cites came
+    from a fragment whose body opens with its own `### Fixed` heading, which `render` then wraps
+    in a second one: `changelog.d/fixed-two-frozen-yaml-behaviours.md` at 0.6.0 (hand-repaired
+    seven minutes after the release) and
+    `changelog.d/20260823_0233-fixed-published-versions-row-is-a-checked-sequence.md` at 0.28.3.
+    Checked here, that fragment fails at the commit that adds it, with the evidence in the tree.
+    Checked only at `--apply`, it fails at the release, and `docs/RELEASING.md` is where somebody
+    is then deciding whether to hand-edit a document to get the release out.
+
+    A problem already reported against the file on disk is not repeated for the assembly — the
+    assembly contains the whole file, so every existing fault appears in both at different line
+    numbers, and reporting each twice would bury the one that is new.
+    """
     target = repo / stream.target
     if not target.is_file():
         return [f"{stream.target}: missing — `--apply` has nothing to splice into."]
-    return document_problems(stream, target.read_text(encoding="utf-8"))
+
+    problems = document_problems(stream, target.read_text(encoding="utf-8"))
+    try:
+        assembled = prospective(stream, repo)
+    except FragmentError as exc:
+        return [*problems, str(exc)]
+    if assembled is None:
+        return problems
+
+    already = {_without_position(p) for p in problems}
+    for problem in document_problems(stream, assembled):
+        if _without_position(problem) not in already:
+            problems.append(
+                f"{problem}  ← in the document `--apply` would write, not the one on disk. "
+                "Fix the fragment; the line number is the assembled document's."
+            )
+    return problems
 
 
 def check(stream: Stream, repo: Path) -> list[str]:
