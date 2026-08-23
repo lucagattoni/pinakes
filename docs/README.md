@@ -80,7 +80,7 @@ When an increment lands, this table says which file to edit — usually exactly 
 | What an increment taught us | **RETROSPECTIVES.md** | written as a `retro.d/` fragment; spliced at release |
 | How to run the human-gated paid measurement | **MEASUREMENT-RUN.md** | STATUS carries the numbers it produced, with their date |
 | What is going to be built, and in what order | **`plans/`** | STATUS.md carries the shipped/planned state only |
-| How to cut a release, step by step | **[`RELEASING.md`](RELEASING.md)** | `CLAUDE.md` carries the *rules* about when and the traps; this is the procedure |
+| How to cut a release, step by step | **[`RELEASING.md`](RELEASING.md)** | `CLAUDE.md` carries the *rules* about when; this is the procedure — and, since 20260823, the `land.py` trap's mechanism ([§ Landing a branch](RELEASING.md#landing-a-branch)), which CLAUDE.md points at rather than states |
 | How to build one increment, step by step | **[`BUILDING.md`](BUILDING.md)** | `CLAUDE.md` names which plan is live; this is the procedure |
 | A contract that fails silently when broken | **[`INVARIANTS.md`](INVARIANTS.md)** | the detail stays with its owner (DESIGN, MANIFEST, VERIFICATION, CLI) — INVARIANTS lists and links, and states only the implementation rules nothing else does |
 | Which test holds a given promise | **VERIFICATION.md** | a plan's own table records what was *predicted*, never what exists |
@@ -130,12 +130,16 @@ is what stops the next plan from assuming a number that a parallel session has a
 
 > ### 🚫 Unbuilt work is named, never numbered
 >
+>
 > **A version number belongs to a release when it is cut — never before.** Refer to unbuilt work by
-> name: **the deep release**, **the template release**. (A name leaves this list at its release's
-> *final* cut — the paid-extraction release became 0.3.0, the links release 0.5.0 + 0.6.0, the graph
-> release 0.11.0.) Never write `v0.4` for something that does not exist — not in docs, not in
-> `--help`, not in an error message, not in a code comment. The live names are kept in
-> [`CLAUDE.md`](../CLAUDE.md); this is the rule, not the list.
+> name: **the template release**. (A name leaves this list at its release's *final* cut — the
+> paid-extraction release became 0.3.0, the links release 0.5.0 + 0.6.0, the graph release 0.11.0,
+> and **the deep release left it at 0.26.0**, its final cut (D-9): `pnk ask --deep` is built,
+> measured and complete, including E7's printed suggestions. `--write-suggestions` is deferred and
+> **unplanned** — when it is planned it needs a name of its own, not the old one.) Never write
+> `v0.4` for something that does not exist — not in docs, not in `--help`, not in an error message,
+> not in a code comment. The live names are kept in [`CLAUDE.md`](../CLAUDE.md); this is the rule,
+> not the list.
 >
 > Decided 20260729 00:09, after `v0.3` came to mean two different releases at once and picking either
 > meaning would have renumbered ~60 committed references. Full rationale and the current mapping:

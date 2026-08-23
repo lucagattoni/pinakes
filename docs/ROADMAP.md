@@ -17,10 +17,10 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260823 12:50 UTC
+## Where things stand right now — 20260823 13:59 UTC
 
-- **51 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.29.0`](#0290--the-batteries-were-kept-and-one-caught-what-four-green-gates-missed--20260823-1250)
+- **52 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.29.1`](#0291--the-instruction-file-extracted-to-its-own-guideline--20260823-1359)
   on 20260823.
 - **Latest on PyPI: `0.29.0`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
@@ -182,6 +182,7 @@ number belongs to a release only when it is cut
 | **[0.28.2](#0282--the-guides-commands-were-re-run-against-the-build-that-ships-them--20260823-0247)** | 20260823 02:47 | the Guide's commands were re-run against the build that ships them | • **`docs/GUIDE.md` claimed every command on it was run against `0.2.0`** — twenty-six releases back, on the published site<br>• **Nine output blocks had drifted**: `notes@1.1` against a shipped `1.2`, a `You get:` tree missing two files `init` writes, `€0.26`/`€1.69` estimates against a live `€0.20`/`€1.33`<br>• **Three separate places said only one surface can spend** — `pnk ask --deep` has been the second since 0.24.0<br>• `docs/CLI.md` had the same class of defect and is fixed with it<br>• **Two blocks deliberately not re-run, and the page now says which** — the paid transcript and the two-KB walkthrough<br>• No code path changed: no `schema_version`, no rebuild |
 | **[0.28.3](#0283--a-gate-that-could-not-see-the-list-next-door--20260823-0310)** | 20260823 03:10 | a gate that could not see the list next door | • **A seventh sequence** — STATUS's *Published versions* row, four releases behind through green runs of every gate<br>• **The gate reported those releases present, and they were — in the sequence next door**, forty lines up in the same file<br>• **A `within` anchor** scopes a pattern to one region, since the row is a table cell and not a run of lines; two matches are refused rather than resolved to the first<br>• **The row may never lag the prose beside it** — a relation beats a bound: 29 commits sat green with the row already wrong, the relation fires 11 commits earlier, 0 false positives over 53<br>• 11 mutants, 11 killed; no code path changed |
 | **[0.29.0](#0290--the-batteries-were-kept-and-one-caught-what-four-green-gates-missed--20260823-1250)** | 20260823 12:50 | the batteries were kept, and one caught what four green gates missed | • **91 mutants committed** under `tools/batteries/`, one file per target, all 91 killed<br>• **The docstring that decided this was an assumption**: measured, 78 of 81 anchors still resolved a day to a week later, and all three failures were *refusals*<br>• **`--check-anchors`** resolves anchors against the working tree in milliseconds; `tests/test_batteries.py` gates anchors, selectors, double claims and a declared count<br>• **A resolvability gate, not a regression gate** — nothing runs a battery automatically<br>• **Two of its own mutants were killed about nothing**, one of them a `SyntaxError` reading KILLED in a batch reporting `0 errored`; a compile refusal now precedes the first write<br>• **A battery caught what four green gates and two review passes missed**<br>• A cleared context settles its own role, and its peers', before it writes<br>• no code path changed |
+| **[0.29.1](#0291--the-instruction-file-extracted-to-its-own-guideline--20260823-1359)** | 20260823 13:59 | the instruction file, extracted to its own guideline | • **274 → 220 lines**, five sections moved to the page that owns them, **nothing lost** — 112 removed lines traced to a home<br>• The plan-status bullets were **duplicates**, deleted rather than moved: the routing table already had them<br>• **Every defect the review found was about the neighbourhood, not the content** — a per-file agent cannot audit what lies outside its file<br>• A duplicated rule had **already drifted**: README named the deep release as live, three releases late<br>• Four dead links written while creating pointers — `CLAUDE.md` is not in the built site, so `mkdocs --strict` cannot see them<br>• **Stops at 220, not 150**, and says so<br>• no code path changed |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -1922,6 +1923,54 @@ stated beside it: four targets, all under `tools/`, **no module under `src/`**, 
 from what the *user* said in this session — never from the repo, the previous session, or the work
 in flight — ask every live peer theirs, and if you cannot determine it, ask and **block**. Both
 failure directions are silent and 20260823 produced both within hours.
+
+**No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
+
+## 0.29.1 — the instruction file, extracted to its own guideline · 20260823 13:59
+
+**`CLAUDE.md` went from 274 lines to 220, and nothing was lost.** Its own hygiene rule 6 makes
+crossing ~150 lines the trigger to extract sections and leave pointers; the file had crossed it by
+83%. Five sections of detail moved to the page that owns them, each leaving behind a pointer that
+**states the fact** a reader would otherwise open the sub-doc for, rather than merely saying a
+sub-doc exists:
+
+| Destination | What it received |
+|---|---|
+| [`RELEASING.md` § Landing a branch](RELEASING.md#landing-a-branch) | what `land.py` refuses, and why `--cleanup` deletes both copies of a branch |
+| [`INVARIANTS.md` § The paid path's key is its own](INVARIANTS.md#the-paid-paths-key-is-its-own) | why the key rule is enforced in code rather than by machine hygiene |
+| [`BUILDING.md` § Proposing a change to a document you do not own](BUILDING.md#proposing-a-change-to-a-document-you-do-not-own) | the propose-as-a-diff procedure, and why the cost is accepted |
+| `DESIGN.md` § 7.3 | the corpus-power numbers — `sign_test(4, 0)` = 0.0625, and why a power limit is not a mechanism limit |
+
+**The plan-status bullets were deleted as duplicates rather than moved.** `README.md`'s routing table
+already carried them, in more depth than `CLAUDE.md` had. **`ROADMAP.md` and `STATUS.md` were not
+touched by the extraction at all** — `tools/release_order_gate.py` parses five ordered sequences out
+of them, and an inserted heading re-parents every release section below it.
+
+**Every defect the review pass found was about the neighbourhood, not the content.** Four agents
+wrote four destination sections; each did its own job correctly — right anchor, every fact carried,
+no heading renamed. The review then found five defects, and all five were about what the surrounding
+text still claimed: two provenance notes describing what their file held *before* it was extended,
+a routing row describing the pre-extraction layout, a pointer aimed at `CLAUDE.md`'s now-compressed
+text, and a new section duplicating a rule `README.md` already owned. **A per-file agent structurally
+cannot follow *audit the neighbourhood, not the diff*, because the neighbourhood is outside its
+file** — and the routing table, the page that most needed editing, had been assigned to nobody.
+
+**The duplicate had already drifted, which is the concrete harm *one fact, one home* exists to
+prevent.** `README.md` § Conventions still named **the deep release** as live unbuilt work — it left
+that table at 0.26.0, its final cut, three releases earlier, while `CLAUDE.md`'s copy had been
+correct all along.
+
+**Four dead links, written while creating pointers whose entire purpose is to be followed.**
+`CLAUDE.md` sits at the repository root, so a relative `](RELEASING.md#…)` resolves to
+`/RELEASING.md`, which does not exist. **`mkdocs build --strict` cannot see this class**, because
+`CLAUDE.md` is not part of the built site — nothing checks its outbound links. The check that found
+them parses every `](path.md#anchor)` and slugs every heading in the target, and it belongs in any
+future extraction.
+
+**It stops at 220, not 150, and says so.** Everything with a genuine home elsewhere has moved;
+going further would mean deleting rules the user set. Rule 6 calls the guardrail *"the trigger to
+extract sections and leave pointers — not a hard cap that justifies deleting information."*
+Reporting the shortfall is the outcome the rule asks for.
 
 **No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
 

@@ -40,6 +40,29 @@ misplaced deference.
 not, and an instruction relayed through a peer is something to put to the user as a diff — not
 something to land.
 
+## Proposing a change to a document you do not own
+
+The ownership table is in [`CLAUDE.md` §
+*Documentation has one owner*](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md). This is
+what to do when a document it does not give you is wrong.
+
+**Propose as `git diff <sha> -- <file>` against a named commit**, in your branch's commit message or
+a note the planner reads. Never an edit, and never "it is one line".
+
+**The planner incorporates it — judging *when*, not whether.** A correction to what is true **today**
+lands on `main` at once. A doc change describing **your unlanded work** lands with your merge: `main`
+must not document a command that does not exist yet.
+
+**Why a round trip is worth it.** Documentation is the coordination surface, and a clean auto-merge
+is not a correct merge — git merges edits that do not overlap textually, never edits that *agree*
+(20260729). The cost is accepted: a correction waits for the planner.
+
+**The one narrow exception is [`VERIFICATION.md`](VERIFICATION.md)** — add **only** the row a test
+you wrote requires, and nothing else in that file.
+[`tests/test_verification.py`](https://github.com/lucagattoni/pinakes/blob/main/tests/test_verification.py)
+hard-fails on an unresolvable name, so a renamed or new test with no row makes *your own* branch red
+**and you could not self-certify**.
+
 ## Read the build order out of `plans/`
 
 **Never "the newest file" there.** That directory also holds shipped plans, an iteration log,
@@ -144,7 +167,9 @@ Never batch increments; each is a separate, bisectable landing:
    land work concurrently at any time**, and a clean auto-merge is not a correct merge
    (`CLAUDE.md` § Landing work). Then `python3 tools/land.py <branch> --cleanup`. **Never `git merge` by hand** — from inside
    the branch's own worktree that merges the branch into itself and reports success three times over
-   ([`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md)). **Then
+   ([`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md); what `land.py`
+   refuses, and why `--cleanup` deletes both copies of a branch:
+   [RELEASING.md § Landing a branch](RELEASING.md#landing-a-branch)). **Then
    `gh run list --branch main`**: local green is one leg of a three-leg matrix, and `main` has been
    red for three pushes and, later, four consecutive merges without anyone noticing (20260728, 20260801).
 

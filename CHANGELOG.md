@@ -10,6 +10,38 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.29.1] — 20260823 13:59
+
+### Changed
+
+- **`CLAUDE.md` extracted: 274 → 220 lines, and nothing was lost.** Its own hygiene rule 6 says
+  crossing ~150 lines triggers extraction, and the file had crossed it by 83%. Five sections of
+  detail moved to the page that owns them, each leaving a pointer that states the fact a reader
+  would otherwise open the sub-doc for: [`docs/RELEASING.md` § Landing a
+  branch](https://lucagattoni.github.io/pinakes/RELEASING/#landing-a-branch) (what `land.py`
+  refuses, and why `--cleanup` deletes both copies of a branch), [`docs/INVARIANTS.md` § The paid
+  path's key is its own](https://lucagattoni.github.io/pinakes/INVARIANTS/#the-paid-paths-key-is-its-own),
+  [`docs/BUILDING.md` § Proposing a change to a document you do not
+  own](https://lucagattoni.github.io/pinakes/BUILDING/#proposing-a-change-to-a-document-you-do-not-own),
+  and `docs/DESIGN.md` § 7.3 (the corpus-power numbers). The plan-status detail was **deleted as a
+  duplicate**, not moved: `docs/README.md`'s routing table already carried it in more depth.
+  `docs/ROADMAP.md` and `docs/STATUS.md` were deliberately not touched — `tools/release_order_gate.py`
+  parses five ordered sequences out of them, and an inserted heading re-parents every section below it.
+
+### Fixed
+
+- **`docs/README.md`'s routing row for `RELEASING.md` said `CLAUDE.md` carries the traps; one of them
+  now lives in `RELEASING.md` itself.** Found by the extraction's own review pass, along with three
+  siblings: `RELEASING.md` and `INVARIANTS.md` each opened with a provenance note asserting what the
+  file contained *before* it was extended, and `docs/BUILDING.md` § 7 pointed an agent at
+  `CLAUDE.md`'s compressed text rather than at the mechanism it now links to. All four are the same
+  defect — **an extraction that relocates a fact without re-reading what the destination already
+  claimed about itself.**
+- **`docs/README.md` § Conventions still named *the deep release* as live unbuilt work.** It left the
+  unbuilt-work table at 0.26.0, its final cut, three releases ago. The section now records that,
+  and that `--write-suggestions` is deferred and unplanned and needs a name of its own when it is
+  planned.
+
 ## [0.29.0] — 20260823 12:50
 
 ### Added
@@ -3807,7 +3839,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.29.1...HEAD
+[0.29.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.29.1
 [0.29.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.29.0
 [0.28.3]: https://github.com/lucagattoni/pinakes/releases/tag/v0.28.3
 [0.28.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.28.2

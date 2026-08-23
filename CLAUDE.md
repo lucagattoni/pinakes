@@ -24,25 +24,16 @@ first](docs/BUILDING.md#settle-your-role-before-anything-else).
 ## 🛑 Land with `tools/land.py` — never `git merge` by hand
 
     python3 tools/land.py <branch>                  # merge, verify, push
-    python3 tools/land.py <branch> --cleanup        # ... and remove the worktree and both branch copies
+    python3 tools/land.py <branch> --cleanup        # ... and remove the worktree and both branches
     python3 tools/land.py <branch> --cleanup-only   # remove a branch that landed earlier
 
-**Running `git merge <branch>` from inside that branch's own worktree merges it into itself.** Git
-reports *"Already up to date"*, the push reports *"Everything up-to-date"*, and a tag created there
-points off-`main` — **three successful commands and nothing landed.** It has happened repeatedly
-here, always the same way: one `&&` chain beginning `cd <worktree>` and later containing
-`git merge`.
-
-**Git cannot catch it.** A branch merged into itself creates no commit, so `pre-merge-commit` never
-fires — the no-op is silent by design. So `tools/land.py` is the guard: it finds the primary
-checkout itself whatever directory you ran it from, **refuses if `main`'s sha did not move**, and
-re-reads `origin/main` after pushing, because a push reporting success is only a claim. `--cleanup`
-removes the worktree *and* both copies of the branch, since deleting one leaves the other behind;
-`--cleanup-only` does that for a branch you landed earlier, after verifying it is an ancestor of
-`origin/main` — because "looks merged" is not "landed".
-
-**This is the only rule here with an executable guard, because it is the only one that fails
-silently.** Everything else fails loudly or is caught by `./check.sh`.
+**`git merge <branch>` from inside that branch's own worktree merges it into itself.** *"Already up
+to date"*, *"Everything up-to-date"*, and a tag pointing off-`main` — **three successful commands and
+nothing landed.** It has happened repeatedly here, always one `&&` chain beginning `cd <worktree>`.
+A branch merged into itself creates no commit, so `pre-merge-commit` never fires: **this is the only
+rule here that fails silently, which is why it is the only one with an executable guard.** What
+`land.py` refuses, and why `--cleanup` deletes both copies of a branch: [`docs/RELEASING.md` §
+Landing a branch](docs/RELEASING.md#landing-a-branch).
 
 ## Working mode — autonomous by default
 
@@ -53,19 +44,17 @@ Set by the user 20260808 04:39. It **overrides the global default of stopping to
 - **A choice you can take, you take** — after weighing each option's real pros and cons in the open
   and saying which you chose and why. Needing an answer in order to proceed is the bar for asking;
   "the user might have preferred otherwise" is not.
-- **Never assume what the plans have not decided.** An undecided question is a stop, not a guess —
-  ask it. This does not soften the rule above, it bounds it: choosing *how* to build what a plan
-  specifies is yours, choosing *what* it should have specified is not.
+- **Never assume what the plans have not decided.** An undecided question is a stop, not a guess.
+  Choosing *how* to build what a plan specifies is yours; choosing *what* it should have specified
+  is not.
 - **Iterate: build → adversarially review → fix → re-review, until a pass finds nothing**, with a
-  commit per pass. This is the default shape of an increment, not a debugging-only move.
-- **At each increment boundary, judge whether the context should be cleared before the next one. If
-  it should be: finish the handoff, say so, and stop there** — do not start the next increment on a
-  context that should have been cleared. Strengthened by the user 20260811 15:37, from *offer and
-  carry on* to *stop*. Clearing is still the user's command — no tool clears it — so stopping is
-  what makes the offer real.
-- **Write the handover before you stop, and land it in the same branch as the work** — context dies
-  with the session, and an increment's own work is what falsifies the pointers to it. The five
-  places, and how to verify them: [`docs/BUILDING.md` § Hand over before you
+  commit per pass. The default shape of an increment, not a debugging-only move.
+- **At each increment boundary, judge whether the context should be cleared. If it should be:
+  finish the handoff, say so, and stop there.** Strengthened by the user 20260811 15:37 from *offer
+  and carry on* to *stop* — clearing is the user's command, so stopping is what makes the offer real.
+- **Write the handover before you stop, in the same branch as the work** — context dies with the
+  session, and an increment's own work is what falsifies the pointers to it. The five places, and
+  how to verify them: [`docs/BUILDING.md` § Hand over before you
   stop](docs/BUILDING.md#hand-over-before-you-stop).
 
 ## This repository is PUBLIC
@@ -73,15 +62,12 @@ Set by the user 20260808 04:39. It **overrides the global default of stopping to
 - **Never commit real knowledge-base content.** The repo is the engine. The only KBs here are the
   synthetic corpora under `tests/` (`demo-kb`, `partner-kb`) — written for the purpose, never
   harvested.
-- **Every paid path's key is `PINAKES_ANTHROPIC_API_KEY`, never `ANTHROPIC_API_KEY`**, enforced
-  in code (`paid.py: resolve_api_key`, bound to its own surface by each of the two entry points),
-  not by machine hygiene: the SDK reads its own
-  variable out of whatever environment it is handed, so on a machine where another tool exports one
-  the paid path would find a live key nobody aimed at it (measured 20260804). It lives in `.env`
-  (gitignored by pattern), passed per command: `uv run --env-file .env pnk …`. **Never teach
-  Pinakes to load `.env` itself**, and never add an `ANTHROPIC_API_KEY` fallback — the same defect,
-  one layer apart. What bounds spend is the §5 caps and the allowlist, not the invocation form
-  ([docs/MEASUREMENT-RUN.md](docs/MEASUREMENT-RUN.md)).
+- **Every paid path's key is `PINAKES_ANTHROPIC_API_KEY`, never `ANTHROPIC_API_KEY`** — enforced in
+  code, because the SDK reads its own variable out of whatever environment it is handed. **Never
+  teach Pinakes to load `.env` itself, and never add an `ANTHROPIC_API_KEY` fallback**; both are the
+  same defect one layer apart. Why it is enforced in code rather than by machine hygiene, and what
+  actually bounds spend: [`docs/INVARIANTS.md` § The paid path's key is its
+  own](docs/INVARIANTS.md#the-paid-paths-key-is-its-own).
 - Vet every file for PII, credentials, private URLs, and anything copied from memory before staging.
 - Never commit model weights or `.pinakes/` state (both are gitignored — keep it that way).
 
@@ -94,40 +80,27 @@ Decided by the user 20260801 01:24.
 |---|---|
 | **Planner-only** | `docs/**`, `plans/**`, `README.md`, `CLAUDE.md`, `CHANGELOG.md` |
 | **Yours to write** | `changelog.d/` and `retro.d/` fragments; docstrings and comments in `src/`, `tests/`, `tools/`. Fragments exist so an implementer records what it changed *without* touching a shared document — that is the mechanism, not an exception to it |
-| **One narrow exception** | `docs/VERIFICATION.md`: add **only** the row a test you wrote requires. `tests/test_verification.py` hard-fails on an unresolvable name, so a renamed or new test with no row makes *your own* branch red and you could not self-certify. Nothing else in that file |
+| **One narrow exception** | `docs/VERIFICATION.md`: add **only** the row a test you wrote requires. `tests/test_verification.py` hard-fails on an unresolvable name, so a renamed or new test with no row makes *your own* branch red. Nothing else in that file |
 
-**How to propose:** `git diff <sha> -- <file>` against a **named commit**, in your branch's commit
-message or a note the planner reads. Never an edit, never "it is one line".
-
-**What the planner does with it:** incorporates it — judging *when*, not whether. A correction to
-what is true **today** lands on `main` at once. A doc change describing **your unlanded work** lands
-with your merge: main must not document a command that does not exist yet.
-
-**Why:** documentation is the coordination surface, and a clean auto-merge is not a correct merge
-(20260729). The cost is accepted: a correction waits for the planner.
+**Propose as `git diff <sha> -- <file>` against a named commit** — never an edit, never "it is one
+line". When the planner incorporates it, and why the cost is accepted: [`docs/BUILDING.md` §
+Proposing a change to a document you do not
+own](docs/BUILDING.md#proposing-a-change-to-a-document-you-do-not-own).
 
 ## 🚫 Unbuilt work is named, never numbered
 
 **A version number belongs to a release when it is cut — never before.** Refer to unbuilt work by
-name:
+name, and **never write `v0.4` for something unbuilt** — not in docs, `--help`, an error message or
+a code comment. Increment IDs (`I7b`, `I8`) stay: they name work inside a plan, not a release.
 
 | Name | What it is |
 |---|---|
 | **the template release** | Template ecosystem, `pnk upgrade`, the `sqlite-vec` tier |
 
-**The deep release left this table at 0.26.0**, its final cut (D-9) — `pnk ask --deep` is built,
-measured and complete, including E7's printed suggestions. `--write-suggestions` is deferred and
-**unplanned**; when it is planned it needs a name of its own here, not the old one.
-
-**A release that cuts more than once keeps its name here until the *final* cut.** Dropping it at an
-interim cut deletes a name the later increments still need.
-
-**Never write `v0.4` for something unbuilt** — not in docs, `--help`, an error message or a code
-comment. Increment IDs (`I7b`, `I8`) stay: they name work inside a plan, not a release. Decided
-20260729 00:09, after `v0.3` meant two releases at once
-([docs/STATUS.md](docs/STATUS.md#release-roadmap)). **Historical records keep the numbers they were
-written with**, with a header note: `CHANGELOG.md`, `docs/RETROSPECTIVES.md`, `plans/`,
-`docs/graph/`.
+A release that cuts more than once **keeps its name in that table until the final cut** — dropping
+it at an interim cut deletes a name the later increments still need. The rule's origin, and which
+historical records keep the numbers they were written with: [`docs/README.md` §
+Conventions](docs/README.md#conventions), which owns the rule — this table is the list.
 
 ## Naming (fixed — changing any of these is a breaking change)
 
@@ -141,10 +114,9 @@ written with**, with a header note: `CHANGELOG.md`, `docs/RETROSPECTIVES.md`, `p
 | MCP tools | `pinakes_*` — never bare `kb_*`, which collides across servers |
 | Cross-KB URI | `pnk://<kb-ulid>/<doc-ulid>` — ULIDs only, never aliases |
 
-**Capital `P` names the project; lowercase `p` names something you can type.** `pinakes.toml`,
-`.pinakes/`, `pinakes[st]`, `pinakes_search`, `import pinakes`, `requires_pinakes`, `src/pinakes/`
-and every URL stay lowercase inside a sentence that otherwise says Pinakes. Runtime output names
-the *command*, so it stays lowercase too — a git hook's `echo "pinakes: …"` is not prose. Applied
+**Capital `P` names the project; lowercase `p` names something you can type** — `pinakes.toml`,
+`.pinakes/`, `import pinakes`, `src/pinakes/` and every URL stay lowercase inside a sentence that
+otherwise says Pinakes. Runtime output names the *command*, so it stays lowercase too. Applied
 across the repo 20260804 11:55, history included.
 
 ## Invariants that must not be broken
@@ -162,58 +134,36 @@ increment, `./check.sh` green, mutate the assertions, adversarial review, fragme
 `tools/land.py`. Never batch increments. Read the build order out of `plans/` — **never** "the newest
 file" there ([`docs/README.md`](docs/README.md) tells them apart).
 
-**What is live right now** — one line per plan here; the full routing table, with what each
-closed plan still binds, is [`docs/README.md`](docs/README.md):
+**Mutation is a tool, and its batteries are committed:** `python3 tools/mutate.py <battery.toml>`,
+and `--check-anchors tools/batteries/*.toml` to ask whether they still hold. **Append a section to
+the battery your target already has; never start a second file for it** —
+[`tools/batteries/README.md`](tools/batteries/README.md) carries the naming rule and what to do when
+an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
+
+**What is live right now** — the full routing table, with what each closed plan still binds, is
+[`docs/README.md`](docs/README.md):
 
 - **🛑 No plan has scheduled unbuilt work. `plans/` is entirely closed, answered, deferred or
-  proposed-unscheduled**, for the first time since this line existed. **Do not read that as
-  *nothing to do*** — read it as *the next thing to build has not been planned yet*, which makes
-  planning the work rather than an interruption to it. `docs/ROADMAP.md` Part 5 and
-  `docs/README.md`'s routing table are where the candidates are.
-- **The mutation step of `docs/BUILDING.md` § 4 is now a tool: `python3 tools/mutate.py
-  <battery.toml>`** (shipped 0.27.0, `plans/20260821_0745-mutation-harness.md`, built). It refuses
-  every way a mutation run has silently lied here — including three the written rules never named:
-  a **skipped** selector exits 0 like a passing one, an **already-red** one kills every mutant, and
-  `PYTEST_ADDOPTS` smuggles in `-x`. Prefer it to mutating by hand; a target under `tests/` it
-  refuses, and that stays manual.
-- **Batteries are committed, one per target, in
-  [`tools/batteries/`](tools/batteries/README.md)** — the rule, the naming and what to do when an
-  anchor rots are all there. **Append a section to the battery your target already has; never start
-  a second file for it.** `tests/test_batteries.py` fails if you do, if an anchor stops resolving,
-  or if a `kills` selector names a test that no longer exists.
-- **[`plans/20260811_1358-deep-release.md`](plans/20260811_1358-deep-release.md) closed at
-  0.26.0.** All ten decisions (D-21 to D-30) are taken and it remains the authority for them;
-  re-run its § 2 before trusting any `file:line`. Every increment E1 to E7 is built, and each
-  carries a status block saying what shipped *beside* what its section asked for. **Two to read
-  before touching the deep path**: E6's retrospective (*a seam the tests never crossed*) before
-  trusting any fixture-backed claim — `pnk ask --deep` `400`d on every live call from 0.22.0 until
-  0.25.1; and E7's, before adding a guard — a guard whose input is built by its own validator is
-  not a guard, and its test is a tautology.
-- **Everything else in `plans/` is closed, answered, deferred or proposed-unscheduled** — the
-  routing table classifies every file, and says what
-  each still binds: the metadata plan's frozen golden set and its unapproved no-gos, the template
-  release's T6 trigger and T8 no-go, and the 20260811 decision record that supersedes both
-  wherever they still read as undecided. **An item that reads as a decision may only be an
-  unchecked assumption** — two stalled items fell to simply running the code, 20260811.
+  proposed-unscheduled.** **Do not read that as *nothing to do*** — read it as *the next thing to
+  build has not been planned yet*, which makes planning the work rather than an interruption to it.
+  `docs/ROADMAP.md` Part 5 and `docs/README.md`'s routing table hold the candidates.
 - **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) holds one
-  live item** — E5's gitignore-warning question, a decision rather than a task, and the item says
-  why it is not urgent. The list has emptied and refilled twice: **read an empty list as *nobody
-  has run Pinakes lately*, never as *finished*.**
+  live item** — E5's gitignore-warning question, a decision rather than a task. The list has emptied
+  and refilled twice: **read an empty list as *nobody has run Pinakes lately*, never as *finished***,
+  and **an item that reads as a decision may only be an unchecked assumption**.
 
 ## Landing work: always push, always release
 
 **Nothing is done until it is on `origin/main` and, when it completes a unit of work, tagged.** Work
-left local is invisible to every other agent, machine and scheduled run. **The procedure — the
-number, the tag, the verification and the documents a release stales — is
+left local is invisible to every other agent, machine and scheduled run. **The procedure is
 [`docs/RELEASING.md`](docs/RELEASING.md).** These are the rules it assumes:
 
-- **Push every landing** to `origin/main`, and fast-forward the primary checkout afterwards
+- **Push every landing** to `origin/main`, then fast-forward the primary checkout
   (`git pull --ff-only`). Never leave merged work sitting locally.
 - **Before merging, run `python3 tools/shared_file_overlap.py --fetch --strict`** — then go and
   *read* the merged state of the files it names. **A clean auto-merge is not a correct merge:** git
-  merges edits that do not overlap textually, never edits that *agree*, so two agents can leave one
-  document contradicting itself with every command reporting success (20260729). For the two
-  documents every change writes to, the cause is removed rather than reported:
+  merges edits that do not overlap textually, never edits that *agree* (20260729). For the two
+  documents every change writes to, the cause is removed rather than reported —
   [`changelog.d/`](changelog.d/README.md), [`retro.d/`](retro.d/README.md).
 - **Cut the release** as soon as the work passes the SemVer table (feature = MINOR, fix/docs/deps =
   PATCH, breaking = MAJOR). Complete work never lingers in `[Unreleased]`.
@@ -239,19 +189,18 @@ golden-set eval (`recall@k`, MRR, false-abstain rate) — never by intuition alo
 and after numbers in the commit message.
 
 **And name the corpus that can license the change.** `tests/demo-kb`'s golden set is a regression
-guard, not a licensing instrument: its improvable pool **on `recall@k`** was 4 questions when
-measured (20260806),
-and `sign_test(4, 0)` = 0.0625 — even a perfect sweep fails the p < 0.05 bar the graph channel was
-held to. That is a power limit, not a mechanism limit, and the two have different remedies. A
+guard, not a licensing instrument — its improvable pool is too small to carry a verdict, so a
 claimed improvement needs the RFC corpus (`tools/build_rfc_corpus.py`; frozen questions in
-`tools/rfc_corpus/questions.yaml`) or another corpus whose improvable pool — re-measured, not
-remembered — can carry a verdict.
+`tools/rfc_corpus/questions.yaml`) or another corpus whose improvable pool has been **re-measured,
+not remembered**. The numbers, and why a power limit is not a mechanism limit: [`docs/DESIGN.md` §
+What a corpus can license](docs/DESIGN.md#73-what-a-corpus-can-license).
 
 ## Docs
 
 **One fact, one home** — [`docs/README.md`](docs/README.md) is the routing table and the
 per-increment landing checklist. `docs/DESIGN.md` is rationale only; it changes when the *reasoning*
-changes, never for a new flag or field alone.
+changes, never for a new flag or field alone. **README and DESIGN.md are deliberately version-free**
+— never reintroduce a version number or "as of vX" claim into their prose.
 
 **Seven rules live in [`docs/README.md` § Conventions](docs/README.md#conventions), each with its
 measurement — read them before any docs change**: audit the neighbourhood not the diff; name the
@@ -261,14 +210,11 @@ rename a heading to fix a site anchor. `docs/` is **published** to
 [lucagattoni.github.io/pinakes](https://lucagattoni.github.io/pinakes/) on every push to `main`, so
 run `make docs` (`mkdocs build --strict`, which a PR also gates) before landing a docs change.
 
-- **README and DESIGN.md are deliberately version-free** — they describe what Pinakes *is*, never
-  which release it's on. Never reintroduce a version number or "as of vX" claim into their prose.
-- **Every date carries a time, in UTC** — `YYYYMMDD HH:MM` — in the CHANGELOG, `docs/STATUS.md`,
-  `docs/RETROSPECTIVES.md` and any "verified on" claim. **Read the clock, never compose it**: run
-  `date -u "+%Y%m%d %H:%M"` and paste it, or derive a past stamp from `git log`. **Timestamps written
-  before 20260804 11:32 are local and stay local** — converting a recorded time invents precision
-  nobody measured. Where the two could be confused, say which.
+- **Every date carries a time, in UTC** — `YYYYMMDD HH:MM`, in the CHANGELOG, `docs/STATUS.md`,
+  `docs/RETROSPECTIVES.md` and any "verified on" claim. **Read the clock, never compose it**:
+  `date -u "+%Y%m%d %H:%M"`, or derive a past stamp from `git log`. **Timestamps written before
+  20260804 11:32 are local and stay local** — converting one invents precision nobody measured.
 - **Every new file in `plans/`, `changelog.d/` and `retro.d/` is named `YYYYMMDD_HHMM-<rest>.md`**
   (UTC, underscore not colon — the branch-name format), so `ls` reads chronologically.
-  `tools/fragments.py` strips the prefix before reading a fragment's category; a file without one is
-  accepted, since the convention began 20260804 07:00.
+  `tools/fragments.py` strips the prefix before reading a fragment's category. Batteries are named
+  for their target instead, never dated.

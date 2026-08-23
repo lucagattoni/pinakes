@@ -1276,6 +1276,31 @@ enough to treat as theoretical.
 
 ---
 
+### 7.3 What a corpus can license
+
+**A corpus that guards a change is not automatically a corpus that can license one.**
+`tests/demo-kb`'s golden set is a regression guard: it catches a change that makes retrieval worse.
+It cannot certify one that makes retrieval better, and the reason is arithmetic rather than
+judgement. Its improvable pool **on `recall@k`** — the questions any change still has room to move —
+was **4** when measured (20260806), and the project's own `sign_test(4, 0)` returns **0.0625**. A
+sweep that fixed every one of them fails the p < 0.05 bar the graph channel was held to.
+
+**That is a power limit, not a mechanism limit, and the two have different remedies.** A mechanism
+limit — the corpus cannot exhibit the behaviour being claimed — is answered by a different corpus. A
+power limit is answered by more questions or a different metric. Recording the wrong one sends the
+next agent to the wrong fix, which is why this corpus's multi-hop saturation is recorded as a
+measured limit rather than a suspected one.
+
+**So a claimed improvement names the corpus that can carry the verdict.** That is the RFC corpus
+([`tools/build_rfc_corpus.py`](https://github.com/lucagattoni/pinakes/blob/main/tools/build_rfc_corpus.py),
+whose frozen questions live in
+[`tools/rfc_corpus/questions.yaml`](https://github.com/lucagattoni/pinakes/blob/main/tools/rfc_corpus/questions.yaml)),
+or another corpus whose improvable pool has been **re-measured, not remembered** — the pool is a
+function of the retrieval settings that produced it, so a count carried forward from an earlier
+configuration is evidence about the past, not a licence for the present.
+
+---
+
 ## 8. Delivery plan
 
 > **What has actually shipped is [STATUS.md](STATUS.md); the ordered build order is

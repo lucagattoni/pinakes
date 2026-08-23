@@ -1,11 +1,13 @@
 # Cutting a release
 
 **Audience: the agent cutting it. Goal: executor.** Follow it in order; nothing here is a judgement
-call. The *rules* about when to release, and the traps that have cost this project a release before,
-stay in [`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md) — this file is the procedure they point at.
+call. The *rules* about when to release stay in
+[`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md) — this file is the
+procedure they point at, plus the one trap whose mechanism is too long to keep there
+([§ Landing a branch](#landing-a-branch)).
 
-Extracted from `CLAUDE.md` on 20260801 02:07, when that file crossed its own size guardrail. Nothing
-was dropped in the move.
+Extracted from `CLAUDE.md` on 20260801 02:07, when that file crossed its own size guardrail, and
+extended on 20260823 when it crossed it again. Nothing was dropped in either move.
 
 ## Before you start
 
@@ -152,3 +154,21 @@ was on PyPI, and the roadmap still listed the paid-extraction release as unbuilt
 ## Afterwards
 
 Fast-forward the primary checkout: `git pull --ff-only`.
+
+## Landing a branch
+
+**Git cannot catch a branch merged into itself.** It creates no commit, so `pre-merge-commit` never
+fires — the no-op is silent by design. So `tools/land.py` is the guard, and this is what it does:
+
+- **Finds the primary checkout itself, whatever directory you ran it from** — the `cd <worktree>`
+  that begins the failing `&&` chain cannot decide where the merge happens.
+- **Refuses if `main`'s sha did not move.**
+- **Re-reads `origin/main` after pushing**, because a push reporting success is only a claim.
+- **`--cleanup` removes the worktree *and* both copies of the branch**, since deleting one leaves
+  the other behind.
+- **`--cleanup-only` does that for a branch you landed earlier**, after verifying it is an ancestor
+  of `origin/main` — because "looks merged" is not "landed".
+
+It is the only rule in [`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md)
+with an executable guard, because it is the only one that fails silently. Everything else there
+fails loudly or is caught by `./check.sh`.
