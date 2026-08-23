@@ -97,13 +97,13 @@ stamp is only worth writing once everything under it is true.
 
 ## `docs/DESIGN.md:715` — false · CONFIRMED
 
-**Claims.** §6.1: "[KB-UPDATES.md](KB-UPDATES.md) works the problem through and records what has been decided; none of it is built."
+**Claims.** §6.1: "`[KB-UPDATES.md](KB-UPDATES.md)` works the problem through and records what has been decided; none of it is built."
 
 **Actually.** At fc0fd41 three of KB-UPDATES.md's decisions are built. (1) `[kb] requires_pinakes` — KB-UPDATES §4 "Decided" itself says "**built in G4**" — and DESIGN's own §2.1 (lines 129-140) describes it as live behaviour, so the document contradicts itself. (2) T1 built KB-UPDATES §9's first step, "Bump the `notes` template version whenever its content changes" (`notes` is now 1.1). (3) T1 built KB-UPDATES §6/§9's template-drift CI gate. What is genuinely still unbuilt is `pnk upgrade` (§5 of KB-UPDATES) — and DESIGN describes it in the present tense at line 707 with no ⏳ pending note, so once this sentence is corrected nothing in DESIGN says `pnk upgrade` does not exist.
 
 **Evidence.** `grep -n "requires_pinakes" src/pinakes/manifest.py` → `282:REQUIRES_PINAKES = "requires_pinakes"` / `287:    """`[kb] requires_pinakes` — refuse a KB this build is too old to read (G4).`; docs/KB-UPDATES.md:83 `**`[kb]` gains `requires_pinakes`** — **built in G4**`; `git show fc0fd41 --stat` lists `tools/template_drift_gate.py | 629 +`, `src/pinakes/templates/_versions.toml | 12 +`, `src/pinakes/templates/notes/template.toml | 2 +-`; `check.sh:191` → `uv run --frozen python3 tools/template_drift_gate.py`; `.github/workflows/ci.yml:298` → job `template-drift`; `uv run pnk --help` lists no `upgrade` command.
 
-**Fix.** Replace with what is actually built and what is not, e.g.: "[KB-UPDATES.md](KB-UPDATES.md) works the problem through. `[kb] requires_pinakes` (§2.1) and the template-version archive plus its drift gate are built; `pnk upgrade` is not — it belongs to the template release." Keep an explicit statement that `pnk upgrade` does not exist yet, since line 707 describes it in the present tense.
+**Fix.** Replace with what is actually built and what is not, e.g.: "`[KB-UPDATES.md](KB-UPDATES.md)` works the problem through. `[kb] requires_pinakes` (§2.1) and the template-version archive plus its drift gate are built; `pnk upgrade` is not — it belongs to the template release." Keep an explicit statement that `pnk upgrade` does not exist yet, since line 707 describes it in the present tense.
 
 ## `docs/GUIDE.md:3` — stale · CONFIRMED
 
@@ -174,7 +174,7 @@ Template source: src/pinakes/templates/notes/{README.md,eval/questions.yaml,pina
 
 ## `docs/VERIFICATION.md:28` — broken-reference · MISSED-BY-FINDER
 
-**Claims.** "The gap is now four releases wide and is on [`plans/20260731_1202-open-corrections.md`](…)'s neighbourhood rather than lost." — i.e. the un-rowed 0.13.0–0.16.0 releases are tracked in that file.
+**Claims.** "The gap is now four releases wide and is on `` [`plans/20260731_1202-open-corrections.md`](…) ``'s neighbourhood rather than lost." — i.e. the un-rowed 0.13.0–0.16.0 releases are tracked in that file.
 
 **Actually.** `plans/20260731_1202-open-corrections.md` holds no such item, and by its own header it cannot: it says documentation items were removed from it when docs ownership moved to the planner, and that what remains is code and tooling only.
 
@@ -276,7 +276,7 @@ Template source: src/pinakes/templates/notes/{README.md,eval/questions.yaml,pina
 
 ## `docs/CLI.md:468` — broken-reference · CONFIRMED
 
-**Claims.** Planned table: "each names the increment that lands it ([STATUS](STATUS.md#v02-increment-ledger))".
+**Claims.** Planned table: "each names the increment that lands it (`[STATUS](STATUS.md#v02-increment-ledger)`)".
 
 **Actually.** The link resolves but does not hold what is claimed: `## v0.2 increment ledger` is the historical I1–I9 table for v0.2 and names neither the deep release nor the template release. Those live in `## Release roadmap` (STATUS.md:254, with the rows at 264-265 and 306-307) and in `## The surface you can use today` (STATUS.md:28, 43). The column is also labelled "Increment" while its values are release *names*, which is what the naming rule requires.
 
@@ -432,7 +432,7 @@ inbound links: museum 6
 
 **Actually.** The free-vs-paid delta lives in DESIGN **§7.2**, a section created for it and titled "What bypassing `layout.py` on the paid path actually costs". §7.1 is "PDF extraction quality" — the free-path corpus scoring. STATUS.md links the delta to §7.2, not §7.1.
 
-**Evidence.** `grep -n "^### " docs/DESIGN.md` → `1059:### 7.1 PDF extraction quality`, `1107:### 7.2 What bypassing \`layout.py\` on the paid path actually costs`; DESIGN.md:1109-1122 holds the measured per-fixture delta table; `docs/STATUS.md:215` → "([§7.2](DESIGN.md#72-what-bypassing-layoutpy-on-the-paid-path-actually-costs))".
+**Evidence.** `grep -n "^### " docs/DESIGN.md` → `1059:### 7.1 PDF extraction quality`, `` 1107:### 7.2 What bypassing `layout.py` on the paid path actually costs ``; DESIGN.md:1109-1122 holds the measured per-fixture delta table; `docs/STATUS.md:215` → "`([§7.2](DESIGN.md#72-what-bypassing-layoutpy-on-the-paid-path-actually-costs))`".
 
 **Fix.** Change "**DESIGN §7.1**" to "**DESIGN §7.2**" in step 3. (Step (c) at line 149 pointing the scanned-quality numbers at §9 is correct — they are in §9's PDF-extraction-quality risk row.)
 
@@ -474,7 +474,7 @@ sequences in `check.sh` and CI, so the class cannot return.
 
 ## `docs/graph/README.md:54` — broken-reference · MISSED-BY-FINDER
 
-**Claims.** "Stated once in [PINAKES_APPROACH.md §\"License gate\"](PINAKES_APPROACH.md) and repeated here because the index is where someone starts." — cites a section of PINAKES_APPROACH.md named "License gate".
+**Claims.** "Stated once in `[PINAKES_APPROACH.md §"License gate"](PINAKES_APPROACH.md)` and repeated here because the index is where someone starts." — cites a section of PINAKES_APPROACH.md named "License gate".
 
 **Actually.** PINAKES_APPROACH.md has no section by that name. Its eleven `##` headings are §1 What the investigations changed, §2 The shape of the answer, §3 Sync time, §4 Query time, §5 The tool surface, §6 The paid path, §7 What Pinakes deliberately does not build, §8 ClaudeKB, §9 Eval gates, §10 Version mapping, §11 Summary. The licence text is a mid-paragraph sentence inside §1 (line 41, "License gate, stated once: LinearRAG and LogicRAG are GPL-3.0…"). The link resolves to the file, so mkdocs --strict stays green, but the § citation sends a reader hunting for a heading that has never existed.
 

@@ -1714,7 +1714,7 @@ moves. **This test is only honest alongside the rebuild-naming test above**; on 
 state a user cannot search;
 `::test_the_comment_the_template_added_is_present_after_apply` — the end-to-end case that proves the
 mechanism addresses the drift that exists. **Assert the PDF-glob comment line by content**
-(`# Add "**/*.pdf" to \`include\` above to index PDFs`), never a line count. A key-level
+(`` # Add "**/*.pdf" to `include` above to index PDFs ``), never a line count. A key-level
 implementation fails it, which is the point.
 
 **Exit criteria.**

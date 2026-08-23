@@ -17,10 +17,10 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260823 13:59 UTC
+## Where things stand right now — 20260823 14:43 UTC
 
-- **52 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.29.1`](#0291--the-instruction-file-extracted-to-its-own-guideline--20260823-1359)
+- **53 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.29.2`](#0292--the-links-no-gate-reads--20260823-1443)
   on 20260823.
 - **Latest on PyPI: `0.29.1`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
@@ -183,6 +183,7 @@ number belongs to a release only when it is cut
 | **[0.28.3](#0283--a-gate-that-could-not-see-the-list-next-door--20260823-0310)** | 20260823 03:10 | a gate that could not see the list next door | • **A seventh sequence** — STATUS's *Published versions* row, four releases behind through green runs of every gate<br>• **The gate reported those releases present, and they were — in the sequence next door**, forty lines up in the same file<br>• **A `within` anchor** scopes a pattern to one region, since the row is a table cell and not a run of lines; two matches are refused rather than resolved to the first<br>• **The row may never lag the prose beside it** — a relation beats a bound: 29 commits sat green with the row already wrong, the relation fires 11 commits earlier, 0 false positives over 53<br>• 11 mutants, 11 killed; no code path changed |
 | **[0.29.0](#0290--the-batteries-were-kept-and-one-caught-what-four-green-gates-missed--20260823-1250)** | 20260823 12:50 | the batteries were kept, and one caught what four green gates missed | • **91 mutants committed** under `tools/batteries/`, one file per target, all 91 killed<br>• **The docstring that decided this was an assumption**: measured, 78 of 81 anchors still resolved a day to a week later, and all three failures were *refusals*<br>• **`--check-anchors`** resolves anchors against the working tree in milliseconds; `tests/test_batteries.py` gates anchors, selectors, double claims and a declared count<br>• **A resolvability gate, not a regression gate** — nothing runs a battery automatically<br>• **Two of its own mutants were killed about nothing**, one of them a `SyntaxError` reading KILLED in a batch reporting `0 errored`; a compile refusal now precedes the first write<br>• **A battery caught what four green gates and two review passes missed**<br>• A cleared context settles its own role, and its peers', before it writes<br>• no code path changed |
 | **[0.29.1](#0291--the-instruction-file-extracted-to-its-own-guideline--20260823-1359)** | 20260823 13:59 | the instruction file, extracted to its own guideline | • **274 → 220 lines**, five sections moved to the page that owns them, **nothing lost** — 112 removed lines traced to a home<br>• The plan-status bullets were **duplicates**, deleted rather than moved: the routing table already had them<br>• **Every defect the review found was about the neighbourhood, not the content** — a per-file agent cannot audit what lies outside its file<br>• A duplicated rule had **already drifted**: README named the deep release as live, three releases late<br>• Four dead links written while creating pointers — `CLAUDE.md` is not in the built site, so `mkdocs --strict` cannot see them<br>• **Stops at 220, not 150**, and says so<br>• no code path changed |
+| **[0.29.2](#0292--the-links-no-gate-reads--20260823-1443)** | 20260823 14:43 | the links no gate reads | • **11 broken links** on the surface `mkdocs --strict` never sees — `CHANGELOG.md`, `plans/**`, the fragment READMEs<br>• 3 pointed `../docs/…`, **above the repository root**<br>• 1 anchor **rotted when a re-measurement renamed its heading**<br>• 6 were quotations, now code-spanned — repointing a quoted path would falsify the quotation<br>• **A backslash does not escape a backtick inside a code span**: a published page rendered as broken `<code>` for weeks, `--strict` green throughout<br>• **Render, don't regex** — two regex scanners, seven false positives, one wrong edit<br>• no code path changed |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -1971,6 +1972,45 @@ future extraction.
 going further would mean deleting rules the user set. Rule 6 calls the guardrail *"the trigger to
 extract sections and leave pointers — not a hard cap that justifies deleting information."*
 Reporting the shortfall is the outcome the rule asks for.
+
+**No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
+
+## 0.29.2 — the links no gate reads · 20260823 14:43
+
+**`mkdocs build --strict` resolves every link in `docs/`. Nothing in this repo resolves any other
+link.** `mkdocs.yml` excludes `CLAUDE.md` and `docs/README.md` deliberately — they point at
+`plans/`, `tools/` and `changelog.d/`, paths a site build cannot resolve — and `CHANGELOG.md`,
+`plans/**`, `changelog.d/README.md` and `retro.d/README.md` were never in the build at all. **Eleven
+links were broken there.**
+
+Three in `CHANGELOG.md` pointed at `../docs/…`, which from the repository root resolves *above* the
+repository. One had **rotted when a re-measurement renamed the heading it cited**: 0.7.0's entry
+still pointed at *measured 20260801 12:14* after that section became *yes, measured 20260804*. It is
+**repointed rather than reworded** — [STATUS](STATUS.md#can-the-graph-releases-gate-be-reached--yes-measured-20260804)
+carries both columns, so the entry's own numbers, *7 needed, 1 fails*, are still on the page it
+names. One in `plans/` cited a repo-root `STATUS.md` that has never existed.
+
+**Six were quotations, and they are code-spanned rather than repointed.** They quote what *other*
+documents say, so correcting a path inside one would falsify the quotation — and verbatim quoting is
+the whole method of the file holding them.
+
+**A backslash does not escape a backtick inside a code span, and three places assumed it did.**
+`docs/RETROSPECTIVES.md` is published, and one of its lines has been rendering as a broken run of
+`<code>` tags on the site for weeks — with `mkdocs build --strict` green the entire time, because
+**`--strict` resolves links and never asks whether a span renders as intended.** That is a second
+gate-shaped gap, and it is a rendering comparison rather than a link check.
+
+**The instrument is the finding.** 0.29.1's section said a link check "belongs in any future
+extraction" and described parsing `](path.md#anchor)` with a regex. **A regex is not enough.** Two
+regex scanners produced seven false positives between them: one blanked inline code with `re.S` and
+let a single unbalanced backtick swallow a file's headings; the other rejected links to
+*directories* and treated an **indented code block** as prose. Both control legs stayed green,
+because `docs/` exercises neither case — **a control validates only the behaviours it exercises.**
+The second false positive produced a **wrong edit** to `retro.d/README.md`, whose indented block is
+the README *teaching* fragment authors to write a bare `#anchor` that resolves only after splicing;
+it was reverted. **Rendering answers the question directly**: a link inside a code span emits no
+`<a>` at all. Final count — ungated surface 214 links, 0 broken; control leg `docs/` 305 links, 0
+broken.
 
 **No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
 
