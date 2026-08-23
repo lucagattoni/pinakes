@@ -147,10 +147,11 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   proposed-unscheduled.** **Do not read that as *nothing to do*** — read it as *the next thing to
   build has not been planned yet*, which makes planning the work rather than an interruption to it.
   `docs/ROADMAP.md` Part 5 and `docs/README.md`'s routing table hold the candidates.
-- **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) holds one
-  live item** — E5's gitignore-warning question, a decision rather than a task. The list has emptied
-  and refilled twice: **read an empty list as *nobody has run Pinakes lately*, never as *finished***,
-  and **an item that reads as a decision may only be an unchecked assumption**.
+- **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) holds two
+  live items** — E5's gitignore-warning question, a decision rather than a task, and
+  `tools/fragments.py` validating the fragments it reads but never the document it writes. The list
+  has emptied and refilled twice: **read an empty list as *nobody has run Pinakes lately*, never as
+  *finished***, and **an item that reads as a decision may only be an unchecked assumption**.
 
 ## Landing work: always push, always release
 
@@ -165,6 +166,11 @@ left local is invisible to every other agent, machine and scheduled run. **The p
   merges edits that do not overlap textually, never edits that *agree* (20260729). For the two
   documents every change writes to, the cause is removed rather than reported —
   [`changelog.d/`](changelog.d/README.md), [`retro.d/`](retro.d/README.md).
+- **That tool cannot see a peer.** It compares you to `origin/main`, never to another branch — so
+  before landing, intersect file sets with every live branch yourself, and settle the *order*,
+  which may be forced rather than agreed: a peer's new gate can be red on `main` until your fix
+  lands, and **running their gate is what finds that; asking them is not** (20260823).
+  [`docs/RELEASING.md` § Landing beside a peer](docs/RELEASING.md#landing-beside-a-peer).
 - **Cut the release** as soon as the work passes the SemVer table (feature = MINOR, fix/docs/deps =
   PATCH, breaking = MAJOR). Complete work never lingers in `[Unreleased]`.
 - **A tag publishes to PyPI** and PyPI never accepts a version twice: `make release-check` runs

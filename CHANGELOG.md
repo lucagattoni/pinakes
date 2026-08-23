@@ -10,6 +10,43 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.30.0] — 20260823 15:05
+
+### Added
+
+- **Every relative link and heading anchor now resolves in the Markdown the docs site never sees.**
+  `mkdocs build --strict` resolves internal links, and it was the only thing that did — it reads
+  `docs/` alone, and `exclude_docs` drops `docs/README.md` even from that. `CLAUDE.md`, the root
+  `README.md`, `CHANGELOG.md`, all of `plans/`, the `changelog.d/` and `retro.d/` READMEs and the
+  routing table itself were checked by nothing, and held **eleven broken links** when measured —
+  five dead as authored, including three in `CHANGELOG.md` pointing at `../docs/…` from the
+  repository *root*, which resolves above the repository. `tools/markdown_link_gate.py` runs in
+  `./check.sh` and in its own `ci.yml` job; it is stdlib-only, so the CI job needs no `uv` and no
+  install. A link inside a code span or a fenced block is never resolved, so a document that
+  **quotes** another document's links is not asked to corrupt the quotation to satisfy the gate.
+
+- **A rule for landing beside another session, because the tool that looks like one is not one.**
+  `tools/shared_file_overlap.py` compares a branch to `origin/main` and never to another branch, so
+  it reports *none* while a peer holds a branch touching the same files — a merge-safety check read
+  as a peer check. [`docs/RELEASING.md` § *Landing beside a peer*](docs/RELEASING.md#landing-beside-a-peer) now says to
+  intersect file sets against every live branch directly, and to settle the **order** rather than
+  only the overlap: a peer's new gate can be red on `main` until your fix lands, which makes the
+  order forced rather than negotiable. **You find that by running their gate, not by asking them** —
+  they are running it on their own tree, where it passes. Both halves were measured on 20260823,
+  between the two sessions that met them.
+
+### Fixed
+
+- **`CHANGELOG.md` carried a repeated section heading and two entries that were not entries.**
+  `## [0.28.3]` had `### Fixed` twice consecutively, and its body — like one `### Changed` body
+  further down — was a bare paragraph rather than the `- **claim.**` bullet
+  [`changelog.d/README.md`](https://github.com/lucagattoni/pinakes/blob/main/changelog.d/README.md)
+  requires. Both are structural, both render as something other than what was meant, and
+  `python3 tools/fragments.py --check` exits `0` on both — **it validates pending fragments, never
+  the document it splices them into**, so nothing in this repo has ever read the assembled file.
+  The prose is unchanged: the duplicate heading is removed and the two bodies are bulleted, with
+  their continuation paragraphs indented. Found while checking a release precedent, not by a gate.
+
 ## [0.29.2] — 20260823 14:43
 
 ### Fixed
@@ -128,39 +165,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-### Fixed
+- `tools/release_order_gate.py` now checks a **seventh** sequence: the **Published versions** row of
+  `docs/STATUS.md`'s PyPI table. It had fallen four releases behind — 0.27.0, 0.27.2, 0.28.0 and
+  0.28.1 — through green runs of every gate in this repo, after being repaired once for exactly this.
 
-`tools/release_order_gate.py` now checks a **seventh** sequence: the **Published versions** row of
-`docs/STATUS.md`'s PyPI table. It had fallen four releases behind — 0.27.0, 0.27.2, 0.28.0 and
-0.28.1 — through green runs of every gate in this repo, after being repaired once for exactly this.
+  The gate could not see it. Its sixth sequence reads the *Published on PyPI* **prose**; the row is a
+  table cell forty lines below, in the same file under the same heading. So the gate reported those
+  releases present, and they were — in the sequence next door. That arrangement is the most
+  misleading one available, because the check and the list it cannot see look like the same check.
 
-The gate could not see it. Its sixth sequence reads the *Published on PyPI* **prose**; the row is a
-table cell forty lines below, in the same file under the same heading. So the gate reported those
-releases present, and they were — in the sequence next door. That arrangement is the most
-misleading one available, because the check and the list it cannot see look like the same check.
+  Reaching it needed a new mechanism. The row is the one sequence that is not a run of lines: the
+  whole enumeration is a single table cell, and the rest of that cell carries about twenty more
+  version numbers in prose. A line-anchored pattern cannot reach inside the line, and an unanchored
+  one would match the prose too and read a sorted list as unsorted. A `Sequence` may now declare a
+  `within` anchor — one regex capturing the region the pattern is then run inside. A `within` that
+  matches nothing yields an empty sequence and trips the floor; one that matches **twice** is refused
+  outright rather than resolved to the first match, which would splice two lists into a sequence that
+  is sorted only by accident.
 
-Reaching it needed a new mechanism. The row is the one sequence that is not a run of lines: the
-whole enumeration is a single table cell, and the rest of that cell carries about twenty more
-version numbers in prose. A line-anchored pattern cannot reach inside the line, and an unanchored
-one would match the prose too and read a sorted list as unsorted. A `Sequence` may now declare a
-`within` anchor — one regex capturing the region the pattern is then run inside. A `within` that
-matches nothing yields an empty sequence and trips the floor; one that matches **twice** is refused
-outright rather than resolved to the first match, which would splice two lists into a sequence that
-is sorted only by accident.
+  Verified against the defect rather than against a fixture alone: run over the documents as they
+  stood at `2bff5e4`, the new sequence is the **only** one that fails, reporting 0.27.0 missing from
+  the middle and three releases past the declared lag.
 
-Verified against the defect rather than against a fixture alone: run over the documents as they
-stood at `2bff5e4`, the new sequence is the **only** one that fails, reporting 0.27.0 missing from
-the middle and three releases past the declared lag.
-
-The row also may not fall behind the *Published on PyPI* prose beside it. Both lists record the
-same event — a release verified from the index — so `newest_may_lag` grants latency against the
-release documents while a new `not_behind` withdraws it against a list recording that same
-verification. This matters because the lag bound alone leaves a two-release window in which the row
-is wrong and every gate is green, and **both recorded drifts escalated through that window** rather
-than starting past it: measured across every commit on `main` carrying both lists, 29 sit inside it.
-The relation has no such window and no false positives — 53 commits with the row at or ahead of the
-prose, 14 behind, and all 14 inside the two drifts. It first goes red at `c4b52abd` on 20260812, 11
-commits before the lag bound reaches three and fires.
+  The row also may not fall behind the *Published on PyPI* prose beside it. Both lists record the
+  same event — a release verified from the index — so `newest_may_lag` grants latency against the
+  release documents while a new `not_behind` withdraws it against a list recording that same
+  verification. This matters because the lag bound alone leaves a two-release window in which the row
+  is wrong and every gate is green, and **both recorded drifts escalated through that window** rather
+  than starting past it: measured across every commit on `main` carrying both lists, 29 sit inside it.
+  The relation has no such window and no false positives — 53 commits with the row at or ahead of the
+  prose, 14 behind, and all 14 inside the two drifts. It first goes red at `c4b52abd` on 20260812, 11
+  commits before the lag bound reaches three and fires.
 
 ## [0.28.2] — 20260823 02:47
 
@@ -2000,23 +2035,23 @@ Numbers, and the two findings behind them, in
 
 ### Changed
 
-`pnk doctor` reports link coverage as the **ratio** DESIGN §6.2 promises — `8 of 30 documents
-linked (27%)` — rather than an edge count, and resolves cross-KB targets instead of declaring them
-unchecked. A target whose own KB is on this machine and does not have the document is now a WARN
-with a count; one whose KB is *not* here is counted and left alone, because an index that cannot
-see a KB has no standing to call its documents missing.
+- `pnk doctor` reports link coverage as the **ratio** DESIGN §6.2 promises — `8 of 30 documents
+  linked (27%)` — rather than an edge count, and resolves cross-KB targets instead of declaring them
+  unchecked. A target whose own KB is on this machine and does not have the document is now a WARN
+  with a count; one whose KB is *not* here is counted and left alone, because an index that cannot
+  see a KB has no standing to call its documents missing.
 
-A new **linked KBs** check reads `[[links.kb]]` from the manifest alone, so it runs on a freshly
-cloned KB with no index — which is exactly when a committed absolute `path` matters. Four outcomes:
-a path that names no path at all, a KB absent from this machine, an absolute path (warned even when
-it resolves, because it publishes one machine's layout), and everything fine.
+  A new **linked KBs** check reads `[[links.kb]]` from the manifest alone, so it runs on a freshly
+  cloned KB with no index — which is exactly when a committed absolute `path` matters. Four outcomes:
+  a path that names no path at all, a KB absent from this machine, an absolute path (warned even when
+  it resolves, because it publishes one machine's layout), and everything fine.
 
-A KB where nothing links to anything is now a WARN nudge rather than a silent OK.
+  A KB where nothing links to anything is now a WARN nudge rather than a silent OK.
 
-`pnk doctor` on a KB with no index now says *"not built yet, so the link checks did not run"* rather
-than only *"not built yet"*. Every index-backed check is produced from one place, so an absent index
-silently removed them all — including link coverage, which is the check a reader consults after
-authoring links. A report that stops listing a check reads as nothing to report about it.
+  `pnk doctor` on a KB with no index now says *"not built yet, so the link checks did not run"* rather
+  than only *"not built yet"*. Every index-backed check is produced from one place, so an absent index
+  silently removed them all — including link coverage, which is the check a reader consults after
+  authoring links. A report that stops listing a check reads as nothing to report about it.
 
 ### Fixed
 
@@ -3865,7 +3900,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.29.2...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.30.0...HEAD
+[0.30.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.30.0
 [0.29.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.29.2
 [0.29.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.29.1
 [0.29.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.29.0

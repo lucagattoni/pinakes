@@ -17,12 +17,12 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260823 14:43 UTC
+## Where things stand right now — 20260823 15:05 UTC
 
-- **53 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.29.2`](#0292--the-links-no-gate-reads--20260823-1443)
+- **54 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.30.0`](#0300--the-markdown-the-docs-site-never-sees-now-gated--20260823-1505)
   on 20260823.
-- **Latest on PyPI: `0.29.1`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.29.2`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
@@ -35,7 +35,7 @@ precision nobody measured.
   **0.25.1 is the sharpest case this project has had of that distinction**:
   every release from 0.22.0 on installed cleanly and reported the right version while
   `pnk ask --deep` could not make one successful call. Every release from `0.2.2` on is published —
-  **forty-five**, counted from the index rather than from this list's previous number — and read from
+  **forty-six**, counted from the index rather than from this list's previous number — and read from
   `https://pypi.org/simple/pinakes/`, the endpoint installers use, because for minutes after an
   upload the `json` endpoint and uv's cache still report the previous version while `simple/` already
   carries the files. Checking `json` first says *the upload failed*, which is this project's recorded
@@ -98,7 +98,7 @@ precision nobody measured.
   divergence in every admissible KB is a manifest value — and **T6 is deferred behind a written
   trigger**, not abandoned. `main` has moved far enough that the plan's Baseline block must be re-run
   before any `file:line` in it is trusted.
-- **[One open correction](#open-corrections--one-live)** — the list emptied for the second time when
+- **[Two open corrections](#open-corrections--two-live)** — the list emptied for the second time when
   all four were decided and built in 0.22.0, and **refilled the next day from E5**: `pnk init`'s
   gitignore warning is printed once, and E5 put the user's verbatim question under `.pinakes/`. It
   emptied once before, on 20260805, and refilled twice within three days then too.
@@ -107,7 +107,7 @@ precision nobody measured.
   under adversarial review, one was **created** by the increment that closed another, and one came
   from **generalising a fix** — asking where else the defect just repaired still lives.
 - **🛑 Nothing is scheduled — for the first time.** Every named body of work is shipped or gated:
-  the open-corrections list holds one live *decision*, T6 waits on a **trigger** (a queried KB past
+  the open-corrections list holds one live *decision* and one live *fix*, T6 waits on a **trigger** (a queried KB past
   ~50 000 chunks *with* felt latency), the staged graph channels wait on a **corpus**, and
   **[the deep release](#the-deep-release--the-loop-shipped-in-0240) closed at
   [`0.26.0`](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** —
@@ -166,7 +166,7 @@ number belongs to a release only when it is cut
 | **[0.22.2](#0222--the-release-history-reads-in-order-and-a-gate-keeps-it-that-way--20260811-1348)** | 20260811 13:48 | The release history reads in order, and a gate keeps it that way | • **A row can be complete, correct, and in the wrong place.** Five release rows were out of order across three sequences — `docs/ROADMAP.md`'s release table and its per-release sections both read `0.20.0, 0.22.0, 0.22.1, 0.21.1, 0.21.0, 0.20.1`, and `docs/STATUS.md` put `0.15.1` after `0.16.0` and `0.20.1` after `0.22.1`. Every one is wrong on **both** readings, SemVer and release time. Nothing could see it: ordering is a property of the *sequence*, not of any row, and every check here reads rows — the tables were complete, every anchor resolved and `mkdocs build --strict` was green. **`0.21.0`'s sweep inserted its section one position too early and the next three used that same slot**, so after the first error the tail read strictly newest-first and each following sweep matched the coherent pattern around its own edit. Only the join between the ascending head and the descending tail was wrong, and no sweep's diff touched that line. The `0.15.1` instance was already in the 20260807 audit, verified, and sat unworked for four days while three sweeps added three more. **`tools/release_order_gate.py` now gates all five sequences** in `check.sh` and CI — direction declared per sequence rather than inferred, since a scrambled file would otherwise elect its own answer, and a sequence below a count floor fails rather than passes, because an empty sequence is sorted by definition. Also: ROADMAP's Part 4 heading claimed it ends at `0.10.0` while holding every release through `0.22.1`. **No code path changed** — no `schema_version`, no rebuild |
 | **[0.23.0](#0230--pnk-ask-exists-and-it-will-not-pretend-to-answer-you--20260811-1525)** | 20260811 15:25 | `pnk ask` exists, and it will not pretend to answer you | • `pnk ask` — the same evidence and filters as `pnk search`, plus **what answering would take**: one call at `high`/`medium`, decomposition at `low`, *cannot be told* uncalibrated<br>• Every run says **no answer was synthesised** — passages are not an answer<br>• **Nothing prints `--deep`**, which is not built: it is a usage error, not a flag that parses and apologises<br>• `search`'s own notice had advertised `pnk ask --deep`, in the sentence whose test is named for not doing that<br>• `--json` adds `answer: null` and an `escalation` block — one schema whether or not a loop ever runs<br>• The free-path gate covers the command **from the increment that creates it**, by matching its output<br>• Also: the deep-release plan and its eight decisions, and `tools/release_order_gate.py`<br>• *The deep release, interim cut (D-9)* — E2 to E7 are still to come |
 | **[0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)** | 20260811 22:24 | `pnk ask --deep` answers | • **`pnk ask --deep`** — the loop: one synthesis call when confident, decompose-search-answer-refold when not, stopping at sufficiency<br>• An **uncalibrated** KB runs it with no early stop and names the bound that ended the run (D-22 E)<br>• Priced and refused before the first call against all three `[budget]` windows at once; `confirm_above_eur` put once; every call reconciled<br>• A paid run that produced no answer **exits 1**<br>• **Default caps raised** — `per_operation_eur` 2.00, `daily_eur` 6.00 — because even a one-round loop exceeded the old one (D-30); `notes` is **1.2**, and an existing KB keeps what it stamped<br>• `[deep] model` and `max_rounds`, settable and unstamped (D-29)<br>• E2's estimator and E3's client ship here<br>• **Two money defects fixed in both paid clients** — a Ctrl-C, and a failure after the response arrived, each voiding a call that may have billed<br>• A gate for docs that quote command output<br>• *The deep release, interim cut (D-9)* — E5 to E7 are still to come |
-| | | **[Open corrections](#open-corrections--one-live)** | • **One live** — `pnk init`'s gitignore warning is printed once, and E5 put the user's verbatim question under `.pinakes/`. Its required text is undecided, so it is a decision rather than a task<br>• Six on 20260808, two closed in 0.21.1, four in 0.22.0<br>• **Two of the last four were never forks — they were unchecked assumptions**, refuted by running the code they described<br>• Five routes in: building, reading, shipping, generalising a fix, and reviewing a new surface — none finds the others'<br>• An empty list means nobody has run Pinakes lately |
+| | | **[Open corrections](#open-corrections--two-live)** | • **Two live** — `pnk init`'s gitignore warning is printed once, and E5 put the user's verbatim question under `.pinakes/`; its required text is undecided, so it is a decision rather than a task. And `tools/fragments.py --check` validates the fragments it reads and never the document `--apply` writes<br>• Six on 20260808, two closed in 0.21.1, four in 0.22.0<br>• **Two of the last four were never forks — they were unchecked assumptions**, refuted by running the code they described<br>• Five routes in: building, reading, shipping, generalising a fix, and reviewing a new surface — none finds the others'<br>• An empty list means nobody has run Pinakes lately |
 | | | **[The graph release, staged](#the-graph-release-staged--gates-only-not-scheduled)** | • PPR channel, the `[ner]` extra<br>• Gate-only: no implementation plan exists, by design<br>• Not scheduled |
 | **[0.25.0](#0250--a-paid-run-leaves-a-record-of-what-it-was-asked--20260812-0531)** | 20260812 05:31 | a paid run leaves a record of what it was asked | • **The run transcript** — `.pinakes/deep/<operation_id>.json`, written by every `pnk ask --deep` that returns and named in the output and in `--json`<br>• The ledger stores no query text and still does: this is a *second* file, which is what makes a `pnk budget` row explicable after the fact<br>• Filed under the `operation_id` the ledger groups by; the name is validated as a ULID<br>• The stored `answer` object is the one `--json` prints, **from one renderer**; `--json` gains `answer.call_ids` and a `transcript` path<br>• **Protected like a paid cache entry** — nothing sweeps it, `--rebuild` and `--clear-cache` leave it — and removed only by **`--clear-cache=transcripts`**, a *store* rather than a third authorisation<br>• Written for a run that **returned**, answer or not; a refusal, a decline and an `abort` halt write none<br>• *The deep release, interim cut (D-9)* — E6 and E7 are still to come |
 | **[0.25.1](#0251--pnk-ask---deep-works-against-the-live-api--20260821-0717)** | 20260821 07:17 | `pnk ask --deep` works against the live API | • **It never had.** Every answer call carried `integer` `minimum`/`maximum` and every decompose call an array `maxItems`; structured outputs accepts neither, so the API returned `400` **before the request billed**<br>• Every `--deep` invocation in 0.22.0–0.25.0 failed, at a cost of €0.00 — the accountant reserved, refused and voided exactly as designed<br>• The citation bound is **kept, not dropped**: `enum: [1..passages]` states what `minimum`/`maximum` stated, so E4's two halves both survive<br>• The subproblem cap has no such form and moves to the prompt body and `parse_subproblems`, which were always its real enforcement<br>• **Found by E6's measurement run on its first real call** — the fixtures could not have caught it, because the `Transport` seam means no test ever sent a schema to the API<br>• The gate is a recursive shape assertion over both builders against the documented unsupported keywords<br>• *The deep release, fix (D-9)* — E6 and E7 are still to come |
@@ -184,6 +184,7 @@ number belongs to a release only when it is cut
 | **[0.29.0](#0290--the-batteries-were-kept-and-one-caught-what-four-green-gates-missed--20260823-1250)** | 20260823 12:50 | the batteries were kept, and one caught what four green gates missed | • **91 mutants committed** under `tools/batteries/`, one file per target, all 91 killed<br>• **The docstring that decided this was an assumption**: measured, 78 of 81 anchors still resolved a day to a week later, and all three failures were *refusals*<br>• **`--check-anchors`** resolves anchors against the working tree in milliseconds; `tests/test_batteries.py` gates anchors, selectors, double claims and a declared count<br>• **A resolvability gate, not a regression gate** — nothing runs a battery automatically<br>• **Two of its own mutants were killed about nothing**, one of them a `SyntaxError` reading KILLED in a batch reporting `0 errored`; a compile refusal now precedes the first write<br>• **A battery caught what four green gates and two review passes missed**<br>• A cleared context settles its own role, and its peers', before it writes<br>• no code path changed |
 | **[0.29.1](#0291--the-instruction-file-extracted-to-its-own-guideline--20260823-1359)** | 20260823 13:59 | the instruction file, extracted to its own guideline | • **274 → 220 lines**, five sections moved to the page that owns them, **nothing lost** — 112 removed lines traced to a home<br>• The plan-status bullets were **duplicates**, deleted rather than moved: the routing table already had them<br>• **Every defect the review found was about the neighbourhood, not the content** — a per-file agent cannot audit what lies outside its file<br>• A duplicated rule had **already drifted**: README named the deep release as live, three releases late<br>• Four dead links written while creating pointers — `CLAUDE.md` is not in the built site, so `mkdocs --strict` cannot see them<br>• **Stops at 220, not 150**, and says so<br>• no code path changed |
 | **[0.29.2](#0292--the-links-no-gate-reads--20260823-1443)** | 20260823 14:43 | the links no gate reads | • **11 broken links** on the surface `mkdocs --strict` never sees — `CHANGELOG.md`, `plans/**`, the fragment READMEs<br>• 3 pointed `../docs/…`, **above the repository root**<br>• 1 anchor **rotted when a re-measurement renamed its heading**<br>• 6 were quotations, now code-spanned — repointing a quoted path would falsify the quotation<br>• **A backslash does not escape a backtick inside a code span**: a published page rendered as broken `<code>` for weeks, `--strict` green throughout<br>• **Render, don't regex** — two regex scanners, seven false positives, one wrong edit<br>• no code path changed |
+| **[0.30.0](#0300--the-markdown-the-docs-site-never-sees-now-gated--20260823-1505)** | 20260823 15:05 | the Markdown the docs site never sees, now gated | • `tools/markdown_link_gate.py` — every relative link and anchor in the Markdown `--strict` never sees<br>• **stdlib-only, 0.25s**, licensed by measuring the extractor against a real renderer over 894 links<br>• **A quoted link is left alone** — quoting a document never requires corrupting the quotation<br>• Caught a dead link in **this release's own fragment**: right in `changelog.d/`, wrong once spliced<br>• **§ *Landing beside a peer*** — the overlap tool compares to `origin/main`, never to a sibling branch<br>• A landing **order can be forced**, and running the peer's gate is what finds it<br>• `fragments.py --check` never reads the document it writes<br>• no code path changed |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -2014,9 +2015,54 @@ broken.
 
 **No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
 
+## 0.30.0 — the Markdown the docs site never sees, now gated · 20260823 15:05
+
+**The previous release fixed eleven broken links by hand. This one makes that class unrepeatable.**
+`tools/markdown_link_gate.py` resolves every relative link and heading anchor in the Markdown
+`mkdocs build --strict` never reads — `CLAUDE.md`, the root `README.md`, `CHANGELOG.md`, all of
+`plans/`, the fragment READMEs, and `docs/README.md`, which the site excludes even from `docs/`. It
+runs in `./check.sh` and in its own CI job, **stdlib-only and about 0.25s**, needing no `uv`, no
+install and no network.
+
+**What licenses the regex is a measurement, not an argument.** The obvious objection — a regex
+cannot know an unbalanced backtick has swallowed half a line — was answered by building
+Python-Markdown as an *oracle* and comparing it against the extractor over all 114 tracked files and
+894 rendered links: **0 false positives, 1 false negative**, and that one a bare `<https://…>`
+autolink, external and never resolved. The oracle stays as a test that runs where the docs toolchain
+is present and skips with its reason where it is not, so a future drift is reported rather than
+noticed.
+
+**A quoted link is left alone.** Inside a code span or a fenced block it is not a link, so a document
+that quotes another document's links — as the 20260807 audit worklist does throughout — is never
+asked to corrupt the quotation to satisfy a checker.
+
+**It earned its keep inside its own release.** Cutting this one, the gate reported a dead link in
+**this release's own changelog fragment**: a path correct relative to `changelog.d/` and wrong the
+moment `fragments.py --apply` spliced it into `CHANGELOG.md` at the repository root. That is the
+splice-time class [`retro.d/README.md`](https://github.com/lucagattoni/pinakes/blob/main/retro.d/README.md)
+already warns about and says nothing in `./check.sh` can reach — because the link only becomes wrong
+at the cut. It is now reached.
+
+**[`docs/RELEASING.md` § *Landing beside a peer*](https://github.com/lucagattoni/pinakes/blob/main/docs/RELEASING.md#landing-beside-a-peer) records what two sessions learned
+holding the repo at once.** `tools/shared_file_overlap.py` compares a branch to `origin/main` and
+**never to another branch**, so it cannot see a peer at all; it reported *none* all afternoon while
+a second session held a branch. It was not wrong — the intersection genuinely was empty — but it
+answers *will this merge cleanly*, not *is anyone else in these files*. And a landing **order can be
+forced rather than agreed**: the gate above was red on `main` until the previous release's link
+fixes landed, so its own branch could not go green. Neither session knew, because each was running
+the gate where it passed. **The failing configuration is the one you never run.**
+
+**Also fixed: a changelog nothing has ever read.** `## [0.28.3]` carried `### Fixed` twice
+consecutively, and its body — like one `### Changed` body further down — was a bare paragraph rather
+than the required bullet. `python3 tools/fragments.py --check` exits `0` on both, because **it
+validates pending fragments and never the document it splices them into**. Prose unchanged; the
+duplicate heading is gone and both bodies are bulleted.
+
+**No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
+
 # Part 5 · What is not built
 
-## Open corrections — one live
+## Open corrections — two live
 
 **It emptied for the second time at 0.22.0 (20260811) and refilled the next day, from E5.** It had
 emptied once before on 20260805 22:18, refilled on 20260807 and again on 20260808. **An empty list
