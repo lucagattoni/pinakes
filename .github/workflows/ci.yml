@@ -295,6 +295,39 @@ jobs:
           uv run --frozen python tools/status_header_gate.py --expect-version 99.99.99 2>&1 \
             | grep -q "the header drifted from the release"
 
+  markdown-links:
+    # Every relative link and heading anchor in the Markdown the docs site never sees. The `docs`
+    # workflow runs `mkdocs build --strict`, which resolves internal links — but only under
+    # `docs/`, and `exclude_docs` drops `docs/README.md` even there. `CLAUDE.md`, the root
+    # `README.md`, `CHANGELOG.md`, all of `plans/` and the fragment-directory READMEs were resolved
+    # by nothing, and held twelve broken links when this job was added (20260823). Its own job for
+    # the same reason every sibling gate has one: `ci.yml` never invokes `check.sh`.
+    #
+    # No `uv` step at all — the gate is stdlib-only and imports nothing from this project, so it
+    # needs the checkout and a system `python3` and nothing else. Shallow checkout is fine: it
+    # reads `git ls-files`, which needs the index rather than history.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Links resolve in the Markdown the docs site never sees
+        run: python3 tools/markdown_link_gate.py
+
+      - name: The gate can still fail
+        # A gate nobody has watched fail is a gate nobody knows works. Drives the same artifact
+        # against a file written to hold one dead link, and asserts a non-zero exit AND the stated
+        # reason — a crash or a missing interpreter satisfies a bare non-zero exit too. `--paths`
+        # mutates what is checked, never a file the repository tracks.
+        run: |
+          printf 'see [the guide](does-not-exist-anywhere.md)\n' > ci-negative-check.md
+          if python3 tools/markdown_link_gate.py --paths ci-negative-check.md; then
+            echo "markdown-links passed a file with a dead link — it is not gating" >&2
+            exit 1
+          fi
+          python3 tools/markdown_link_gate.py --paths ci-negative-check.md 2>&1 \
+            | grep -q "no such file or directory"
+          rm -f ci-negative-check.md
+
   template-drift:
     # A template version number must mean the bytes it denotes. `pnk doctor` compared the recorded
     # reference against the installed one for eleven releases and could never fire: `notes` said
