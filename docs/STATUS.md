@@ -904,6 +904,37 @@ inverted as 0.27.0's did: the published wheel was opened to confirm **78 files, 
 — the negative claim and the positive one together, since "absent" is only evidence if the wheel is
 otherwise the wheel it claims to be. Thirty-eight versions now carry files.
 
+**0.27.2, verified late and found missing by the gate that shipped with 0.28.0, 20260823 01:46:**
+`gh release view v0.27.2` reports non-draft, created 20260822 10:06:55Z; the index lists both files
+(`pinakes-0.27.2-py3-none-any.whl`, 435.6 KiB; `pinakes-0.27.2.tar.gz`, 2395.9 KiB); `v0.27.2` is an
+ancestor of `origin/main`; and `uvx --refresh --from "pinakes==0.27.2" pnk --version` →
+`pinakes 0.27.2`.
+
+**Its entry was never written, and no check could see that until now.** The release-order gate had
+been checking that this list was *sorted*, which it was — a sorted sequence says nothing about what
+is absent from it. The membership half landed hours later, and this is the first thing it caught:
+one release verified, released and published, with the record of that verification simply missing.
+Read it as the reason the check exists rather than as an anomaly — the list is written by hand, at
+the end of a release, which is exactly when a step gets skipped.
+
+**0.28.0, and the check its own subject demanded, 20260823 01:46:** `gh release view v0.28.0`
+reports non-draft, created 01:43:57Z by the workflow's own step; the index's `json` endpoint lists
+both files (`pinakes-0.28.0-py3-none-any.whl`, 436.0 KiB; `pinakes-0.28.0.tar.gz`, 2429.3 KiB);
+`v0.28.0` is an ancestor of `origin/main`; and `uvx --refresh --from "pinakes==0.28.0" pnk
+--version` → `pinakes 0.28.0`. **The `json` endpoint and `uv`'s cached index both reported `0.27.2`
+for several minutes after a successful upload** — `https://pypi.org/simple/pinakes/`, the endpoint
+installers actually read, already carried both files with their hashes. A first look at the wrong
+endpoint says *the upload failed*, which is this project's recorded failure mode and would have
+been the wrong conclusion.
+
+Its subject is `pnk serve` on a fresh install, so the artifact check is the one the release exists
+for rather than a version string: a KB was created and served **from the published wheel**, and
+`tools/mcp_handshake_gate.py` completed a real MCP session against it — the fresh resolve took
+`mcp` 2.0.0, `serverInfo` came back `{"name": "pinakes", "version": "0.28.0"}` over protocol
+`2025-11-25`, and all four `pinakes_*` tools matched the committed schemas. **That is the first
+published release on which `pnk serve` has been observed working from PyPI at all**, rather than
+inferred from a green job. Forty versions now carry files.
+
 **The manual-release step recurred a sixth time, and on the sixth someone finally read the
 workflow. It was not a failure at all: at that point there was no step that created a release.**
 `.github/workflows/release.yml` validated the tag against `__version__`, built, smoke-tested the
