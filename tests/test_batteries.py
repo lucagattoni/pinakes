@@ -31,17 +31,19 @@ BATTERIES = REPO / "tools" / "batteries"
 SELECTOR = re.compile(r"^(tests/[\w/]+\.py)::(\w+)(?:::(\w+))?$")
 
 
-def _batteries() -> list[tuple[Path, dict[str, Any]]]:
+def _batteries(directory: Path | None = None) -> list[tuple[Path, dict[str, Any]]]:
+    """`directory` exists for the control at the foot of this file, which points every check here
+    at a directory built to violate all of them."""
     return [
         (path, tomllib.loads(path.read_text(encoding="utf-8")))
-        for path in sorted(BATTERIES.glob("*.toml"))
+        for path in sorted((directory or BATTERIES).glob("*.toml"))
     ]
 
 
-def _mutants() -> list[tuple[Path, int, dict[str, Any]]]:
+def _mutants(directory: Path | None = None) -> list[tuple[Path, int, dict[str, Any]]]:
     return [
         (path, index, mutant)
-        for path, data in _batteries()
+        for path, data in _batteries(directory)
         for index, mutant in enumerate(data.get("mutant", []), start=1)
     ]
 
@@ -254,3 +256,99 @@ def test_the_committed_batteries_cover_only_tools_and_the_readme_says_so() -> No
         "tools/batteries/README.md must state what the corpus does NOT cover; without it the "
         "directory reads as a coverage claim with a hidden denominator"
     )
+
+
+# ---------------------------------------------------------------------------------------------
+# The control: every check above, pointed at a directory built to trip it
+# ---------------------------------------------------------------------------------------------
+#
+# Each `tools/*_gate.py` carries a `test_ci_runs_…_and_proves_it_can_fail` sibling, because a gate
+# nobody has watched fail is indistinguishable from one that cannot. This gate has no such sibling
+# available: it is a pytest module rather than a command line in `check.sh`, so there is no
+# invocation to pin, and `tools/mutate.py` refuses a target under `tests/`, so a mutation battery
+# cannot reach it either. This is the substitute — a directory violating every property at once,
+# and the assertion that each check finds its own violation there.
+
+BROKEN = '''\
+mutants = 3
+
+[[mutant]]
+name = "the anchor is not in the file"
+file = "tools/mutate.py"
+old = """this string does not appear in mutate.py at all"""
+new = """nor does this"""
+kills = "tests/test_mutate.py::test_check_anchors_resolves_every_anchor_and_runs_nothing"
+
+[[mutant]]
+name = "the selector names a test nobody wrote"
+file = "tools/mutate.py"
+old = """def check_anchors("""
+new = """def check_anchors_renamed("""
+kills = "tests/test_mutate.py::test_this_test_has_never_existed"
+
+[[mutant]]
+name = "a target under tests/, which mutate.py refuses outright"
+file = "tests/test_mutate.py"
+old = """def mutate("""
+new = """def mutate_renamed("""
+kills = "tests/test_mutate.py::test_check_anchors_resolves_every_anchor_and_runs_nothing"
+'''
+
+
+def test_every_check_here_fails_on_a_directory_built_to_break_it(tmp_path: Path) -> None:
+    broken = tmp_path / "batteries"
+    broken.mkdir()
+    _ = (broken / "tools-mutate.toml").write_text(BROKEN, encoding="utf-8")
+    _ = (broken / "not-named-for-any-target.toml").write_text(
+        BROKEN.replace("mutants = 3", "mutants = 99"), encoding="utf-8"
+    )
+
+    parsed = _batteries(broken)
+    rows = _mutants(broken)
+    assert (len(parsed), len(rows)) == (2, 6), "the fixture itself did not load"
+
+    stale = [
+        row
+        for _, _, row in rows
+        if (REPO / str(row["file"])).is_file()
+        and (REPO / str(row["file"])).read_bytes().decode("utf-8").count(str(row["old"])) != 1
+    ]
+    assert stale, "the anchor check would not notice an anchor that is not in the file"
+
+    unresolved: list[str] = []
+    for _, _, row in rows:
+        for selector in _selectors_of(row):
+            match = SELECTOR.match(selector)
+            assert match is not None, selector
+            if match.group(2) not in _defined_in(REPO / match.group(1)):
+                unresolved.append(selector)
+    assert unresolved, "the selector check would not notice a test that does not exist"
+
+    assert [row for _, _, row in rows if str(row["file"]).startswith("tests/")], (
+        "the tests/-target check would not notice a battery mutate.py refuses to run"
+    )
+
+    claims: dict[str, set[str]] = {}
+    for path, _, row in rows:
+        claims.setdefault(str(row["file"]), set()).add(path.name)
+    assert any(len(names) > 1 for names in claims.values()), (
+        "the double-claim check would not notice two batteries claiming one file"
+    )
+
+    misnamed = [
+        path.name
+        for path, data in parsed
+        if path.stem
+        not in {
+            candidate
+            for row in data["mutant"]
+            for candidate in (
+                str(row["file"]).replace("/", "-").rsplit(".", 1)[0],
+                str(row["file"]).replace("/", "-"),
+            )
+        }
+    ]
+    assert misnamed == ["not-named-for-any-target.toml"], misnamed
+
+    miscounted = [path.name for path, data in parsed if data["mutants"] != len(data["mutant"])]
+    assert miscounted == ["not-named-for-any-target.toml"], miscounted
