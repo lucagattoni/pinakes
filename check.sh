@@ -188,6 +188,33 @@ python3 tools/release_order_gate.py
 # would be found with the evidence already gone.
 python3 tools/fragments.py --check
 
+# markdown-links: every relative link and heading anchor resolves in the Markdown the docs site
+# never sees. `mkdocs build --strict` resolves internal links, and it is the only thing that does —
+# it reads `docs/` alone (`mkdocs.yml` `docs_dir`) and `exclude_docs` drops `docs/README.md` even
+# from that. So `CLAUDE.md`, the root `README.md`, `CHANGELOG.md`, all of `plans/`, the
+# `changelog.d/` and `retro.d/` READMEs and the routing table itself are checked by nothing.
+# Measured 20260823, before this gate existed: eleven broken, five dead as authored — three in
+# `CHANGELOG.md` pointing at `../docs/...` from the repository *root*, which resolves above the
+# repository, and one citing a `docs/STATUS.md` heading that a re-measurement had renamed. Four
+# more had been fixed in `CLAUDE.md` that same morning, which is the recurrence rate that turns a
+# convention into a gate here.
+#
+# **A link inside a code span or a fenced block is never resolved.** A document that *quotes*
+# another document's link would otherwise be told its quotation is broken, and the only way to
+# satisfy the gate would be to corrupt the quote — `plans/20260807_2143-docs-audit-findings.md`
+# quotes six.
+#
+# The heading-slug algorithm is GitHub's, duplicated from `mkdocs_hooks.py` so the gate and the
+# published site cannot disagree about what an anchor is;
+# `tests/test_markdown_link_gate.py::test_the_gate_and_the_site_slugify_every_heading_in_the_repository_identically`
+# holds the two copies against every heading in the repository. Path case is compared against the
+# real directory listing rather than delegated to `Path.exists()`, which answers `True` on macOS
+# for a link that 404s on GitHub and fails on CI's ubuntu runner.
+#
+# Plain `python3`, not `uv run`: stdlib-only and imports nothing from this project, so CI's build
+# job can run it without installing the package.
+python3 tools/markdown_link_gate.py
+
 # shared-file overlap: which files this branch touches that the default branch has touched too.
 # Deliberately NOT --strict and NOT --fetch here: several agents work in this repo at once, so
 # overlap is common and normal mid-development, and a routine `./check.sh` must stay offline-capable

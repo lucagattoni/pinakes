@@ -1,0 +1,173 @@
+# Mutation battery — `tools/markdown_link_gate.py`.
+#
+#     python3 tools/mutate.py tools/batteries/tools-markdown_link_gate.toml
+#
+# Every row is a way this gate could be wrong while still printing a green run; the test named
+# beside it is the one assertion that catches that. **A row is a claim about one assertion, never
+# about the gate.**
+#
+# A link checker is unusually easy to break silently, which is why this battery leans on the
+# *skips* as hard as the catches. Two of the mutants below are not hypotheses — they are the two
+# bugs this checker actually shipped while it was being written, both of which produced a
+# confident, plausible, wrong answer, and neither of which was visible by reading the code:
+# mutant 6 is the `re.S` code-span bug (82 false positives across `docs/`, a surface `--strict`
+# guarantees is clean) and mutant 7 is the newline-forbidding link regex (every wrapped link in a
+# repository that wraps at 100 columns, silently skipped).
+#
+# Sections are the increments that wrote them, oldest release first. **An increment that touches
+# this file again appends a section here rather than starting a file of its own** — one battery
+# per target (`tools/batteries/README.md`).
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 15
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# 20260823 · the gate's first cut — the ungated-Markdown surface
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Mutant 1 is the control: a known-catchable change run first, because a battery with no kills is a
+# broken harness rather than a clean bill.
+
+[[mutant]]
+name = "CONTROL — path case is delegated to the filesystem, which lies on macOS"
+file = "tools/markdown_link_gate.py"
+old = '''        if part not in entries:'''
+new = '''        if part.lower() not in [entry.lower() for entry in entries]:'''
+kills = "tests/test_markdown_link_gate.py::test_a_link_whose_case_does_not_match_the_filesystem_is_reported"
+
+[[mutant]]
+name = "a quoted link inside a code span is resolved, so quoting a link becomes an error"
+file = "tools/markdown_link_gate.py"
+old = '''    return _CODE_SPAN.sub(lambda m: " " * len(m.group(0)), line)'''
+new = '''    return line'''
+kills = "tests/test_markdown_link_gate.py::test_a_quoted_link_inside_a_code_span_is_not_resolved"
+
+[[mutant]]
+name = "GitHub's numeric suffix for a repeated heading is dropped, so `#dup-1` resolves to nothing"
+file = "tools/markdown_link_gate.py"
+old = '''        out.add(slug if count == 0 else f"{slug}-{count}")'''
+new = '''        out.add(slug)'''
+kills = "tests/test_markdown_link_gate.py::test_repeated_headings_take_githubs_numeric_suffixes"
+
+[[mutant]]
+name = "the slugifier collapses whitespace, so `a — b` yields `a-b` and every em-dash anchor rots"
+file = "tools/markdown_link_gate.py"
+# The exact divergence `mkdocs_hooks.py` was written to fix: Python-Markdown's default collapses
+# the spaces the discarded em dash leaves behind, GitHub does not. Kills the drift test too, which
+# is the point — the gate and the site cannot disagree about what an anchor is.
+old = '''    return _DISCARDED.sub("", text).replace(" ", separator)'''
+new = '''    return separator.join(_DISCARDED.sub("", text).split())'''
+kills = "tests/test_markdown_link_gate.py::test_the_em_dash_rule_that_the_site_hook_exists_for_is_honoured"
+
+[[mutant]]
+name = "a link resolving above the repository root is accepted — the live CHANGELOG.md defect"
+file = "tools/markdown_link_gate.py"
+old = '''        if not dest.resolve().is_relative_to(repo):'''
+new = '''        if False:'''
+kills = "tests/test_markdown_link_gate.py::test_a_link_that_resolves_above_the_repository_root_is_reported"
+
+[[mutant]]
+name = "SHIPPED BUG — inline code spans are blanked across lines, swallowing every later heading"
+file = "tools/markdown_link_gate.py"
+# Not a hypothesis. This is what the first draft did, and in `docs/ROADMAP.md` (2616 backticks,
+# zero fences) one unbalanced backtick blanked every heading after it: 82 reported broken links on
+# a corpus `mkdocs build --strict` guarantees is clean. Caught only by running the control leg.
+# Re-aimed 20260823 after the first run: the mutant below used to flip `re.S` on `_CODE_SPAN`
+# itself and SURVIVED, because `blank_code_spans` is applied **per line** by its caller — a regex
+# handed one line cannot span lines whatever its flags say. The property lives at the call site,
+# so that is what this breaks. The survivor was the battery working: it said the anchor no longer
+# described the defence, which is exactly the half `--check-anchors` cannot see.
+old = '''    body = "\n".join(blank_code_spans(line) for line in blank_fences(readable_text(path)))'''
+new = '''    body = re.sub(r"(`+)(?:(?!\1).)*?\1", lambda m: " " * len(m.group(0)), "\n".join(blank_fences(readable_text(path))), flags=re.S)'''
+kills = "tests/test_markdown_link_gate.py::test_an_unbalanced_backtick_does_not_swallow_the_rest_of_the_file"
+
+[[mutant]]
+name = "SHIPPED BUG — link text may not wrap, so every wrapped link is silently skipped"
+file = "tools/markdown_link_gate.py"
+# The other one that shipped. A false negative, so it reports a clean bill it never earned — and
+# unlike mutant 6 the control leg cannot see it, which is why the parser counts what it saw.
+# Anchor updated 20260823 when the destination pattern grew balanced-parenthesis support; the
+# mutation is unchanged — forbid a newline in the link *text*, which is what silently skipped every
+# wrapped link. `--check-anchors` caught the rot the moment the regex moved, which is the half of a
+# battery that actually goes stale.
+old = '''    r"\[(?:[^\[\]]|\[[^\[\]]*\])*\]\(\s*(<[^>\n]*>|(?:[^()\s]|\([^()\s]*\))+)"'''
+new = '''    r"\[(?:[^\[\]\n]|\[[^\[\]\n]*\])*\]\(\s*(<[^>\n]*>|(?:[^()\s]|\([^()\s]*\))+)"'''
+kills = "tests/test_markdown_link_gate.py::test_link_text_wrapped_across_lines_is_still_parsed"
+
+[[mutant]]
+name = "link syntax the parser cannot read is skipped instead of reported"
+file = "tools/markdown_link_gate.py"
+old = '''        and number not in covered'''
+new = '''        and False'''
+kills = "tests/test_markdown_link_gate.py::test_link_syntax_the_parser_cannot_read_is_reported_rather_than_skipped"
+
+[[mutant]]
+name = "a missing `docs_dir` defaults instead of refusing, shrinking the scope to nothing silently"
+file = "tools/markdown_link_gate.py"
+old = '''        raise SystemExit("markdown-links: mkdocs.yml has no `docs_dir:` — cannot derive scope")'''
+new = '''        return "docs", set()'''
+kills = "tests/test_markdown_link_gate.py::test_a_missing_docs_dir_in_mkdocs_yml_is_refused_rather_than_defaulted"
+
+[[mutant]]
+name = "a root-absolute link is treated as relative, so `/docs/GUIDE.md` reads as valid"
+file = "tools/markdown_link_gate.py"
+old = '''        if target.startswith("/"):'''
+new = '''        if False:'''
+kills = "tests/test_markdown_link_gate.py::test_a_root_absolute_link_is_reported_because_github_resolves_it_off_the_repository"
+
+[[mutant]]
+name = "a directory link is rejected — the six false positives a peer's `is_file()` resolver invented"
+file = "tools/markdown_link_gate.py"
+# The failure mode a `docs/`-only control leg does not exercise, which is the whole reason it is
+# here as a mutant rather than a comment.
+old = '''        if part not in entries:
+            return False
+        current = current / part
+    return True'''
+new = '''        if part not in entries:
+            return False
+        current = current / part
+    return current.is_file()'''
+kills = "tests/test_markdown_link_gate.py::test_a_link_to_a_directory_is_accepted"
+
+[[mutant]]
+name = "an indented code block is read as prose, so a teaching example becomes a broken link"
+file = "tools/markdown_link_gate.py"
+# The false positive that did real damage: `retro.d/README.md:37` is a four-space-indented example
+# showing fragment authors which anchor form to write. A peer acted on this exact false positive
+# and rewrote the example into one teaching the *wrong* form. A false positive gets acted on.
+old = '''        if indent >= threshold + 4 and (after_blank or in_indented):'''
+new = '''        if False:'''
+kills = "tests/test_markdown_link_gate.py::test_a_link_in_an_indented_code_block_is_not_resolved"
+
+[[mutant]]
+name = "the list stack goes, so every wrapped bullet is misread as code and stops being checked"
+file = "tools/markdown_link_gate.py"
+# The false-negative half of the same rule, and the more dangerous direction: a bullet's
+# continuation line is indented to the item's content column, so without the stack this gate would
+# quietly stop checking most of the prose in a repository that wraps at 100 columns — and report a
+# clean run while doing it.
+old = '''        threshold = lists[-1] if lists else 0'''
+new = '''        threshold = 0'''
+kills = "tests/test_markdown_link_gate.py::test_a_wrapped_bullet_continuation_is_still_checked"
+
+[[mutant]]
+name = "a spliced-away fragment is read anyway, so the gate dies on every release"
+file = "tools/markdown_link_gate.py"
+# Not a hypothesis: this crashed against a real release tree. `fragments.py --apply` deletes each
+# fragment it splices and `check.sh` runs before the `git add`, so `git ls-files` names a file the
+# disk does not have. Found by a peer who had hit the identical bug in their own scanner minutes
+# before.
+old = '''        if not path.is_file():
+            continue
+        out.append(path)'''
+new = '''        out.append(path)'''
+kills = "tests/test_markdown_link_gate.py::test_a_tracked_file_deleted_mid_release_is_skipped_rather_than_crashing"
+
+[[mutant]]
+name = "--paths accepts a file that does not exist and dies reading it"
+file = "tools/markdown_link_gate.py"
+old = '''    missing = [path for path in paths if not path.is_file()]'''
+new = '''    missing: list[Path] = []'''
+kills = "tests/test_markdown_link_gate.py::test_paths_naming_a_file_that_does_not_exist_is_refused_rather_than_traced"

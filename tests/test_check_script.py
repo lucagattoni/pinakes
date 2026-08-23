@@ -825,3 +825,34 @@ def test_make_smoke_exercises_the_wheel_rather_than_only_its_version() -> None:
     # a hyphen and is not a recipe line at all.
     ignored = [line for line in logical.splitlines() if line.lstrip("\t").startswith("-")]
     assert not ignored, f"make is told to ignore the exit status of: {ignored}"
+
+
+def test_check_sh_declares_the_markdown_link_gate() -> None:
+    """`mkdocs build --strict` resolves internal links under `docs/` only, so every other Markdown
+    file in the repository was checked by nothing and held twelve broken links (20260823). Same
+    pinning as its siblings: match the real invocation, never a substring that an explanatory
+    comment would also satisfy — and this gate's comment block quotes its own filename twice."""
+    text = CHECK_SH.read_text(encoding="utf-8")
+    assert re.search(r"^python3 tools/markdown_link_gate\.py\s*$", text, re.MULTILINE), (
+        "check.sh no longer invokes the markdown-link gate"
+    )
+
+
+def test_ci_runs_the_markdown_link_gate_and_proves_it_can_fail() -> None:
+    """`ci.yml` never invokes `check.sh`, so a gate living only there runs only where someone
+    happens to run it. Both halves matched as *commands* — a line whose first non-space character
+    is not `#` — so a comment quoting the phrase cannot stand in for a deleted one.
+    """
+    workflow = _workflow()
+    job = re.search(r"^  markdown-links:\n(?P<body>(?:    .*\n|\n)*)", workflow, re.MULTILINE)
+    assert job is not None, "ci.yml has no markdown-links job"
+    body = job.group("body")
+    assert re.search(r"^\s*[^#\s].*tools/markdown_link_gate\.py\s*$", body, re.MULTILINE), (
+        "ci.yml no longer invokes the markdown-link gate"
+    )
+    assert re.search(r"^\s*[^#\s].*--paths ci-negative-check\.md", body, re.MULTILINE), (
+        "the negative check is gone — nothing proves it gates"
+    )
+    assert re.search(r"^\s*[^#\s].*grep -q \"no such file or directory\"", body, re.MULTILINE), (
+        "the negative check no longer requires the stated reason, so a crash would satisfy it"
+    )
