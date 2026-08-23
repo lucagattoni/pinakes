@@ -359,3 +359,141 @@ def test_front_matter_is_refused_before_apply_can_splice_it(repo: Path) -> None:
     assert (repo / "changelog.d" / "added-one.md").exists(), (
         "nor deleted the fragment that explains the failure"
     )
+
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# The assembled document, rather than the fragments going into it (0.30.0's open-corrections item).
+#
+# `--check` read every pending fragment and asserted nothing about the result of `--apply`, so a
+# splice could leave `CHANGELOG.md` malformed with every gate in this repository green — and had.
+# The fixtures below are the real shapes, reduced: `## [0.28.3]` carried `### Fixed` twice
+# consecutively with a bare paragraph for a body, and one `### Changed` further down did the same.
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+def test_a_heading_that_repeats_consecutively_is_refused(repo: Path) -> None:
+    """`## [0.28.3]`'s real shape. `_merge_into_section` reuses the first heading it finds, so
+    nothing can ever merge into the second and a reader scanning for the category stops at the
+    first — while every gate in this repository stayed green on it."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n### Fixed\n\n- **A fix.**\n",
+    )
+
+    result = run(repo, "--stream", "changelog", "--check")
+
+    assert result.returncode == 1
+    assert "repeats the heading on line" in result.stderr
+    assert "CHANGELOG.md:9" in result.stderr, "the second heading is named, with its line"
+
+
+def test_the_same_heading_under_a_different_release_is_left_alone(repo: Path) -> None:
+    """The discriminating case, and the one that decides whether this can land at all: every
+    changelog repeats `### Fixed` once per release. The rule is *adjacency*, never recurrence."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.2.0] - 20260102 09:00\n\n"
+        "### Fixed\n\n- **A later fix.**\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n- **An earlier fix.**\n",
+    )
+
+    assert run(repo, "--stream", "changelog", "--check").returncode == 0
+
+
+def test_an_entry_that_opens_with_a_paragraph_is_refused(repo: Path) -> None:
+    """`render` splices a fragment body verbatim, so a paragraph in the document is a paragraph
+    the fragment wrote. `changelog.d/README.md` requires `- **claim.**`."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Changed\n\n`pnk doctor` reports link coverage as a ratio.\n",
+    )
+
+    result = run(repo, "--stream", "changelog", "--check")
+
+    assert result.returncode == 1
+    assert "opens with a paragraph rather than a `- ` list item" in result.stderr
+
+
+def test_a_bullets_indented_continuation_is_not_read_as_a_second_entry(repo: Path) -> None:
+    """Only the *first* non-blank line under a heading is judged. A wrapped bullet indents its
+    continuation to the content column, and reading that as an entry would refuse every long
+    entry in the document."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n- **A fix.** Its first line.\n  a continuation, indented, not a bullet.\n\n"
+        "- **Another fix.**\n",
+    )
+
+    assert run(repo, "--stream", "changelog", "--check").returncode == 0
+
+
+def test_the_bullet_rule_never_reaches_the_free_form_stream(repo: Path) -> None:
+    """`retro.d/` fragments are free-form prose carrying their own `##` heading. A bullet
+    requirement there would refuse the format that stream exists for — so the rule is scoped to
+    the stream with a category vocabulary, and this is the assertion that says so."""
+    write(
+        repo,
+        "docs/RETROSPECTIVES.md",
+        "# Retrospectives\n\n## I1 - first (20260725 13:40)\n\n"
+        "A paragraph, which is what this document is made of.\n\n"
+        "## Design review passes 1-7 (pre-implementation)\n\nfooter\n",
+    )
+
+    assert run(repo, "--stream", "retrospectives", "--check").returncode == 0
+
+
+def test_a_heading_inside_a_fenced_block_is_not_read_as_structure(repo: Path) -> None:
+    """An entry demonstrating Markdown is an ordinary thing to write. A line-based scanner reading
+    a fenced example as document structure would refuse a correct document, and
+    `tools/markdown_link_gate.py` records a false positive of exactly that shape being *acted on*
+    before it was disbelieved."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n- **A fix.** It renders this:\n\n"
+        "  ```markdown\n### Fixed\n### Fixed\nnot a bullet\n  ```\n",
+    )
+
+    assert run(repo, "--stream", "changelog", "--check").returncode == 0
+
+
+def test_apply_refuses_to_write_a_document_it_would_leave_malformed(repo: Path) -> None:
+    """The refusal is placed before the write, and therefore before the deletes. Found *after*
+    `--apply`, a malformed document is found with the fragments that caused it already gone —
+    which is the same reason `check.sh` runs `--check` at commit time rather than at release
+    time, one step further in."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n### Fixed\n\n### Fixed\n\n- **existing.**\n\n"
+        "## [0.1.0] - 20260101 09:00\n\n- older\n",
+    )
+    write(repo, "changelog.d/added-one.md", "- **A new thing.**")
+    before = changelog(repo)
+
+    result = run(repo, "--stream", "changelog", "--apply")
+
+    assert result.returncode == 1
+    assert "refusing to write" in result.stderr
+    assert changelog(repo) == before, "nothing written"
+    assert (repo / "changelog.d" / "added-one.md").is_file(), "no fragment deleted"
+
+
+def test_the_real_documents_are_clean_which_is_this_checkers_only_control() -> None:
+    """A control leg, for the reason `tools/markdown_link_gate.py` gives: the fixtures above prove
+    the checker *fires*, and nothing else proves it does not fire on a correct document. Run
+    against the two real documents, over their full history, the answer must be zero — so a
+    failure here means **the checker is wrong, or the document is**, and the message says which
+    line to read to tell them apart."""
+    repo = Path(__file__).parent.parent
+    result = run(repo, "--check")
+
+    assert result.returncode == 0, result.stderr

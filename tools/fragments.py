@@ -29,6 +29,13 @@ here could see it — the category was read from the filename, so the front matt
 body is copied unchanged by design. `check` therefore refuses a fragment whose first non-blank line
 is a `---` fence, which is the one shape that means "front matter" rather than "a horizontal rule".
 
+**The assembled document is checked too, not only the fragments going into it.** `--check` read
+every pending fragment and asserted nothing about the result, so a splice could leave
+`CHANGELOG.md` malformed with every gate in this repository green — and had: `## [0.28.3]` carried
+`### Fixed` twice consecutively, with a bare paragraph for a body. Two rules, on the result: a
+heading never repeats consecutively, and (`changelog` only, since `retro.d/` is free-form prose) an
+entry opens with a `- ` list item.
+
 **Existing `[Unreleased]` prose is left exactly where it is.** Splicing puts fragments *after* the
 anchor without touching what is already below, so this can be adopted without a migration commit
 that would itself collide with whatever the other agents are holding.
@@ -140,6 +147,117 @@ def opens_with_front_matter(text: str) -> bool:
             continue
         return line.rstrip() == "---"
     return False
+
+
+_FENCE = re.compile(r"^[ \t]*(```+|~~~+)")
+
+
+def prose_lines(text: str) -> list[tuple[int, str]]:
+    """`(line number, line)` for every line *outside* a fenced code block.
+
+    **Fenced blocks are the only code form that needs skipping, and the fence may be indented.**
+    Everything read below matches `#` at column zero, and an *indented* code block's lines begin
+    with four spaces by definition — so it can never hold a column-zero heading and needs no
+    handling. A fence can: it may itself sit at any indent, inside a list item, while the lines it
+    encloses start at column zero. `tools/markdown_link_gate.py` needs the indented form and a
+    list stack as well, because it reads link syntax anywhere on a line; a heading lives in one
+    column, which is what lets this stay smaller without being weaker.
+
+    **The indent is not hypothetical, and assuming it away is how this was first written wrong.**
+    Measured 20260823: `CHANGELOG.md`'s only fenced block is indented two spaces inside a bullet
+    (`- **…** …` then `  ```text`), and the file contains no column-zero fence at all — so a
+    scanner anchored at column zero skips nothing in the one document it most needs to read. A
+    changelog entry demonstrating a Markdown heading is an ordinary thing to write, and the
+    failure that follows is a gate refusing a correct document. `tools/markdown_link_gate.py`
+    records a false positive of that shape being *acted on* before it was disbelieved.
+    """
+    out: list[tuple[int, str]] = []
+    fence: str | None = None
+    for number, line in enumerate(text.splitlines(), start=1):
+        match = _FENCE.match(line)
+        if fence is not None:
+            if (
+                match is not None
+                and match.group(1)[0] == fence[0]
+                and len(match.group(1)) >= len(fence)
+            ):
+                fence = None
+            continue
+        if match is not None:
+            fence = match.group(1)
+            continue
+        out.append((number, line))
+    return out
+
+
+def document_problems(stream: Stream, text: str) -> list[str]:
+    """Every structural problem in the assembled document, rather than in a fragment.
+
+    `check` reads the fragments going *in*. Nothing read the document coming *out*, and the gap
+    was not theoretical: `CHANGELOG.md` carried `### Fixed` twice consecutively under
+    `## [0.28.3]`, and that entry's body — like one `### Changed` further down — was a bare
+    paragraph rather than the `- **claim.**` bullet `changelog.d/README.md` requires.
+    `--check` exited **0** on both. Every fragment involved was well-formed; the defect existed
+    only in the result, which is why the result is what this reads.
+
+    **Two checks, and the first is worth more than it looks.** A duplicated heading is a property
+    of *adjacency*, and every other gate here reads rows — `mkdocs build --strict` resolves links,
+    `tools/release_order_gate.py` reads sequences — so all of them walk straight past two
+    identical headings in a row. Nothing in this repository had ever read the assembled file.
+
+    **The bullet rule is `changelog`-only.** `retro.d/` fragments are free-form prose carrying
+    their own `##` heading, so requiring a bullet there would refuse the format that stream is
+    for. The adjacency rule applies to both, because two identical headings in a row are never
+    intended in either.
+
+    Both are whole-document rather than anchor-scoped, because both instances that prove them
+    necessary sat in *shipped* sections: a rule guarding only `[Unreleased]` would have left the
+    evidence in the file. Measured 20260823 against `main` at 0.30.0 — zero violations of either,
+    over the full history of both documents.
+    """
+    problems: list[str] = []
+    lines = prose_lines(text)
+
+    previous: tuple[int, str] | None = None
+    for number, line in lines:
+        if line.startswith("#"):
+            heading = line.rstrip()
+            if previous is not None and previous[1] == heading:
+                problems.append(
+                    f"{stream.target}:{number}: `{heading}` repeats the heading on line "
+                    f"{previous[0]} with nothing between them. `_merge_into_section` reuses the "
+                    "first it finds, so nothing will ever merge into the second, and a reader "
+                    "scanning for that category stops at the first."
+                )
+            previous = (number, heading)
+        elif line.strip():
+            previous = None
+
+    if stream.categories is None:
+        return problems
+
+    opened: tuple[int, str] | None = None
+    for number, line in lines:
+        if line.startswith("#"):
+            opened = (number, line.rstrip()) if line.startswith("### ") else None
+        elif line.strip() and opened is not None:
+            if not line.startswith("- "):
+                problems.append(
+                    f"{stream.target}:{number}: `{opened[1]}` opens with a paragraph rather than "
+                    f"a `- ` list item: {line.strip()[:60]!r}. Keep a Changelog entries are list "
+                    "items, and `render` splices a fragment body verbatim — so this is what the "
+                    "fragment said."
+                )
+            opened = None
+    return problems
+
+
+def validate_document(stream: Stream, repo: Path) -> list[str]:
+    """`document_problems` against the file on disk, or the fact that it is not there."""
+    target = repo / stream.target
+    if not target.is_file():
+        return [f"{stream.target}: missing — `--apply` has nothing to splice into."]
+    return document_problems(stream, target.read_text(encoding="utf-8"))
 
 
 def check(stream: Stream, repo: Path) -> list[str]:
@@ -300,13 +418,21 @@ def main() -> int:
 
     if args.check:
         problems = [p for stream in streams for p in check(stream, repo)]
-        for problem in problems:
+        # …and the document `--apply` writes, which nothing here read until 0.30.0's item. Both
+        # halves run even when the first fails: an author fixing this wants the whole list, the
+        # same reason `check` returns every problem rather than the first.
+        documents = [p for stream in streams for p in validate_document(stream, repo)]
+        for problem in [*problems, *documents]:
             print(problem, file=sys.stderr)
         if problems:
             print(f"{len(problems)} malformed fragment(s).", file=sys.stderr)
+        if documents:
+            print(f"{len(documents)} problem(s) in the assembled document.", file=sys.stderr)
+        if problems or documents:
             return 1
         counts = ", ".join(f"{len(fragments_of(s, repo))} {s.name}" for s in streams)
-        print(f"fragments: {counts} — all well-formed.")
+        targets = ", ".join(s.target for s in streams)
+        print(f"fragments: {counts} — all well-formed; {targets} well-formed.")
         return 0
 
     for stream in streams:
@@ -322,7 +448,21 @@ def main() -> int:
         if args.render:
             print(rendered, end="")
             continue
-        (repo / stream.target).write_text(splice(stream, rendered, repo), encoding="utf-8")
+        spliced = splice(stream, rendered, repo)
+        # Checked before the write, and therefore before the deletes below. A malformed document
+        # found *after* `--apply` is found with the fragments that caused it already gone — the
+        # same reasoning `check.sh` gives for running `--check` at commit time rather than at
+        # release time, one step further in.
+        if damage := document_problems(stream, spliced):
+            for problem in damage:
+                print(problem, file=sys.stderr)
+            print(
+                f"fragments: refusing to write {stream.target} — the splice would leave it "
+                "malformed. Nothing written, no fragment deleted.",
+                file=sys.stderr,
+            )
+            return 1
+        (repo / stream.target).write_text(spliced, encoding="utf-8")
         for path in fragments_of(stream, repo):
             path.unlink()
         print(f"fragments: applied {stream.name} into {stream.target}, fragments removed.")
