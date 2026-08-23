@@ -10,6 +10,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.29.2] — 20260823 14:43
+
+### Fixed
+
+- **Eleven broken links, and three code spans that render as wreckage, on the Markdown surface no
+  gate reads.** `mkdocs build --strict` resolves every link in `docs/`, and `mkdocs.yml` excludes
+  `CLAUDE.md` and `docs/README.md` by design because they point at `plans/`, `tools/` and
+  `changelog.d/` — paths a site build cannot resolve. Nothing else in the repo resolves a link, so
+  `CHANGELOG.md`, `plans/**` and the fragment READMEs were checked by nothing. `CHANGELOG.md`
+  carried three links to `../docs/…`, which resolves *above* the repository root, and one anchor
+  that rotted when a re-measurement renamed the heading it cited — 0.7.0's entry pointed at
+  *measured 20260801 12:14* after that section became *yes, measured 20260804*. It is repointed
+  rather than reworded, because `docs/STATUS.md` still carries both columns and the entry's own
+  numbers are still on the page it names. `plans/20260729_0256-links-and-graph.md` cited a
+  repo-root `STATUS.md` that has never existed. And six quotations in
+  `plans/20260807_2143-docs-audit-findings.md` rendered as live links to paths that resolve only
+  from `docs/`; they are now code spans, not repointed paths — correcting a path *inside* a
+  quotation would falsify the quotation, and quoting verbatim is that document's whole method.
+- **A backslash does not escape a backtick inside a code span, and three places assumed it does.**
+  `docs/RETROSPECTIVES.md` is published, and one of its lines has been rendering as a broken run of
+  `<code>` tags on the site for weeks — with `mkdocs build --strict` green throughout, because
+  `--strict` resolves links and never asks whether a span renders as intended. Two siblings in
+  `plans/` had the same defect. All three now use double-backtick spans, which is how CommonMark
+  carries an inner backtick. Four other backslash-backtick uses in the repo are a code span holding
+  a single backslash, are correct, and are untouched.
+
 ## [0.29.1] — 20260823 13:59
 
 ### Changed
@@ -1332,7 +1358,7 @@ STATUS corrections about a wedged CI run.
   **WARN is now reserved for `markdown` at 0%**, the one case a user can act on: the chunker reads
   ATX headings, so a Markdown corpus with none is being silently chunked by size. Everything else is
   reported **OK with a note**, and the note separates three facts that previously wore the same 0%:
-  `text` *can* carry a heading path (set [`[chunking] headings`](../docs/MANIFEST.md#chunking));
+  `text` *can* carry a heading path (set [`[chunking] headings`](docs/MANIFEST.md#chunking));
   `text` with that key **already set** means the grammar was offered those documents and **refused**
   them rather than inventing an outline; `code` and `pdf` cannot carry one today whatever they
   contain.
@@ -1366,7 +1392,7 @@ STATUS corrections about a wedged CI run.
   *the document* changed, so a manifest-only edit reports every file `unchanged` and the key does
   nothing until a rebuild. That is true of `max_tokens` and `overlap` too and is not new, but this
   is the key most likely to be flipped deliberately — so it is written on the key in
-  [MANIFEST](../docs/MANIFEST.md#chunking) and logged as its own open correction, rather than left
+  [MANIFEST](docs/MANIFEST.md#chunking) and logged as its own open correction, rather than left
   to be discovered.
 
   It is a **new key rather than a second `[chunking] strategy` value**: `strategy` is inert, and
@@ -1423,7 +1449,7 @@ STATUS corrections about a wedged CI run.
   `heading_path` still empty.
 
   The index now records which `[chunking]` settings it was built under. `pnk sync` names the key
-  that moved and points at `--rebuild`; [`pnk doctor`](../docs/CLI.md#pnk-doctor) reports the same
+  that moved and points at `--rebuild`; [`pnk doctor`](docs/CLI.md#pnk-doctor) reports the same
   as `chunking coherence`. **The warning persists until the rebuild actually happens** — the first
   draft wrote the new identity at the end of every sync, so it fired once and the index then
   claimed a coherence it did not have.
@@ -1897,7 +1923,7 @@ channel defaults on only if enough multi-hop golden-set questions *improve*, and
 only come from one that fails today: 7 were needed, **1 fails**. So the structural edge set and its
 `schema_version` 3 bump do not start, and this release is the evaluation work that measured it.
 Numbers, and the two findings behind them, in
-[`docs/STATUS.md`](docs/STATUS.md#can-the-graph-releases-gate-be-reached--measured-20260801-1214).
+[`docs/STATUS.md`](docs/STATUS.md#can-the-graph-releases-gate-be-reached--yes-measured-20260804).
 
 ### Added
 
@@ -3839,7 +3865,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.29.1...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.29.2...HEAD
+[0.29.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.29.2
 [0.29.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.29.1
 [0.29.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.29.0
 [0.28.3]: https://github.com/lucagattoni/pinakes/releases/tag/v0.28.3
