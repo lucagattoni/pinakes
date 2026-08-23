@@ -187,8 +187,14 @@ def battery(
     root: Path,
     *mutants: dict[str, str | list[str]],
     command: Sequence[str] | None = None,
+    name: str = "battery.toml",
 ) -> Path:
-    """Write a battery file. `'''` quoting is what lets an anchor carry quotes and backslashes."""
+    """Write a battery file. `'''` quoting is what lets an anchor carry quotes and backslashes.
+
+    `name` exists for the `--check-anchors` tests, which need two batteries side by side. It is
+    named rather than derived: writing the second one by copying the first meant calling this
+    function twice, and the second call silently overwrote the first file.
+    """
     parts = [
         "pytest = ["
         + ", ".join(f'"{part}"' for part in (command or [sys.executable, "-m", "pytest"]))
@@ -204,7 +210,7 @@ def battery(
             else:
                 parts.append(f'{key} = "{value}"')
         parts.append("")
-    path = root / "battery.toml"
+    path = root / name
     path.write_text("\n".join(parts), encoding="utf-8")
     return path
 
@@ -1220,3 +1226,165 @@ def test_a_directory_that_is_not_a_git_working_tree_is_refused(tmp_path: Path, r
     assert result.returncode == 1
     assert "Traceback" not in result.stderr
     assert "not inside a git working tree" in result.stderr
+
+
+# ---------------------------------------------------------------------------------------------
+# --check-anchors: the pre-flight without the subprocesses
+# ---------------------------------------------------------------------------------------------
+#
+# Committed batteries (tools/batteries/) outlive the increment that measured them, so *do these
+# still hold?* has to be answerable in milliseconds. Every test below asserts one of the three
+# ways this mode deliberately differs from a run — the working tree rather than HEAD, every
+# failure rather than the first, and an overlap only visible across several batteries — because a
+# check that behaved like the run's own refusal would be a slower way to learn nothing new.
+
+
+def second_battery(root: Path, *mutants: dict[str, str | list[str]]) -> Path:
+    """A second battery beside the first, under its own name."""
+    return battery(root, *mutants, name="battery2.toml")
+
+
+def test_check_anchors_resolves_every_anchor_and_runs_nothing(repo: Path) -> None:
+    path = battery(repo, clamp_mutant(), clamp_mutant(old='MARKER = "original"', new="MARKER = 1"))
+
+    result = mutate("--check-anchors", str(path), cwd=repo)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "2 anchor(s) over 1 file(s) — all resolve" in result.stdout
+    assert_nothing_ran(result)
+
+
+def test_check_anchors_says_what_a_green_check_does_not_prove(repo: Path) -> None:
+    """A bare green line would be read as *the battery is good*. It says which two rots it cannot
+    see, on success — the moment the claim is actually at risk of being over-read."""
+    result = mutate("--check-anchors", str(battery(repo, clamp_mutant())), cwd=repo)
+
+    assert result.returncode == 0
+    assert "not a green run" in result.stdout
+    assert "renamed away" in result.stdout
+
+
+def test_check_anchors_reports_every_stale_anchor_not_only_the_first(repo: Path) -> None:
+    """The difference from a run that matters most. `refuse_an_anchor_that_is_not_unique` raises on
+    the first, because it must not write a mutant it cannot place; a repair wants the whole list,
+    and learning about the second stale anchor only after fixing the first is how a maintenance
+    prompt turns into three."""
+    path = battery(
+        repo,
+        clamp_mutant(name="gone", old="this is not in the file", new="nor is this"),
+        clamp_mutant(),
+        clamp_mutant(name="also gone", old="neither is this one", new="or this"),
+    )
+
+    result = mutate("--check-anchors", str(path), cwd=repo)
+
+    assert result.returncode == 1
+    assert "gone: the anchor occurs 0 times" in result.stderr
+    assert "also gone: the anchor occurs 0 times" in result.stderr
+    assert "2 problem(s)" in result.stderr
+    assert_nothing_ran(result)
+
+
+def test_check_anchors_counts_an_anchor_that_matches_twice(repo: Path) -> None:
+    result = mutate(
+        "--check-anchors",
+        str(battery(repo, clamp_mutant(old="return", new="yield"))),
+        cwd=repo,
+    )
+
+    assert result.returncode == 1
+    assert "occurs 2 times" in result.stderr
+
+
+def test_check_anchors_names_a_target_that_no_longer_exists(repo: Path) -> None:
+    """A renamed module is rot too, and a traceback would say so much less clearly."""
+    result = mutate(
+        "--check-anchors", str(battery(repo, clamp_mutant(file="pkg/gone.py"))), cwd=repo
+    )
+
+    assert result.returncode == 1
+    assert "Traceback" not in result.stderr
+    assert "pkg/gone.py does not exist" in result.stderr
+
+
+def test_check_anchors_reads_the_working_tree_rather_than_head(repo: Path) -> None:
+    """The check must work mid-refactor, before the commit — which is the one moment it is wanted.
+
+    The control is the second half: the very same uncommitted tree is refused by a *run*, so this
+    is a real difference in behaviour and not a check that would have passed anyway.
+    """
+    source = repo / "pkg" / "mod.py"
+    _ = source.write_text(
+        source.read_text(encoding="utf-8").replace("MAX = 3", "MAX = 3  # being edited"),
+        encoding="utf-8",
+    )
+    path = battery(repo, clamp_mutant())
+
+    assert mutate("--check-anchors", str(path), cwd=repo).returncode == 0
+
+    run = mutate(str(path), cwd=repo)
+    assert run.returncode == 1
+    assert "identical to HEAD" in run.stderr or "differ" in run.stderr
+
+
+def test_check_anchors_refuses_a_file_claimed_by_two_batteries(repo: Path) -> None:
+    first = battery(repo, clamp_mutant())
+    second = second_battery(repo, clamp_mutant())
+
+    result = mutate("--check-anchors", str(first), str(second), cwd=repo)
+
+    assert result.returncode == 1
+    assert "pkg/mod.py is claimed by" in result.stderr
+    assert "exactly one battery" in result.stderr
+
+
+def test_two_batteries_claiming_different_files_are_accepted(repo: Path) -> None:
+    """The control for the test above: reading two batteries at once is not itself the failure."""
+    _ = (repo / "pkg" / "__init__.py").write_text("VALUE = 1\n", encoding="utf-8")
+    first = battery(repo, clamp_mutant())
+    second = second_battery(
+        repo, clamp_mutant(file="pkg/__init__.py", old="VALUE = 1", new="VALUE = 2")
+    )
+
+    result = mutate("--check-anchors", str(first), str(second), cwd=repo)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "claimed by" not in result.stderr
+
+
+def test_check_anchors_still_refuses_a_test_file_target(repo: Path) -> None:
+    """Writing nothing does not make a test-file target meaningful — it is refused in both modes,
+    so a battery cannot be checked green and then found unrunnable."""
+    result = mutate(
+        "--check-anchors",
+        str(battery(repo, clamp_mutant(file="tests/test_pkg.py", old="clamp(10)", new="clamp(1)"))),
+        cwd=repo,
+    )
+
+    assert result.returncode == 1
+    assert "mutating a test stays manual" in result.stderr
+
+
+def test_running_more_than_one_battery_at_a_time_is_refused(repo: Path) -> None:
+    """The exit status is a claim about one batch: a second battery's kills counted into the first
+    would let `--allow-zero-kills` excuse a batch that never needed it."""
+    first = battery(repo, clamp_mutant())
+    second = second_battery(repo, clamp_mutant())
+
+    result = mutate(str(first), str(second), cwd=repo)
+
+    assert result.returncode == 1
+    assert "one battery at a time" in result.stderr
+    assert_nothing_ran(result)
+
+
+def test_a_battery_check_anchors_passes_is_one_a_run_does_not_refuse(repo: Path) -> None:
+    """The control that the mode is not ceremony: the check and the run agree about a good battery,
+    so a green check means the run gets as far as the assertions."""
+    path = battery(repo, clamp_mutant())
+
+    assert mutate("--check-anchors", str(path), cwd=repo).returncode == 0
+
+    run = mutate(str(path), cwd=repo)
+    assert run.returncode == 0, run.stdout + run.stderr
+    assert "1 killed" in run.stdout

@@ -1061,9 +1061,7 @@ def check_anchors(root: Path, loaded: Sequence[tuple[Path, Battery]]) -> int:
                 problems.append(f"{path}: {_bad_anchor_message(mutant, count, text)}")
         targets = len({mutant.path for mutant in battery.mutants})
         verdict = f"{stale} stale" if stale else "all resolve"
-        print(
-            f"{path}: {len(battery.mutants)} anchor(s) over {targets} file(s) — {verdict}"
-        )
+        print(f"{path}: {len(battery.mutants)} anchor(s) over {targets} file(s) — {verdict}")
 
     for target, batteries in sorted(claimed.items()):
         if len(batteries) > 1:
