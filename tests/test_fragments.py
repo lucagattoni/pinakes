@@ -403,6 +403,23 @@ def test_the_same_heading_under_a_different_release_is_left_alone(repo: Path) ->
     assert run(repo, "--stream", "changelog", "--check").returncode == 0
 
 
+def test_a_heading_that_repeats_after_intervening_entries_is_the_decided_scope(repo: Path) -> None:
+    """**A hole, pinned deliberately rather than left to be discovered.** The rule decided in
+    `plans/20260731_1202-open-corrections.md` is *adjacency* — "a stream heading never repeats
+    consecutively" — because that is the shape the evidence had. A repeat separated by real
+    entries is a defect this does **not** catch, and asserting so here is what keeps that a
+    decision: strengthening it to section-scoped changes what the plan specified, so it reopens
+    the item rather than quietly widening the gate."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n- **A fix.**\n\n### Fixed\n\n- **Another, under a second heading.**\n",
+    )
+
+    assert run(repo, "--stream", "changelog", "--check").returncode == 0
+
+
 def test_an_entry_that_opens_with_a_paragraph_is_refused(repo: Path) -> None:
     """`render` splices a fragment body verbatim, so a paragraph in the document is a paragraph
     the fragment wrote. `changelog.d/README.md` requires `- **claim.**`."""

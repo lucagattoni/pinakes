@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 4
+mutants = 12
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -52,3 +52,75 @@ file = "tools/fragments.py"
 old = '''        elif opens_with_front_matter(body):'''
 new = '''        elif False and opens_with_front_matter(body):'''
 kills = "tests/test_fragments.py::test_front_matter_is_refused_before_apply_can_splice_it"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# 0.30.0's open-corrections item · the assembled document, not the fragments going into it
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# `--check` parsed every pending fragment and asserted nothing about the result of `--apply`.
+# `## [0.28.3]` carried `### Fixed` twice consecutively with a bare paragraph for a body, and
+# `--check` exited 0. Two rules on the result: a heading never repeats consecutively, an entry
+# opens with `- `. Rows 2, 5 and 7 below are the *over*-firing direction — a gate that refuses a
+# correct document is the failure that gets acted on, and row 7 is the bug this increment actually
+# shipped and caught before landing.
+
+[[mutant]]
+name = "the consecutive-heading check never fires"
+file = "tools/fragments.py"
+old = '''            if previous is not None and previous[1] == heading:'''
+new = '''            if False:'''
+kills = "tests/test_fragments.py::test_a_heading_that_repeats_consecutively_is_refused"
+
+[[mutant]]
+name = "DISCRIMINATING — adjacency stops reading the text, so any two headings in a row are refused"
+file = "tools/fragments.py"
+old = '''            if previous is not None and previous[1] == heading:'''
+new = '''            if previous is not None:'''
+kills = "tests/test_fragments.py::test_the_same_heading_under_a_different_release_is_left_alone"
+
+[[mutant]]
+name = "content stops resetting the run, so a repeat separated by entries is refused too"
+file = "tools/fragments.py"
+old = '''        elif line.strip():
+            previous = None'''
+new = '''        elif line.strip():
+            pass'''
+kills = "tests/test_fragments.py::test_a_heading_that_repeats_after_intervening_entries_is_the_decided_scope"
+
+[[mutant]]
+name = "the `- ` list-item rule never fires"
+file = "tools/fragments.py"
+old = '''            if not line.startswith("- "):'''
+new = '''            if False:'''
+kills = "tests/test_fragments.py::test_an_entry_that_opens_with_a_paragraph_is_refused"
+
+[[mutant]]
+name = "DISCRIMINATING — the bullet rule reaches the free-form stream it was scoped away from"
+file = "tools/fragments.py"
+old = '''    if stream.categories is None:
+        return problems'''
+new = '''    if False:
+        return problems'''
+kills = "tests/test_fragments.py::test_the_bullet_rule_never_reaches_the_free_form_stream"
+
+[[mutant]]
+name = "every line under a heading is judged, not only the first, so continuations are refused"
+file = "tools/fragments.py"
+old = '''                )
+            opened = None'''
+new = '''                )'''
+kills = "tests/test_fragments.py::test_a_bullets_indented_continuation_is_not_read_as_a_second_entry"
+
+[[mutant]]
+name = "the shipped bug — a fence is recognised only at column zero, so an indented one is missed"
+file = "tools/fragments.py"
+old = '''_FENCE = re.compile(r"^[ \t]*(```+|~~~+)")'''
+new = '''_FENCE = re.compile(r"^(```+|~~~+)")'''
+kills = "tests/test_fragments.py::test_a_heading_inside_a_fenced_block_is_not_read_as_structure"
+
+[[mutant]]
+name = "--apply writes the document before validating it, deleting the fragments that caused it"
+file = "tools/fragments.py"
+old = '''        if damage := document_problems(stream, spliced):'''
+new = '''        if False and document_problems(stream, spliced):'''
+kills = "tests/test_fragments.py::test_apply_refuses_to_write_a_document_it_would_leave_malformed"
