@@ -17,17 +17,24 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260823 02:06 UTC
+## Where things stand right now — 20260823 02:24 UTC
 
 - **48 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
   [`0.28.1`](#0281--a-gate-audited-against-itself--20260823-0206) on 20260823.
-- **Latest on PyPI: `0.28.0`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.28.1`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
-  subject is inside it. **0.25.1 is the sharpest case this project has had of that distinction**:
+  subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
+  reach.** Opening a wheel proves a subject is *present*; the inverted check proves a developer tool
+  is *absent*; but *"no code path changed"* — written into four of the last six releases — is a
+  claim about **everything that did not move**, which no single-artifact check can carry. So the two
+  published wheels were unpacked and compared: `diff -r` returns one line, `__version__`, with the
+  other 72 of 73 files byte-identical, template payload included. It costs two downloads, and it
+  verifies from the index what the commit message had until now asserted from the repo diff.
+  **0.25.1 is the sharpest case this project has had of that distinction**:
   every release from 0.22.0 on installed cleanly and reported the right version while
   `pnk ask --deep` could not make one successful call. Every release from `0.2.2` on is published —
-  **forty**, counted from the index rather than from this list's previous number — and read from
+  **forty-one**, counted from the index rather than from this list's previous number — and read from
   `https://pypi.org/simple/pinakes/`, the endpoint installers use, because for minutes after an
   upload the `json` endpoint and uv's cache still report the previous version while `simple/` already
   carries the files. Checking `json` first says *the upload failed*, which is this project's recorded
