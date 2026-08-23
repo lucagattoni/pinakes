@@ -1,0 +1,54 @@
+# Mutation battery — `tools/fragments.py`.
+#
+#     python3 tools/mutate.py tools/batteries/tools-fragments.toml
+#
+# Every row is a way the front-matter refusal could be wrong while still printing a green run.
+# **A row is a claim about one assertion, never about the file** (`tools/batteries/README.md`).
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 4
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Written 20260822, in a battery that also covered `tools/release_order_gate.py`; those mutants
+# live in `tools-release_order_gate.toml`, one file per target. **No control here.** The source
+# battery's control was a `release_order_gate.py` mutant and went with the rest of them, so the
+# first row below is an ordinary mutant. A battery with no kills is a broken harness rather than
+# a clean bill, and with four rows over one function that is visible without a control row.
+
+[[mutant]]
+name = "the front-matter fence is never detected"
+file = "tools/fragments.py"
+old = '''        return line.rstrip() == "---"'''
+new = '''        return False'''
+kills = "tests/test_fragments.py::test_a_fragment_that_opens_with_front_matter_is_refused"
+
+[[mutant]]
+name = "DISCRIMINATING — the check becomes 'a fence anywhere', refusing a horizontal rule"
+file = "tools/fragments.py"
+old = '''    for line in text.splitlines():
+        if not line.strip():
+            continue
+        return line.rstrip() == "---"
+    return False'''
+new = '''    return "---" in text'''
+kills = "tests/test_fragments.py::test_a_horizontal_rule_inside_a_body_is_left_alone"
+
+[[mutant]]
+name = "a leading blank line hides the fence"
+file = "tools/fragments.py"
+old = '''        if not line.strip():
+            continue'''
+new = '''        if not line.strip():
+            return False'''
+kills = "tests/test_fragments.py::test_a_leading_blank_line_does_not_hide_the_fence"
+
+[[mutant]]
+name = "the refusal no longer reaches --apply, which splices the fence into the document"
+file = "tools/fragments.py"
+old = '''        elif opens_with_front_matter(body):'''
+new = '''        elif False and opens_with_front_matter(body):'''
+kills = "tests/test_fragments.py::test_front_matter_is_refused_before_apply_can_splice_it"

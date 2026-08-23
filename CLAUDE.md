@@ -3,6 +3,24 @@
 Architecture and rationale live in [`docs/DESIGN.md`](docs/DESIGN.md); [`docs/README.md`](docs/README.md)
 indexes the rest (which file owns which fact). This file only carries rules that change how you work.
 
+## 🧭 A cleared context does not know its own role — settle that first
+
+**Before any tool call that writes:**
+
+1. **Name your role** — coder, planner, other — from what the **user** said in *this* session.
+   Never infer it from the repo, from the previous session, or from the work in flight. **If you
+   cannot determine it, ask, and do nothing until they answer.** This one blocks; *Working mode —
+   autonomous by default* below does **not** override it.
+2. **Ask every live peer theirs** — `ListAgents`, then `SendMessage` — and state your own role and
+   file set in the same message. Wait before touching a shared path.
+3. **Then act inside the ownership table** in *Documentation has one owner*, re-checking at the
+   moment of landing rather than only at the start.
+
+**Both directions fail silently, and both happened here on 20260823**: assuming *planner* collides
+with an in-flight land; assuming *coder* leaves a document wrong out of deference. Set by the user
+that day. Procedure and the failure record: [`docs/BUILDING.md` § Settle your role
+first](docs/BUILDING.md#settle-your-role-before-anything-else).
+
 ## 🛑 Land with `tools/land.py` — never `git merge` by hand
 
     python3 tools/land.py <branch>                  # merge, verify, push
@@ -158,6 +176,11 @@ closed plan still binds, is [`docs/README.md`](docs/README.md):
   a **skipped** selector exits 0 like a passing one, an **already-red** one kills every mutant, and
   `PYTEST_ADDOPTS` smuggles in `-x`. Prefer it to mutating by hand; a target under `tests/` it
   refuses, and that stays manual.
+- **Batteries are committed, one per target, in
+  [`tools/batteries/`](tools/batteries/README.md)** — the rule, the naming and what to do when an
+  anchor rots are all there. **Append a section to the battery your target already has; never start
+  a second file for it.** `tests/test_batteries.py` fails if you do, if an anchor stops resolving,
+  or if a `kills` selector names a test that no longer exists.
 - **[`plans/20260811_1358-deep-release.md`](plans/20260811_1358-deep-release.md) closed at
   0.26.0.** All ten decisions (D-21 to D-30) are taken and it remains the authority for them;
   re-run its § 2 before trusting any `file:line`. Every increment E1 to E7 is built, and each

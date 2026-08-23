@@ -17,10 +17,11 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260823 03:15 UTC
+## Where things stand right now — 20260823 12:50 UTC
 
-- **50 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.28.3`](#0283--a-gate-that-could-not-see-the-list-next-door--20260823-0310) on 20260823.
+- **51 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.29.0`](#0290--the-batteries-were-kept-and-one-caught-what-four-green-gates-missed--20260823-1250)
+  on 20260823.
 - **Latest on PyPI: `0.28.3`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
@@ -180,6 +181,7 @@ number belongs to a release only when it is cut
 | **[0.28.1](#0281--a-gate-audited-against-itself--20260823-0206)** | 20260823 02:06 | a gate audited against itself | • **A lagging sequence may now be at most two releases behind** — its ceiling was its own newest entry, so deleting that entry hid the deletion<br>• **Two Parts may not claim the same versions** — Part ranges are read from the headings, so twenty characters appended to `# Part 5` legitimised a misfiled section<br>• **The Part floor is the real count** — at one below it, demoting the last heading passed exactly<br>• No code path changed: no `schema_version`, no rebuild |
 | **[0.28.2](#0282--the-guides-commands-were-re-run-against-the-build-that-ships-them--20260823-0247)** | 20260823 02:47 | the Guide's commands were re-run against the build that ships them | • **`docs/GUIDE.md` claimed every command on it was run against `0.2.0`** — twenty-six releases back, on the published site<br>• **Nine output blocks had drifted**: `notes@1.1` against a shipped `1.2`, a `You get:` tree missing two files `init` writes, `€0.26`/`€1.69` estimates against a live `€0.20`/`€1.33`<br>• **Three separate places said only one surface can spend** — `pnk ask --deep` has been the second since 0.24.0<br>• `docs/CLI.md` had the same class of defect and is fixed with it<br>• **Two blocks deliberately not re-run, and the page now says which** — the paid transcript and the two-KB walkthrough<br>• No code path changed: no `schema_version`, no rebuild |
 | **[0.28.3](#0283--a-gate-that-could-not-see-the-list-next-door--20260823-0310)** | 20260823 03:10 | a gate that could not see the list next door | • **A seventh sequence** — STATUS's *Published versions* row, four releases behind through green runs of every gate<br>• **The gate reported those releases present, and they were — in the sequence next door**, forty lines up in the same file<br>• **A `within` anchor** scopes a pattern to one region, since the row is a table cell and not a run of lines; two matches are refused rather than resolved to the first<br>• **The row may never lag the prose beside it** — a relation beats a bound: 29 commits sat green with the row already wrong, the relation fires 11 commits earlier, 0 false positives over 53<br>• 11 mutants, 11 killed; no code path changed |
+| **[0.29.0](#0290--the-batteries-were-kept-and-one-caught-what-four-green-gates-missed--20260823-1250)** | 20260823 12:50 | the batteries were kept, and one caught what four green gates missed | • **91 mutants committed** under `tools/batteries/`, one file per target, all 91 killed<br>• **The docstring that decided this was an assumption**: measured, 78 of 81 anchors still resolved a day to a week later, and all three failures were *refusals*<br>• **`--check-anchors`** resolves anchors against the working tree in milliseconds; `tests/test_batteries.py` gates anchors, selectors, double claims and a declared count<br>• **A resolvability gate, not a regression gate** — nothing runs a battery automatically<br>• **Two of its own mutants were killed about nothing**, one of them a `SyntaxError` reading KILLED in a batch reporting `0 errored`; a compile refusal now precedes the first write<br>• **A battery caught what four green gates and two review passes missed**<br>• A cleared context settles its own role, and its peers', before it writes<br>• no code path changed |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -1861,6 +1863,67 @@ before review**; the validator is now a function a test can hand a deliberately 
 
 **11 mutants, 11 killed.** **No code path changed** — no `schema_version`, no rebuild, and nothing
 about any existing KB.
+
+## 0.29.0 — the batteries were kept, and one caught what four green gates missed · 20260823 12:50
+
+**73 mutants written across six increments existed only in session scratchpads.** They are now
+`tools/batteries/`, one file per target, and a fourth battery covers `tools/mutate.py` itself:
+**91 mutants, 91 killed, 0 survived, 0 errored** against the tree they describe.
+
+**The prose this reverses is the tool's own.** `tools/mutate.py` shipped in 0.27.0 saying *"a
+battery is a per-increment working file, not a portable artifact"*, in a paragraph whose actual
+subject was where the `pytest` key lives. Nothing had measured it, and it then decided the question
+for two months by being read rather than by being right —
+`plans/20260821_0745-mutation-harness.md` enumerates what it deliberately left open, and persistence
+is not among them. The measurement took twenty minutes: of **81 mutants**, **78 anchors still
+resolved exactly once** a day to a week later, and every one that broke was one whose own code had
+changed. **The three failures were refusals** — named, counted, exit 1, target untouched — so the
+cost of keeping a battery is a maintenance prompt and never a false `KILLED` or `SURVIVED`. An
+argument about whether a claim outlives its proof would not have resolved; *what does being wrong
+cost?* did.
+
+**And that measurement was aimed at the half that had never broken.** `docs/RETROSPECTIVES.md`
+already recorded which half rots, twice in one increment: a `SURVIVED` row is a claim about a
+*pair*, and it was the **selector** that went stale. The gate resolves both.
+
+**What is committed is not the proof.** Re-deriving forty-one mutants against a gate is an
+afternoon. It is the reasoning about *which mutants were worth writing* — and the durable channel
+for that already existed: a per-mutant table can go in a `retro.d/` fragment, and RETROSPECTIVES has
+exactly **one**, against 93 commits that speak of a mutation pass. The channel existed, worked, and
+was used once.
+
+**Two of this increment's own mutants were killed about nothing.** Both repaired anchors widened
+`old` from one line to two and left `new` at the line it used to replace. One deleted a neighbouring
+keyword argument as well as flipping the flag it names; the other deleted `starts_at` and duplicated
+`minimum=15,` — `keyword argument repeated`, a **`SyntaxError` at import**, which arrives as an
+ordinary assertion failure because this module is imported *inside* the test rather than at
+collection. It read **KILLED**, in a batch reporting `0 errored`. A confident row about a question
+nobody asked, produced by the tool, in its own corpus, on the first day. `mutate.py` now refuses a
+Python mutant that does not compile, before the first write; `ast.parse` would not have caught it —
+it accepts `f(a=1, a=2)` and `compile()` does not — so a test pins that discrimination. It earned
+itself within the hour, catching two more staled by a refactor in the same session.
+
+**A battery then caught what four green gates and two review passes missed.** Running them at the
+final sha reported **17 killed, 1 SURVIVED** — exit 0, which is what `report()` does with a survivor.
+The survivor's test asserted `code == 1` and nothing else, so inverting the very condition that
+chooses between its two diagnostic messages left it green: a test whose entire subject is a message,
+pinning only an exit status, written the same day it quoted the rule it breaks. The suite was green
+and `./check.sh` was green twice. That is the demonstrated catch this mechanism needed, at n=1,
+inside the increment that built it.
+
+**What it is, said precisely.** `tests/test_batteries.py` gates that every anchor **resolves**, that
+every `kills` selector names a test that exists, that no file is claimed by two batteries, and that
+each battery carries the `mutants = N` it declares — 0.05s, inside `./check.sh`. It does **not** gate
+that the mutants still die: nothing runs a battery automatically, and `mutate.py` exits 0 on a
+survivor by design. **It is a resolvability gate, not a regression gate**, and the denominator is
+stated beside it: four targets, all under `tools/`, **no module under `src/`**, no invariant covered.
+
+**Also in this release: a cleared context settles its own role before it writes anything.** Take it
+from what the *user* said in this session — never from the repo, the previous session, or the work
+in flight — ask every live peer theirs, and if you cannot determine it, ask and **block**. Both
+failure directions are silent and 20260823 produced both within hours.
+
+**No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
 
 # Part 5 · What is not built
 

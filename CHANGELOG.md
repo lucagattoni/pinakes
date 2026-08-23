@@ -10,6 +10,62 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.29.0] — 20260823 12:50
+
+### Added
+
+- **Mutation batteries are committed, one per target, in `tools/batteries/`.** 73 mutants written
+  across six increments existed only in session scratchpads; a fourth battery covers `mutate.py`
+  itself, for 91 in all, and every one is `KILLED` against the tree it describes. `tools/mutate.py
+  --check-anchors <battery>…` resolves every anchor against the **working tree** and exits — no
+  subprocess, milliseconds — so *do the committed batteries still hold?* is cheap enough to ask. It
+  reports every failure rather than the first, refuses when two batteries claim one file, and says
+  on success which two rots it cannot see. A run still takes one battery at a time, and each battery
+  declares `mutants = N` so the corpus cannot shrink silently. `tests/test_batteries.py` gates the
+  same properties inside `./check.sh`, plus the `kills` selectors resolving — the axis the record
+  says actually rots. **It is a resolvability gate, not a regression gate:** nothing runs a battery
+  automatically, and `mutate.py` exits 0 when mutants survive. The convention, the naming and what
+  to do when an anchor rots:
+  [`tools/batteries/README.md`](https://github.com/lucagattoni/pinakes/blob/main/tools/batteries/README.md).
+  **It earned its keep inside the increment that built it:** running the batteries found a test
+  whose entire subject is a diagnostic message asserting only an exit status, so inverting the
+  condition that chooses between its two messages left it green. The suite was green, `./check.sh`
+  was green twice, and two adversarial review passes had read the file. The battery is the only
+  thing that saw it.
+
+- **A cleared context settles its own role, and its peers', before it writes anything.** New rule at
+  the head of `CLAUDE.md`, with the procedure and the failure record in
+  [`docs/BUILDING.md`](https://lucagattoni.github.io/pinakes/BUILDING/#settle-your-role-before-anything-else):
+  take your role from what the **user** said in *this* session — never from the repo, the previous
+  session, or the work in flight — ask every live peer theirs, and **if you cannot determine it,
+  ask and block**. It is stated as a blocking exception because § *Working mode — autonomous by
+  default* otherwise overrides the default of stopping. Both failure directions are silent and both
+  happened on 20260823: a session that opened on an unlanded docs branch would have inferred
+  *planner* and landed documents it did not own, and a session that assumes *coder* leaves a
+  document wrong out of misplaced deference.
+
+### Changed
+
+- **`tools/mutate.py`'s docstring no longer says a battery is a per-increment working file, not a
+  portable artifact.** That sentence shipped in 0.27.0 as a design statement and had never been
+  measured. Measured now, against 81 mutants left in session scratchpads: **78 anchors still
+  resolved exactly once** a day to a week later, and the three that did not **refused** — naming the
+  anchor and its count, with the target untouched. A stale anchor cannot produce a false `KILLED` or
+  a false `SURVIVED`, so the cost of keeping a battery is a maintenance prompt, never a false
+  certificate. What keeping one preserves is not the proof, which is re-derivable in an afternoon,
+  but the reasoning about **which mutants were worth writing**.
+
+### Fixed
+
+- **`tools/mutate.py` refuses a Python mutant whose result does not compile**, with the anchor
+  pre-flight and before the first write. Found by the tool on its own corpus: a repaired anchor
+  whose `new` had been left behind produced `keyword argument repeated` — a `SyntaxError` at import,
+  which arrives as an ordinary assertion failure when a module is imported *inside* a test rather
+  than at collection. The row read `KILLED` in a batch reporting `0 errored`, about a property never
+  exercised. `ast.parse` would not catch it: it accepts `f(a=1, a=2)` and `compile()` does not. The
+  ERRORED outcome still covers every invalidity only a run can discover — the syntax half moves
+  earlier, per this tool's own rule that a refusal available before the first write is made there.
+
 ## [0.28.3] — 20260823 03:10
 
 ### Fixed
@@ -3751,7 +3807,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.28.3...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.29.0
 [0.28.3]: https://github.com/lucagattoni/pinakes/releases/tag/v0.28.3
 [0.28.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.28.2
 [0.28.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.28.1
