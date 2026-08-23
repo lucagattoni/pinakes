@@ -77,8 +77,8 @@ sequence, a closed set that changes only when a document's own history changes.
 **The reference set is the union of every sequence**, not `git tag -l`. Tags would be the truer
 authority, but reading them needs git and an unshallow clone, and every CI checkout here is shallow
 but one — a gate quietly weaker in CI than on a laptop is worse than one whose limit is written
-down. The limit: **a release absent from all six sequences is invisible here.** What catches that is
-the release procedure itself, which writes CHANGELOG before anything else.
+down. The limit: **a release absent from all seven sequences is invisible here.** What catches
+that is the release procedure itself, which writes CHANGELOG before anything else.
 
 **A lagging sequence is required to be complete only up to its own newest entry**, since it is
 allowed not to have reached the latest release yet — the hold-back window. Below its own newest it
@@ -137,6 +137,22 @@ class UnreadableError(Exception):
     traceback."""
 
 
+class AmbiguousRegionError(Exception):
+    """A `within` anchor matched more than once, so the region it names is no longer unique.
+
+    Not the same fault as a pattern that stopped matching, and deliberately not folded into it. A
+    `within` that matches twice means a second place in the document now looks like the region —
+    and silently taking the first match would splice two lists into one sequence and call it
+    sorted. Reading the first of several matches is the "derived, never declared" mistake this
+    module refuses everywhere else, one layer down: the anchor would be deciding for itself which
+    region it meant.
+
+    Zero matches is the *other* case and is deliberately not an error here: an anchor that matches
+    nothing yields an empty sequence, which the `minimum` floor already reports in the words that
+    fit it.
+    """
+
+
 class Sequence:
     """One ordered run of releases in one file."""
 
@@ -151,15 +167,27 @@ class Sequence:
         minimum: int = MINIMUM,
         newest_may_lag: bool = False,
         absent: tuple[tuple[Version, str], ...] = (),
+        within: str | None = None,
+        not_behind: tuple[str, str] | None = None,
     ) -> None:
         self.path = path
         self.what = what
         self.pattern = re.compile(pattern, re.MULTILINE)
+        self.within = re.compile(within, re.MULTILINE) if within is not None else None
+        if self.within is not None and self.within.groups != 1:
+            # A programming error in a constant, so it fails at import rather than at check time.
+            # The region is what the group captures; zero groups would capture the whole match and
+            # two would make which one is meant a matter of position.
+            raise ValueError(
+                f"{path} — {what}: a `within` anchor must have exactly one capturing group, "
+                f"which is the region; this one has {self.within.groups}."
+            )
         self.ascending = ascending
         self.minimum = minimum
         self.newest_may_lag = newest_may_lag
         self.starts_at = starts_at
         self.absent = dict(absent)
+        self.not_behind = not_behind
 
     def versions(self, root: Path) -> list[Version]:
         try:
@@ -169,6 +197,19 @@ class Sequence:
             # other failure here gets — never as a traceback. `paid_path_gate.py`'s gate 1 exists
             # for the same reason: a check that cannot find what it guards has stopped guarding it.
             raise UnreadableError(f"{self.path}: {exc}") from exc
+        if self.within is not None:
+            # Scope first, then match. A sequence living inside one line of prose cannot be reached
+            # by a line-anchored pattern, and an unanchored one would match every version in the
+            # file — so the region is carved out and the pattern is run only inside it.
+            regions = self.within.findall(text)
+            if len(regions) > 1:
+                raise AmbiguousRegionError(
+                    f"{self.path} — {self.what}: the `within` anchor matched {len(regions)} "
+                    "regions, and it names one. Reading the first would splice two lists into a "
+                    "sequence that is sorted only by accident. Narrow the anchor, or the document "
+                    "has grown a second place that looks like this one."
+                )
+            text = regions[0] if regions else ""
         return [
             (int(a), int(b), int(c))
             for a, b, c in (m.group(1, 2, 3) for m in self.pattern.finditer(text))
@@ -251,7 +292,84 @@ SEQUENCES = (
         minimum=15,
         newest_may_lag=True,
     ),
+    # The seventh, added 20260823. The sixth reads the *Published on PyPI* prose; this reads the
+    # **Published versions** row of the table forty lines below it — a different sequence, in the
+    # same file, under the same heading, which is the most misleading arrangement available. The
+    # gate reported 0.27.0 present and it was: in the prose next door. The row itself had fallen
+    # four releases behind — 0.27.0, 0.27.2, 0.28.0, 0.28.1 — after being repaired once for
+    # exactly this, through green runs of every gate in this repo.
+    #
+    # It needs `within` because it is the one sequence that is not a run of lines. The whole
+    # enumeration is a single table cell, and the rest of that cell carries ~20 more version
+    # numbers in prose (`**0.28.1 changes no code path**`, `**0.27.2 caps nothing a KB can
+    # see**`, ...). A line-anchored pattern cannot reach inside the line; an unanchored one would
+    # match those too, and read a sorted list as unsorted. The row's leading bold span is exactly
+    # the enumeration and nothing else.
+    Sequence(
+        "docs/STATUS.md",
+        "the Published versions row",
+        NUM,
+        ascending=True,
+        within=r"^\| Published versions \| \*\*(.+?)\*\*",
+        # Declared, not derived — 0.2.0 and 0.2.1 predate publishing and are deliberately absent
+        # from this row, so the first version it can carry is 0.2.2. Deriving this from the row
+        # would make the row the authority on its own completeness.
+        starts_at=(0, 2, 2),
+        # Held back until verified from the index, like the prose above it. But it lags
+        # differently, and the difference is the point: the prose gains one entry per release, so
+        # it falls behind by one. The row is rewritten whole, so it does not fall behind — it is
+        # forgotten entirely, and drifts by four. `check_membership` is what actually guards this
+        # sequence; the ordering check is nearly free here because a rewritten enumeration tends
+        # to stay sorted while being wrong.
+        newest_may_lag=True,
+        # ...but never behind the prose beside it, which is the tight bound the lag constant is
+        # only a loose backstop for. Both lists record the same event — a release verified from
+        # the index — so the prose naming a release the row omits is not latency, it is the row
+        # having been forgotten in a sweep that remembered the prose. That is exactly how both
+        # recorded drifts began.
+        #
+        # Measured over every commit carrying both lists, rather than argued: 53 with the row at
+        # or ahead of the prose, 14 with it behind, and **all 14 sit inside the two recorded
+        # drifts** — 20260812 to 0822, and 20260823. No commit has the row legitimately behind. The
+        # first violation is c4b52abd on 20260812, which is 11 commits and 10 days before the lag
+        # bound reaches 3 and fires. The lag bound bounds the damage; this catches the start.
+        not_behind=("docs/STATUS.md", "the Published on PyPI prose"),
+        # No `minimum` of its own, deliberately, though 41 versions were counted from
+        # `https://pypi.org/simple/pinakes/` on 20260823 02:22 UTC when this was written.
+        # An exact floor would be declared rather than derived — but it would *mask* the check
+        # that matters. `check()` skips a sequence whose floor failed, and `check_membership`
+        # skips it in turn ("its floor already failed"), so deleting one release from this row
+        # under a floor of 41 reports "the pattern has stopped matching what it names" and never
+        # says which release went missing. The shared floor leaves membership to name it, and
+        # still catches the failure the floor is for: a reformatted row matches no region at all
+        # and yields zero, not forty.
+    ),
 )
+
+
+def _validate_not_behind(sequences: tuple[Sequence, ...]) -> None:
+    """Every `not_behind` names a sequence that is actually here.
+
+    A reference to a label that does not exist would disable itself in silence — the failure mode
+    this whole module is written against, one layer up in the constants. It is called on
+    `SEQUENCES` below, so a typo fails when the module is built rather than on the release it was
+    supposed to catch.
+
+    A function rather than a loop at import, so a test can hand it a bad sequence. A guard whose
+    only test feeds it the constants it already validates is a tautology: it passes whether or not
+    the guard does anything.
+    """
+    labels = {(s.path, s.what) for s in sequences}
+    for sequence in sequences:
+        if sequence.not_behind is not None and sequence.not_behind not in labels:
+            raise ValueError(
+                f"{sequence.path} — {sequence.what}: `not_behind` names "
+                f"{sequence.not_behind[0]} — {sequence.not_behind[1]}, which is not a sequence "
+                "here."
+            )
+
+
+_validate_not_behind(SEQUENCES)
 
 
 #: `# Part 4 · Hardening, publishing, and every release since — `0.8.0` onward`. The number and the
@@ -566,6 +684,26 @@ def check(root: Path, *, report: list[str] | None = None) -> list[str]:
                     "not."
                 )
 
+    # A sequence may declare that it must not fall behind another one. `newest_may_lag` grants
+    # latency against the *release* documents; this withdraws it against a sequence recording the
+    # same event, where being behind is not latency at all.
+    for sequence in SEQUENCES:
+        if sequence.not_behind is None:
+            continue
+        where = f"{sequence.path} — {sequence.what}"
+        ahead_of = f"{sequence.not_behind[0]} — {sequence.not_behind[1]}"
+        mine, theirs = found.get(where), found.get(ahead_of)
+        if mine is None or theirs is None:  # a floor already failed; that failure is the one
+            continue
+        if max(mine) < max(theirs):
+            failures.append(
+                f"{where}: newest {_show(max(mine))}, behind {ahead_of} at "
+                f"{_show(max(theirs))}. This sequence may lag the release documents, because an "
+                "entry is held back until it is verified from the index — but it may not lag a "
+                "list recording that same verification. One of the two was swept and the other "
+                "was not, which is how both recorded drifts began."
+            )
+
     failures.extend(check_membership(found, report=report))
     failures.extend(check_placement(root, report=report))
 
@@ -580,6 +718,11 @@ def main(argv: list[str] | None = None) -> int:
         failures = check(root, report=report)
     except UnreadableError as exc:
         print(f"release-order: a document this gate reads is unreadable — {exc}", file=sys.stderr)
+        return 1
+    except AmbiguousRegionError as exc:
+        print(
+            f"release-order: a region this gate reads is no longer unique — {exc}", file=sys.stderr
+        )
         return 1
     if failures:
         print("release-order: the release history is out of order.", file=sys.stderr)

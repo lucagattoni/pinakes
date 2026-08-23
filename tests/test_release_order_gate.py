@@ -40,16 +40,35 @@ def failures_of(result: subprocess.CompletedProcess[str]) -> list[str]:
     return [line[2:] for line in result.stderr.splitlines() if line.startswith("  ")]
 
 
+def _row(versions: list[str]) -> str:
+    """The **Published versions** row of STATUS's PyPI table — the seventh sequence's home.
+
+    The trailing prose is not decoration. That cell carries ~20 version numbers *outside* the
+    enumeration in the real document, and they are the reason the sequence needs a `within` anchor
+    at all. So the fixture carries some too, **in descending order**: a gate whose scoping broke
+    would read them as part of the sequence and report it unsorted. Without them a `within` that
+    had stopped scoping would still pass every test here.
+    """
+    listed = ", ".join(versions[:-1]) + f" and {versions[-1]}" if len(versions) > 1 else versions[0]
+    return (
+        f"| Published versions | **{listed}** — {len(versions)}, counted from the index. "
+        f"**{versions[-1]} changes no code path**; **{versions[0]} is the first published** |\n"
+    )
+
+
 def _tree(
     root: Path,
     *,
     versions: list[str],
     status_versions: list[str] | None = None,
     prose_versions: list[str] | None = None,
+    row_versions: list[str] | None = None,
+    extra_row: str = "",
 ) -> Path:
     """A minimal repository whose three documents carry the sequences the gate reads."""
     status_versions = versions if status_versions is None else status_versions
     prose_versions = versions if prose_versions is None else prose_versions
+    row_versions = versions if row_versions is None else row_versions
     (root / "docs").mkdir(parents=True, exist_ok=True)
     (root / "CHANGELOG.md").write_text(
         "".join(f"## [{v}] — 20260101 00:00\n\nsomething.\n\n" for v in reversed(versions))
@@ -70,7 +89,11 @@ def _tree(
         + "".join(
             f"**{v}, same standard, 20260101 00:00:** verified from the index.\n\n"
             for v in prose_versions
-        ),
+        )
+        + "\n| | |\n|---|---|\n"
+        + _row(row_versions)
+        + extra_row
+        + "| First upload | 20260101 00:00 |\n",
         encoding="utf-8",
     )
     return root
@@ -125,14 +148,14 @@ def test_the_real_documents_are_in_release_order() -> None:
     run `check.sh` performs."""
     result = run()
     assert result.returncode == 0, result.stderr
-    assert "6 sequences in release order" in result.stdout
+    assert "7 sequences in release order" in result.stdout
 
 
 def test_every_pattern_still_matches_the_real_documents() -> None:
     """The vacuity check, and the reason this file exists as much as the ordering branch does.
 
     A gate whose patterns have rotted reports success over a document it can no longer read. The
-    green run therefore prints what each pattern matched, and this asserts all five are named with
+    green run therefore prints what each pattern matched, and this asserts all seven are named with
     a real count — reformat a table past recognition and it goes red in the commit that does it,
     rather than quietly measuring nothing.
     """
@@ -140,7 +163,7 @@ def test_every_pattern_still_matches_the_real_documents() -> None:
     assert result.returncode == 0, result.stderr
     # Each sequence against **its own** floor, not a single number: the prose list began at 0.16.0
     # and carries a lower one, so asserting the shared 25 here would either fail on a correct tree
-    # or have to be weakened to 15 for all six — which would stop noticing a rotted pattern in the
+    # or have to be weakened to 15 for all seven — which would stop noticing a rotted pattern in the
     # five that are long.
     floors = {
         "CHANGELOG.md — the release headings": 25,
@@ -149,6 +172,7 @@ def test_every_pattern_still_matches_the_real_documents() -> None:
         "docs/ROADMAP.md — the per-release sections": 25,
         "docs/STATUS.md — the release roadmap table": 25,
         "docs/STATUS.md — the Published on PyPI prose": 15,
+        "docs/STATUS.md — the Published versions row": 25,
     }
     for what, floor in floors.items():
         match = re.search(rf"{re.escape(what)}: (\d+) releases,", result.stdout)
@@ -161,7 +185,7 @@ def test_every_pattern_still_matches_the_real_documents() -> None:
 def test_an_ordered_tree_passes(tmp_path: Path) -> None:
     result = run(str(_tree(tmp_path, versions=_versions())))
     assert result.returncode == 0, result.stderr
-    assert "6 sequences in release order" in result.stdout
+    assert "7 sequences in release order" in result.stdout
 
 
 def test_a_row_out_of_order_is_named_with_its_neighbour(tmp_path: Path) -> None:
@@ -289,7 +313,8 @@ def test_a_sequence_carries_its_own_floor(tmp_path: Path) -> None:
 def test_the_prose_pattern_does_not_match_the_roadmap_table(tmp_path: Path) -> None:
     """A pattern matching too much is as bad as one matching nothing, and harder to notice: it
     would silently fold another document's rows into this sequence and check a concatenation.
-    The count is the observable — six sequences, and the prose one names exactly its own entries.
+    The count is the observable — seven sequences, and the prose one names exactly its own
+    entries.
     """
     versions = _versions()
     # Two behind, not ten: `MAX_VERIFICATION_LAG` makes a ten-behind fixture illegitimate, and a
@@ -727,3 +752,270 @@ def test_demoting_the_last_part_heading_fails_the_floor(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "`# Part` heading(s), fewer than the 5 floor" in result.stderr
+
+
+# --- The seventh sequence: the **Published versions** row -----------------------------------
+#
+# It is the only sequence that is not a run of lines. The whole enumeration is one table cell, and
+# the rest of that cell carries version numbers in prose — so these tests are as much about the
+# `within` anchor holding its scope as about order. The defect they descend from: the row sat four
+# releases behind (0.27.0, 0.27.2, 0.28.0, 0.28.1) through green runs of every gate here, because
+# the check next door read the *prose* forty lines above it and reported those releases present.
+# They were — in the sequence next door.
+
+
+def test_the_row_and_the_prose_are_two_sequences_not_one(tmp_path: Path) -> None:
+    """On the real documents, both are named and they carry different counts.
+
+    The failure this guards is not a wrong number, it is a pattern quietly reading the *other*
+    list: the two sequences live in one file under one heading, forty lines apart, and if the row's
+    anchor drifted onto the prose the gate would report seven green sequences while checking six
+    lists and one duplicate. Different counts is what proves they are different lists.
+    """
+    result = run()
+    assert result.returncode == 0, result.stderr
+    row = re.search(r"the Published versions row: (\d+) releases,", result.stdout)
+    prose = re.search(r"the Published on PyPI prose: (\d+) releases,", result.stdout)
+    assert row is not None and prose is not None, result.stdout
+    # 41 versions carried files on 20260823 02:22 UTC, counted from
+    # https://pypi.org/simple/pinakes/. A literal, and a floor rather than an equality: the row
+    # only grows. The prose begins at 0.16.0 and is shorter by construction.
+    assert int(row.group(1)) >= 41, result.stdout
+    assert int(row.group(1)) > int(prose.group(1)), (
+        "the row starts at 0.2.2 and the prose at 0.16.0, so the row must be the longer list; "
+        "equal counts would mean one anchor is reading the other's list"
+    )
+
+
+def test_a_release_missing_from_the_row_is_named_even_though_the_prose_has_it(
+    tmp_path: Path,
+) -> None:
+    """The defect itself, in the arrangement that hid it.
+
+    Every other sequence carries 0.20.0 — including the *Published on PyPI* prose in the same file
+    under the same heading. Only the row has lost it, and every surviving pair in the row is still
+    sorted. A gate checking order alone reports green here, and did.
+    """
+    versions = _versions()
+    gapped = [v for v in versions if v != "0.20.0"]
+
+    result = run(str(_tree(tmp_path, versions=versions, row_versions=gapped)))
+
+    assert result.returncode == 1
+    only = failures_of(result)
+    assert len(only) == 1, (
+        f"the row alone lost it, so membership on the row must be the only failure:\n{only}"
+    )
+    assert only[0].startswith("docs/STATUS.md — the Published versions row:"), only[0]
+    assert "1 release(s) missing — 0.20.0" in only[0], only[0]
+
+
+def test_the_row_drifting_behind_the_prose_beside_it_is_caught(tmp_path: Path) -> None:
+    """The shape the real drift had: the row simply stops early while the prose carries on.
+
+    The row is rewritten whole rather than appended to, so it does not fall behind by one the way
+    the prose does — it is forgotten, and the gap is however many releases shipped since anyone
+    last retyped the cell. Three is already past the declared lag, and by then the not-behind rule
+    has been red for three releases: both fire, and the test asserts both.
+    """
+    versions = _versions()
+    result = run(str(_tree(tmp_path, versions=versions, row_versions=versions[:-3])))
+
+    assert result.returncode == 1
+    only = failures_of(result)
+    # Both bounds, and both are about the row: three behind is past the declared lag, and the
+    # prose beside it carries all three. Asserting one would mean either bound could be deleted
+    # while this stayed green — and the point of the pair is that they catch the drift at
+    # different moments, the tight one at its first commit and the loose one at its third.
+    assert len(only) == 2, f"the drift trips the not-behind rule and the lag bound:\n{only}"
+    assert all(line.startswith("docs/STATUS.md — the Published versions row:") for line in only), (
+        only
+    )
+    not_behind = [line for line in only if "the Published on PyPI prose at" in line]
+    lag = [line for line in only if "releases behind" in line]
+    assert len(not_behind) == 1 and len(lag) == 1, only
+    assert f"newest {versions[-4]}" in not_behind[0], not_behind[0]
+    assert f"at {versions[-1]}" in not_behind[0], not_behind[0]
+    assert "3 releases behind" in lag[0], lag[0]
+    assert f"newest here {versions[-4]}" in lag[0], lag[0]
+    assert f"newest overall {versions[-1]}" in lag[0], lag[0]
+
+
+def test_the_prose_beside_the_row_is_not_read_as_part_of_it(tmp_path: Path) -> None:
+    """The scoping, proved by a tree that only passes if it holds.
+
+    `_row` writes version numbers *after* the enumeration and in descending order, mirroring the
+    real cell. If the `within` anchor stopped scoping — or were replaced by a bare pattern over the
+    file — those trailing numbers would join the sequence and it would read as unsorted. So a green
+    run here is the assertion, and the count is what says which list was read.
+    """
+    versions = _versions()
+    result = run(str(_tree(tmp_path, versions=versions)))
+
+    assert result.returncode == 0, result.stderr
+    match = re.search(r"the Published versions row: (\d+) releases,", result.stdout)
+    assert match is not None, result.stdout
+    assert int(match.group(1)) == len(versions), (
+        "the row must contain exactly the enumeration — more means the trailing prose was read "
+        f"into it, fewer means the anchor is clipping it:\n{result.stdout}"
+    )
+
+
+def test_a_renamed_row_matches_nothing_rather_than_passing_vacuously(tmp_path: Path) -> None:
+    """The anchor's own vacuity check.
+
+    A `within` that matches nothing yields an empty sequence, and an empty sequence is sorted by
+    definition — the one way a check like this dies quietly. Reformat or rename the row and the
+    floor fires in the commit that does it.
+    """
+    versions = _versions()
+    root = _tree(tmp_path, versions=versions)
+    status = root / "docs" / "STATUS.md"
+    status.write_text(
+        status.read_text(encoding="utf-8").replace(
+            "| Published versions |", "| Versions published |"
+        ),
+        encoding="utf-8",
+    )
+
+    result = run(str(root))
+
+    assert result.returncode == 1
+    only = failures_of(result)
+    assert len(only) == 1, f"the floor on the row alone should fire here:\n{only}"
+    assert only[0].startswith("docs/STATUS.md — the Published versions row:"), only[0]
+    assert "matched 0 release(s)" in only[0], only[0]
+    assert "stopped matching what it names" in only[0], only[0]
+
+
+def test_a_second_row_is_refused_rather_than_read_first(tmp_path: Path) -> None:
+    """Two regions is a different fault from none, and is not folded into it.
+
+    Taking the first of several matches would splice two lists into one sequence and call it
+    sorted — the "derived, never declared" mistake this module refuses everywhere else, one layer
+    down, with the anchor deciding for itself which region it meant.
+    """
+    versions = _versions()
+    root = _tree(tmp_path, versions=versions, extra_row=_row(list(reversed(versions))))
+
+    result = run(str(root))
+
+    assert result.returncode == 1
+    assert "a region this gate reads is no longer unique" in result.stderr, result.stderr
+    assert "matched 2 regions" in result.stderr, result.stderr
+    assert "the Published versions row" in result.stderr, result.stderr
+    assert failures_of(result) == [], (
+        "this stops the gate before any sequence is checked, so it must not also be reported as "
+        f"an ordering failure:\n{result.stderr}"
+    )
+
+
+def test_a_within_anchor_with_the_wrong_number_of_groups_is_refused_at_import(
+    tmp_path: Path,
+) -> None:
+    """The region is what the group captures, so a mis-specified anchor is a programming error in a
+    constant and fails when the module is built rather than when a document is read.
+
+    Zero groups would capture the whole match — the row including its label — and two would make
+    which one is meant a matter of position.
+    """
+    probe = tmp_path / "probe.py"
+    probe.write_text(
+        "import importlib.util, sys\n"
+        f"spec = importlib.util.spec_from_file_location('rog', {str(TOOL)!r})\n"
+        "assert spec and spec.loader\n"
+        "mod = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(mod)\n"
+        "for anchor in (r'^\\| Published versions \\| \\*\\*.+?\\*\\*', r'^(a)(b)'):\n"
+        "    try:\n"
+        "        mod.Sequence('docs/X.md', 'a row', mod.NUM, ascending=True,\n"
+        "                     starts_at=(0, 0, 0), within=anchor)\n"
+        "    except ValueError as exc:\n"
+        "        print('refused:', exc)\n"
+        "    else:\n"
+        "        sys.exit('accepted an anchor with the wrong group count: ' + anchor)\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, str(probe)], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert result.stdout.count("refused:") == 2, result.stdout
+    assert "has 0." in result.stdout and "has 2." in result.stdout, result.stdout
+
+
+def test_the_row_may_not_lag_the_prose_recording_the_same_verification(tmp_path: Path) -> None:
+    """The tight bound the lag constant is only a loose backstop for.
+
+    Both lists record one event — a release verified from the index — so the prose naming a release
+    the row omits is not latency. It is the row having been forgotten by a sweep that remembered
+    the prose, which is how both recorded drifts began. One behind is inside `MAX_VERIFICATION_LAG`
+    and invisible to every other check here, and one behind is where both drifts started.
+    """
+    versions = _versions()
+    result = run(str(_tree(tmp_path, versions=versions, row_versions=versions[:-1])))
+
+    assert result.returncode == 1
+    only = failures_of(result)
+    assert len(only) == 1, (
+        f"one behind is within the lag bound and leaves no hole, so this must be the only "
+        f"failure — if the lag bound also fired, this test is not about what it says:\n{only}"
+    )
+    assert only[0].startswith("docs/STATUS.md — the Published versions row:"), only[0]
+    assert f"newest {versions[-2]}" in only[0], only[0]
+    assert "the Published on PyPI prose" in only[0], only[0]
+    assert f"at {versions[-1]}" in only[0], only[0]
+
+
+def test_the_row_may_still_lag_the_release_documents_alongside_the_prose(tmp_path: Path) -> None:
+    """And the rule must not over-fire, which is the half that makes it usable.
+
+    Between cutting a release and verifying it on the index, *both* lists are legitimately a
+    release behind CHANGELOG — measured as the ordinary state in 53 of the 67 commits carrying
+    both. A rule that went red there would be turned off within a week.
+    """
+    versions = _versions()
+    behind = versions[:-1]
+    result = run(
+        str(_tree(tmp_path, versions=versions, row_versions=behind, prose_versions=behind))
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_a_not_behind_naming_no_sequence_is_refused_when_the_module_is_built(
+    tmp_path: Path,
+) -> None:
+    """A `not_behind` pointing at a label that does not exist would disable itself in silence —
+    the failure mode this whole module is written against, one layer up in the constants.
+
+    It feeds the validator a **bad** sequence, not only the real constants. Handing a guard the
+    input it already validates asserts nothing about the guard: that test passes whether or not
+    the refusal exists, which is how E7's tautological guard-test got written.
+    """
+    probe = tmp_path / "probe.py"
+    probe.write_text(
+        "import importlib.util, sys\n"
+        f"spec = importlib.util.spec_from_file_location('rog', {str(TOOL)!r})\n"
+        "assert spec and spec.loader\n"
+        "mod = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(mod)\n"
+        "declared = [s for s in mod.SEQUENCES if s.not_behind is not None]\n"
+        "assert declared, 'no sequence declares not_behind, so the guard guards nothing'\n"
+        "mod._validate_not_behind(mod.SEQUENCES)\n"
+        "bogus = mod.Sequence('docs/STATUS.md', 'a row', mod.NUM, ascending=True,\n"
+        "                     starts_at=(0, 0, 0), not_behind=('docs/STATUS.md', 'no such list'))\n"
+        "try:\n"
+        "    mod._validate_not_behind((bogus,))\n"
+        "except ValueError as exc:\n"
+        "    print('refused:', exc)\n"
+        "else:\n"
+        "    sys.exit('accepted a not_behind naming a sequence that does not exist')\n"
+        "print('declared:', len(declared))\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, str(probe)], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "declared: 1" in result.stdout, result.stdout
