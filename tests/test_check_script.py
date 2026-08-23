@@ -312,7 +312,21 @@ def _job_cannot_be_switched_off(document: dict[str, Any], name: str) -> None:
     assert not disabling, f"the {name} job itself carries {sorted(disabling)}"
 
 
-def _gate_invocation(run: str, where: str) -> str:
+def _commands(text: str) -> str:
+    """`text` with comment lines removed and `\\`-continuations joined.
+
+    Both halves have caught real defects and neither is optional. `step["run"]` is a YAML literal
+    block that carries the step's own `#` lines, and a make recipe line beginning `\\t#` is handed
+    to `/bin/sh`, which ignores it and exits 0 — so in **both** formats commenting the commands out
+    leaves every substring assertion satisfied by the prose that explains them. Measured
+    20260822: a `make` target whose only real command is commented out prints its success line and
+    exits 0.
+    """
+    kept = [line for line in text.splitlines() if not line.lstrip(" \t").startswith("#")]
+    return re.sub(r"\\\n\s*", " ", "\n".join(kept))
+
+
+def _gate_invocation(text: str, where: str, *, under_timeout: bool = True) -> str:
     """The one logical line that runs the handshake gate, asserted to be a **simple command**.
 
     *A gate is only a gate when its exit status is what the next command reads*, and this is the
@@ -322,29 +336,48 @@ def _gate_invocation(run: str, where: str) -> str:
     *printing* behaviour with `| tee` is not even a perverse edit; it is the obvious one, since the
     shape it replaced existed precisely to print the gate's output (review, 20260822).
 
-    Continuation lines are joined first, because the invocation spans two of them and every
-    disarming form would sit on the second.
+    **Applied to all three call sites, which is the second half of that review's lesson.** It was
+    written for the two workflows and not for `make smoke` — the very call site whose omission had
+    been the review's headline finding — so a capture there was still green one round later.
+
+    Command substitutions are blanked before the line is judged, and *that* is what distinguishes an
+    argument from a capture. `--expect-version "$(basename dist/*.whl | cut -d- -f2)"` holds a pipe
+    that has nothing to do with the gate's status, while `out=$(… mcp_handshake_gate.py …)` holds
+    the gate itself — and blanking makes the difference observable, because in the second case the
+    gate's own name disappears with the substitution.
+
+    `under_timeout` is false for the Makefile alone: `timeout` is coreutils, which macOS does not
+    ship, and locally a hang is a person's Ctrl-C rather than a burnt job budget. The gate carries
+    its own 30-second ceiling in every case.
     """
-    commands = "\n".join(line for line in run.splitlines() if not line.lstrip().startswith("#"))
-    logical = re.sub(r"\\\n\s*", " ", commands)
+    logical = _commands(text)
+    assert "set +e" not in logical, (
+        f"{where}: `set +e` — the gate's non-zero exit stops leaving the step, and every "
+        f"assertion about the invocation itself stays true"
+    )
     lines = [line.strip() for line in logical.splitlines() if "mcp_handshake_gate.py" in line]
     assert len(lines) == 1, f"{where}: expected one handshake invocation, found {len(lines)}"
     line = lines[0]
+    outside = re.sub(r"\$+\([^)]*\)", "", line)
+    assert "mcp_handshake_gate.py" in outside, (
+        f"{where}: the gate runs inside a command substitution, so its failure becomes a string "
+        f"and the line's status is whatever came after it"
+    )
     for disarming, why in (
         ("|", "a pipeline reports the last stage's status, not the gate's"),
         ("&&", "a conditional list can be entered on a status nobody read"),
-        ("$(", "a capture turns the gate's failure into a string"),
-        ("`", "a backticked capture does the same, less visibly"),
+        ("`", "a backticked capture turns the gate's failure into a string"),
     ):
-        assert disarming not in line, f"{where}: `{disarming}` in the gate's invocation — {why}"
-    assert not line.startswith(("if ", "! ", "out=")), (
+        assert disarming not in outside, f"{where}: `{disarming}` in the gate's invocation — {why}"
+    assert not outside.lstrip().startswith(("if ", "! ", "out=")), (
         f"{where}: the gate's status is consumed by the line itself rather than by `set -e`"
     )
-    assert re.match(r"timeout \d+ uv run", line), (
-        f"{where}: the gate is not run under `timeout`. How a session ends is a property of "
-        f"whichever mcp the fresh resolve took — the thing that changes with no commit here — so "
-        f"a server that never answers must cost seconds rather than the job"
-    )
+    if under_timeout:
+        assert re.match(r"timeout \d+ uv run", line), (
+            f"{where}: the gate is not run under `timeout`. How a session ends is a property of "
+            f"whichever mcp the fresh resolve took — the thing that changes with no commit here — "
+            f"so a server that never answers must cost seconds rather than the job"
+        )
     return line
 
 
@@ -500,19 +533,22 @@ def test_no_automated_caller_can_regenerate_the_tool_schemas_it_is_supposed_to_c
     with every change to the contract, and the run would stay green while doing it.
 
     The tool's docstring says the flag must never appear there and its test says so too; neither is
-    a gate. This is, and it covers the three places a scheduled or automated run could reach it —
-    both workflows and the Makefile — rather than the one that happened to be edited last.
+    a gate. This is, and it covers every place a run nobody is watching could reach it: both
+    workflows, the Makefile, and **`check.sh`** — which the first version of this test omitted while
+    its docstring claimed to enumerate the places. `check.sh` is where every other tool in `tools/`
+    is invoked and the most natural place for someone to wire this one in locally, which makes it
+    the likeliest omission rather than a thorough one.
 
     Comments are stripped first: the sentence explaining *why* the flag is absent names the flag.
     """
+    root = Path(__file__).parent.parent
     for label, text in (
         ("ci.yml", _workflow()),
         ("release.yml", RELEASE_WORKFLOW.read_text(encoding="utf-8")),
-        ("the Makefile", (Path(__file__).parent.parent / "Makefile").read_text(encoding="utf-8")),
+        ("the Makefile", (root / "Makefile").read_text(encoding="utf-8")),
+        ("check.sh", (root / "check.sh").read_text(encoding="utf-8")),
     ):
-        commands = "\n".join(
-            line for line in text.splitlines() if not line.lstrip().startswith(("#", "//"))
-        )
+        commands = _commands(text)
         assert "--update-snapshot" not in commands, (
             f"{label} regenerates the tool schemas it is supposed to be checking against — the "
             f"gate would then agree with any change to the four pinakes_* tools, and say so in "
@@ -547,7 +583,10 @@ def test_the_handshake_gate_is_watched_failing_for_the_reason_it_claims() -> Non
         "nothing in ci.yml watches the handshake gate fail, so a gate that silently passes "
         "everything would look exactly like this one does now"
     )
-    run = str(negative["run"])
+    # Comment-stripped, like every other read of a `run` block here. The string this looks for is
+    # named in the step's own explanatory comment, so reading the block raw would have been
+    # satisfied by the sentence describing the check after the check itself was deleted.
+    run = _commands(str(negative["run"]))
     assert "serverInfo.version is" in run, (
         "the negative check does not name the failure it expects, so a run where the gate never "
         "reached a server would satisfy it"
@@ -762,34 +801,23 @@ def test_make_smoke_exercises_the_wheel_rather_than_only_its_version() -> None:
     target = re.search(r"^smoke:.*?\n(?P<body>(?:\t.*\n|\n)*)", makefile, re.MULTILINE)
     assert target is not None, "the Makefile has no smoke target"
     body = target.group("body")
-    assert "tools/wheel_import_gate.py" in body, "make smoke no longer imports the wheel"
-    assert "tools/mcp_handshake_gate.py" in body, "make smoke no longer drives a handshake"
-    assert "--expect-version" in body, (
+    # **Comment-stripped before anything is read.** A recipe line beginning `\t#` is handed to
+    # `/bin/sh`, which ignores it and exits 0, so commenting the gate out left every substring
+    # assertion below satisfied by the comment and the target printing its success line over a
+    # server it never started. Measured 20260822, one review round after the same defect was fixed
+    # for `release.yml` and not here.
+    logical = _commands(body)
+    assert "tools/wheel_import_gate.py" in logical, "make smoke no longer imports the wheel"
+    assert "--expect-version" in logical, (
         "make smoke starts a server and never asks which version it tells a client it is"
     )
-    assert '"method":"initialize"' not in body, (
+    assert '"method":"initialize"' not in logical, (
         "the handshake is hand-rolled again — three lines and a closed stdin, which mcp 2.x "
         "answers 2 runs in 10. It must go through tools/mcp_handshake_gate.py"
     )
-    # Continuation lines joined first: the pipe that caused the original defect lived on the line
-    # *after* `pnk serve`, so a per-line check saw nothing and reintroducing `| tee` survived the
-    # battery. The same shape as reading a sequence rather than a neighbourhood.
-    #
-    # Command substitutions are blanked before the pipe is looked for. `--expect-version
-    # "$(basename dist/*.whl | cut -d- -f2)"` contains a pipe that builds an *argument* and has
-    # nothing to do with the gate's status; without this the check fires on the correct recipe,
-    # which is a false positive in the assertion whose value is that a failure means something.
-    logical = re.sub(r"\\\n\s*", " ", body)
-    outside_substitutions = re.sub(r"\$\([^)]*\)", "", logical)
-    piped = [
-        line
-        for line in outside_substitutions.splitlines()
-        if "mcp_handshake_gate.py" in line and "|" in line
-    ]
-    assert not piped, (
-        f"the handshake gate's output is piped, so the recipe line reports the last stage's exit "
-        f"status and the gate's own failure is discarded: {piped}"
-    )
+    # The same rule the two workflows get, and for the same reason. `timeout` is coreutils, which
+    # macOS does not ship; the gate's own ceiling covers the case locally.
+    _gate_invocation(body, "make smoke's handshake", under_timeout=False)
     # make has its own `continue-on-error`, and it is one character: a recipe line beginning `-`
     # has its exit status ignored. Prefixing either `grep` restored the exact defect the pipe fix
     # removed — the target printing "answers an MCP handshake" over a check that failed, exit 0.
