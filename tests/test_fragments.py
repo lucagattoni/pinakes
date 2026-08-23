@@ -576,3 +576,73 @@ def test_the_duplicate_message_names_the_mechanism_that_belongs_to_the_stream(re
     assert "repeats the heading" in retro and "repeats the heading" in changelog_err
     assert "_merge_into_section" in changelog_err, "the stream that actually has that merge step"
     assert "_merge_into_section" not in retro, "…and the stream that does not, must not claim it"
+
+
+def test_apply_is_one_step_or_none_across_every_stream(repo: Path) -> None:
+    """`--apply` walks two streams. Refusing mid-walk wrote `CHANGELOG.md` and deleted its
+    fragments, then exited 1 printing *"Nothing written, no fragment deleted"* — a false statement
+    about a half-applied release, in the direction that destroys the evidence. Every stream is
+    spliced and validated before any stream is written."""
+    write(
+        repo,
+        "docs/RETROSPECTIVES.md",
+        "# Retrospectives\n\n## I1 - first (20260725 13:40)\n\n"
+        "## I1 - first (20260725 13:40)\n\nbody\n\n"
+        "## Design review passes 1-7 (pre-implementation)\n\nfooter\n",
+    )
+    write(repo, "changelog.d/added-one.md", "- **A changelog thing.**")
+    write(repo, "retro.d/a-lesson.md", "Retro prose.")
+    before = changelog(repo)
+
+    result = run(repo, "--apply")
+
+    assert result.returncode == 1
+    assert "no fragment deleted" in result.stderr
+    assert changelog(repo) == before, "the healthy stream must not be written either"
+    assert (repo / "changelog.d" / "added-one.md").is_file(), "…nor its fragments deleted"
+
+
+def test_a_heading_inside_a_fenced_block_is_not_a_splice_target(repo: Path) -> None:
+    """The splicer and the checker have to agree about what a heading is. `document_problems`
+    skips fenced blocks and `_merge_into_section` did not, so a column-zero fence containing
+    `### Added` was a heading to one and not the other: the entry spliced *inside* the code block,
+    `--apply` exited 0, the fragment was deleted, and `--check` passed on the result — the entry
+    rendering as sample code nobody would ever find."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n- **Pre-existing.** Rendered:\n\n"
+        "```markdown\n### Added\n\n- an example, inside a fence\n```\n\n"
+        "## [0.1.0] - 20260101 09:00\n\n- older\n",
+    )
+    write(repo, "changelog.d/added-one.md", "- **A new thing.**")
+
+    assert run(repo, "--stream", "changelog", "--apply").returncode == 0
+
+    after = changelog(repo)
+    unreleased = after[after.index("## [Unreleased]") : after.index("## [0.1.0]")]
+    entry = unreleased.index("A new thing")
+    fences = [i for i, line in enumerate(unreleased[:entry].split("\n")) if line.startswith("```")]
+    assert len(fences) % 2 == 0, "the entry landed inside the fenced example"
+    assert unreleased.index("### Added") < entry, "…under a real heading of its own"
+
+
+def test_an_anchor_inside_a_fenced_block_is_not_the_splice_point(repo: Path) -> None:
+    """Same disagreement, one function up: `splice` finds the anchor by scanning for the literal
+    line, so a changelog entry quoting `## [Unreleased]` inside a fence would become the insertion
+    point and bury every future release inside a code block."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n- **A note.** The anchor looks like this:\n\n"
+        "```markdown\n## [Unreleased]\n```\n\n"
+        "## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n- older\n",
+    )
+    write(repo, "changelog.d/added-one.md", "- **A new thing.**")
+
+    assert run(repo, "--stream", "changelog", "--apply").returncode == 0
+
+    after = changelog(repo)
+    assert after.index("A new thing") > after.index("```\n\n## [Unreleased]"), (
+        "spliced at the quoted anchor rather than the real one"
+    )

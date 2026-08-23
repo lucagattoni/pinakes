@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 14
+mutants = 17
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -54,9 +54,11 @@ new = '''        elif False and opens_with_front_matter(body):'''
 kills = "tests/test_fragments.py::test_front_matter_is_refused_before_apply_can_splice_it"
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
-# 0.30.0's open-corrections item · the assembled document, not the fragments going into it
+# unreleased, 20260823 · the assembled document, not the fragments going into it
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 #
+# Closes the open-corrections item that landed in 0.30.0 — a reference to a cut release,
+# not a version for this work, which is not cut (`README.md`: unreleased says so).
 # `--check` parsed every pending fragment and asserted nothing about the result of `--apply`.
 # `## [0.28.3]` carried `### Fixed` twice consecutively with a bare paragraph for a body, and
 # `--check` exited 0. Two rules on the result: a heading never repeats consecutively, an entry
@@ -142,3 +144,33 @@ file = "tools/fragments.py"
 old = '''                    if stream.categories is not None'''
 new = '''                    if True'''
 kills = "tests/test_fragments.py::test_the_duplicate_message_names_the_mechanism_that_belongs_to_the_stream"
+
+# Three from the adversarial pass, all one defect wearing three hats: the splicer and the checker
+# disagreed about what a heading is, and `--apply` was not atomic across streams. Each was
+# reproduced end to end — written, fragments deleted, exit 0 — before it was fixed.
+
+[[mutant]]
+name = "--apply writes each stream as it goes, so a later refusal reports a lie about an earlier one"
+file = "tools/fragments.py"
+old = '''        planned.append((stream, spliced))'''
+new = '''        (repo / stream.target).write_text(spliced, encoding="utf-8")
+        for path in fragments_of(stream, repo):
+            path.unlink()
+        print(f"fragments: applied {stream.name} into {stream.target}, fragments removed.")'''
+kills = "tests/test_fragments.py::test_apply_is_one_step_or_none_across_every_stream"
+
+[[mutant]]
+name = "the merge scan stops skipping fences, so a fenced `### Added` becomes a splice target"
+file = "tools/fragments.py"
+old = '''        if index not in prose:
+            continue'''
+new = '''        if False:
+            continue'''
+kills = "tests/test_fragments.py::test_a_heading_inside_a_fenced_block_is_not_a_splice_target"
+
+[[mutant]]
+name = "the anchor scan stops skipping fences, so a quoted `## [Unreleased]` becomes the insert point"
+file = "tools/fragments.py"
+old = '''            if index in prose and line.rstrip("\n") == stream.insert_after:'''
+new = '''            if line.rstrip("\n") == stream.insert_after:'''
+kills = "tests/test_fragments.py::test_an_anchor_inside_a_fenced_block_is_not_the_splice_point"

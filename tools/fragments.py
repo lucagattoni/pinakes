@@ -357,6 +357,22 @@ def grouped_bodies(stream: Stream, repo: Path) -> dict[str, list[str]]:
     return grouped
 
 
+def _prose_indices(lines: list[str]) -> set[int]:
+    """0-based indices into `lines` that are *not* inside a fenced code block.
+
+    **The splicer and the checker have to agree about what a heading is.** `document_problems`
+    skips fenced blocks; the scans below did not, so a column-zero ```` ``` ```` block containing
+    `### Added` was a heading to `_merge_into_section` and not one to the gate. Demonstrated: a
+    fragment spliced *inside* the code block, `--apply` exited 0, the fragment was deleted, and
+    `--check` passed on the result — the entry rendering as sample code nobody would find.
+
+    Before this increment nothing read the document, so the disagreement had no second party and
+    the splicer's blindness was merely latent. Adding a gate that claims `--apply` cannot leave
+    the document malformed is what makes closing it part of the same change.
+    """
+    return {number - 1 for number, _ in prose_lines("".join(lines))[0]}
+
+
 def _merge_into_section(
     stream: Stream, lines: list[str], anchor_index: int, grouped: dict[str, list[str]]
 ) -> str:
@@ -370,14 +386,18 @@ def _merge_into_section(
     The region is the anchor's own section — up to the next `##` heading — so a `### Added`
     belonging to an *older release* further down is never written into.
     """
+    prose = _prose_indices(lines)
+
     end = len(lines)
     for index in range(anchor_index + 1, len(lines)):
-        if lines[index].startswith("## "):
+        if index in prose and lines[index].startswith("## "):
             end = index
             break
 
     existing: dict[str, int] = {}
     for index in range(anchor_index + 1, end):
+        if index not in prose:
+            continue
         heading = lines[index].rstrip("\n")
         if heading.startswith("### "):
             existing.setdefault(heading[4:].strip().lower(), index)
@@ -407,9 +427,10 @@ def splice(stream: Stream, rendered: str, repo: Path) -> str:
     text = (repo / stream.target).read_text(encoding="utf-8")
     lines = text.splitlines(keepends=True)
 
+    prose = _prose_indices(lines)
     if stream.insert_after is not None:
         for index, line in enumerate(lines):
-            if line.rstrip("\n") == stream.insert_after:
+            if index in prose and line.rstrip("\n") == stream.insert_after:
                 if stream.categories is not None:
                     return _merge_into_section(stream, lines, index, grouped_bodies(stream, repo))
                 head, tail = lines[: index + 1], lines[index + 1 :]
@@ -418,7 +439,7 @@ def splice(stream: Stream, rendered: str, repo: Path) -> str:
 
     assert stream.insert_before is not None
     for index, line in enumerate(lines):
-        if line.startswith(stream.insert_before):
+        if index in prose and line.startswith(stream.insert_before):
             head, tail = lines[:index], lines[index:]
             return "".join(head) + rendered + "\n" + "".join(tail)
     raise FragmentError(f"{stream.target}: anchor {stream.insert_before!r} not found")
@@ -468,6 +489,12 @@ def main() -> int:
         print(f"fragments: {counts} — all well-formed; {targets} well-formed.")
         return 0
 
+    # Every stream is spliced and validated before *any* stream is written, so the refusal below
+    # is true of the whole run rather than of the stream that happened to fail. `--apply` walks
+    # two streams: refusing mid-walk wrote `CHANGELOG.md` and deleted its fragments, then exited 1
+    # saying "Nothing written, no fragment deleted" — a false statement about a half-applied
+    # release, in the direction that destroys the evidence. A release step is one step or none.
+    planned: list[tuple[Stream, str]] = []
     for stream in streams:
         if problems := check(stream, repo):
             for problem in problems:
@@ -495,6 +522,9 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 1
+        planned.append((stream, spliced))
+
+    for stream, spliced in planned:
         (repo / stream.target).write_text(spliced, encoding="utf-8")
         for path in fragments_of(stream, repo):
             path.unlink()
