@@ -1,7 +1,8 @@
 # Guide — using Pinakes
 
 How to build, feed, search and share a knowledge base. Every command here was re-run against
-**0.28.1** (20260823, 02:26–02:39 UTC) and the output shown is what it printed, with three exceptions
+**0.28.1** (20260823, 02:26–02:39 UTC) — the build current when the pass ran, published as `0.28.2`,
+which changed no code path — and the output shown is what it printed, with three exceptions
 named where they appear: the paid `--deep` run in [Paying for an answer](#paying-for-an-answer) is
 a real transcript from 0.24.0 kept rather than re-bought, and the two-KB walkthrough in [Following
 links](#following-links-between-two-kbs) keeps its original ULIDs, since re-running it would change
