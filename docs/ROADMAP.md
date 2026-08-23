@@ -22,7 +22,7 @@ precision nobody measured.
 - **54 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
   [`0.30.0`](#0300--the-markdown-the-docs-site-never-sees-now-gated--20260823-1505)
   on 20260823.
-- **Latest on PyPI: `0.29.2`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.30.0`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
@@ -35,7 +35,7 @@ precision nobody measured.
   **0.25.1 is the sharpest case this project has had of that distinction**:
   every release from 0.22.0 on installed cleanly and reported the right version while
   `pnk ask --deep` could not make one successful call. Every release from `0.2.2` on is published —
-  **forty-six**, counted from the index rather than from this list's previous number — and read from
+  **forty-seven**, counted from the index rather than from this list's previous number — and read from
   `https://pypi.org/simple/pinakes/`, the endpoint installers use, because for minutes after an
   upload the `json` endpoint and uv's cache still report the previous version while `simple/` already
   carries the files. Checking `json` first says *the upload failed*, which is this project's recorded
