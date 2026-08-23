@@ -7,14 +7,17 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
+mutants = 4
+
 # ────────────────────────────────────────────────────────────────────────────────────────────────
-# 0.28.0 · a fragment that opens with front matter is refused before `--apply` can splice it
+# 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 #
-# Mutation battery for the two gates added 20260822.
-#
-# Mutant 1 is the control: a known-catchable change run first, because a battery with no kills is a
-# broken harness rather than a clean bill.
+# Written 20260822, in a battery that also covered `tools/release_order_gate.py`; those mutants
+# live in `tools-release_order_gate.toml`, one file per target. **No control here.** The source
+# battery's control was a `release_order_gate.py` mutant and went with the rest of them, so the
+# first row below is an ordinary mutant. A battery with no kills is a broken harness rather than
+# a clean bill, and with four rows over one function that is visible without a control row.
 
 [[mutant]]
 name = "the front-matter fence is never detected"

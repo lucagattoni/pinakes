@@ -15,11 +15,14 @@
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`, so there is
 # one less thing in it that can rot.
 
+mutants = 41
+
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · the sixth sequence — STATUS's *Published on PyPI* prose
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 #
-# Mutation battery for the two gates added 20260822.
+# Written 20260822 for the sixth sequence. (Its source battery also carried four mutants for
+# `tools/fragments.py`; those live in `tools-fragments.toml`, one file per target.)
 #
 # Mutant 1 is the control: a known-catchable change run first, because a battery with no kills is a
 # broken harness rather than a clean bill.
@@ -37,9 +40,14 @@ file = "tools/release_order_gate.py"
 # Anchor widened 20260823: 0.28.3 added a *second* `newest_may_lag=True` (the Published versions
 # row, below), so the bare line matched twice and `mutate.py` refused the whole battery. The
 # `minimum=15,` above it belongs to this sequence alone.
+#
+# **`new` carries the widening too, and the first draft did not** — it replaced two lines with
+# one, deleting `minimum=15,` as well as flipping the flag, so a KILLED row would have been a
+# claim about two changes under a name promising one. Repair both halves, always.
 old = '''        minimum=15,
         newest_may_lag=True,'''
-new = '''        newest_may_lag=False,'''
+new = '''        minimum=15,
+        newest_may_lag=False,'''
 kills = "tests/test_release_order_gate.py::test_the_prose_list_may_lag_the_release_sequences"
 
 [[mutant]]
@@ -61,10 +69,16 @@ name = "the prose sequence is read in the wrong direction"
 file = "tools/release_order_gate.py"
 # Anchor repaired 20260823: 0.28.0's `starts_at` landed *between* these two lines, so the pair
 # matched nothing and `mutate.py` refused. The two lines that now sit adjacent are as unique.
+#
+# **And `new` was repaired with it, on the second attempt.** Left at its pre-repair text it
+# deleted `starts_at` and duplicated `minimum=15,` — `keyword argument repeated`, a SyntaxError
+# at import, which this module's tests raise *inside* a test rather than at collection. So it
+# read KILLED, in a batch reporting `0 errored`, about a property never exercised.
+# `refuse_a_mutant_that_cannot_compile` exists because of this row.
 old = '''        ascending=True,
         starts_at=(0, 16, 0),'''
 new = '''        ascending=False,
-        minimum=15,'''
+        starts_at=(0, 16, 0),'''
 kills = "tests/test_release_order_gate.py::test_a_prose_entry_out_of_order_is_named_with_its_neighbour"
 
 [[mutant]]

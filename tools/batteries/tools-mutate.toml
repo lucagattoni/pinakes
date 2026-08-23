@@ -18,6 +18,8 @@
 #   target under `tests/`. Its guards are pinned by the batteries it reads being real, which is the
 #   one thing a mutation run cannot arrange.
 
+mutants = 18
+
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260823 · `--check-anchors` — the pre-flight without the subprocesses
 # ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -49,17 +51,20 @@ kills = "tests/test_mutate.py::test_check_anchors_reports_every_stale_anchor_not
 [[mutant]]
 name = "the check inherits the run's HEAD refusal, so it cannot answer mid-refactor"
 file = "tools/mutate.py"
-old = '''        refuse_a_test_file(root, battery.mutants)'''
-new = '''        refuse_a_test_file(root, battery.mutants)
-        refuse_unless_committed(root, [mutant.path for mutant in battery.mutants])'''
+# Re-anchored 20260823, the same day it was written: `refuse_a_test_file` moved inside a `try` and
+# the old one-line anchor left a `try` with no body. `refuse_a_mutant_that_cannot_compile` caught
+# it — the guard this increment added, on this increment's own battery, within the hour.
+old = '''            refuse_a_mutant_that_cannot_compile(battery.mutants)'''
+new = '''            refuse_a_mutant_that_cannot_compile(battery.mutants)
+            refuse_unless_committed(root, [m.path for m in battery.mutants])'''
 kills = "tests/test_mutate.py::test_check_anchors_reads_the_working_tree_rather_than_head"
 
 [[mutant]]
 name = "a test-file target is accepted once nothing is being written"
 file = "tools/mutate.py"
-old = '''        refuse_a_test_file(root, battery.mutants)
-        stale = 0'''
-new = '''        stale = 0'''
+old = '''            refuse_a_test_file(root, battery.mutants)
+            refuse_a_mutant_that_cannot_compile(battery.mutants)'''
+new = '''            refuse_a_mutant_that_cannot_compile(battery.mutants)'''
 kills = "tests/test_mutate.py::test_check_anchors_still_refuses_a_test_file_target"
 
 [[mutant]]
@@ -110,3 +115,65 @@ file = "tools/mutate.py"
 old = '''        nargs="+",'''
 new = '''        nargs=1,'''
 kills = "tests/test_mutate.py::test_check_anchors_refuses_a_file_claimed_by_two_batteries"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260823 · what the adversarial review added
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Each of these guards a way the *first* draft of this increment was wrong, so each is a mutant
+# aimed at a defect that actually happened rather than one that could.
+
+[[mutant]]
+name = "a mutant that cannot compile is written and run, and pytest decides what it meant"
+file = "tools/mutate.py"
+old = '''        except SyntaxError as exc:
+            refused.append('''
+new = '''        except SyntaxError as exc:
+            _ = exc
+            continue
+            refused.append('''
+kills = "tests/test_mutate.py::test_a_mutant_that_does_not_compile_is_refused_before_the_first_write"
+
+[[mutant]]
+name = "the compile guard reads the anchor rather than the edit, so every mutant looks fine"
+file = "tools/mutate.py"
+old = '''            _ = compile(text.replace(mutant.old, mutant.new), str(mutant.path), "exec")'''
+new = '''            _ = compile(text, str(mutant.path), "exec")'''
+kills = "tests/test_mutate.py::test_a_mutant_that_does_not_compile_is_refused_before_the_first_write"
+
+[[mutant]]
+name = "the compile guard uses ast.parse, which accepts the duplicate keyword that got through"
+file = "tools/mutate.py"
+old = '''            _ = compile(text.replace(mutant.old, mutant.new), str(mutant.path), "exec")'''
+# `__import__` because `ast` is not imported in this module — a mutant naming an undefined name
+# would be killed by a NameError traceback rather than by the property it claims, which is the
+# exact defect this section exists because of.
+new = '''            _ = __import__("ast").parse(text.replace(mutant.old, mutant.new))'''
+kills = "tests/test_mutate.py::test_the_compile_guard_catches_a_duplicate_keyword_which_ast_parse_accepts"
+
+[[mutant]]
+name = "a battery refusal aborts the batch again, discarding the problems already collected"
+file = "tools/mutate.py"
+old = '''        except MutationError as exc:
+            problems.append(f"{path}: {exc}")'''
+new = '''        except MutationError:
+            raise'''
+kills = "tests/test_mutate.py::test_a_refused_battery_does_not_discard_the_problems_already_found"
+
+[[mutant]]
+name = "the claim set keys on the path as typed, so one battery named twice reads as two"
+file = "tools/mutate.py"
+old = '''            claimed.setdefault(mutant.path, set()).add(path.resolve())'''
+new = '''            claimed.setdefault(mutant.path, set()).add(path)'''
+kills = "tests/test_mutate.py::test_one_battery_named_twice_is_not_a_double_claim"
+
+[[mutant]]
+name = "an interrupted --check-anchors claims a restore it never made"
+file = "tools/mutate.py"
+old = '''        restored = (
+            " — nothing was written, so there was nothing to restore."
+            if check_only'''
+new = '''        restored = (
+            " — nothing was written, so there was nothing to restore."
+            if not check_only'''
+kills = "tests/test_mutate.py::test_an_interrupted_check_does_not_claim_a_restore_it_never_made"

@@ -31,12 +31,20 @@ refusal here:
   and `PYTEST_ADDOPTS` is dropped from the child environment, because it is inherited and
   `PYTEST_ADDOPTS="-x"` in the operator's shell turns a mutant that two tests catch into a row
   saying one did;
+* **a mutant that does not compile is refused, not run.** A Python mutant whose result is a
+  `SyntaxError` tests nothing, and `KILLED` will not say so: found 20260823, on this tool's own
+  battery, where a repaired `old` had left its `new` behind and the resulting `keyword argument
+  repeated` arrived as an ordinary assertion failure because the module is imported *inside* the
+  test rather than at collection. `ast.parse` is not enough — it accepts `f(a=1, a=2)` and
+  `compile()` does not, which is exactly the case that got through;
 * **an invalid mutant is its own outcome** — pytest exits 2 with a collection `<error>`, not a
   `<failure>`. T4 misread that in both directions: once as a kill, once as a survival. The same
   `<error>` tag also covers a **setup or teardown** failure on a real node, which is the opposite
   event — the mutant ran and a fixture noticed it — so the two are told apart structurally (a
   collection failure carries no `line`) rather than folded together, which tallied a genuine
-  assertion-kill beside one as `0 killed`;
+  assertion-kill beside one as `0 killed`. The *syntax* half of "invalid" is refused above, before
+  anything is written, per this tool's own rule that a refusal available before the first write is
+  made there; what remains here is every invalidity only a run can find;
 * **the restore happens in a `finally`, and its bytes are verified** — a run killed mid-battery must
   not poison the mutants after it (L6). `SIGTERM`, `SIGHUP` and `SIGQUIT` are turned back into an
   unwind, because their default disposition ends the process *without* running `finally` and leaves
@@ -108,6 +116,12 @@ release. It is **the reasoning about which mutants were worth writing**: which b
 plausible, which are the shipped defect this increment closed, and which two exist only because a
 first-draft guard-test turned out to be a tautology. None of that is in the code, and none of it is
 re-derivable from it.
+
+**And the axis that historically rots is the selector, not the anchor.**
+`docs/RETROSPECTIVES.md` records it twice in one increment: *"a battery is source that goes stale
+like any other, and a SURVIVED row is a claim about a pair — the mutant and the selector — either
+half of which can be wrong."* The 78-of-81 measurement above is about anchors, which is the half
+that held; `tests/test_batteries.py` resolves the selectors, which is the half that broke.
 """
 
 from __future__ import annotations
@@ -345,6 +359,53 @@ def refuse_a_test_file(root: Path, mutants: Sequence[Mutant]) -> None:
             + "\n  ".join(m.path.relative_to(root).as_posix() for m in refused)
             + "\nA mutant in the file its own selector runs can make that test vacuous, and no "
             "outcome printed here would tell you it had. Do it by hand, and read the assertion."
+        )
+
+
+def refuse_a_mutant_that_cannot_compile(mutants: Sequence[Mutant]) -> None:
+    """A Python mutant whose result does not compile is invalid, and `KILLED` will not say so.
+
+    Found by this tool being used on itself, 20260823. Repairing a stale anchor had widened `old`
+    to two lines and left `new` at the one line it used to replace, so applying it deleted a
+    *neighbouring* keyword argument and duplicated another — `keyword argument repeated`, a
+    `SyntaxError` at import.
+
+    That should have been the ERRORED outcome, and it was not: `classify` reads a **collection**
+    error as the invalid mutant, and this module is imported *inside* the test rather than at
+    module scope, so the `SyntaxError` arrived as an ordinary assertion failure. The row read
+    `KILLED`, the summary read `41 killed, 0 errored`, and the property the mutant names was never
+    exercised. A confident row about a question nobody asked is the one thing this tool exists to
+    refuse, so it is refused here — before the first write, with the anchor pre-flight, rather than
+    inferred from what pytest happened to print.
+
+    `ast.parse` is not enough: it accepts `f(a=1, a=2)` and `compile()` rejects it, which is
+    precisely the case that got through. Only `.py` targets are checked — a battery may mutate a
+    workflow, a Makefile or a `pyproject.toml`, and nothing here can judge those.
+    """
+    refused: list[str] = []
+    for mutant in mutants:
+        # A missing target and a stale anchor are each owned by a check that reports them better,
+        # and both are reached before this one in a run. In `--check-anchors` this may run first,
+        # so it declines rather than reading a file that is not there.
+        if mutant.path.suffix != ".py" or not mutant.path.is_file():
+            continue
+        text = _decoded(mutant.path)
+        if text.count(mutant.old) != 1:
+            continue
+        try:
+            _ = compile(text.replace(mutant.old, mutant.new), str(mutant.path), "exec")
+        except SyntaxError as exc:
+            refused.append(
+                f"{mutant.name}: applying this to {mutant.path.name} does not compile — "
+                f"{exc.msg} (line {exc.lineno}).\n  edit: {mutant.edit}"
+            )
+    if refused:
+        raise MutationError(
+            "these mutants do not compile, so nothing they produce is a test of the property "
+            "they name:\n  "
+            + "\n  ".join(refused)
+            + "\nThe usual cause is a repaired `old` whose `new` was left behind. Repair both, "
+            "and re-read the edit rather than the anchor."
         )
 
 
@@ -792,6 +853,22 @@ def load_battery(path: Path, root: Path) -> Battery:
             f"`file`, `old`, `new` and `kills`."
         )
 
+    # Optional, and checked when present: a declared inventory. Nothing else in this tool or in
+    # `tests/test_batteries.py` is a *count*, so a committed battery could shrink to a single
+    # mutant with every check still green — and the sanctioned repair for a property that has
+    # genuinely gone is to delete its mutant, which makes shrinking the cheapest path to green
+    # during a refactor. Deleting a row then has to be a two-line edit that says so.
+    if "mutants" in data:
+        declared = data["mutants"]
+        if not isinstance(declared, int) or isinstance(declared, bool):
+            raise MutationError(f"{path}: `mutants` must be an integer count, not {declared!r}")
+        if declared != len(entries):
+            raise MutationError(
+                f"{path}: declares `mutants = {declared}` and carries {len(entries)}. If a mutant "
+                f"was deleted on purpose, say so in its section and change the count in the same "
+                f"edit; a corpus that can shrink silently reports on a question nobody asked."
+            )
+
     mutants: list[Mutant] = []
     for index, entry in enumerate(entries, start=1):
         where = f"{path}: mutant {index}"
@@ -852,6 +929,7 @@ def run_battery(root: Path, battery: Battery) -> list[Result]:
     refuse_a_test_file(root, battery.mutants)
     refuse_unless_committed(root, targets)
     refuse_an_anchor_that_is_not_unique(battery.mutants)
+    refuse_a_mutant_that_cannot_compile(battery.mutants)
     for target in targets:
         _ = clear_pycache(target)
 
@@ -1043,10 +1121,17 @@ def check_anchors(root: Path, loaded: Sequence[tuple[Path, Battery]]) -> int:
     claimed: dict[Path, set[Path]] = {}
 
     for path, battery in loaded:
-        refuse_a_test_file(root, battery.mutants)
+        # Collected, never raised. `run_battery` raises here because it must not write a mutant it
+        # cannot place; this mode promises *every* failure, and an exception on battery 1 of 4
+        # would throw away the problems already found and never read batteries 2 to 4.
+        try:
+            refuse_a_test_file(root, battery.mutants)
+            refuse_a_mutant_that_cannot_compile(battery.mutants)
+        except MutationError as exc:
+            problems.append(f"{path}: {exc}")
         stale = 0
         for mutant in battery.mutants:
-            claimed.setdefault(mutant.path, set()).add(path)
+            claimed.setdefault(mutant.path, set()).add(path.resolve())
             if not mutant.path.is_file():
                 stale += 1
                 problems.append(
@@ -1064,6 +1149,8 @@ def check_anchors(root: Path, loaded: Sequence[tuple[Path, Battery]]) -> int:
         print(f"{path}: {len(battery.mutants)} anchor(s) over {targets} file(s) — {verdict}")
 
     for target, batteries in sorted(claimed.items()):
+        # Resolved, so the same battery named twice under two spellings — `b.toml` and `./b.toml`,
+        # or a path through a symlink — is one battery and not a double claim.
         if len(batteries) > 1:
             problems.append(
                 f"{target.relative_to(root).as_posix()} is claimed by "
@@ -1154,13 +1241,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         results = run_battery(root, battery)
     except MutationError as exc:
+        # stdout is block-buffered when piped and stderr is not, so without this the refusal
+        # prints *above* the per-battery lines it applies to — the inverse of what happened.
+        sys.stdout.flush()
         print(f"mutate: {exc}", file=sys.stderr)
         return 1
     except KeyboardInterrupt as exc:
-        print(
-            f"\nmutate: interrupted ({exc}) — the target was restored on the way out.",
-            file=sys.stderr,
+        sys.stdout.flush()
+        # `--check-anchors` writes nothing, so it has no restore to claim. Saying it did would be
+        # the one kind of false reassurance this tool is built to avoid.
+        restored = (
+            " — nothing was written, so there was nothing to restore."
+            if check_only
+            else " — the target was restored on the way out."
         )
+        print(f"\nmutate: interrupted ({exc}){restored}", file=sys.stderr)
         return 1
     return report(results, allow_zero_kills=allow_zero_kills)
 

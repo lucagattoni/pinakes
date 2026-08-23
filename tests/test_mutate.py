@@ -44,6 +44,7 @@ from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 
@@ -303,7 +304,13 @@ def test_an_invalid_mutant_is_its_own_outcome_never_killed_and_never_survived(re
     """T4 misread a collection `ERROR` in both directions: once as a kill, once as a survival.
     pytest exits 2 for it, and the JUnit report carries `<error>` where a real failure carries
     `<failure>` — which is why the classification reads the report and not the exit code."""
-    path = battery(repo, clamp_mutant(name="a mutant that does not parse", new="min(value, MAX"))
+    # An import-time NameError rather than a syntax error: `refuse_a_mutant_that_cannot_compile`
+    # now refuses the syntax subset before anything is written, which is the tool's own rule that
+    # a refusal available before the first write is made there. Everything a run alone can
+    # discover — this — is still ERRORED.
+    path = battery(
+        repo, clamp_mutant(name="a mutant that does not import", old="MAX = 3", new="MAX = ABSENT")
+    )
     result = mutate(str(path), cwd=repo)
 
     assert result.returncode == 1, result.stdout + result.stderr
@@ -509,7 +516,7 @@ def test_a_teardown_error_is_not_a_kill_either(repo: Path) -> None:
 def test_the_pasteable_table_never_names_a_killer_on_a_row_it_calls_errored(repo: Path) -> None:
     """The summary is written to be pasted into a commit message, where it outlives the run. A row
     labelled ERRORED that lists a test under "Killed by" is a self-contradicting artefact."""
-    path = battery(repo, clamp_mutant(name="invalid", new="min(value, MAX"))
+    path = battery(repo, clamp_mutant(name="invalid", old="MAX = 3", new="MAX = ABSENT"))
     result = mutate(str(path), cwd=repo)
 
     row = next(line for line in result.stdout.splitlines() if line.startswith("| invalid |"))
@@ -810,12 +817,12 @@ def test_a_later_mutant_is_measured_on_a_clean_file(repo: Path) -> None:
     """Ordering: the invalid mutant goes first, and the valid one after it must still be killed."""
     path = battery(
         repo,
-        clamp_mutant(name="a mutant that does not parse", new="min(value, MAX"),
+        clamp_mutant(name="a mutant that does not import", old="MAX = 3", new="MAX = ABSENT"),
         clamp_mutant(name="the good one, which must be unaffected"),
     )
     result = mutate(str(path), cwd=repo)
 
-    assert "| a mutant that does not parse | ERRORED |" in result.stdout
+    assert "| a mutant that does not import | ERRORED |" in result.stdout
     assert "| the good one, which must be unaffected | KILLED |" in result.stdout
     assert "1 killed, 0 survived, 1 errored" in result.stdout
     assert git("status", "--porcelain", "--", "pkg/mod.py", cwd=repo) == ""
@@ -1271,16 +1278,20 @@ def test_check_anchors_reports_every_stale_anchor_not_only_the_first(repo: Path)
     prompt turns into three."""
     path = battery(
         repo,
-        clamp_mutant(name="gone", old="this is not in the file", new="nor is this"),
+        clamp_mutant(name="the first is stale", old="this is not in the file", new="nor is this"),
         clamp_mutant(),
-        clamp_mutant(name="also gone", old="neither is this one", new="or this"),
+        clamp_mutant(name="the third is stale", old="neither is this one", new="or this"),
     )
 
     result = mutate("--check-anchors", str(path), cwd=repo)
 
     assert result.returncode == 1
-    assert "gone: the anchor occurs 0 times" in result.stderr
-    assert "also gone: the anchor occurs 0 times" in result.stderr
+    # Neither name may be a substring of the other. They were `gone` and `also gone` until a review
+    # pass pointed out that `"gone: …" in stderr` is satisfied by the `also gone` line alone — so
+    # reporting only the *last* problem passed this test, which is half of what it exists to pin.
+    assert "the first is stale: the anchor occurs 0 times" in result.stderr
+    assert "the third is stale: the anchor occurs 0 times" in result.stderr
+    assert result.stderr.count("the anchor occurs 0 times") == 2
     assert "2 problem(s)" in result.stderr
     # The per-battery line is a summary of the same batch, so it must not read `all resolve` while
     # two problems are printed below it — a mutation pass found nothing asserting that.
@@ -1391,3 +1402,147 @@ def test_a_battery_check_anchors_passes_is_one_a_run_does_not_refuse(repo: Path)
     run = mutate(str(path), cwd=repo)
     assert run.returncode == 0, run.stdout + run.stderr
     assert "1 killed" in run.stdout
+
+
+def test_a_mutant_that_does_not_compile_is_refused_before_the_first_write(repo: Path) -> None:
+    """A Python mutant whose result does not compile tests nothing, and KILLED will not say so.
+
+    The recorded instance is this tool's own battery: a repaired `old` whose `new` was left behind
+    deleted a neighbouring keyword argument and duplicated another. `keyword argument repeated` is
+    a `SyntaxError` at import — which arrives as an ordinary assertion failure when the module is
+    imported *inside* a test rather than at collection, so the row read KILLED in a batch reporting
+    `0 errored`.
+    """
+    path = battery(repo, clamp_mutant(old="MAX = 3", new="MAX = (3"))
+
+    result = mutate(str(path), cwd=repo)
+
+    assert result.returncode == 1
+    assert "do not compile" in result.stderr
+    assert "the usual cause is a repaired `old`" in result.stderr.lower()
+    assert_nothing_ran(result)
+    assert "MAX = 3" in (repo / "pkg" / "mod.py").read_text(encoding="utf-8")
+
+
+def test_the_compile_guard_catches_a_duplicate_keyword_which_ast_parse_accepts(repo: Path) -> None:
+    """The discriminating case, and the one that actually got through.
+
+    `ast.parse("f(a=1, a=2)")` succeeds; `compile()` of the same source raises. A guard written
+    with `ast.parse` would have passed the very mutant it was added for, so the choice of
+    `compile` is asserted here rather than left to read like an implementation detail.
+    """
+    import ast as _ast
+
+    source = "f(a=1,\n  a=2)"
+    _ = _ast.parse(source)  # the control: this is what a weaker guard would have used
+    with pytest.raises(SyntaxError):
+        _ = compile(source, "<probe>", "exec")
+
+    _ = (repo / "pkg" / "call.py").write_text(
+        "def f(**kw: int) -> int:\n    return 0\n\n\nVALUE = f(a=1)\n", encoding="utf-8"
+    )
+    _ = git("add", "-A", cwd=repo)
+    _ = git("commit", "-q", "-m", "call", cwd=repo)
+    path = battery(
+        repo,
+        clamp_mutant(
+            name="a duplicate keyword, which ast.parse accepts",
+            file="pkg/call.py",
+            old="VALUE = f(a=1)",
+            new="VALUE = f(a=1,\n          a=2)",
+        ),
+    )
+
+    result = mutate(str(path), cwd=repo)
+
+    assert result.returncode == 1
+    assert "keyword argument repeated" in result.stderr
+    assert_nothing_ran(result)
+
+
+def test_a_non_python_target_is_not_put_through_the_compiler(repo: Path) -> None:
+    """The control for the guard above: a battery may mutate a workflow, a Makefile or a TOML file,
+    and nothing here can judge those. Refusing them as `does not compile` would make the whole
+    class unmutatable."""
+    _ = (repo / "config.toml").write_text('name = "scratch"\n', encoding="utf-8")
+    _ = git("add", "-A", cwd=repo)
+    _ = git("commit", "-q", "-m", "config", cwd=repo)
+    path = battery(
+        repo,
+        clamp_mutant(file="config.toml", old='name = "scratch"', new="this is not valid python ("),
+    )
+
+    result = mutate("--check-anchors", str(path), cwd=repo)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "do not compile" not in result.stderr
+
+
+def test_a_refused_battery_does_not_discard_the_problems_already_found(repo: Path) -> None:
+    """`--check-anchors` promises *every* failure. A raise on battery 1 of 2 would throw away what
+    it had, and never read battery 2 — which is the run's behaviour, and the thing this mode is
+    not."""
+    first = battery(repo, clamp_mutant(file="tests/test_pkg.py", old="clamp(10)", new="clamp(1)"))
+    second = second_battery(
+        repo, clamp_mutant(name="stale here", old="not present at all", new="nor here")
+    )
+
+    result = mutate("--check-anchors", str(first), str(second), cwd=repo)
+
+    assert result.returncode == 1
+    assert "mutating a test stays manual" in result.stderr
+    assert "stale here: the anchor occurs 0 times" in result.stderr, (
+        "the second battery was never read"
+    )
+    assert "2 problem(s)" in result.stderr
+
+
+def test_one_battery_named_twice_is_not_a_double_claim(repo: Path) -> None:
+    """One battery, two spellings of its path, is one battery. Keying the claim set on the string
+    as typed makes every file it names look claimed twice and refuses a correct directory."""
+    path = battery(repo, clamp_mutant())
+
+    result = mutate("--check-anchors", str(path), f"./{path.name}", cwd=repo)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "claimed by" not in result.stderr
+
+
+def test_an_interrupted_check_does_not_claim_a_restore_it_never_made(repo: Path) -> None:
+    """The signal handlers are installed for both modes, and their message was written for the run.
+
+    Driven in-process: the handler turns the signal into a `KeyboardInterrupt`, and what is under
+    test is only which sentence `main` then prints.
+    """
+    tool: Any = tool_module()
+    path = battery(repo, clamp_mutant())
+
+    def interrupt(*_args: object, **_kwargs: object) -> int:
+        raise KeyboardInterrupt("signal SIGTERM")
+
+    original = tool.check_anchors
+    tool.check_anchors = interrupt
+    try:
+        with pytest.MonkeyPatch.context() as patch:
+            patch.chdir(repo)
+            code = tool.main(["--check-anchors", str(path)])
+    finally:
+        tool.check_anchors = original
+
+    assert code == 1
+
+
+def test_the_committed_batteries_all_spell_the_file_key_the_same_way() -> None:
+    """The routing lookup in `tools/batteries/README.md` is a grep, so a battery written with
+    aligned keys (`file  =`) is invisible to it and reads as *no battery claims this file* — whose
+    documented remedy is to start a second one, the single thing the convention forbids."""
+    directory = TOOL.parent / "batteries"
+    aligned = [
+        path.name
+        for path in sorted(directory.glob("*.toml"))
+        if "\nfile  =" in path.read_text(encoding="utf-8")
+    ]
+    assert not aligned, (
+        "these batteries align the `file` key, which the documented routing grep cannot see: "
+        + ", ".join(aligned)
+    )

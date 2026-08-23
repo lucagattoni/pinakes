@@ -1,13 +1,15 @@
-# Mutation battery — `tools/mcp_handshake_gate.py`, and the five files that run it.
+# Mutation battery — `tools/mcp_handshake_gate.py`, and the six files that run it.
 #
 #     python3 tools/mutate.py tools/batteries/tools-mcp_handshake_gate.toml
 #
 # The guarantee is one thing — *a published wheel still answers `initialize` with Pinakes' own
-# name, Pinakes' own version and Pinakes' own tool list* — and it is spread across the gate, the
-# server, two workflows, a Makefile recipe and a dependency floor. **The mutants live together
-# because the guarantee does**, and because three of them are the same idea in three files: a
-# gate is only a gate when its exit status is what the next command reads (`| tee`, `|| true`,
-# `set +e`). Split by file, that pattern would be invisible.
+# name, Pinakes' own version and Pinakes' own tool list* — and it is spread across seven files:
+# the gate (8 mutants), `.github/workflows/ci.yml` (9), `.github/workflows/release.yml` (4),
+# the `Makefile` (3), `src/pinakes/serve.py` (2), `check.sh` (1) and `pyproject.toml`'s
+# dependency floor (1). **The mutants live together because the guarantee does**, and because
+# four of them are one idea in three files — a gate is only a gate when its exit status is what
+# the next command reads: `| tee` and `|| true` in ci.yml, `set +e` in release.yml, and a
+# command substitution in the Makefile. Split by file, that pattern would be invisible.
 #
 # `tools/batteries/README.md` says how a battery earns a name and how a file is routed to one:
 # a battery is named for its **primary target**, and no file may be claimed by two batteries.
@@ -15,6 +17,8 @@
 # **A row is a claim about one assertion, never about the contract.**
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 28
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.28.0 · the mcp 2.x port, and the handshake that proves a wheel still speaks
@@ -24,114 +28,114 @@
 # source. Run: uv run python tools/mutate.py <this file>
 
 [[mutant]]
-name  = "the server stops passing its own version, so serverInfo carries mcp's again"
-file  = "src/pinakes/serve.py"
-old   = '''mcp = MCPServer("pinakes", version=__version__)'''
-new   = '''mcp = MCPServer("pinakes")'''
+name = "the server stops passing its own version, so serverInfo carries mcp's again"
+file = "src/pinakes/serve.py"
+old = '''mcp = MCPServer("pinakes", version=__version__)'''
+new = '''mcp = MCPServer("pinakes")'''
 kills = [
   "tests/test_mcp_handshake_gate.py::test_a_real_session_lists_exactly_the_committed_tool_schemas",
   "tests/test_mcp_handshake_gate.py::test_the_version_a_client_is_told_is_pinakes_own_and_not_the_mcp_librarys",
 ]
 
 [[mutant]]
-name  = "the server calls itself something else"
-file  = "src/pinakes/serve.py"
-old   = '''mcp = MCPServer("pinakes", version=__version__)'''
-new   = '''mcp = MCPServer("pinakes-mcp", version=__version__)'''
+name = "the server calls itself something else"
+file = "src/pinakes/serve.py"
+old = '''mcp = MCPServer("pinakes", version=__version__)'''
+new = '''mcp = MCPServer("pinakes-mcp", version=__version__)'''
 kills = "tests/test_mcp_handshake_gate.py::test_a_real_session_lists_exactly_the_committed_tool_schemas"
 
 [[mutant]]
-name  = "the gate stops comparing the advertised version"
-file  = "tools/mcp_handshake_gate.py"
-old   = '''    if version != expected_version:'''
-new   = '''    if version is None:'''
+name = "the gate stops comparing the advertised version"
+file = "tools/mcp_handshake_gate.py"
+old = '''    if version != expected_version:'''
+new = '''    if version is None:'''
 kills = "tests/test_mcp_handshake_gate.py::test_the_version_a_client_is_told_is_pinakes_own_and_not_the_mcp_librarys"
 
 [[mutant]]
-name  = "the gate accepts any tool list"
-file  = "tools/mcp_handshake_gate.py"
-old   = '''    if actual == expected:'''
-new   = '''    if actual is not None:'''
+name = "the gate accepts any tool list"
+file = "tools/mcp_handshake_gate.py"
+old = '''    if actual == expected:'''
+new = '''    if actual is not None:'''
 kills = "tests/test_mcp_handshake_gate.py::test_a_snapshot_that_does_not_match_fails_and_shows_which_line_moved"
 
 [[mutant]]
-name  = "a missing snapshot is no longer refused before the spawn, so a server runs first"
-file  = "tools/mcp_handshake_gate.py"
-old   = '''    if not args.update_snapshot and not args.snapshot.is_file():'''
-new   = '''    if args.update_snapshot and not args.snapshot.is_file():'''
+name = "a missing snapshot is no longer refused before the spawn, so a server runs first"
+file = "tools/mcp_handshake_gate.py"
+old = '''    if not args.update_snapshot and not args.snapshot.is_file():'''
+new = '''    if args.update_snapshot and not args.snapshot.is_file():'''
 kills = "tests/test_mcp_handshake_gate.py::test_a_missing_snapshot_is_refused_before_a_server_is_ever_spawned"
 
 [[mutant]]
-name  = "the snapshot stops being ordered, so registration order leaks into the contract"
-file  = "tools/mcp_handshake_gate.py"
-old   = '''    ordered = sorted(tools, key=lambda tool: str(tool["name"]))'''
-new   = '''    ordered = list(tools)'''
+name = "the snapshot stops being ordered, so registration order leaks into the contract"
+file = "tools/mcp_handshake_gate.py"
+old = '''    ordered = sorted(tools, key=lambda tool: str(tool["name"]))'''
+new = '''    ordered = list(tools)'''
 kills = "tests/test_mcp_handshake_gate.py::test_a_real_session_lists_exactly_the_committed_tool_schemas"
 
 [[mutant]]
-name  = "a command that is not on PATH stops being refused"
-file  = "tools/mcp_handshake_gate.py"
-old   = '''    if shutil.which(args.command) is None:'''
-new   = '''    if shutil.which(args.command) is not None:'''
+name = "a command that is not on PATH stops being refused"
+file = "tools/mcp_handshake_gate.py"
+old = '''    if shutil.which(args.command) is None:'''
+new = '''    if shutil.which(args.command) is not None:'''
 kills = "tests/test_mcp_handshake_gate.py::test_a_command_that_is_not_on_path_is_refused_rather_than_reported_as_a_pass"
 
 [[mutant]]
-name  = "ci.yml stops checking which version the server advertises"
-file  = ".github/workflows/ci.yml"
-old   = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version"'''
-new   = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --update-snapshot'''
+name = "ci.yml stops checking which version the server advertises"
+file = ".github/workflows/ci.yml"
+old = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version"'''
+new = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --update-snapshot'''
 kills = "tests/test_check_script.py::test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install"
 
 [[mutant]]
-name  = "ci.yml reads the expected version from the install it is checking"
-file  = ".github/workflows/ci.yml"
-old   = '''          version=$(basename "$wheel" | cut -d- -f2)
+name = "ci.yml reads the expected version from the install it is checking"
+file = ".github/workflows/ci.yml"
+old = '''          version=$(basename "$wheel" | cut -d- -f2)
           timeout 300 uv run'''
-new   = '''          version=$(uv run --isolated --no-project --with "$wheel" pnk --version | cut -d' ' -f2)
+new = '''          version=$(uv run --isolated --no-project --with "$wheel" pnk --version | cut -d' ' -f2)
           timeout 300 uv run'''
 kills = "tests/test_check_script.py::test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install"
 
 [[mutant]]
-name  = "ci.yml stops watching the handshake gate fail"
-file  = ".github/workflows/ci.yml"
-old   = '''               python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version 0.0.0 \'''
-new   = '''               python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --command pnk-absent \'''
+name = "ci.yml stops watching the handshake gate fail"
+file = ".github/workflows/ci.yml"
+old = '''               python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version 0.0.0 \'''
+new = '''               python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --command pnk-absent \'''
 kills = "tests/test_check_script.py::test_the_handshake_gate_is_watched_failing_for_the_reason_it_claims"
 
 [[mutant]]
-name  = "the negative check reads the exit status and stops naming the failure"
-file  = ".github/workflows/ci.yml"
-old   = '''          grep -q "serverInfo.version is" "$RUNNER_TEMP/handshake-negative.log" \'''
-new   = '''          grep -q "mcp-handshake-gate" "$RUNNER_TEMP/handshake-negative.log" \'''
+name = "the negative check reads the exit status and stops naming the failure"
+file = ".github/workflows/ci.yml"
+old = '''          grep -q "serverInfo.version is" "$RUNNER_TEMP/handshake-negative.log" \'''
+new = '''          grep -q "mcp-handshake-gate" "$RUNNER_TEMP/handshake-negative.log" \'''
 kills = "tests/test_check_script.py::test_the_handshake_gate_is_watched_failing_for_the_reason_it_claims"
 
 [[mutant]]
-name  = "release.yml publishes without asking what the wheel tells a client it is"
-file  = ".github/workflows/release.yml"
-old   = '''            python tools/mcp_handshake_gate.py --kb /tmp/release-smoke --expect-version "$version"'''
-new   = '''            python tools/mcp_handshake_gate.py --kb /tmp/release-smoke --update-snapshot'''
+name = "release.yml publishes without asking what the wheel tells a client it is"
+file = ".github/workflows/release.yml"
+old = '''            python tools/mcp_handshake_gate.py --kb /tmp/release-smoke --expect-version "$version"'''
+new = '''            python tools/mcp_handshake_gate.py --kb /tmp/release-smoke --update-snapshot'''
 kills = "tests/test_check_script.py::test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish"
 
 [[mutant]]
-name  = "release.yml reads the expected version from the wheel it is checking"
-file  = ".github/workflows/release.yml"
-old   = '''          version=$(basename "$wheel" | cut -d- -f2)'''
-new   = '''          version=$(uv run --isolated --no-project --with "$wheel" pnk --version | cut -d' ' -f2)'''
+name = "release.yml reads the expected version from the wheel it is checking"
+file = ".github/workflows/release.yml"
+old = '''          version=$(basename "$wheel" | cut -d- -f2)'''
+new = '''          version=$(uv run --isolated --no-project --with "$wheel" pnk --version | cut -d' ' -f2)'''
 kills = "tests/test_check_script.py::test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish"
 
 [[mutant]]
-name  = "the requirement's floor drops back to a version with no mcp.server.mcpserver"
-file  = "pyproject.toml"
-old   = '''    "mcp>=2",'''
-new   = '''    "mcp>=1.28",'''
+name = "the requirement's floor drops back to a version with no mcp.server.mcpserver"
+file = "pyproject.toml"
+old = '''    "mcp>=2",'''
+new = '''    "mcp>=1.28",'''
 kills = "tests/test_packaging.py::test_the_mcp_requirement_excludes_every_major_without_mcpserver"
 
 [[mutant]]
-name  = "the fresh-resolve leg loses the step that watches the handshake gate fail"
-file  = ".github/workflows/ci.yml"
-old   = '''      - name: The MCP handshake gate can still fail
+name = "the fresh-resolve leg loses the step that watches the handshake gate fail"
+file = ".github/workflows/ci.yml"
+old = '''      - name: The MCP handshake gate can still fail
         run: |'''
-new   = '''      - name: The MCP handshake gate can still fail
+new = '''      - name: The MCP handshake gate can still fail
         continue-on-error: true
         run: |'''
 kills = "tests/test_check_script.py::test_no_step_that_resolves_fresh_can_be_switched_off"
@@ -139,113 +143,116 @@ kills = "tests/test_check_script.py::test_no_step_that_resolves_fresh_can_be_swi
 # ---- Added by the review pass: the assertions the review's own fixes introduced. ----
 
 [[mutant]]
-name  = "the server's name stops being checked"
-file  = "tools/mcp_handshake_gate.py"
-old   = '''    if name != "pinakes":'''
-new   = '''    if name is None:'''
+name = "the server's name stops being checked"
+file = "tools/mcp_handshake_gate.py"
+old = '''    if name != "pinakes":'''
+new = '''    if name is None:'''
 kills = "tests/test_mcp_handshake_gate.py::test_a_server_answering_under_another_name_is_refused"
 
 [[mutant]]
-name  = "a failed session is re-raised instead of reported, so a workflow sees a traceback"
-file  = "tools/mcp_handshake_gate.py"
-old   = '''    except Exception as error:  # noqa: BLE001 — the gate reports, it does not raise at a workflow
+name = "a failed session is re-raised instead of reported, so a workflow sees a traceback"
+file = "tools/mcp_handshake_gate.py"
+old = '''    except Exception as error:  # noqa: BLE001 — the gate reports, it does not raise at a workflow
         print(f"mcp-handshake-gate: the session failed: {error!r}", file=sys.stderr)
         return 1'''
-new   = '''    except TypeError as error:  # noqa: BLE001 — the gate reports, it does not raise at a workflow
+new = '''    except TypeError as error:  # noqa: BLE001 — the gate reports, it does not raise at a workflow
         print(f"mcp-handshake-gate: the session failed: {error!r}", file=sys.stderr)
         return 1'''
 kills = "tests/test_mcp_handshake_gate.py::test_a_server_that_dies_on_import_is_reported_as_a_failed_session"
 
 [[mutant]]
-name  = "the session timeout stops being honoured"
-file  = "tools/mcp_handshake_gate.py"
-old   = '''            asyncio.wait_for(_session_payload(args.command, args.kb), timeout=args.timeout)'''
-new   = '''            asyncio.wait_for(_session_payload(args.command, args.kb), timeout=25.0)'''
+name = "the session timeout stops being honoured"
+file = "tools/mcp_handshake_gate.py"
+old = '''            asyncio.wait_for(_session_payload(args.command, args.kb), timeout=args.timeout)'''
+new = '''            asyncio.wait_for(_session_payload(args.command, args.kb), timeout=25.0)'''
 kills = "tests/test_mcp_handshake_gate.py::test_a_server_that_never_answers_costs_the_timeout_and_not_the_job"
 
 [[mutant]]
-name  = "ci.yml pipes the gate into tee, so the step reads tee's status"
-file  = ".github/workflows/ci.yml"
-old   = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version"'''
-new   = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version" | tee "$RUNNER_TEMP/handshake.log"'''
+name = "ci.yml pipes the gate into tee, so the step reads tee's status"
+file = ".github/workflows/ci.yml"
+old = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version"'''
+new = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version" | tee "$RUNNER_TEMP/handshake.log"'''
 kills = "tests/test_check_script.py::test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install"
 
 [[mutant]]
-name  = "ci.yml guards the gate with || true"
-file  = ".github/workflows/ci.yml"
-old   = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version"'''
-new   = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version" && echo ok'''
+name = "ci.yml guards the gate with || true"
+file = ".github/workflows/ci.yml"
+old = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version"'''
+# `|| true` rather than the `&& echo ok` this said until 20260823: the name promises a swallowed
+# failure and `&&` does not swallow one, so the row was killed by the assertion on the command's
+# text while claiming to be about its exit status.
+new = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version" || true'''
 kills = "tests/test_check_script.py::test_ci_drives_a_real_mcp_handshake_against_a_freshly_resolved_install"
 
 [[mutant]]
-name  = "ci.yml regenerates the schemas it is meant to be checking"
-file  = ".github/workflows/ci.yml"
-old   = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version"'''
-new   = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version" --update-snapshot'''
+name = "ci.yml regenerates the schemas it is meant to be checking"
+file = ".github/workflows/ci.yml"
+old = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version"'''
+new = '''            python tools/mcp_handshake_gate.py --kb /tmp/smoke/kb --expect-version "$version" --update-snapshot'''
 kills = "tests/test_check_script.py::test_no_automated_caller_can_regenerate_the_tool_schemas_it_is_supposed_to_check"
 
 [[mutant]]
-name  = "make smoke stops asking which version the wheel advertises"
-file  = "Makefile"
-old   = '''		--expect-version "$$(basename dist/*.whl | cut -d- -f2)"'''
-new   = '''		--update-snapshot'''
+name = "make smoke stops asking which version the wheel advertises"
+file = "Makefile"
+old = '''		--expect-version "$$(basename dist/*.whl | cut -d- -f2)"'''
+new = '''		--update-snapshot'''
 kills = [
   "tests/test_check_script.py::test_make_smoke_exercises_the_wheel_rather_than_only_its_version",
   "tests/test_check_script.py::test_no_automated_caller_can_regenerate_the_tool_schemas_it_is_supposed_to_check",
 ]
 
 [[mutant]]
-name  = "release.yml's handshake is commented out, leaving the words behind"
-file  = ".github/workflows/release.yml"
-old   = '''          timeout 300 uv run --isolated --no-project --with "$wheel" \
+name = "release.yml's handshake is commented out, leaving the words behind"
+file = ".github/workflows/release.yml"
+old = '''          timeout 300 uv run --isolated --no-project --with "$wheel" \
             python tools/mcp_handshake_gate.py --kb /tmp/release-smoke --expect-version "$version"'''
-new   = '''          # timeout 300 uv run --isolated --no-project --with "$wheel" \
+new = '''          # timeout 300 uv run --isolated --no-project --with "$wheel" \
           #   python tools/mcp_handshake_gate.py --kb /tmp/release-smoke --expect-version "$version"'''
 kills = "tests/test_check_script.py::test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish"
 
 # ---- Round two: the fixes' own assertions, at the shapes the review measured. ----
 
 [[mutant]]
-name  = "make smoke's handshake is commented out, and sh ignores it while make exits 0"
-file  = "Makefile"
-old   = '''	uv run --isolated --no-project --with dist/*.whl python tools/mcp_handshake_gate.py \
+name = "make smoke's handshake is commented out, and sh ignores it while make exits 0"
+file = "Makefile"
+old = '''	uv run --isolated --no-project --with dist/*.whl python tools/mcp_handshake_gate.py \
 		--kb /tmp/pinakes-smoke/kb \
 		--expect-version "$$(basename dist/*.whl | cut -d- -f2)"'''
-new   = '''	# uv run --isolated --no-project --with dist/*.whl python tools/mcp_handshake_gate.py \
+new = '''	# uv run --isolated --no-project --with dist/*.whl python tools/mcp_handshake_gate.py \
 	#	--kb /tmp/pinakes-smoke/kb \
 	#	--expect-version "$$(basename dist/*.whl | cut -d- -f2)"'''
 kills = "tests/test_check_script.py::test_make_smoke_exercises_the_wheel_rather_than_only_its_version"
 
 [[mutant]]
-name  = "make smoke captures the gate to print it, so make reads echo's status"
-file  = "Makefile"
-old   = '''	uv run --isolated --no-project --with dist/*.whl python tools/mcp_handshake_gate.py \
+name = "make smoke captures the gate to print it, so make reads echo's status"
+file = "Makefile"
+old = '''	uv run --isolated --no-project --with dist/*.whl python tools/mcp_handshake_gate.py \
 		--kb /tmp/pinakes-smoke/kb \
 		--expect-version "$$(basename dist/*.whl | cut -d- -f2)"'''
-new   = '''	out=$$(uv run --isolated --no-project --with dist/*.whl python tools/mcp_handshake_gate.py --kb /tmp/pinakes-smoke/kb --expect-version "$$(basename dist/*.whl | cut -d- -f2)"); echo "$$out"'''
+new = '''	out=$$(uv run --isolated --no-project --with dist/*.whl python tools/mcp_handshake_gate.py --kb /tmp/pinakes-smoke/kb --expect-version "$$(basename dist/*.whl | cut -d- -f2)"); echo "$$out"'''
 kills = "tests/test_check_script.py::test_make_smoke_exercises_the_wheel_rather_than_only_its_version"
 
 [[mutant]]
-name  = "ci.yml's negative check is commented out, leaving the string it greps for behind"
-file  = ".github/workflows/ci.yml"
-old   = '''          grep -q "serverInfo.version is" "$RUNNER_TEMP/handshake-negative.log" \
+name = "ci.yml's negative check is commented out, leaving the string it greps for behind"
+file = ".github/workflows/ci.yml"
+old = '''          grep -q "serverInfo.version is" "$RUNNER_TEMP/handshake-negative.log" \
             || { echo "::error::the gate failed, but not for the version — it may never have reached a server"; exit 1; }'''
-new   = '''          # grep -q "serverInfo.version is" "$RUNNER_TEMP/handshake-negative.log" \
+new = '''          # grep -q "serverInfo.version is" "$RUNNER_TEMP/handshake-negative.log" \
           #   || { echo "::error::the gate failed, but not for the version"; exit 1; }'''
 kills = "tests/test_check_script.py::test_the_handshake_gate_is_watched_failing_for_the_reason_it_claims"
 
 [[mutant]]
-name  = "release.yml turns off set -e before the gate that guards uv publish"
-file  = ".github/workflows/release.yml"
-old   = '''          version=$(basename "$wheel" | cut -d- -f2)'''
-new   = '''          set +e
+name = "release.yml turns off set -e before the gate that guards uv publish"
+file = ".github/workflows/release.yml"
+old = '''          version=$(basename "$wheel" | cut -d- -f2)'''
+new = '''          set +e
           version=$(basename "$wheel" | cut -d- -f2)'''
 kills = "tests/test_check_script.py::test_the_release_workflow_exercises_the_wheel_it_is_about_to_publish"
 
 [[mutant]]
-name  = "check.sh regenerates the schemas on every local run"
-file  = "check.sh"
-old   = '''echo "all gates green"'''
-new   = '''uv run --frozen python3 tools/mcp_handshake_gate.py --kb tests/demo-kb --update-snapshot
+name = "check.sh regenerates the schemas on every local run"
+file = "check.sh"
+old = '''echo "all gates green"'''
+new = '''uv run --frozen python3 tools/mcp_handshake_gate.py --kb tests/demo-kb --update-snapshot
 echo "all gates green"'''
 kills = "tests/test_check_script.py::test_no_automated_caller_can_regenerate_the_tool_schemas_it_is_supposed_to_check"
