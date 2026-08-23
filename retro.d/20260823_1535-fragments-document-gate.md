@@ -63,6 +63,28 @@ The second says the ordinary thing about fixtures: a fixture that omits the cons
 reads exercises nothing. The real `docs/RETROSPECTIVES.md` carries thirty-four `###` headings,
 every one opening with prose — the fixture now carries one. Re-run: **12 killed, 0 survived.**
 
+### What the adversarial pass found, and the shape all three share
+
+Five lenses over the diff. Three real defects, none of them in the two rules the item decided —
+**all three in the machinery around them**, and every one reproduced end to end (written, fragments
+deleted, exit 0, follow-up `--check` green on the wreckage) before it was touched.
+
+| Defect | Why it was invisible |
+|---|---|
+| `_merge_into_section` spliced an entry **inside a fenced code block** | The checker skips fences; the splicer did not. A column-zero ```` ``` ```` holding `### Added` was a heading to one and not the other |
+| `splice` would take a **quoted `## [Unreleased]`** as the insertion point | Same disagreement, one function up — it would bury every future release inside a code block |
+| `--apply` **was not atomic across streams** | Refusing on the second stream wrote the first and deleted its fragments, then exited 1 saying *"Nothing written, no fragment deleted"* |
+
+**The first two are one sentence: a checker and the code it checks must agree about what a heading
+is.** Before this increment nothing read the document, so the splicer's fence-blindness had no
+second party and was merely latent — genuinely harmless, for eleven releases. Adding a gate that
+*claims* `--apply` cannot leave the document malformed is what converted a latent asymmetry into a
+false claim, and that is why closing it belonged in this change rather than in a new item.
+
+The third is the plainer lesson and the one with teeth: **a refusal message is an assertion about
+the world, and it was false.** "Nothing written" was true of the stream that failed and false of
+the run. A release step is one step or none.
+
 ### The hole that was pinned rather than closed
 
 The decided rule is *adjacency*, because that is the shape the evidence had. A heading that repeats
