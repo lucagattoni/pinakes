@@ -118,6 +118,23 @@ def test_link_text_wrapped_across_lines_is_still_parsed(repo: Path) -> None:
     assert "no such file or directory" in result.stderr
 
 
+def test_an_unbalanced_backtick_does_not_swallow_the_rest_of_the_file(repo: Path) -> None:
+    """The shipped bug's own signature, and the one the control leg cannot see. Blanking inline
+    code spans across lines makes a lone backtick pair with the next one several paragraphs down
+    and blank everything between — in `docs/ROADMAP.md`, 2616 backticks and no fences. That
+    direction is a **false negative**: links go missing, the gate reports zero broken and exits 0,
+    and `test_the_real_docs_directory_is_clean_...` stays green. A control proves the absence of
+    false positives only, so this asserts a link *survives* text that used to swallow it.
+    """
+    body = (
+        "a stray ` backtick in prose\n\n[a link](gone.md) must still be checked\n\nanother ` one\n"
+    )
+    _write(repo, "a.md", body)
+    result = _run(repo, "a.md")
+    assert result.returncode == 1, "the link between two lone backticks was swallowed"
+    assert "no such file or directory" in result.stderr
+
+
 def test_link_syntax_the_parser_cannot_read_is_reported_rather_than_skipped(repo: Path) -> None:
     """A checker that silently matches less than it should reports a pass it never earned."""
     _write(repo, "a.md", "a stray ]( that is not a link\n")
