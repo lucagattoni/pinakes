@@ -10,6 +10,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.28.1] — 20260823 02:06
+
+### Fixed
+
+- **A sequence permitted to lag may now be at most two releases behind.** The ceiling for a lagging
+  sequence was that sequence's own newest entry — an echo of the document being checked — so deleting
+  its newest paragraph dropped the ceiling with it and the deletion hid itself. That is the defect
+  refused at the *lower* bound (a derived start) surviving four lines away at the upper one.
+  `MAX_VERIFICATION_LAG = 2` is declared, not derived: *verify the artifact, never the run status* is
+  the rule STATUS's *Published on PyPI* list exists to record, so two behind is one unverified cut
+  plus one slip, while three means verification has stopped happening. The failure names **both**
+  causes and picks neither, because an entry deleted and an entry not yet written are
+  indistinguishable from the documents. **What it buys, exactly:** not detection of a deletion, but a
+  bound on how far the echo can drift silently — at a legitimate lag of 1, one deletion is still
+  invisible.
+
+- **The placement check can no longer be switched off by editing the heading it reads.** Part ranges
+  are read out of `docs/ROADMAP.md` — the document the check polices — so appending
+  ``— `0.8.0` onward`` to `# Part 5 · What is not built` made a release section filed under it
+  "correctly placed": twenty characters, exit 0, and the only trace was a green report line changing
+  `holding no releases: Part 5` to `holding no releases: none`. Two Parts may now not claim the same
+  versions, and the Parts must ascend with the document — `# Part 4` declaring `0.8.0` onward is
+  what stops `# Part 5` doing so. Separately, the Part floor was **four** against a real count of
+  **five**, so demoting `# Part 5` to `## Part 5` passed it exactly while handing every section
+  beneath to Part 4, whose range holds everything; the floor is now the real count.
+
 ## [0.28.0] — 20260823 01:38
 
 ### Added
@@ -3663,7 +3689,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.28.1...HEAD
+[0.28.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.28.1
 [0.28.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.28.0
 [0.27.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.27.2
 [0.27.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.27.1

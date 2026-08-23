@@ -6552,6 +6552,90 @@ battery grew from 15 to 24 mutants over the same increment, all killed. **The re
 earned its cost twice over: it is what makes 19 findings worth reading rather than 31 worth
 arguing with.**
 
+## When a constant cannot be declared, constrain it (20260823)
+
+The echo class — *a gate reading a constant out of the document it polices* — turned up **four
+times in one gate**, and the interesting part is that the same remedy did not work every time.
+
+| Echo | Exploit | Remedy |
+|---|---|---|
+| sequence start = its own oldest entry | delete the oldest row; the start moves and hides it | **declare** it |
+| lagging ceiling = its own newest entry | delete the newest entry; the ceiling drops with it | **bound** how far it may lag |
+| Part range = its own heading | append a range to `# Part 5` and a misfiled section is legal | **constrain** it |
+| Part count floor = one below the truth | demote `# Part 5`; the floor passes exactly | raise it to the real count |
+
+**The third could not be declared, and that is the lesson.** Reading Part ranges out of the headings
+is *why* the mapping cannot drift from the document — replacing them with a table in the tool would
+reintroduce the drift the gate exists to catch. So the echo had to stay and be made unexploitable
+instead: two Parts may not claim the same version, and the Parts must ascend. `# Part 4` declaring
+`` `0.8.0` onward `` is then precisely what stops `# Part 5` declaring it.
+
+**Declare, bound, constrain — in that order of preference.** Declaring is strongest and cheapest
+when the value is genuinely external. Bounding admits the echo and limits its travel. Constraining
+leaves the echo and removes the *freedom* that made it exploitable. Reaching for the first when only
+the third is available produces a table nobody updates.
+
+**A floor one below the truth is a floor with a bypass.** `PARTS_MINIMUM` was 4 against 5 real
+Parts, so demoting the last heading passed it *exactly* while handing every section beneath to the
+open-ended Part above. Floors here are written as "this only ever holds, because things are never
+removed" — which is an argument for setting them **at** the count, not below it. A floor with slack
+is a floor someone can stand in.
+
+**And a test that asserts a sentence asserts only that something went wrong.** Three instances in
+one increment, each found by mutation and none by reading:
+
+- a range-form test asserting a *failure* — satisfied by breaking the form entirely
+- placement fixtures guarded by `assert "reads ascending" not in stderr` — satisfied by a reworded
+  message, and by a second failure appearing beside the one under test
+- an ordering test asserting `"must ascend with the document"` — satisfied with the comparison
+  reversed, because a different, correctly-ordered pair then fires and prints the same words
+
+The positive form in each case: assert **exactly one** failure and **which** one — the pair, the
+Parts, the versions. `failures_of()` exists for that.
+
+**On the audit itself.** These were found by four independent lenses over the landed gate, each
+finding then handed to a separate agent told to refute it — not by re-reading the diff. Two of the
+four lenses found nothing. The two exploits came from the lens that was asked one question only:
+*for every constant this gate uses, where does its value come from?*
+
+## A correction is a claim like any other (20260823 02:05)
+
+Two sessions spent 20260822–23 finding one defect shape from four directions, and the fourth
+instance landed on the *correction* rather than on the code.
+
+A handoff file said the release-order gate's placement and membership halves shipped in `0.27.1` at
+`ba4d7ae`. That was wrong. The reviewing session corrected it to *"placement and membership landed
+after 0.28.0 and are unreleased"* — which was also wrong. `git describe --contains` settled it in
+one command:
+
+    09f5449 (placement)   -> v0.28.0~2
+    0a8bd38 (membership)  -> v0.28.0~1
+    ba4d7ae (lag + Parts) -> in no tag
+
+The reviewer's own diagnosis is the thing worth keeping: **one true fact was established —
+`ba4d7ae` is tonight's merge, not `0.27.1` — and extended to a second that did not follow. The true
+half made the false half feel checked.** The evidence to settle it was one command away and was run
+only after pushback.
+
+This is the same shape as *a fix applied under review inherits the review's confidence and none of
+its scrutiny* ([BUILDING.md § 5](https://github.com/lucagattoni/pinakes/blob/main/docs/BUILDING.md))
+and its sibling *verify the remedy, not only the finding* — one level further out. **The correction
+is the least-reviewed statement in any review**, because it arrives attached to a finding that has
+just been demonstrated, and demonstrating the finding feels like demonstrating the fix.
+
+**And a second rule fell out of the same exchange, stronger than the one it replaced.** The file's
+ownership table had a *held last by* column naming sessions. The reviewer said "put the right name
+in". The right name could not be kept: **the writing session was renamed mid-file**, and the two
+sessions' `ListAgents` views disagreed about which of them existed. So the column was deleted, not
+corrected — ownership is by **role**, with `ListAgents` for who is live.
+
+> **When a field cannot be kept true, remove the field rather than maintaining it.**
+
+That is the end of the ladder this repository has been climbing all week: **declare** a constant
+rather than deriving it; **bound** it when it must be derived; **constrain** it when it must be
+read from the thing it polices; and **delete** it when none of those can hold it honest. A field
+nobody can keep true is a lie with a maintenance schedule.
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings
