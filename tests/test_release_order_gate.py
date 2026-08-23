@@ -313,7 +313,8 @@ def test_a_sequence_carries_its_own_floor(tmp_path: Path) -> None:
 def test_the_prose_pattern_does_not_match_the_roadmap_table(tmp_path: Path) -> None:
     """A pattern matching too much is as bad as one matching nothing, and harder to notice: it
     would silently fold another document's rows into this sequence and check a concatenation.
-    The count is the observable — six sequences, and the prose one names exactly its own entries.
+    The count is the observable — seven sequences, and the prose one names exactly its own
+    entries.
     """
     versions = _versions()
     # Two behind, not ten: `MAX_VERIFICATION_LAG` makes a ten-behind fixture illegitimate, and a
@@ -814,18 +815,30 @@ def test_the_row_drifting_behind_the_prose_beside_it_is_caught(tmp_path: Path) -
 
     The row is rewritten whole rather than appended to, so it does not fall behind by one the way
     the prose does — it is forgotten, and the gap is however many releases shipped since anyone
-    last retyped the cell. Three is already past the declared lag.
+    last retyped the cell. Three is already past the declared lag, and by then the not-behind rule
+    has been red for three releases: both fire, and the test asserts both.
     """
     versions = _versions()
     result = run(str(_tree(tmp_path, versions=versions, row_versions=versions[:-3])))
 
     assert result.returncode == 1
     only = failures_of(result)
-    assert len(only) == 1, f"the lag bound on the row alone should fire here:\n{only}"
-    assert only[0].startswith("docs/STATUS.md — the Published versions row:"), only[0]
-    assert "3 releases behind" in only[0], only[0]
-    assert f"newest here {versions[-4]}" in only[0], only[0]
-    assert f"newest overall {versions[-1]}" in only[0], only[0]
+    # Both bounds, and both are about the row: three behind is past the declared lag, and the
+    # prose beside it carries all three. Asserting one would mean either bound could be deleted
+    # while this stayed green — and the point of the pair is that they catch the drift at
+    # different moments, the tight one at its first commit and the loose one at its third.
+    assert len(only) == 2, f"the drift trips the not-behind rule and the lag bound:\n{only}"
+    assert all(line.startswith("docs/STATUS.md — the Published versions row:") for line in only), (
+        only
+    )
+    not_behind = [line for line in only if "the Published on PyPI prose at" in line]
+    lag = [line for line in only if "releases behind" in line]
+    assert len(not_behind) == 1 and len(lag) == 1, only
+    assert f"newest {versions[-4]}" in not_behind[0], not_behind[0]
+    assert f"at {versions[-1]}" in not_behind[0], not_behind[0]
+    assert "3 releases behind" in lag[0], lag[0]
+    assert f"newest here {versions[-4]}" in lag[0], lag[0]
+    assert f"newest overall {versions[-1]}" in lag[0], lag[0]
 
 
 def test_the_prose_beside_the_row_is_not_read_as_part_of_it(tmp_path: Path) -> None:
@@ -929,3 +942,80 @@ def test_a_within_anchor_with_the_wrong_number_of_groups_is_refused_at_import(
     assert result.returncode == 0, result.stdout + result.stderr
     assert result.stdout.count("refused:") == 2, result.stdout
     assert "has 0." in result.stdout and "has 2." in result.stdout, result.stdout
+
+
+def test_the_row_may_not_lag_the_prose_recording_the_same_verification(tmp_path: Path) -> None:
+    """The tight bound the lag constant is only a loose backstop for.
+
+    Both lists record one event — a release verified from the index — so the prose naming a release
+    the row omits is not latency. It is the row having been forgotten by a sweep that remembered
+    the prose, which is how both recorded drifts began. One behind is inside `MAX_VERIFICATION_LAG`
+    and invisible to every other check here, and one behind is where both drifts started.
+    """
+    versions = _versions()
+    result = run(str(_tree(tmp_path, versions=versions, row_versions=versions[:-1])))
+
+    assert result.returncode == 1
+    only = failures_of(result)
+    assert len(only) == 1, (
+        f"one behind is within the lag bound and leaves no hole, so this must be the only "
+        f"failure — if the lag bound also fired, this test is not about what it says:\n{only}"
+    )
+    assert only[0].startswith("docs/STATUS.md — the Published versions row:"), only[0]
+    assert f"newest {versions[-2]}" in only[0], only[0]
+    assert "the Published on PyPI prose" in only[0], only[0]
+    assert f"at {versions[-1]}" in only[0], only[0]
+
+
+def test_the_row_may_still_lag_the_release_documents_alongside_the_prose(tmp_path: Path) -> None:
+    """And the rule must not over-fire, which is the half that makes it usable.
+
+    Between cutting a release and verifying it on the index, *both* lists are legitimately a
+    release behind CHANGELOG — measured as the ordinary state in 53 of the 67 commits carrying
+    both. A rule that went red there would be turned off within a week.
+    """
+    versions = _versions()
+    behind = versions[:-1]
+    result = run(
+        str(_tree(tmp_path, versions=versions, row_versions=behind, prose_versions=behind))
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_a_not_behind_naming_no_sequence_is_refused_when_the_module_is_built(
+    tmp_path: Path,
+) -> None:
+    """A `not_behind` pointing at a label that does not exist would disable itself in silence —
+    the failure mode this whole module is written against, one layer up in the constants.
+
+    It feeds the validator a **bad** sequence, not only the real constants. Handing a guard the
+    input it already validates asserts nothing about the guard: that test passes whether or not
+    the refusal exists, which is how E7's tautological guard-test got written.
+    """
+    probe = tmp_path / "probe.py"
+    probe.write_text(
+        "import importlib.util, sys\n"
+        f"spec = importlib.util.spec_from_file_location('rog', {str(TOOL)!r})\n"
+        "assert spec and spec.loader\n"
+        "mod = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(mod)\n"
+        "declared = [s for s in mod.SEQUENCES if s.not_behind is not None]\n"
+        "assert declared, 'no sequence declares not_behind, so the guard guards nothing'\n"
+        "mod._validate_not_behind(mod.SEQUENCES)\n"
+        "bogus = mod.Sequence('docs/STATUS.md', 'a row', mod.NUM, ascending=True,\n"
+        "                     starts_at=(0, 0, 0), not_behind=('docs/STATUS.md', 'no such list'))\n"
+        "try:\n"
+        "    mod._validate_not_behind((bogus,))\n"
+        "except ValueError as exc:\n"
+        "    print('refused:', exc)\n"
+        "else:\n"
+        "    sys.exit('accepted a not_behind naming a sequence that does not exist')\n"
+        "print('declared:', len(declared))\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, str(probe)], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "declared: 1" in result.stdout, result.stdout

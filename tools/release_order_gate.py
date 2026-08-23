@@ -77,8 +77,8 @@ sequence, a closed set that changes only when a document's own history changes.
 **The reference set is the union of every sequence**, not `git tag -l`. Tags would be the truer
 authority, but reading them needs git and an unshallow clone, and every CI checkout here is shallow
 but one — a gate quietly weaker in CI than on a laptop is worse than one whose limit is written
-down. The limit: **a release absent from all six sequences is invisible here.** What catches that is
-the release procedure itself, which writes CHANGELOG before anything else.
+down. The limit: **a release absent from all seven sequences is invisible here.** What catches
+that is the release procedure itself, which writes CHANGELOG before anything else.
 
 **A lagging sequence is required to be complete only up to its own newest entry**, since it is
 allowed not to have reached the latest release yet — the hold-back window. Below its own newest it
@@ -168,6 +168,7 @@ class Sequence:
         newest_may_lag: bool = False,
         absent: tuple[tuple[Version, str], ...] = (),
         within: str | None = None,
+        not_behind: tuple[str, str] | None = None,
     ) -> None:
         self.path = path
         self.what = what
@@ -186,6 +187,7 @@ class Sequence:
         self.newest_may_lag = newest_may_lag
         self.starts_at = starts_at
         self.absent = dict(absent)
+        self.not_behind = not_behind
 
     def versions(self, root: Path) -> list[Version]:
         try:
@@ -320,6 +322,18 @@ SEQUENCES = (
         # sequence; the ordering check is nearly free here because a rewritten enumeration tends
         # to stay sorted while being wrong.
         newest_may_lag=True,
+        # ...but never behind the prose beside it, which is the tight bound the lag constant is
+        # only a loose backstop for. Both lists record the same event — a release verified from
+        # the index — so the prose naming a release the row omits is not latency, it is the row
+        # having been forgotten in a sweep that remembered the prose. That is exactly how both
+        # recorded drifts began.
+        #
+        # Measured over every commit carrying both lists, rather than argued: 53 with the row at
+        # or ahead of the prose, 14 with it behind, and **all 14 sit inside the two recorded
+        # drifts** — 20260812 to 0822, and 20260823. No commit has the row legitimately behind. The
+        # first violation is c4b52abd on 20260812, which is 11 commits and 10 days before the lag
+        # bound reaches 3 and fires. The lag bound bounds the damage; this catches the start.
+        not_behind=("docs/STATUS.md", "the Published on PyPI prose"),
         # No `minimum` of its own, deliberately, though 41 versions were counted from
         # `https://pypi.org/simple/pinakes/` on 20260823 02:22 UTC when this was written.
         # An exact floor would be declared rather than derived — but it would *mask* the check
@@ -331,6 +345,31 @@ SEQUENCES = (
         # and yields zero, not forty.
     ),
 )
+
+
+def _validate_not_behind(sequences: tuple[Sequence, ...]) -> None:
+    """Every `not_behind` names a sequence that is actually here.
+
+    A reference to a label that does not exist would disable itself in silence — the failure mode
+    this whole module is written against, one layer up in the constants. It is called on
+    `SEQUENCES` below, so a typo fails when the module is built rather than on the release it was
+    supposed to catch.
+
+    A function rather than a loop at import, so a test can hand it a bad sequence. A guard whose
+    only test feeds it the constants it already validates is a tautology: it passes whether or not
+    the guard does anything.
+    """
+    labels = {(s.path, s.what) for s in sequences}
+    for sequence in sequences:
+        if sequence.not_behind is not None and sequence.not_behind not in labels:
+            raise ValueError(
+                f"{sequence.path} — {sequence.what}: `not_behind` names "
+                f"{sequence.not_behind[0]} — {sequence.not_behind[1]}, which is not a sequence "
+                "here."
+            )
+
+
+_validate_not_behind(SEQUENCES)
 
 
 #: `# Part 4 · Hardening, publishing, and every release since — `0.8.0` onward`. The number and the
@@ -644,6 +683,26 @@ def check(root: Path, *, report: list[str] | None = None) -> list[str]:
                     "them, because that claims the index has a release the release documents do "
                     "not."
                 )
+
+    # A sequence may declare that it must not fall behind another one. `newest_may_lag` grants
+    # latency against the *release* documents; this withdraws it against a sequence recording the
+    # same event, where being behind is not latency at all.
+    for sequence in SEQUENCES:
+        if sequence.not_behind is None:
+            continue
+        where = f"{sequence.path} — {sequence.what}"
+        ahead_of = f"{sequence.not_behind[0]} — {sequence.not_behind[1]}"
+        mine, theirs = found.get(where), found.get(ahead_of)
+        if mine is None or theirs is None:  # a floor already failed; that failure is the one
+            continue
+        if max(mine) < max(theirs):
+            failures.append(
+                f"{where}: newest {_show(max(mine))}, behind {ahead_of} at "
+                f"{_show(max(theirs))}. This sequence may lag the release documents, because an "
+                "entry is held back until it is verified from the index — but it may not lag a "
+                "list recording that same verification. One of the two was swept and the other "
+                "was not, which is how both recorded drifts began."
+            )
 
     failures.extend(check_membership(found, report=report))
     failures.extend(check_placement(root, report=report))
