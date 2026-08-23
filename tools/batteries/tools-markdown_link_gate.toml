@@ -20,7 +20,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 13
+mutants = 15
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 20260823 · the gate's first cut — the ungated-Markdown surface
@@ -151,3 +151,23 @@ file = "tools/markdown_link_gate.py"
 old = '''        threshold = lists[-1] if lists else 0'''
 new = '''        threshold = 0'''
 kills = "tests/test_markdown_link_gate.py::test_a_wrapped_bullet_continuation_is_still_checked"
+
+[[mutant]]
+name = "a spliced-away fragment is read anyway, so the gate dies on every release"
+file = "tools/markdown_link_gate.py"
+# Not a hypothesis: this crashed against a real release tree. `fragments.py --apply` deletes each
+# fragment it splices and `check.sh` runs before the `git add`, so `git ls-files` names a file the
+# disk does not have. Found by a peer who had hit the identical bug in their own scanner minutes
+# before.
+old = '''        if not path.is_file():
+            continue
+        out.append(path)'''
+new = '''        out.append(path)'''
+kills = "tests/test_markdown_link_gate.py::test_a_tracked_file_deleted_mid_release_is_skipped_rather_than_crashing"
+
+[[mutant]]
+name = "--paths accepts a file that does not exist and dies reading it"
+file = "tools/markdown_link_gate.py"
+old = '''    missing = [path for path in paths if not path.is_file()]'''
+new = '''    missing: list[Path] = []'''
+kills = "tests/test_markdown_link_gate.py::test_paths_naming_a_file_that_does_not_exist_is_refused_rather_than_traced"

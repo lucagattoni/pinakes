@@ -320,6 +320,44 @@ def test_the_scope_is_read_from_mkdocs_yml_and_covers_the_readme_the_site_exclud
     assert "docs/GUIDE.md" not in result.stderr
 
 
+def test_a_tracked_file_deleted_mid_release_is_skipped_rather_than_crashing(tmp_path: Path) -> None:
+    """The state every release passes through, and this gate crashed on it.
+
+    `docs/RELEASING.md` step 1 runs `tools/fragments.py --apply`, which splices each fragment into
+    its document and **deletes** it — and `check.sh` runs before the `git add` that records the
+    deletion. So `git ls-files` names a file the disk does not have, and reading it raised
+    `FileNotFoundError`, which would have failed the release commit on this release and every one
+    after. A tracked-but-absent file is a normal mid-release state, not a broken link.
+    """
+    _write(tmp_path, "mkdocs.yml", MKDOCS_YML)
+    _write(tmp_path, "changelog.d/20260823_1438-fixed-thing.md", "- **A change.**\n")
+    _write(tmp_path, "CLAUDE.md", "# Top\n")
+    subprocess.run(["git", "init", "-q"], cwd=str(tmp_path), check=True)
+    subprocess.run(["git", "add", "-A"], cwd=str(tmp_path), check=True)
+    (tmp_path / "changelog.d" / "20260823_1438-fixed-thing.md").unlink()  # what --apply does
+
+    result = _run(tmp_path)
+    assert result.returncode == 0, f"the gate died on a spliced fragment:\n{result.stderr}"
+    assert "FileNotFoundError" not in result.stderr
+
+
+def test_a_directory_that_is_not_a_work_tree_is_refused_with_a_message(tmp_path: Path) -> None:
+    """`git ls-files` inherits the process cwd, so a bare invocation from outside the repository
+    exited 128 with a traceback and no statement of what was asked."""
+    _write(tmp_path, "mkdocs.yml", MKDOCS_YML)
+    result = _run(tmp_path)
+    assert result.returncode != 0
+    assert "cannot list tracked files" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_paths_naming_a_file_that_does_not_exist_is_refused_rather_than_traced(repo: Path) -> None:
+    result = _run(repo, "no-such-file.md")
+    assert result.returncode != 0
+    assert "do not exist" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_a_missing_docs_dir_in_mkdocs_yml_is_refused_rather_than_defaulted(tmp_path: Path) -> None:
     """Defaulting would silently shrink the scope to nothing and still print a pass."""
     _write(tmp_path, "mkdocs.yml", "site_name: Nope\n")

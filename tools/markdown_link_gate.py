@@ -275,12 +275,18 @@ def mkdocs_scope(repo: Path) -> tuple[str, set[str]]:
 
 def ungated_markdown(repo: Path) -> list[Path]:
     """Every tracked `.md` file `mkdocs build --strict` does not resolve links for."""
-    listed = subprocess.run(
-        ["git", "ls-files", "-z", "*.md"],
-        cwd=repo,
-        capture_output=True,
-        check=True,
-    ).stdout.split(b"\0")
+    try:
+        listed = subprocess.run(
+            ["git", "ls-files", "-z", "*.md"],
+            cwd=repo,
+            capture_output=True,
+            check=True,
+        ).stdout.split(b"\0")
+    except (subprocess.CalledProcessError, FileNotFoundError, NotADirectoryError) as exc:
+        # Without this the failure is a traceback and `git`'s own exit status 128, which says
+        # nothing about what was asked. Reached whenever `--repo` names somewhere that is not a
+        # work tree, which is also what a bare invocation from outside this repository does.
+        raise SystemExit(f"markdown-links: cannot list tracked files under {repo}: {exc}") from exc
     docs_dir, excluded = mkdocs_scope(repo)
     out: list[Path] = []
     for entry in filter(None, listed):
@@ -289,7 +295,17 @@ def ungated_markdown(repo: Path) -> list[Path]:
             inside = rel[len(docs_dir) + 1 :]
             if inside not in excluded:
                 continue
-        out.append(repo / rel)
+        path = repo / rel
+        # **Tracked but absent is a normal state, not a broken link.** `docs/RELEASING.md` step 1
+        # runs `tools/fragments.py --apply`, which splices each fragment into its document and
+        # *deletes* it — and `check.sh` runs before the `git add` that records the deletion. So on
+        # every release there is a window where `git ls-files` names a file the disk does not have.
+        # Reading it raised `FileNotFoundError` here, which would have failed the release commit on
+        # every release from this one onwards. Found by a peer hitting the identical bug in their
+        # own scanner ten minutes earlier, on this same release.
+        if not path.is_file():
+            continue
+        out.append(path)
     return sorted(out)
 
 
@@ -365,6 +381,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     repo: Path = args.repo.resolve()
     paths: list[Path] = list(args.paths) if args.paths else ungated_markdown(repo)
+
+    missing = [path for path in paths if not path.is_file()]
+    if missing:
+        raise SystemExit(
+            "markdown-links: --paths named file(s) that do not exist: "
+            + ", ".join(str(path) for path in missing)
+        )
 
     anchor_cache: dict[Path, set[str]] = {}
     problems: list[Problem] = []
