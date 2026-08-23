@@ -30,7 +30,12 @@ Two rules about reading a plan, each learned more than once:
 
 Never batch increments; each is a separate, bisectable landing:
 
-1. Own worktree, branch `YYYYMMDD_HHMM-i<N>-<slug>`.
+1. Own worktree, branch `YYYYMMDD_HHMM-i<N>-<slug>`. **And run the gates there, never in the
+   primary checkout** — that is where `tools/land.py` merges, so another session can change its
+   tree under a running `pytest` at any moment. Measured 20260823: a peer landed mid-`./check.sh`
+   and three tests failed with *"matched 0 `# Part` heading(s)"* — loud, plausible, and pointed at
+   the file that session had just touched. Nothing was wrong. **A red run in the primary checkout
+   may be about a tree that no longer exists**, so re-run it at the new sha before believing it.
 2. Implement the increment **with its tests** — tests ship in the increment that introduces the
    behaviour, never deferred. A test that touches a PDF fixture, the `claude` extractor or a real
    embedding backend carries the matching `tests/conftest.py` predicate (`pdf_runnable()` /

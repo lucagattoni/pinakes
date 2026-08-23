@@ -10,6 +10,70 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.28.0] — 20260823 01:38
+
+### Added
+
+- **`tools/mcp_handshake_gate.py` — a real MCP session, and the four tool schemas committed.** The
+  handshake in `ci.yml` and `release.yml` was three JSON-RPC lines piped into `pnk serve` with stdin
+  closed immediately. `mcp` 1.28.1 drained that queue before shutting down; 2.0.0 does not. Measured
+  on the same three lines, ten runs each: **`tools/list` answered 10/10 under 1.28.1 and 2/10 under
+  2.0.0.** It would have gone red four runs in five on a server that works perfectly. The
+  uncomfortable part is the timing: that handshake was written the same morning, in 0.27.2, to
+  catch the `mcp` outage — and it was written against the behaviour of the version being replaced,
+  so the gate for a dependency major was itself a hostage to it. The gate drives `mcp`'s own client,
+  which holds the session open until it has its answers (8/8) and negotiates the protocol version
+  itself, so the leg tracks the dependency instead of rotting against it.
+
+  It also checks two things the piped version could not: that `serverInfo.version` is the version
+  the built **wheel's filename** says — never `pnk --version`, which asks the install under test and
+  would agree with itself — and that the tools listed match `tools/mcp_tool_schemas.json` exactly.
+  Against a fresh resolve, that snapshot is what turns a future `mcp` quietly reshaping the
+  published tool contract into a red run instead of a silent change to every client's view.
+
+  **`make smoke` runs the same gate**, which it did not until review found it: it was a third copy
+  of the hand-rolled session, left behind by a change that fixed the other two, and against `mcp`
+  2.x it was **red on every run** — a maintainer's pre-tag check failing on a healthy wheel. One
+  implementation, three call sites.
+
+### Changed
+
+- **`pnk serve` runs on `mcp` 2.x, and tells a client which Pinakes it is.** `serve.py` moves from
+  `mcp.server.fastmcp.FastMCP` — removed outright in `mcp` 2.0.0 — to its successor
+  `mcp.server.mcpserver.MCPServer`, and the requirement moves from `mcp>=1.28,<2` to `mcp>=2`. The
+  cap was 0.27.2's outage fix and was always going to be lifted by the increment that ported the
+  code; nothing takes its place, because what catches a dependency's next major is resolving fresh
+  and running the thing, not a guess about a release nobody has seen.
+
+  **The four `pinakes_*` tool schemas are byte-identical across the move** — captured from a live
+  session on each library and diffed before anything landed — so no client sees a different tool.
+  The one wire difference is `serverInfo.version`: `FastMCP` took no `version=` and filled the
+  field with the *`mcp` library's* own version, so every release up to 0.27.2 told a client asking
+  which Pinakes it was talking to that it was `1.28.1`. It now carries Pinakes' version.
+
+### Fixed
+
+- **A shipped release filed under *What is not built* is now a gate failure.** `0.27.1`'s
+  per-release section landed inside `# Part 5` of `docs/ROADMAP.md` because the script inserting it
+  looked for the next `## ` heading and stepped over the `# ` that bounds the Part — and **all six
+  release sequences stayed green**, because a sorted sequence says nothing about *location*.
+  `0.25.3` did the same and `0.25.4` fixed it once already. `tools/release_order_gate.py` now
+  requires every per-release section to sit under the Part whose declared range holds its version,
+  reading those ranges (`` `0.1.x` ``, `` `0.2.0` → `0.4.1` ``, `` `0.8.0` onward ``) **out of the
+  `# Part N` headings themselves** rather than from a mapping kept beside them. A Part that declares
+  no range may hold no release section, which is the case that fires on the defect above.
+
+- **A release missing from one of the six sequences is now a gate failure.** Order is a property of
+  the pairs and membership a property of the set: delete a row and every surviving pair is still
+  sorted, so no ordering check can see it. `tools/release_order_gate.py` now requires every release
+  at or after a sequence's **declared** start to appear in it. The start is a constant, never the
+  sequence's own oldest entry — deriving it would let a deleted *first* row move the start and hide
+  itself, which is the gate electing its own answer in the one place it matters. The reference set
+  is the union of the six sequences rather than `git tag -l`, because reading tags needs an unshallow
+  clone and every CI checkout here is shallow but one; the limit — a release absent from all six is
+  invisible — is stated in the tool. A sequence permitted to lag must be complete up to **its own**
+  newest entry, so the hold-back window cannot excuse a hole underneath it.
+
 ## [0.27.2] — 20260822 10:01
 
 ### Added
@@ -3599,7 +3663,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.27.2...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.28.0
 [0.27.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.27.2
 [0.27.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.27.1
 [0.27.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.27.0
