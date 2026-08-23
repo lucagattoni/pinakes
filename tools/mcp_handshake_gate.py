@@ -5,11 +5,17 @@
 hand-rolled JSON-RPC piped into `pnk serve`: three lines written, then stdin closed. Under `mcp`
 1.28.1 the server drained the queue before shutting down, so `tools/list` was answered every time.
 Under 2.0.0 it is not — measured 20260822 14:35, the same three lines answered `tools/list`
-**2 times out of 10**, with `initialize` answered all 10. That is a race on shutdown, not a
-protocol disagreement: it reproduces at every protocol version the library accepts, and the run
-that first showed it looked like a `2024-11-05` problem only because that is the version the
-workflow happened to send. A gate that flakes 8 runs in 10 is worse than no gate — the first red
-run gets rerun, the second gets believed.
+**2 times out of 10**, with `initialize` answered all 10.
+
+That is a race on shutdown, not a protocol disagreement, and the distinction was worth measuring
+because the first run that showed it looked like a `2024-11-05` problem — that being the version
+the workflow happened to send. Ten runs at each version the library accepts (20260822 19:05):
+
+    2024-11-05  5/10        2025-06-18  2/10
+    2025-03-26  1/10        2025-11-25  1/10
+
+Every one of them unreliable, none of them a clean failure anyone would trust. A gate that flakes
+like this is worse than no gate — the first red run gets rerun, the second gets believed.
 
 Driving the session with `mcp`'s own client removes the race at its source: the client holds the
 connection open until it has its answers (8 for 8, same conditions). It also stops the protocol
