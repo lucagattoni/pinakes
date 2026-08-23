@@ -30,3 +30,26 @@ failed, and `check_membership` then skips it too, so deleting one release would 
 has stopped matching what it names"* and never say which release went missing. The precise
 diagnostic is worth more than the redundant one. Declared-not-derived is about where a number comes
 from; it does not settle what the number should be.
+
+## A constant bounds the damage; a relation catches the start
+
+The first fix made the row a sequence with permission to lag, bounded by `MAX_VERIFICATION_LAG`.
+That is a real check and it would have caught both drifts — *eventually*. Counting the history says
+how late: 29 commits sat in the window where the row was behind and the bound was silent, and both
+drifts passed through it on the way to being caught.
+
+The bound is a constant, and the thing it approximates is a **relation**. The row may lag the
+release documents because an entry waits for index verification; it may not lag the *other list
+recording that same verification*, because there is no interval during which one is true and the
+other is not. Written that way the rule needs no tolerance at all, and the measurement bears it out:
+zero false positives in 67 commits, red at the first commit of the drift rather than the eleventh.
+
+**The general form:** when a bound needs a tolerance, ask what the tolerance is standing in for. A
+number chosen to be loose enough for the legitimate case is by construction also loose enough for
+some illegitimate ones. If the legitimate case can be *named* — here, "both lists are waiting on the
+same verification" — the relation that names it is both tighter and simpler than the number.
+
+**Keep the constant anyway.** It is not redundant: it catches a drift in which *both* lists are
+forgotten together, which the relation cannot see. Two checks over one sequence, catching different
+failures at different moments, is the correct outcome — and the test that exercises the deep drift
+now asserts **both** fire, so neither can be deleted while it stays green.

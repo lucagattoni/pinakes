@@ -21,3 +21,13 @@ is sorted only by accident.
 Verified against the defect rather than against a fixture alone: run over the documents as they
 stood at `2bff5e4`, the new sequence is the **only** one that fails, reporting 0.27.0 missing from
 the middle and three releases past the declared lag.
+
+The row also may not fall behind the *Published on PyPI* prose beside it. Both lists record the
+same event — a release verified from the index — so `newest_may_lag` grants latency against the
+release documents while a new `not_behind` withdraws it against a list recording that same
+verification. This matters because the lag bound alone leaves a two-release window in which the row
+is wrong and every gate is green, and **both recorded drifts escalated through that window** rather
+than starting past it: measured across every commit on `main` carrying both lists, 29 sit inside it.
+The relation has no such window and no false positives — 53 commits with the row at or ahead of the
+prose, 14 behind, and all 14 inside the two drifts. It first goes red at `c4b52abd` on 20260812, 11
+commits before the lag bound reaches three and fires.
