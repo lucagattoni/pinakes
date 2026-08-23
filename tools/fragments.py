@@ -29,6 +29,18 @@ here could see it — the category was read from the filename, so the front matt
 body is copied unchanged by design. `check` therefore refuses a fragment whose first non-blank line
 is a `---` fence, which is the one shape that means "front matter" rather than "a horizontal rule".
 
+**Both streams took it, and the residue is worse than "still published".** Re-measured 20260823:
+three in `CHANGELOG.md` under `## [0.24.0]` and **two more in `docs/RETROSPECTIVES.md`**, which the
+earlier count missed because it only looked at the stream the refusal was written for. And the
+spliced shape is not inert text. `category: added` followed by `---` is a **setext H2**, so each
+residue renders as a heading: `site/RETROSPECTIVES/index.html` carries
+`<h2 id="category-lesson">category: lesson</h2>` twice, permalinks and search index included, on
+the published site. `mkdocs build --strict` is green on it, because a spurious heading is not a
+broken link — and `document_problems` below does not catch it either, because it reads ATX
+headings and this is setext. Repairing the documents is the planner's; a third rule is a plan
+decision, not this module's to take. Recorded here so the next reader of this paragraph has the
+measurement rather than the undercount.
+
 **The assembled document is checked too, not only the fragments going into it.** `--check` read
 every pending fragment and asserted nothing about the result, so a splice could leave
 `CHANGELOG.md` malformed with every gate in this repository green — and had: `## [0.28.3]` carried
