@@ -1508,11 +1508,20 @@ def test_one_battery_named_twice_is_not_a_double_claim(repo: Path) -> None:
     assert "claimed by" not in result.stderr
 
 
-def test_an_interrupted_check_does_not_claim_a_restore_it_never_made(repo: Path) -> None:
+def test_an_interrupted_check_does_not_claim_a_restore_it_never_made(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     """The signal handlers are installed for both modes, and their message was written for the run.
 
     Driven in-process: the handler turns the signal into a `KeyboardInterrupt`, and what is under
     test is only which sentence `main` then prints.
+
+    **The sentence is the assertion.** The first draft asserted the exit status alone, and the
+    mutation pass caught it surviving: inverting the very condition that chooses between the two
+    messages leaves the code at 1 either way. `docs/RETROSPECTIVES.md`'s rule — *an assertion on a
+    diagnostic message must name the specific values under test* — applies hardest to a test whose
+    whole subject is a diagnostic message. Both modes are asserted, so this pins a **choice** and
+    not a constant.
     """
     tool: Any = tool_module()
     path = battery(repo, clamp_mutant())
@@ -1520,16 +1529,24 @@ def test_an_interrupted_check_does_not_claim_a_restore_it_never_made(repo: Path)
     def interrupt(*_args: object, **_kwargs: object) -> int:
         raise KeyboardInterrupt("signal SIGTERM")
 
-    original = tool.check_anchors
-    tool.check_anchors = interrupt
-    try:
-        with pytest.MonkeyPatch.context() as patch:
-            patch.chdir(repo)
-            code = tool.main(["--check-anchors", str(path)])
-    finally:
-        tool.check_anchors = original
+    def interrupted(*argv: str) -> str:
+        original_check, original_run = tool.check_anchors, tool.run_battery
+        tool.check_anchors = tool.run_battery = interrupt
+        try:
+            with pytest.MonkeyPatch.context() as patch:
+                patch.chdir(repo)
+                assert tool.main(list(argv)) == 1
+        finally:
+            tool.check_anchors, tool.run_battery = original_check, original_run
+        return capsys.readouterr().err
 
-    assert code == 1
+    checked = interrupted("--check-anchors", str(path))
+    assert "nothing was written, so there was nothing to restore" in checked
+    assert "the target was restored" not in checked
+
+    ran = interrupted(str(path))
+    assert "the target was restored on the way out" in ran
+    assert "nothing was written" not in ran
 
 
 def test_the_committed_batteries_all_spell_the_file_key_the_same_way() -> None:

@@ -180,7 +180,9 @@ def test_every_battery_is_named_for_a_file_it_actually_mutates() -> None:
             stems.add(flat)
         if path.stem not in stems:
             misnamed.append(
-                f"{path.name}: mutates {', '.join(sorted(stems))} and is named for none of them"
+                f"{path.name}: mutates {', '.join(sorted(stems))} and is named for none of them "
+                f"(a `YYYYMMDD_HHMM-` prefix does not belong on a battery — it is named "
+                f"for what it covers, not when it was written)"
             )
 
     assert not misnamed, (
