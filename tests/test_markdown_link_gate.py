@@ -203,7 +203,11 @@ def test_a_wrapped_bullet_continuation_is_still_checked(repo: Path) -> None:
     """The false-negative half of the same rule. Continuation lines inside a list item are indented
     to the item's content column and stay prose; treating four spaces as code unconditionally would
     stop checking every wrapped bullet in a repository that wraps at 100 columns."""
-    body = "-   a bullet whose text runs on and\n    [wraps](gone.md) onto the next line\n"
+    # A blank line before the continuation is what makes this the list stack's case rather than
+    # `after_blank`'s: without the stack, four spaces after a blank line reads as an indented code
+    # block, and the link inside it silently stops being checked. The first version of this test
+    # omitted the blank line and the mutation pass caught it SURVIVING.
+    body = "-   a bullet\n\n    a continuation paragraph that [wraps](gone.md) onto its own line\n"
     _write(repo, "a.md", body)
     result = _run(repo, "a.md")
     assert result.returncode == 1

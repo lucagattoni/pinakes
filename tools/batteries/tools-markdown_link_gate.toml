@@ -73,8 +73,13 @@ file = "tools/markdown_link_gate.py"
 # Not a hypothesis. This is what the first draft did, and in `docs/ROADMAP.md` (2616 backticks,
 # zero fences) one unbalanced backtick blanked every heading after it: 82 reported broken links on
 # a corpus `mkdocs build --strict` guarantees is clean. Caught only by running the control leg.
-old = '''_CODE_SPAN = re.compile(r"(`+)(?:(?!\1).)*?\1")'''
-new = '''_CODE_SPAN = re.compile(r"(`+)(?:(?!\1).)*?\1", re.S)'''
+# Re-aimed 20260823 after the first run: the mutant below used to flip `re.S` on `_CODE_SPAN`
+# itself and SURVIVED, because `blank_code_spans` is applied **per line** by its caller — a regex
+# handed one line cannot span lines whatever its flags say. The property lives at the call site,
+# so that is what this breaks. The survivor was the battery working: it said the anchor no longer
+# described the defence, which is exactly the half `--check-anchors` cannot see.
+old = '''    body = "\n".join(blank_code_spans(line) for line in blank_fences(readable_text(path)))'''
+new = '''    body = re.sub(r"(`+)(?:(?!\1).)*?\1", lambda m: " " * len(m.group(0)), "\n".join(blank_fences(readable_text(path))), flags=re.S)'''
 kills = "tests/test_markdown_link_gate.py::test_the_real_docs_directory_is_clean_which_is_this_checkers_only_control"
 
 [[mutant]]
