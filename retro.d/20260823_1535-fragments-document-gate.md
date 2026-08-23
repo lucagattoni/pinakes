@@ -19,11 +19,30 @@ skipped nothing in the one document it most needs to read, and a changelog entry
 Markdown heading would have been refused as document structure.
 
 **It was caught by the test written for it, before landing** — the false-positive test, not the
-true-positive one. Both were written in the same pass; only one of them found anything. That is the
-argument for writing the over-firing case even when the under-firing case is the one the item
-describes: a gate refusing a correct document is the failure that gets *acted on*, and
-`markdown_link_gate`'s own docstring records a peer rewriting an example into the wrong form to
-satisfy a false positive before disbelieving it.
+true-positive one. Both were written in the same pass; only one of them found anything. **A passing
+true-positive says nothing about what the checker is failing to look at.** That is the argument for
+writing the over-firing case even when the under-firing case is the one the item describes: a gate
+refusing a correct document is the failure that gets *acted on*, and `markdown_link_gate`'s own
+docstring records a peer rewriting an example into the wrong form to satisfy a false positive
+before disbelieving it.
+
+### What the false-positive probe found instead
+
+Probing the `- ` rule against Markdown a changelog author might plausibly write turned up a defect
+that has nothing to do with this gate. The 0.24.0 front-matter residue — `---` / `category: added`
+/ `---`, spliced verbatim before `check` refused that shape — is **not inert text**. A `---` after
+a *text* line underlines it into a **setext H2**, so each residue renders as a heading titled with
+its own metadata. There are **five**, not the three this module recorded: three in `CHANGELOG.md`
+under `## [0.24.0]` and two in `docs/RETROSPECTIVES.md`, which the original count missed because it
+looked only at the stream the refusal was written for. The published site carries
+`<h2 id="category-lesson">category: lesson</h2>` twice — page, permalinks and search index.
+
+Every instrument is green on it. `mkdocs build --strict` resolves links and a spurious heading is
+not a broken link; `markdown_link_gate` reads link targets; and **this increment's own gate misses
+it**, because it reads ATX headings and this is setext. Which is the same sentence as the item it
+closes, one level up: *a defect that exists only in the assembled document is invisible to every
+instrument pointed somewhere else in it.* The documents are the planner's to repair and a setext
+rule is a plan decision, so this increment recorded the measurement and changed no behaviour.
 
 ### The mutation pass, and the survivor that was not mine
 
