@@ -17,12 +17,13 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260823 02:55 UTC
+## Where things stand right now — 20260823 03:10 UTC
 
-- **49 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.28.2`](#0282--the-guides-commands-were-re-run-against-the-build-that-ships-them--20260823-0247)
-  on 20260823.
-- **Latest on PyPI: `0.28.2`**, confirmed by installing it from the index rather than by reading a
+- **50 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.28.3`](#0283--a-gate-that-could-not-see-the-list-next-door--20260823-0310) on 20260823.
+- **Latest on PyPI: `0.28.2`** — `0.28.3` is cut and awaiting its own verification from the index,
+  which is why the two published-version lists are permitted to lag it. Confirmed by installing it
+  from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
@@ -180,6 +181,7 @@ number belongs to a release only when it is cut
 | **[0.28.0](#0280--the-port-was-four-lines-the-gate-was-not--20260823-0138)** | 20260823 01:38 | the port was four lines, the gate was not | • **`pnk serve` runs on `mcp` 2.x** — `FastMCP` → `MCPServer`, and the requirement's `<2` cap becomes a `>=2` floor<br>• The four tool schemas are **byte-identical** across the move, captured from a live session on each and committed at `tools/mcp_tool_schemas.json`<br>• `serverInfo.version` now carries **Pinakes'** version; every release to 0.27.2 advertised the *mcp library's* (`1.28.1`)<br>• **The handshake both workflows used was a coin flip** — three JSON-RPC lines and a closed stdin answered `tools/list` 5/10, 1/10, 2/10 and 1/10 across the protocol versions; `make smoke` was red on every run<br>• `tools/mcp_handshake_gate.py` drives mcp's own client, and CI checks the advertised version against the **wheel's filename**<br>• Two adversarial rounds, 24 findings, **every one in the remedies rather than the port**; 29 mutants, 0 survivors |
 | **[0.28.1](#0281--a-gate-audited-against-itself--20260823-0206)** | 20260823 02:06 | a gate audited against itself | • **A lagging sequence may now be at most two releases behind** — its ceiling was its own newest entry, so deleting that entry hid the deletion<br>• **Two Parts may not claim the same versions** — Part ranges are read from the headings, so twenty characters appended to `# Part 5` legitimised a misfiled section<br>• **The Part floor is the real count** — at one below it, demoting the last heading passed exactly<br>• No code path changed: no `schema_version`, no rebuild |
 | **[0.28.2](#0282--the-guides-commands-were-re-run-against-the-build-that-ships-them--20260823-0247)** | 20260823 02:47 | the Guide's commands were re-run against the build that ships them | • **`docs/GUIDE.md` claimed every command on it was run against `0.2.0`** — twenty-six releases back, on the published site<br>• **Nine output blocks had drifted**: `notes@1.1` against a shipped `1.2`, a `You get:` tree missing two files `init` writes, `€0.26`/`€1.69` estimates against a live `€0.20`/`€1.33`<br>• **Three separate places said only one surface can spend** — `pnk ask --deep` has been the second since 0.24.0<br>• `docs/CLI.md` had the same class of defect and is fixed with it<br>• **Two blocks deliberately not re-run, and the page now says which** — the paid transcript and the two-KB walkthrough<br>• No code path changed: no `schema_version`, no rebuild |
+| **[0.28.3](#0283--a-gate-that-could-not-see-the-list-next-door--20260823-0310)** | 20260823 03:10 | a gate that could not see the list next door | • **A seventh sequence** — STATUS's *Published versions* row, four releases behind through green runs of every gate<br>• **The gate reported those releases present, and they were — in the sequence next door**, forty lines up in the same file<br>• **A `within` anchor** scopes a pattern to one region, since the row is a table cell and not a run of lines; two matches are refused rather than resolved to the first<br>• **The row may never lag the prose beside it** — a relation beats a bound: 29 commits sat green with the row already wrong, the relation fires 11 commits earlier, 0 false positives over 53<br>• 11 mutants, 11 killed; no code path changed |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -1803,6 +1805,64 @@ wording at once, and any one of the three moving falsifies it, while the paragra
 true.
 
 **No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
+
+## 0.28.3 — a gate that could not see the list next door · 20260823 03:10
+
+**`docs/STATUS.md` carries the published-version history twice** — as *Published on PyPI* prose, one
+paragraph per release, and as a *Published versions* row enumerating every version in a single table
+cell. They record the same event. `tools/release_order_gate.py` read the first and could not reach
+the second, and the row **fell four releases behind — 0.27.0, 0.27.2, 0.28.0, 0.28.1 — through green
+runs of every gate in this repository**, after being repaired once for exactly this on 20260822.
+
+**The arrangement is the most misleading one available.** The check and the list it cannot see sit
+in the same file, under the same heading, forty lines apart. So the gate reported each of those
+releases present — and each *was* present, in the sequence next door. Nothing was lying; the
+question was never asked.
+
+**Reaching it needed a mechanism the other six did not.** Every other sequence is a run of lines. The
+row is one line holding the whole enumeration, with about twenty more version numbers in prose after
+it: a line-anchored pattern cannot get inside, and an unanchored one would sweep up the prose and
+read a sorted list as unsorted. A `Sequence` may now declare a **`within`** anchor — one regex
+capturing the region the pattern is then run inside. A `within` matching nothing yields an empty
+sequence and trips the floor; one matching **twice** is refused outright rather than resolved to the
+first, which would splice two lists into a sequence sorted only by accident.
+
+**And the row may never lag the prose beside it — a relation where the sixth sequence had only a
+bound.** `newest_may_lag` grants latency against the release documents, because an entry is written
+only once the release is verified from the index. But it granted that latency against everything,
+including the list recording the very same verification. Measured over every commit on `main`
+carrying both lists:
+
+| row lags `CHANGELOG` by | commits | the lag bound alone |
+|---|---|---|
+| 0 | 92 | green ✓ |
+| 1 | 25 | **green, row wrong** |
+| 2 | 4 | **green, row wrong** |
+| 3+ | 10 | red |
+
+**29 commits inside the silent window, and both recorded drifts escalated through it** rather than
+starting past it. The `not_behind` relation fires at `c4b52ab` on 20260812 — **11 commits and 10
+days before** the bound reaches 3 — with **0 false positives across 53** commits where it holds.
+
+**Both are kept, and one test asserts both fire.** The bound still catches a drift where *both* lists
+are forgotten together, which the relation cannot see; pinning them with a single test is what stops
+the next reader deleting the one that looks redundant.
+
+**The transferable sentence: a relation to something that must move with it beats a bound on how far
+it may drift**, wherever two records describe one event. A bound asks *how wrong is this allowed to
+get*; a relation asks *is this still true of its pair*, and only the second notices on the first
+commit.
+
+**Two rules from earlier releases landed on their next case here.** The floor is **not** derived from
+the row it polices — but it is also not the literal 41, because `check_membership` skips a sequence
+whose floor already failed, and a too-high floor would report *the pattern stopped matching* without
+ever naming which release went missing. **Declared-not-derived settles where a number comes from,
+not what it should be.** And the first `not_behind` guard-test fed the validator only real
+constants, so it passed whether or not the refusal existed — **E7's tautology, caught by its author
+before review**; the validator is now a function a test can hand a deliberately bad sequence.
+
+**11 mutants, 11 killed.** **No code path changed** — no `schema_version`, no rebuild, and nothing
+about any existing KB.
 
 # Part 5 · What is not built
 
