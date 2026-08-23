@@ -696,6 +696,12 @@ def test_parts_must_ascend_with_the_document(tmp_path: Path) -> None:
     result = run(str(root))
 
     assert result.returncode == 1
+    # Naming the pair, not just the sentence. A mutation run flipped the comparison and this test
+    # still passed: with `>` a *different*, correctly-ordered pair fires and prints the same words.
+    # Asserting the message is asserting that something went wrong, not that the right thing did.
+    assert "Part 3 declares 0.5.0 but follows Part 2 which declares 0.9.0" in result.stderr, (
+        result.stderr
+    )
     assert "must ascend with the document" in result.stderr
 
 
