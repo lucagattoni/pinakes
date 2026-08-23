@@ -1,5 +1,11 @@
-- **`tools/fragments.py --check` now reads the document `--apply` writes, not only the fragments
-  going into it.** It parsed every pending fragment and asserted nothing about the result, so a
+- **`tools/fragments.py --check` now reads the document `--apply` would write, not only the
+  fragments going into it.** Both the file on disk and the assembly the pending fragments would
+  produce — the item's own sentence is that `--check` *"asserts nothing about the result of
+  `--apply`"*, and reading only the file on disk answers whether the **last** splice went well
+  while the fragment that will break the next one sits in the tree unread. Replayed against the
+  trees as they stood at 0.6.0 and 0.28.3, it exits 1 at the commit that added the fragment —
+  twenty-two days before 0.28.3's defect was noticed, and seven minutes before 0.6.0's was
+  hand-repaired after release. It parsed every pending fragment and asserted nothing about the result, so a
   splice could leave `CHANGELOG.md` malformed with every gate in this repository green — and had:
   `## [0.28.3]` carried `### Fixed` twice consecutively with a bare paragraph for a body, and one
   `### Changed` further down did the same, all three passing `--check` with exit 0. Two rules on
