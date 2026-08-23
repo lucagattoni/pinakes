@@ -73,7 +73,8 @@ _HTML_ANCHOR = re.compile(r"""<[^>]*\b(?:id|name)\s*=\s*["']([^"']+)["']""")
 _CODE_SPAN = re.compile(r"(`+)(?:(?!\1).)*?\1")
 
 _LINK = re.compile(
-    r"\[(?:[^\[\]]|\[[^\[\]]*\])*\]\(\s*(<[^>\n]*>|[^)\s]+)(?:\s+[\"'][^\"'\n]*[\"'])?\s*\)",
+    r"\[(?:[^\[\]]|\[[^\[\]]*\])*\]\(\s*(<[^>\n]*>|(?:[^()\s]|\([^()\s]*\))+)"
+    r"(?:\s+[\"'][^\"'\n]*[\"'])?\s*\)",
     re.S,
 )
 _REFDEF = re.compile(r"^ {0,3}\[[^\]\n]+\]:\s*(<[^>\n]*>|\S+)")
@@ -310,6 +311,8 @@ def check_file(repo: Path, path: Path, anchor_cache: dict[Path, set[str]]) -> li
             continue
         if "{{" in target or "{%" in target:
             continue  # a Jinja placeholder in a template: it has no meaning until rendered
+        if target == "#":
+            continue  # "top of this page" — every renderer treats it as a no-op, not an anchor
         if target.startswith("#"):
             anchors = anchor_cache.setdefault(path, anchors_of(path))
             if unquote(target[1:]) not in anchors:

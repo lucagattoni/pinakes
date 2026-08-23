@@ -87,8 +87,12 @@ name = "SHIPPED BUG — link text may not wrap, so every wrapped link is silentl
 file = "tools/markdown_link_gate.py"
 # The other one that shipped. A false negative, so it reports a clean bill it never earned — and
 # unlike mutant 6 the control leg cannot see it, which is why the parser counts what it saw.
-old = '''    r"\[(?:[^\[\]]|\[[^\[\]]*\])*\]\(\s*(<[^>\n]*>|[^)\s]+)(?:\s+[\"'][^\"'\n]*[\"'])?\s*\)",'''
-new = '''    r"\[(?:[^\[\]\n]|\[[^\[\]\n]*\])*\]\(\s*(<[^>\n]*>|[^)\s]+)(?:\s+[\"'][^\"'\n]*[\"'])?\s*\)",'''
+# Anchor updated 20260823 when the destination pattern grew balanced-parenthesis support; the
+# mutation is unchanged — forbid a newline in the link *text*, which is what silently skipped every
+# wrapped link. `--check-anchors` caught the rot the moment the regex moved, which is the half of a
+# battery that actually goes stale.
+old = '''    r"\[(?:[^\[\]]|\[[^\[\]]*\])*\]\(\s*(<[^>\n]*>|(?:[^()\s]|\([^()\s]*\))+)"'''
+new = '''    r"\[(?:[^\[\]\n]|\[[^\[\]\n]*\])*\]\(\s*(<[^>\n]*>|(?:[^()\s]|\([^()\s]*\))+)"'''
 kills = "tests/test_markdown_link_gate.py::test_link_text_wrapped_across_lines_is_still_parsed"
 
 [[mutant]]

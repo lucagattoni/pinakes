@@ -231,6 +231,27 @@ def test_a_wrapped_bullet_continuation_is_still_checked(repo: Path) -> None:
     assert "no such file or directory" in result.stderr
 
 
+def test_a_bare_hash_is_top_of_page_rather_than_a_dead_anchor(repo: Path) -> None:
+    _write(repo, "a.md", "# Heading\n\n[back to top](#)\n")
+    assert _run(repo, "a.md").returncode == 0
+
+
+def test_a_destination_containing_balanced_parentheses_is_parsed_whole(repo: Path) -> None:
+    """CommonMark allows balanced parentheses in a destination. Truncating at the first `)` turns
+    a working link into a reported-broken one — a false positive, which is the direction that gets
+    acted on."""
+    _write(repo, "notes_(draft).md", "# Draft\n")
+    _write(repo, "a.md", "[the draft](notes_(draft).md)\n")
+    assert _run(repo, "a.md").returncode == 0
+
+
+def test_a_broken_image_destination_is_reported_like_any_other_link(repo: Path) -> None:
+    _write(repo, "a.md", "![a diagram](diagrams/missing.png)\n")
+    result = _run(repo, "a.md")
+    assert result.returncode == 1
+    assert "no such file or directory" in result.stderr
+
+
 def test_an_external_link_is_never_fetched_or_resolved(repo: Path) -> None:
     _write(repo, "a.md", "[site](https://example.invalid/nope) [mail](mailto:a@b.c)\n")
     assert _run(repo, "a.md").returncode == 0
@@ -396,8 +417,13 @@ def test_the_extractor_agrees_with_a_real_renderer_on_every_file_in_the_reposito
             self.hrefs: list[str] = []
 
         def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            # `img` as well as `a`: this gate resolves image destinations too — a broken image
+            # is a broken link — and a renderer emits those as `src`, never `href`. Comparing
+            # against `a` alone would flag the first image anyone adds as an invented link.
             if tag == "a":
                 self.hrefs += [v for k, v in attrs if k == "href" and v is not None]
+            elif tag == "img":
+                self.hrefs += [v for k, v in attrs if k == "src" and v is not None]
 
     gate_spec = importlib.util.spec_from_file_location("_gate_oracle", GATE)
     assert gate_spec is not None and gate_spec.loader is not None
