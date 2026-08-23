@@ -17,11 +17,14 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260823 02:24 UTC
+## Where things stand right now — 20260823 02:47 UTC
 
-- **48 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.28.1`](#0281--a-gate-audited-against-itself--20260823-0206) on 20260823.
-- **Latest on PyPI: `0.28.1`**, confirmed by installing it from the index rather than by reading a
+- **49 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.28.2`](#0282--the-guides-commands-were-re-run-against-the-build-that-ships-them--20260823-0247)
+  on 20260823.
+- **Latest on PyPI: `0.28.1`** — `0.28.2` is cut and awaiting its own verification from the index,
+  which is why the *Published on PyPI* list is permitted to lag by one. Confirmed by installing it
+  from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
@@ -178,6 +181,7 @@ number belongs to a release only when it is cut
 | **[0.27.2](#0272--the-install-is-a-region-no-test-reached--20260822-1001)** | 20260822 10:01 | the install is a region no test reached | • **`pnk serve` was dead on every fresh install of all 38 published releases** — `mcp>=1.28` uncapped, and mcp 2.0.0 dropped `mcp.server.fastmcp` 3.5 h before Pinakes first published<br>• 31 green tests never saw it: they run against a **locked** mcp, and 37 `--frozen` CI invocations never resolve the dependency at all<br>• **`tools/wheel_import_gate.py`** installs the built wheel and imports all **57** modules, so the next module is covered without anyone remembering<br>• It runs **in front of `uv publish`** — a dependency major arrives with no commit here, and PyPI never takes a version back<br>• `anthropic` and `sentence-transformers` measured, deliberately **not** capped — the remedy is testing the resolve, not capping on reflex<br>• Three adversarial rounds, each finding defects in the previous round's **remedies**; 47 mutants, 0 survivors |
 | **[0.28.0](#0280--the-port-was-four-lines-the-gate-was-not--20260823-0138)** | 20260823 01:38 | the port was four lines, the gate was not | • **`pnk serve` runs on `mcp` 2.x** — `FastMCP` → `MCPServer`, and the requirement's `<2` cap becomes a `>=2` floor<br>• The four tool schemas are **byte-identical** across the move, captured from a live session on each and committed at `tools/mcp_tool_schemas.json`<br>• `serverInfo.version` now carries **Pinakes'** version; every release to 0.27.2 advertised the *mcp library's* (`1.28.1`)<br>• **The handshake both workflows used was a coin flip** — three JSON-RPC lines and a closed stdin answered `tools/list` 5/10, 1/10, 2/10 and 1/10 across the protocol versions; `make smoke` was red on every run<br>• `tools/mcp_handshake_gate.py` drives mcp's own client, and CI checks the advertised version against the **wheel's filename**<br>• Two adversarial rounds, 24 findings, **every one in the remedies rather than the port**; 29 mutants, 0 survivors |
 | **[0.28.1](#0281--a-gate-audited-against-itself--20260823-0206)** | 20260823 02:06 | a gate audited against itself | • **A lagging sequence may now be at most two releases behind** — its ceiling was its own newest entry, so deleting that entry hid the deletion<br>• **Two Parts may not claim the same versions** — Part ranges are read from the headings, so twenty characters appended to `# Part 5` legitimised a misfiled section<br>• **The Part floor is the real count** — at one below it, demoting the last heading passed exactly<br>• No code path changed: no `schema_version`, no rebuild |
+| **[0.28.2](#0282--the-guides-commands-were-re-run-against-the-build-that-ships-them--20260823-0247)** | 20260823 02:47 | the Guide's commands were re-run against the build that ships them | • **`docs/GUIDE.md` claimed every command on it was run against `0.2.0`** — twenty-six releases back, on the published site<br>• **Nine output blocks had drifted**: `notes@1.1` against a shipped `1.2`, a `You get:` tree missing two files `init` writes, `€0.26`/`€1.69` estimates against a live `€0.20`/`€1.33`<br>• **Three separate places said only one surface can spend** — `pnk ask --deep` has been the second since 0.24.0<br>• `docs/CLI.md` had the same class of defect and is fixed with it<br>• **Two blocks deliberately not re-run, and the page now says which** — the paid transcript and the two-KB walkthrough<br>• No code path changed: no `schema_version`, no rebuild |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -1737,6 +1741,68 @@ floor one below the truth is a floor with a bypass.
 **The ladder this leaves**, and it is the release's one transferable sentence: **declare** a
 constant rather than deriving it; **bound** it when it must be derived; **constrain** it when it
 must be read from the thing it polices; **delete the field** when none of those can keep it honest.
+
+**No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
+
+## 0.28.2 — the Guide's commands were re-run against the build that ships them · 20260823 02:47
+
+**`docs/GUIDE.md` opened with *"Every command here was run against 0.2.0 (20260728 16:40); the
+output shown is real."*** It was published on the site, it was the sentence a reader uses to decide
+whether to trust the other eight hundred lines, and it had been wrong for **twenty-six releases** —
+the whole of this project's life bar four days.
+
+**Nine output blocks had drifted behind it**, and the two most misleading were the ones a reader
+would act on:
+
+| block | said | says |
+|---|---|---|
+| `pnk templates` | `notes  1.1` | `notes  1.2` |
+| `pnk init` (both) | `from notes@1.1` | `from notes@1.2` |
+| the `You get:` tree | three entries | plus the `README.md` and `eval/questions.yaml` `init` really writes |
+| `pnk ask -k 2` | `€0.26` | `€0.20` |
+| `pnk ask`, uncalibrated | `€1.69` | `€1.33` |
+| the budget refusal | `€1.69`, `decomposition` branch | `€1.38`, `unknown` branch, and the closing line it had dropped |
+| `pnk upgrade` caps | `0.05 → 0.30` | `0.30 → 2.00`, plus `daily_eur: not set → 6.00` |
+| `cannot compare` | ships `notes@1.1` | ships `notes@1.1, notes@1.2` |
+
+**The two estimates went stale in a single release and stayed wrong for exactly that long.**
+`deep/estimate.py` was re-measured against the live API in
+[`0.25.3`](#0253--the-deep-loop-is-measured--20260821-2234) and has not changed since, so the guide's
+figures were correct when written and falsified by one commit four weeks later.
+
+**Four prose claims went with them, and the worst was repeated three times: that only one surface
+in Pinakes can spend money.** `pnk ask --deep` has been the second since
+[`0.24.0`](#0240--pnk-ask---deep-answers--20260811-2224). The Guide asserted it under *Watching what
+it costs* and again in *Troubleshooting*, and described `per_operation_eur` as bounding one
+`pnk sync` when it bounds one whole **command**, a deep run's every round included.
+`docs/CLI.md` already said *"the second of two that can spend"* — **the neighbourhood is what made
+the Guide's version findable**, which is the argument for auditing it rather than the diff.
+
+**And the neighbourhood carried the same class of defect.** `docs/CLI.md` said *"Today `cannot
+compare` is what every KB in existence gets"* — true when written, false since
+[`0.17.0`](#0170--a-template-version-that-means-something--20260807-2055) archived `notes@1.1` — plus
+three stale `notes@1.1` example outputs. Fixed in the same change, with the release attribution
+checked by `git describe --contains` rather than assumed.
+
+**Two blocks were deliberately not re-run, and the page now says so where they appear.** The paid
+`--deep` transcript would cost real money to reproduce, so it is kept, labelled a `0.24.0` run, and
+the one figure that has since moved is named. Re-running the two-KB link walkthrough would change
+every ULID in the section without making a single sentence truer. **The distinction is between an
+output nobody re-ran and an output nobody re-ran *and did not say so*** — only the second is a
+defect.
+
+**The adversarial pass found its own error in the fix.** The first draft of that label said the paid
+block's command *"is now quoted at €0.20"* — the figure measured at `-k 2`. The block passes no
+`-k`, and at the default passage count it quotes **`€0.21`**. One cent, and exactly the invented
+precision the label existed to prevent: two invocations collapsed into one number. Caught by
+re-reading the command the block actually shows rather than the one measured beside it.
+
+**What no gate could see.** `./check.sh` proves the release sequences agree across five documents,
+`mkdocs --strict` proves every link resolves, and the template gate proves the template matches its
+archive. **None of them reads a sentence claiming a command was run.** A stale document rots fastest
+exactly where it was most specific — a quoted output block pins a number, a version string and a
+wording at once, and any one of the three moving falsifies it, while the paragraphs around it stay
+true.
 
 **No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
 
