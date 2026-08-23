@@ -68,6 +68,7 @@ assertion*, never about a commit.
     python3 tools/mutate.py battery.toml
     python3 tools/mutate.py battery.toml --allow-zero-kills
     python3 tools/mutate.py battery.toml --repo ../pinakes-worktree
+    python3 tools/mutate.py --check-anchors tools/batteries/*.toml
 
 The battery is TOML — `tomllib` is stdlib, and `'''…'''` carries quotes, backslashes and
 indentation without escaping, which is most of what source code is made of. This example is the
@@ -87,9 +88,26 @@ battery this tool was first run with, and it still resolves:
 multi-line anchor either opens on the same line as its first character or accepts that. An anchor
 that does not match is refused with its count, which is the safety net for getting it wrong.
 
-`pytest` lives in the battery rather than on the command line because a battery is a per-increment
-working file, not a portable artifact — one home for the setting, and the tests can point it at
-`sys.executable -m pytest` without a flag that would otherwise exist only for them.
+`pytest` lives in the battery rather than on the command line: one home for the setting, and the
+tests can point it at `sys.executable -m pytest` without a flag that would otherwise exist only for
+them.
+
+**Batteries are kept.** Until 20260823 the paragraph above went on to say a battery *is* a
+per-increment working file, not a portable artifact. That was an assumption shipped as a fact, and
+nothing had measured it. Measured: of 81 mutants written across six increments and left in session
+scratchpads, **78 anchors still resolved exactly once** a day to a week later — and the three that
+did not **refused**, naming the anchor and its count, because a stale anchor is the one thing this
+tool has never been willing to guess at. The failure mode of keeping a battery is a maintenance
+prompt, never a false KILLED or a false SURVIVED. So they live in
+[`tools/batteries/`](batteries/README.md), one per target, and `--check-anchors` answers *do they
+still hold?* in milliseconds instead of a pytest baseline per selector. A committed battery omits
+`pytest` and takes the default, so there is one less thing in it that can rot.
+
+What that keeps is not the proof — re-deriving 41 mutants against a gate takes an afternoon, not a
+release. It is **the reasoning about which mutants were worth writing**: which breakages are
+plausible, which are the shipped defect this increment closed, and which two exist only because a
+first-draft guard-test turned out to be a tautology. None of that is in the code, and none of it is
+re-derivable from it.
 """
 
 from __future__ import annotations
@@ -982,7 +1000,95 @@ The battery is TOML. `pytest` is optional and defaults to `uv run --frozen pytes
 
 `old` must occur exactly once in `file`, and `kills` is one selector or an array of them. Targets
 under tests/ are refused: mutating a test stays manual. See tools/mutate.py's own docstring.
+
+Committed batteries live in tools/batteries/, one per target. `--check-anchors` reads any number of
+them, resolves every anchor against the working tree and exits — it runs nothing and writes nothing,
+so it is the cheap way to ask whether they still hold after a refactor.
 """
+
+
+# --------------------------------------------------------------------------------------------
+# checking a battery without running it
+# --------------------------------------------------------------------------------------------
+
+
+def check_anchors(root: Path, loaded: Sequence[tuple[Path, Battery]]) -> int:
+    """Resolve every anchor against the working tree, write nothing, and report *every* failure.
+
+    This is `run_battery`'s pre-flight minus the subprocesses. It exists because
+    [`tools/batteries/`](batteries/README.md) made a battery something that outlives the increment
+    that wrote it, and the question *do the committed batteries still say anything?* has to be
+    answerable in milliseconds or nobody will ask it. A full run answers it too, and charges a
+    pytest baseline per distinct selector for the privilege.
+
+    Three deliberate differences from a run:
+
+    * **the working tree, not `HEAD`.** A run refuses an uncommitted target, because after a
+      `SIGKILL` the only recovery is `git checkout <file>` and that must be safe. Nothing is
+      written here, so that refusal would buy nothing and would disarm the check in the one moment
+      it is wanted — mid-refactor, before the commit;
+    * **every failure, not the first.** A run refuses the batch on the first stale anchor, since it
+      must not write a mutant it cannot place. A repair wants the whole list;
+    * **no file may be claimed by two batteries**, which is only visible when several are read at
+      once — the shape this check is for. Two batteries mutating one file is how two increments end
+      up maintaining two sets of mutants for it that can disagree.
+
+    **What it cannot see**, and it says so on success rather than leaving a green line to be
+    misread: a `kills` selector naming a test that has been renamed away — caught by the baseline,
+    which needs pytest — and an anchor that still matches while the code around it moved, so the
+    mutant would be KILLED about a property nobody tests any more. Nothing detects the second; it
+    is why a mutant's `name` states what the breakage *is* rather than what the edit does.
+    """
+    problems: list[str] = []
+    claimed: dict[Path, set[Path]] = {}
+
+    for path, battery in loaded:
+        refuse_a_test_file(root, battery.mutants)
+        stale = 0
+        for mutant in battery.mutants:
+            claimed.setdefault(mutant.path, set()).add(path)
+            if not mutant.path.is_file():
+                stale += 1
+                problems.append(
+                    f"{path}: {mutant.name}: {mutant.path.relative_to(root).as_posix()} does not "
+                    f"exist — the target was renamed or deleted, and the anchor cannot be located."
+                )
+                continue
+            text = _decoded(mutant.path)
+            count = text.count(mutant.old)
+            if count != 1:
+                stale += 1
+                problems.append(f"{path}: {_bad_anchor_message(mutant, count, text)}")
+        targets = len({mutant.path for mutant in battery.mutants})
+        verdict = f"{stale} stale" if stale else "all resolve"
+        print(
+            f"{path}: {len(battery.mutants)} anchor(s) over {targets} file(s) — {verdict}"
+        )
+
+    for target, batteries in sorted(claimed.items()):
+        if len(batteries) > 1:
+            problems.append(
+                f"{target.relative_to(root).as_posix()} is claimed by "
+                + ", ".join(sorted(battery.as_posix() for battery in batteries))
+                + " — a file belongs to exactly one battery, so that an increment touching it "
+                "again has one place to add to and cannot leave two sets of mutants that disagree."
+            )
+
+    if problems:
+        print()
+        # stdout is block-buffered when this is piped and stderr is not, so without the flush the
+        # per-battery summary lines land *below* the problems they summarise.
+        sys.stdout.flush()
+        for problem in problems:
+            print(f"mutate: {problem}", file=sys.stderr)
+        print(f"\n{len(problems)} problem(s). Nothing was written.", file=sys.stderr)
+        return 1
+    print(
+        "\nEvery anchor resolves. That is not a green run: a `kills` selector renamed away is "
+        "caught by the baseline, which needs pytest, and an anchor that still matches while the "
+        "code around it moved is caught by nothing."
+    )
+    return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -992,7 +1098,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    _ = parser.add_argument("battery", type=Path, help="the TOML battery file")
+    _ = parser.add_argument(
+        "battery",
+        type=Path,
+        nargs="+",
+        help="the TOML battery file — several only with --check-anchors",
+    )
+    _ = parser.add_argument(
+        "--check-anchors",
+        action="store_true",
+        help="resolve every anchor against the working tree and exit, running nothing and "
+        "writing nothing — the cheap way to ask whether the committed batteries still hold",
+    )
     _ = parser.add_argument(
         "--allow-zero-kills",
         action="store_true",
@@ -1006,7 +1123,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="the working tree to mutate in (default: the one the current directory is in)",
     )
     args = parser.parse_args(argv)
-    battery_path: Path = args.battery
+    battery_paths: list[Path] = args.battery
+    check_only: bool = args.check_anchors
     allow_zero_kills: bool = args.allow_zero_kills
     start: Path = args.repo if args.repo is not None else Path.cwd()
 
@@ -1022,7 +1140,16 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         root = repo_root(start.resolve())
-        battery = load_battery(battery_path, root)
+        if check_only:
+            return check_anchors(root, [(p, load_battery(p, root)) for p in battery_paths])
+        if len(battery_paths) > 1:
+            raise MutationError(
+                "run one battery at a time. The exit status is a claim about one batch, so a "
+                "second battery's kills would be counted into the first's and `--allow-zero-kills` "
+                "would excuse a batch that was never meant to need it. `--check-anchors` takes as "
+                "many as you like."
+            )
+        battery = load_battery(battery_paths[0], root)
         print(
             f"mutate: {len(battery.mutants)} mutant(s) in {root}, "
             f"pytest = {shlex.join(battery.pytest)}\n"

@@ -1,0 +1,380 @@
+# Mutation battery — `tools/release_order_gate.py`.
+#
+#     python3 tools/mutate.py tools/batteries/tools-release_order_gate.toml
+#
+# Every row is a way this gate could be wrong while still printing a green run; the test named
+# beside it is the one assertion that catches that. **A row is a claim about one assertion, never
+# about the gate** — a battery of forty-one kills does not say the file is correct, it says these
+# forty-one breakages are each noticed by a named test.
+#
+# Sections are the increments that wrote them, oldest release first. **An increment that touches
+# this file again appends a section here rather than starting a file of its own** — one battery
+# per target is what stops two increments leaving two snapshots that disagree
+# (`tools/batteries/README.md`).
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`, so there is
+# one less thing in it that can rot.
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# 0.27.1 · the sixth sequence — STATUS's *Published on PyPI* prose
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Mutation battery for the two gates added 20260822.
+#
+# Mutant 1 is the control: a known-catchable change run first, because a battery with no kills is a
+# broken harness rather than a clean bill.
+
+[[mutant]]
+name = "CONTROL — the report stops saying which sequence is exempt"
+file = "tools/release_order_gate.py"
+old = '''            lag = ", may lag" if sequence.newest_may_lag else ""'''
+new = '''            lag = ""'''
+kills = "tests/test_release_order_gate.py::test_the_prose_list_may_lag_the_release_sequences"
+
+[[mutant]]
+name = "the prose list loses its exemption and must agree like every other sequence"
+file = "tools/release_order_gate.py"
+# Anchor widened 20260823: 0.28.3 added a *second* `newest_may_lag=True` (the Published versions
+# row, below), so the bare line matched twice and `mutate.py` refused the whole battery. The
+# `minimum=15,` above it belongs to this sequence alone.
+old = '''        minimum=15,
+        newest_may_lag=True,'''
+new = '''        newest_may_lag=False,'''
+kills = "tests/test_release_order_gate.py::test_the_prose_list_may_lag_the_release_sequences"
+
+[[mutant]]
+name = "the exemption becomes a hole — a list that LEADS is no longer refused"
+file = "tools/release_order_gate.py"
+old = '''            if version > highest:'''
+new = '''            if version < highest:'''
+kills = "tests/test_release_order_gate.py::test_the_prose_list_may_not_lead_the_release_sequences"
+
+[[mutant]]
+name = "the per-sequence floor falls back to the shared MINIMUM"
+file = "tools/release_order_gate.py"
+old = '''        minimum=15,'''
+new = '''        minimum=MINIMUM,'''
+kills = "tests/test_release_order_gate.py::test_a_sequence_carries_its_own_floor"
+
+[[mutant]]
+name = "the prose sequence is read in the wrong direction"
+file = "tools/release_order_gate.py"
+# Anchor repaired 20260823: 0.28.0's `starts_at` landed *between* these two lines, so the pair
+# matched nothing and `mutate.py` refused. The two lines that now sit adjacent are as unique.
+old = '''        ascending=True,
+        starts_at=(0, 16, 0),'''
+new = '''        ascending=False,
+        minimum=15,'''
+kills = "tests/test_release_order_gate.py::test_a_prose_entry_out_of_order_is_named_with_its_neighbour"
+
+[[mutant]]
+name = "the prose pattern over-matches, folding STATUS's roadmap table into the sequence"
+file = "tools/release_order_gate.py"
+old = '''        rf"^\*\*{NUM}, ",'''
+new = '''        rf"^\| \*\*{NUM}\*\* ",'''
+kills = "tests/test_release_order_gate.py::test_the_prose_pattern_does_not_match_the_roadmap_table"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# 0.28.0 · placement — every ROADMAP section under the Part whose range holds it
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Placement check, 20260822. Mutant 1 is the control.
+#
+# Mutant 2 IS the shipped defect, expressed as code: a Part that declares no range accepting every
+# section is precisely "0.27.1 filed under `# Part 5` and nothing noticed".
+
+[[mutant]]
+name = "CONTROL — the Part floor stops guarding, so a rotted pattern reports success"
+file = "tools/release_order_gate.py"
+old = '''PARTS_MINIMUM = 5'''
+new = '''PARTS_MINIMUM = 0'''
+kills = "tests/test_release_order_gate.py::test_a_part_pattern_that_stops_matching_fails_rather_than_passing"
+
+[[mutant]]
+name = "THE SHIPPED DEFECT — a Part with no declared range holds everything"
+file = "tools/release_order_gate.py"
+old = '''        if not self.declares_range or self.low is None:
+            return False'''
+new = '''        if not self.declares_range or self.low is None:
+            return True'''
+kills = [
+  "tests/test_release_order_gate.py::test_a_section_under_a_rangeless_part_fails_while_every_sequence_stays_sorted",
+  "tests/test_release_order_gate.py::test_a_part_whose_range_stops_parsing_holds_nothing_rather_than_everything",
+]
+
+[[mutant]]
+name = "the section is attributed to the first Part rather than the nearest one above it"
+file = "tools/release_order_gate.py"
+old = '''        holder = above[-1]'''
+new = '''        holder = above[0]'''
+kills = "tests/test_release_order_gate.py::test_the_real_document_places_every_section_under_its_part"
+
+[[mutant]]
+name = "a closed range loses its upper bound, so an off-by-one at a Part boundary passes"
+file = "tools/release_order_gate.py"
+old = '''        return self.high is None or version <= self.high'''
+new = '''        return True'''
+kills = "tests/test_release_order_gate.py::test_a_section_one_part_early_is_caught_and_names_both_parts"
+
+[[mutant]]
+name = "the lower bound excludes the version that opens the Part"
+file = "tools/release_order_gate.py"
+old = '''        if version < self.low:
+            return False'''
+new = '''        if version <= self.low:
+            return False'''
+kills = "tests/test_release_order_gate.py::test_the_real_document_places_every_section_under_its_part"
+
+[[mutant]]
+name = "the prefix range form is no longer recognised"
+file = "tools/release_order_gate.py"
+old = '''_RANGE_PREFIX = re.compile(rf"`{NUM_PREFIX}\.x`\s*$")'''
+new = '''_RANGE_PREFIX = re.compile(rf"`{NUM_PREFIX}\.NEVER`\s*$")'''
+kills = "tests/test_release_order_gate.py::test_the_prefix_range_form_is_actually_read"
+
+[[mutant]]
+name = "placement runs but its failures are discarded — a gate that reports nothing"
+file = "tools/release_order_gate.py"
+old = '''    failures.extend(check_placement(root, report=report))'''
+new = '''    check_placement(root, report=report)'''
+kills = [
+  "tests/test_release_order_gate.py::test_a_section_under_a_rangeless_part_fails_while_every_sequence_stays_sorted",
+  "tests/test_release_order_gate.py::test_a_section_one_part_early_is_caught_and_names_both_parts",
+]
+
+[[mutant]]
+name = "the range is matched anywhere in the heading, not anchored at its end"
+file = "tools/release_order_gate.py"
+old = '''_RANGE_CLOSED = re.compile(rf"`{NUM}`\s*→\s*`{NUM}`\s*$")'''
+new = '''_RANGE_CLOSED = re.compile(rf"`{NUM}`\s*→\s*`{NUM}`")'''
+kills = "tests/test_release_order_gate.py::test_a_range_like_string_in_a_part_title_is_not_mistaken_for_the_range"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# 0.28.0 · membership — order is a property of the pairs, membership of the set
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Membership check, 20260822. Mutant 1 is the control.
+#
+# Mutant 2 is the design's whole point: the planner refused a DERIVED start, so the mutant restores
+# the version I would have shipped and the battery must kill it.
+
+[[mutant]]
+name = "CONTROL — the declared exception is ignored, so 0.11.0 is demanded"
+file = "tools/release_order_gate.py"
+old = '''            v for v in universe if sequence.starts_at <= v <= ceiling and v not in sequence.absent'''
+new = '''            v for v in universe if sequence.starts_at <= v <= ceiling'''
+kills = "tests/test_release_order_gate.py::test_the_real_documents_are_complete_from_their_declared_starts"
+
+[[mutant]]
+name = "THE REFUSED DESIGN — the start is derived from the sequence's own oldest entry"
+file = "tools/release_order_gate.py"
+old = '''            v for v in universe if sequence.starts_at <= v <= ceiling and v not in sequence.absent'''
+new = '''            v for v in universe if min(versions) <= v <= ceiling and v not in sequence.absent'''
+kills = "tests/test_release_order_gate.py::test_a_deleted_first_row_is_caught_because_the_start_is_declared"
+
+[[mutant]]
+name = "a lagging sequence is held to the newest release like any other"
+file = "tools/release_order_gate.py"
+old = '''        ceiling = max(versions) if sequence.newest_may_lag else max(universe)'''
+new = '''        ceiling = max(universe)'''
+kills = "tests/test_release_order_gate.py::test_a_lagging_sequence_need_not_have_reached_the_newest_release"
+
+[[mutant]]
+name = "lagging becomes a hole — the exemption excuses any absence at all"
+file = "tools/release_order_gate.py"
+old = '''        missing = [v for v in required if v not in present]'''
+new = '''        missing = [] if sequence.newest_may_lag else [v for v in required if v not in present]'''
+kills = "tests/test_release_order_gate.py::test_a_lagging_sequence_may_not_have_a_hole_below_its_own_newest"
+
+[[mutant]]
+name = "the declared start is ignored, so every sequence must carry the union"
+file = "tools/release_order_gate.py"
+old = '''            v for v in universe if sequence.starts_at <= v <= ceiling and v not in sequence.absent'''
+new = '''            v for v in universe if (0, 0, 0) <= v <= ceiling and v not in sequence.absent'''
+kills = "tests/test_release_order_gate.py::test_a_release_before_a_sequences_declared_start_is_not_required"
+
+[[mutant]]
+name = "membership runs but its failures are discarded"
+file = "tools/release_order_gate.py"
+old = '''    failures.extend(check_membership(found, report=report))'''
+new = '''    check_membership(found, report=report)'''
+kills = "tests/test_release_order_gate.py::test_a_release_missing_from_the_middle_is_caught"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# 0.28.1 · the lag bound — how far a lagging sequence may fall behind
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# The lag bound, 20260822. Mutant 1 is the control.
+#
+# Mutant 2 restores the unbounded ceiling — the defect this commit exists to close — so a future
+# "simplification" back to it names the test that dies.
+
+[[mutant]]
+name = "CONTROL — the bound is raised out of reach"
+file = "tools/release_order_gate.py"
+old = '''MAX_VERIFICATION_LAG = 2'''
+new = '''MAX_VERIFICATION_LAG = 99'''
+kills = "tests/test_release_order_gate.py::test_a_lag_past_the_declared_bound_fails_and_names_both_causes"
+
+[[mutant]]
+name = "THE DEFECT — the ceiling is unbounded again, so a lagging sequence may fall behind forever"
+file = "tools/release_order_gate.py"
+old = '''        if len(behind) > MAX_VERIFICATION_LAG:'''
+new = '''        if False:'''
+kills = "tests/test_release_order_gate.py::test_a_lag_past_the_declared_bound_fails_and_names_both_causes"
+
+[[mutant]]
+name = "the bound is off by one, so the legitimate hold-back window goes red"
+file = "tools/release_order_gate.py"
+old = '''        if len(behind) > MAX_VERIFICATION_LAG:'''
+new = '''        if len(behind) >= MAX_VERIFICATION_LAG:'''
+kills = "tests/test_release_order_gate.py::test_a_lag_within_the_declared_bound_stays_green"
+
+[[mutant]]
+name = "the message picks one cause, which the documents cannot support"
+file = "tools/release_order_gate.py"
+old = '''                f"{MAX_VERIFICATION_LAG}. Either an entry was deleted, or verification has stopped "'''
+new = '''                f"{MAX_VERIFICATION_LAG}. An entry was deleted, and verification has stopped "'''
+kills = "tests/test_release_order_gate.py::test_a_lag_past_the_declared_bound_fails_and_names_both_causes"
+
+[[mutant]]
+name = "`behind` counts from the wrong end, so the lag is always zero"
+file = "tools/release_order_gate.py"
+old = '''        behind = [v for v in universe if v > ceiling]'''
+new = '''        behind = [v for v in universe if v < ceiling]'''
+kills = "tests/test_release_order_gate.py::test_a_lag_past_the_declared_bound_fails_and_names_both_causes"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# 0.28.1 · the Part ranges are constrained, never derived from the document
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Part-range constraints, 20260823. Mutant 1 is the control.
+#
+# Mutants 2, 3 and 5 each restore one of the two exploits an adversarial audit found in the landed
+# gate, so a future edit that reopens either names the test that dies.
+
+[[mutant]]
+name = "CONTROL — the floor drops back one below the real Part count"
+file = "tools/release_order_gate.py"
+old = '''PARTS_MINIMUM = 5'''
+new = '''PARTS_MINIMUM = 4'''
+kills = "tests/test_release_order_gate.py::test_demoting_the_last_part_heading_fails_the_floor"
+
+[[mutant]]
+name = "EXPLOIT A — the range constraints are computed and thrown away"
+file = "tools/release_order_gate.py"
+old = '''    failures.extend(_ranges_are_disjoint_and_ascending(parts))'''
+new = '''    _ranges_are_disjoint_and_ascending(parts)'''
+kills = "tests/test_release_order_gate.py::test_a_range_appended_to_a_rangeless_part_cannot_silence_placement"
+
+[[mutant]]
+name = "EXPLOIT A — nothing ever overlaps"
+file = "tools/release_order_gate.py"
+old = '''            overlaps = (first_high is None or second_low <= first_high) and ('''
+new = '''            overlaps = False and (first_high is None or second_low <= first_high) and ('''
+kills = "tests/test_release_order_gate.py::test_a_range_appended_to_a_rangeless_part_cannot_silence_placement"
+
+[[mutant]]
+name = "EXPLOIT A — an open-ended Part is treated as claiming nothing"
+file = "tools/release_order_gate.py"
+old = '''            overlaps = (first_high is None or second_low <= first_high) and ('''
+new = '''            overlaps = (first_high is not None and second_low <= first_high) and ('''
+kills = "tests/test_release_order_gate.py::test_a_range_appended_to_a_rangeless_part_cannot_silence_placement"
+
+[[mutant]]
+name = "the ascending check compares the wrong way, so descending Parts pass"
+file = "tools/release_order_gate.py"
+old = '''        if second_low < first_low:'''
+new = '''        if second_low > first_low:'''
+kills = "tests/test_release_order_gate.py::test_parts_must_ascend_with_the_document"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# 0.28.3 · the seventh sequence — the Published versions row, and `within` scoping
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# The seventh sequence — the **Published versions** row of docs/STATUS.md.
+# Every mutant here is a way the new scoping could be wrong while still reporting a green run.
+
+[[mutant]]
+name = "the `within` anchor does not actually scope — the pattern runs over the whole file"
+file = "tools/release_order_gate.py"
+old  = '''            text = regions[0] if regions else ""'''
+new  = '''            text = text if regions else ""'''
+kills = [
+  "tests/test_release_order_gate.py::test_the_prose_beside_the_row_is_not_read_as_part_of_it",
+  "tests/test_release_order_gate.py::test_the_row_and_the_prose_are_two_sequences_not_one",
+]
+
+[[mutant]]
+name = "a `within` matching twice is resolved to the first region instead of refused"
+file = "tools/release_order_gate.py"
+old  = '''            if len(regions) > 1:'''
+new  = '''            if len(regions) > 2:'''
+kills = "tests/test_release_order_gate.py::test_a_second_row_is_refused_rather_than_read_first"
+
+[[mutant]]
+name = "an anchor that matches nothing falls back to the whole file rather than to an empty sequence"
+file = "tools/release_order_gate.py"
+old  = '''            text = regions[0] if regions else ""'''
+new  = '''            text = regions[0] if regions else text'''
+kills = "tests/test_release_order_gate.py::test_a_renamed_row_matches_nothing_rather_than_passing_vacuously"
+
+[[mutant]]
+name = "the row's declared start is raised past the fixture, so membership requires nothing of it"
+file = "tools/release_order_gate.py"
+old  = '''        starts_at=(0, 2, 2),'''
+new  = '''        starts_at=(0, 90, 0),'''
+kills = "tests/test_release_order_gate.py::test_a_release_missing_from_the_row_is_named_even_though_the_prose_has_it"
+
+[[mutant]]
+name = "the row is not permitted to lag, so a drift is reported as a hole and the bound never fires"
+file = "tools/release_order_gate.py"
+old  = '''        newest_may_lag=True,
+        # ...but never behind the prose beside it, which is the tight bound the lag constant is'''
+new  = '''        newest_may_lag=False,
+        # ...but never behind the prose beside it, which is the tight bound the lag constant is'''
+kills = "tests/test_release_order_gate.py::test_the_row_drifting_behind_the_prose_beside_it_is_caught"
+
+[[mutant]]
+name = "the anchor is compiled without MULTILINE, so `^` only matches at the start of the file"
+file = "tools/release_order_gate.py"
+old  = '''        self.within = re.compile(within, re.MULTILINE) if within is not None else None'''
+new  = '''        self.within = re.compile(within) if within is not None else None'''
+kills = "tests/test_release_order_gate.py::test_every_pattern_still_matches_the_real_documents"
+
+[[mutant]]
+name = "the group-count guard never fires, so a mis-specified anchor is accepted"
+file = "tools/release_order_gate.py"
+old  = '''        if self.within is not None and self.within.groups != 1:'''
+new  = '''        if self.within is not None and self.within.groups < 0:'''
+kills = "tests/test_release_order_gate.py::test_a_within_anchor_with_the_wrong_number_of_groups_is_refused_at_import"
+
+# --- the not-behind relation ---
+
+[[mutant]]
+name = "the not-behind rule never fires, so the row may fall behind the prose freely"
+file = "tools/release_order_gate.py"
+old  = '''        if max(mine) < max(theirs):'''
+new  = '''        if max(mine) > max(theirs):'''
+kills = "tests/test_release_order_gate.py::test_the_row_may_not_lag_the_prose_recording_the_same_verification"
+
+[[mutant]]
+name = "the not-behind rule fires when the two lists agree, so an ordinary lag goes red"
+file = "tools/release_order_gate.py"
+old  = '''        if max(mine) < max(theirs):'''
+new  = '''        if max(mine) <= max(theirs):'''
+kills = "tests/test_release_order_gate.py::test_the_row_may_still_lag_the_release_documents_alongside_the_prose"
+
+[[mutant]]
+name = "the row stops declaring the relation at all"
+file = "tools/release_order_gate.py"
+old  = '''        not_behind=("docs/STATUS.md", "the Published on PyPI prose"),'''
+new  = '''        not_behind=None,'''
+kills = "tests/test_release_order_gate.py::test_the_row_may_not_lag_the_prose_recording_the_same_verification"
+
+[[mutant]]
+name = "the reference validator accepts a label that names no sequence"
+file = "tools/release_order_gate.py"
+old  = '''    labels = {(s.path, s.what) for s in sequences}'''
+new  = '''    labels = {(s.path, s.what) for s in sequences} | {("docs/STATUS.md", "no such list")}'''
+kills = "tests/test_release_order_gate.py::test_a_not_behind_naming_no_sequence_is_refused_when_the_module_is_built"
