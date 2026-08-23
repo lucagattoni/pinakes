@@ -89,7 +89,7 @@ Lists the templates this build can stamp a KB from — the names `pnk init --tem
 of any KB, and it is the same wherever you run it from. To ask which template a given KB is on and
 what has changed since, use [`pnk upgrade`](#pnk-upgrade).
 
-`--json` emits the same rows with a `reference` field — `notes@1.1`, the string a manifest records —
+`--json` emits the same rows with a `reference` field — `notes@1.2`, the string a manifest records —
 so a consumer never has to reassemble it from the name and version.
 
 **A template that cannot be read is named, not skipped.** A damaged install — a template directory
@@ -441,7 +441,7 @@ Four outcomes, and on every KB in existence today it is the second:
 
 | What it says | When |
 |---|---|
-| `notes@1.1` — `OK` | the recorded and installed versions match |
+| `notes@1.2` — `OK` | the recorded and installed versions match |
 | `cannot compare: notes@1.0 is not in this build's archive` | the recorded version's content was never archived. `notes@1.0` denotes eleven different template contents, so it is deliberately left out: a diff from the wrong base is worse than no diff. The remedy names the comparison available today — `pnk init` a throwaway directory and diff its `pinakes.toml` against yours — and does **not** promise a later release will fix it, because an unarchived version's content is gone rather than pending. A KB stamped from `notes@1.1` onward is compared automatically |
 | `KB says X, installed is Y — 7 lines differ` | both versions are archived and their manifests differ. [`pnk upgrade`](#pnk-upgrade) prints the lines; nothing is applied automatically |
 | `KB says X, installed is Y — same manifest` | both are archived and stamp an identical `pinakes.toml`. A template version covers four files and this comparison reads one of them, so the version moved without changing your manifest. Its `README.md` and starter golden set are yours to keep or refresh by hand |
@@ -778,16 +778,18 @@ unreadable manifest as one:
 
 | It says | Exit | When |
 |---|---|---|
-| `up to date: notes@1.1` | `0` | the recorded and installed versions match. With `--apply`, nothing is written |
+| `up to date: notes@1.2` | `0` | the recorded and installed versions match. With `--apply`, nothing is written |
 | a diff, then a placement for each hunk | `0` | both versions are archived and their manifests differ. With `--apply`, `0` means the clean hunks were written |
 | `… stamp an identical pinakes.toml` | `0` | both are archived and render the same manifest. A template version covers four files and this command reads one of them. **`--apply` records the new reference in `[kb] template` and changes nothing else** — there are no hunks to write, and it says so before writing. Without `--apply` nothing is written at all, as on every other outcome |
 | `cannot compare: …` | `3` | the recorded version is not archived, the installed one is not, the template is not installed here, this KB records no template, or an archived version needs a variable this build cannot supply. **Every one of them opens with `cannot compare:`**, so a script can match one string for the whole class. `--apply` does not change it: nothing is wrong and there is nothing to write against |
 | `error: cannot apply: …` on stderr | `1` | **`--apply` only.** A hunk conflicts; `pinakes.toml.orig` is already there; a sync holds the KB; the manifest's line endings are not uniform, or it carries a character that breaks lines without being a newline (`\u2028`, `\u2029`, `\x85`); two clean hunks would land on the same region; or `[kb] template` is absent, repeated, or not a single quoted value. **Nothing was written in any of them**, and no backup was left behind |
 | `error: …` on stderr | `1` | an operational failure that is yours to fix: there is no KB here, or its manifest does not load |
 
-**Today `cannot compare` is what every KB in existence gets**, because `notes@1.0` is deliberately
+**`cannot compare` is what a KB stamped `notes@1.0` gets**, because that version is deliberately
 not archived — it denotes eleven different template contents, and a diff computed from the wrong
-base is worse than no diff. The message says so and names the comparison available now: `pnk init` a
+base is worse than no diff. **It was once true of every KB in existence and no longer is**: the
+archive has shipped `notes@1.1` since 0.17.0 and `notes@1.2` since 0.24.0, so any KB created from
+0.17.0 onward is compared normally, and only KBs predating it land here. The message says so and names the comparison available now: `pnk init` a
 throwaway directory and diff its `pinakes.toml` against yours. A KB stamped from `notes@1.1` onward
 is compared automatically.
 
