@@ -3,6 +3,24 @@
 Architecture and rationale live in [`docs/DESIGN.md`](docs/DESIGN.md); [`docs/README.md`](docs/README.md)
 indexes the rest (which file owns which fact). This file only carries rules that change how you work.
 
+## 🧭 A cleared context does not know its own role — settle that first
+
+**Before any tool call that writes:**
+
+1. **Name your role** — coder, planner, other — from what the **user** said in *this* session.
+   Never infer it from the repo, from the previous session, or from the work in flight. **If you
+   cannot determine it, ask, and do nothing until they answer.** This one blocks; *Working mode —
+   autonomous by default* below does **not** override it.
+2. **Ask every live peer theirs** — `ListAgents`, then `SendMessage` — and state your own role and
+   file set in the same message. Wait before touching a shared path.
+3. **Then act inside the ownership table** in *Documentation has one owner*, re-checking at the
+   moment of landing rather than only at the start.
+
+**Both directions fail silently, and both happened here on 20260823**: assuming *planner* collides
+with an in-flight land; assuming *coder* leaves a document wrong out of deference. Set by the user
+that day. Procedure and the failure record: [`docs/BUILDING.md` § Settle your role
+first](docs/BUILDING.md#settle-your-role-before-anything-else).
+
 ## 🛑 Land with `tools/land.py` — never `git merge` by hand
 
     python3 tools/land.py <branch>                  # merge, verify, push
