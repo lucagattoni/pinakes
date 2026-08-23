@@ -1,0 +1,239 @@
+[
+  {
+    "description": "Read one document, by the id pinakes_search returned.\n\nFor a paged source (a PDF), page boundaries are marked by a line reading `[page N]`, and\n`page_start`/`page_end` read only that range — both bounds 1-indexed and inclusive. Omit\nthem to read the whole document. Non-paged sources have no pages and reject the arguments.\n",
+    "inputSchema": {
+      "properties": {
+        "doc_id": {
+          "title": "Doc Id",
+          "type": "string"
+        },
+        "kb": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kb"
+        },
+        "page_end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page End"
+        },
+        "page_start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page Start"
+        }
+      },
+      "required": [
+        "doc_id"
+      ],
+      "title": "pinakes_getArguments",
+      "type": "object"
+    },
+    "name": "pinakes_get",
+    "outputSchema": {
+      "additionalProperties": true,
+      "title": "pinakes_getDictOutput",
+      "type": "object"
+    }
+  },
+  {
+    "description": "What a document connects to, and what connects to it — the authored link graph.\n\n`direction` is `out` (links written in this document), `in` (links pointing at it, learned\nby scanning the other KB's committed sidecars), or `both`. `depth` follows further hops and\nis **capped at 3 server-side**; there is no query language and never will be.\n\nA neighbour in **another KB is terminal**: returned, and never expanded, at any depth. Not\nbecause nothing is there, but because this KB holds only that KB's links pointing *here* —\nexpanding would show a partial slice of its graph you could not tell apart from the whole.\nOpen that KB to go further.\n\n`frontier` lists neighbours found and not expanded, each with the reason (`terminal`,\n`depth`, `fanout`, `rows`, `tokens`); `unresolved` lists links whose target is missing.\n`confidence` is always `unknown` here — the confidence signal is calibrated for retrieved\npassages, and a traversal neighbour is not one.\n\n**To read a neighbour, pass its `kb_id` too**: `pinakes_get(doc_id, kb=kb_id)`. A document\nid resolves inside one KB, so a neighbour in a *different* served KB is not found without\nit. Any row needing this carries a `fetch_with` object with both arguments ready.\n\n`score` is comparable only among rows with the same `scored_by_query`; the list is already\nin rank order, so re-sorting it by `score` is a mistake rather than a refinement.\n",
+    "inputSchema": {
+      "properties": {
+        "depth": {
+          "default": 1,
+          "title": "Depth",
+          "type": "integer"
+        },
+        "direction": {
+          "default": "both",
+          "title": "Direction",
+          "type": "string"
+        },
+        "doc_id": {
+          "title": "Doc Id",
+          "type": "string"
+        },
+        "kb": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kb"
+        },
+        "query": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Query"
+        },
+        "rel": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rel"
+        }
+      },
+      "required": [
+        "doc_id"
+      ],
+      "title": "pinakes_linksArguments",
+      "type": "object"
+    },
+    "name": "pinakes_links",
+    "outputSchema": {
+      "additionalProperties": true,
+      "title": "pinakes_linksDictOutput",
+      "type": "object"
+    }
+  },
+  {
+    "description": "List the knowledge bases this server was pointed at.",
+    "inputSchema": {
+      "properties": {},
+      "title": "pinakes_list_kbsArguments",
+      "type": "object"
+    },
+    "name": "pinakes_list_kbs",
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Result",
+          "type": "array"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "pinakes_list_kbsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "description": "Search a KB. Returns cited passages, a confidence signal, and a suggested next step.\n\nEach passage carries a `citation`; for a paged source (a PDF) that is `path:pN`, or\n`path:pN-M` when the passage spans pages, and `page_start`/`page_end` carry the same\nnumbers as integers. Both are null for a source that has no pages.\n",
+    "inputSchema": {
+      "properties": {
+        "k": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "K"
+        },
+        "kb": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kb"
+        },
+        "path_prefix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path Prefix"
+        },
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "source_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Type"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tags"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "title": "pinakes_searchArguments",
+      "type": "object"
+    },
+    "name": "pinakes_search",
+    "outputSchema": {
+      "additionalProperties": true,
+      "title": "pinakes_searchDictOutput",
+      "type": "object"
+    }
+  }
+]

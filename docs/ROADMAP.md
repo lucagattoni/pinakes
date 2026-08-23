@@ -166,6 +166,7 @@ number belongs to a release only when it is cut
 | **[0.27.0](#0270--the-mutation-step-gets-its-guard--20260822-0619)** | 20260822 06:19 | the mutation step gets its guard | • **`tools/mutate.py`** — the per-increment mutation battery, run by a tool rather than by hand. `docs/BUILDING.md` § 4 was the procedure's one *silently-failing* step<br>• Each written rule is a refusal: tracked-and-committed target, anchor matched **exactly once** before the first write, `__pycache__` cleared either side, never `-x`, restore in a `finally` with its bytes verified, **zero kills exits non-zero**<br>• **Five ways a run can lie that the rules did not cover, all measured** — a skipped test exits 0 like a passing one; an already-red selector kills everything; `SIGTERM`/`SIGHUP`/`SIGQUIT` skip `finally`; `PYTEST_ADDOPTS` smuggles in `-x`; `PYTHONPYCACHEPREFIX` hides the cache<br>• pytest's `<error>` tag covers a collection failure **and** a setup/teardown failure, which are opposite events — conflating them threw away real kills<br>• **25 mutants against its own guards, 25 killed.** Three rounds of that found four clauses no battery-driven test could reach<br>• *A developer tool — it ships in no wheel and changes nothing for any KB* |
 | **[0.27.1](#0271--the-gates-read-what-they-were-cited-for--20260822-0704)** | 20260822 07:04 | the gates read what they were cited for | • **The release-order gate reads a sixth sequence** — STATUS's *Published on PyPI* prose, which `RELEASING.md` had delegated to it while no pattern matched it<br>• That list had been mis-ordered since 20260821, through every green run<br>• It may **lag** the other five (an entry is held back until verified from the index) and may never **lead** them — an exemption without a direction is a hole<br>• **A fragment opening with a `---` front-matter fence is refused** — three 0.24.0 fragments carried one and `--apply` published all three<br>• No code path changed: no `schema_version`, no rebuild |
 | **[0.27.2](#0272--the-install-is-a-region-no-test-reached--20260822-1001)** | 20260822 10:01 | the install is a region no test reached | • **`pnk serve` was dead on every fresh install of all 38 published releases** — `mcp>=1.28` uncapped, and mcp 2.0.0 dropped `mcp.server.fastmcp` 3.5 h before Pinakes first published<br>• 31 green tests never saw it: they run against a **locked** mcp, and 37 `--frozen` CI invocations never resolve the dependency at all<br>• **`tools/wheel_import_gate.py`** installs the built wheel and imports all **57** modules, so the next module is covered without anyone remembering<br>• It runs **in front of `uv publish`** — a dependency major arrives with no commit here, and PyPI never takes a version back<br>• `anthropic` and `sentence-transformers` measured, deliberately **not** capped — the remedy is testing the resolve, not capping on reflex<br>• Three adversarial rounds, each finding defects in the previous round's **remedies**; 47 mutants, 0 survivors |
+| **[0.28.0](#0280--the-port-was-four-lines-the-gate-was-not--20260823-0138)** | 20260823 01:38 | the port was four lines, the gate was not | • **`pnk serve` runs on `mcp` 2.x** — `FastMCP` → `MCPServer`, and the requirement's `<2` cap becomes a `>=2` floor<br>• The four tool schemas are **byte-identical** across the move, captured from a live session on each and committed at `tools/mcp_tool_schemas.json`<br>• `serverInfo.version` now carries **Pinakes'** version; every release to 0.27.2 advertised the *mcp library's* (`1.28.1`)<br>• **The handshake both workflows used was a coin flip** — three JSON-RPC lines and a closed stdin answered `tools/list` 5/10, 1/10, 2/10 and 1/10 across the protocol versions; `make smoke` was red on every run<br>• `tools/mcp_handshake_gate.py` drives mcp's own client, and CI checks the advertised version against the **wheel's filename**<br>• Two adversarial rounds, 24 findings, **every one in the remedies rather than the port**; 29 mutants, 0 survivors |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -1649,6 +1650,46 @@ the install states CI runs. A dependency that keeps its module layout and change
 passes everything here. `[st]` is resolved fresh by nothing, because torch is ~2 GB. And `ci.yml`
 runs on push and pull_request, so a third party's release is caught at the next push or tag rather
 than when it happens.
+
+## 0.28.0 — the port was four lines, the gate was not · 20260823 01:38
+
+**`pnk serve` runs on `mcp` 2.x.** `serve.py` moves from `mcp.server.fastmcp.FastMCP` — removed
+outright in 2.0.0, which is what left the command dead on every fresh install up to 0.27.1 — to its
+successor `mcp.server.mcpserver.MCPServer`, and the requirement moves from `mcp>=1.28,<2` to
+`mcp>=2`. The cap was 0.27.2's outage fix and was always going to be lifted by the increment that
+ported the code. Nothing replaces it: a cap is a guess about a release nobody has seen, and what
+catches a dependency's next major is resolving fresh and running the thing.
+
+**The four `pinakes_*` tool schemas are byte-identical across the move** — captured from a live
+session on each library and diffed before anything landed, then committed at
+`tools/mcp_tool_schemas.json` — so no client sees a different tool. The one wire difference is
+`serverInfo.version`: `FastMCP` took no `version=` and filled the field with the **`mcp` library's**
+own version, so every release up to 0.27.2 told a client asking which Pinakes it was talking to that
+it was `1.28.1`.
+
+**The port was four lines. The gate it broke was the increment.** The handshake in both workflows
+was three JSON-RPC lines written into `pnk serve` with stdin closed immediately. `mcp` 1.28.1
+drained that queue before shutting down; 2.0.0 does not, and the flake is not about the protocol —
+ten runs at each version the library accepts answered `tools/list` 5/10, 1/10, 2/10 and 1/10. Both
+workflows would have gone red four runs in five on a server that works, and `make smoke` — the
+pre-tag check a maintainer actually runs, and the third copy nobody looked at — was red on **every**
+run. That handshake had been written the same morning, in 0.27.2, *to catch the `mcp` outage*, against
+the behaviour of the version it was about to lose.
+
+`tools/mcp_handshake_gate.py` drives `mcp`'s own client, which holds the session open until it has
+its answers, and checks two things the piped version could not: that `serverInfo.version` is what
+the built **wheel's filename** says, and that the tools listed match the committed snapshot exactly.
+Against a fresh resolve that snapshot is what turns a future `mcp` reshaping the published contract
+into a red run rather than a silent change to every client's view.
+
+**Two adversarial rounds, 24 findings between them, every one of them in the remedies rather than
+the port.** Round one found a landmine in the release's own path: the version test compared against
+`importlib.metadata.version("pinakes")`, reaching for an independence that does not exist inside a
+checkout — `[tool.hatch.version]` reads the same file and `uv run` does not refresh dist-info — so
+bumping `__version__` to cut this release would have reddened two tests, blaming the defect the
+increment had just fixed. Round two found the first round's own fixes applied to some call sites and
+not all: comment-stripping added to `release.yml`'s pins and not the Makefile's, the positive
+exit-status rule applied to both workflows and not to `make smoke`. 29 mutants, 0 survivors.
 
 # Part 5 · What is not built
 

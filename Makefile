@@ -72,14 +72,21 @@ build:  ## Build wheel and sdist
 
 # `pnk --version` alone is what this was, and it is the shape of check that let `pnk serve` ship
 # dead in every release from the first to 0.27.1: `--isolated --no-project` resolves *fresh*, and
-# `--version` touches no dependency. The import gate is the one `ci.yml` and `release.yml` run;
-# the handshake is the same session. Deliberately without `timeout`, which CI has and macOS does
-# not — locally a hang is a person's Ctrl-C, in CI it is a burnt job budget.
+# `--version` touches no dependency. This target runs **the same two gates the two workflows run**,
+# against the same freshly-resolved wheel — one implementation, three call sites, so a fix to
+# either gate reaches all three and none of them can drift into checking something weaker.
+# Deliberately without `timeout`, which CI has and macOS does not: locally a hang is a person's
+# Ctrl-C, in CI it is a burnt job budget, and `tools/mcp_handshake_gate.py` carries its own
+# 30-second ceiling either way.
 #
-# **The output goes to a file, never into `grep -q`.** A pipe closes the moment grep matches, so
-# `pnk serve` died on a broken pipe, dumped an ExceptionGroup to stderr, and `make` exited **0** —
-# the whole target reporting success off a crashed server, printing a line claiming a handshake.
-# A pipeline also hides `pnk serve`'s own exit status. Measured 20260822, by review.
+# **The handshake was three JSON-RPC lines written here and stdin closed, until 20260822.** Two
+# separate defects lived in that shape and both were measured, not reasoned about. The first: the
+# output went through `grep -q`, which closes the pipe on its first match, so `pnk serve` died on a
+# broken pipe, dumped an ExceptionGroup, and `make` exited **0** — the target reporting success off
+# a crashed server. The second, found when `mcp` 2.0.0 arrived: 2.x does not drain a queued request
+# before shutting down on EOF, so `tools/list` was answered **2 runs in 10** against 10 in 10 under
+# 1.28.1. Driving the session with `mcp`'s own client removes both — the client holds the
+# connection open until it has its answers, and the gate's exit status is this recipe line's.
 smoke: build  ## Install the built wheel in isolation and exercise it — what release does
 	uv run --isolated --no-project --with dist/*.whl pnk --version
 	rm -rf /tmp/pinakes-smoke && mkdir -p /tmp/pinakes-smoke
@@ -87,15 +94,9 @@ smoke: build  ## Install the built wheel in isolation and exercise it — what r
 	uv run --isolated --no-project --with dist/*.whl python tools/wheel_import_gate.py \
 		--require pinakes.serve --min-modules 50 \
 		--allow-missing pinakes.extract.pdfium:pypdfium2
-	printf '%s\n' \
-		'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"make","version":"0"}}}' \
-		'{"jsonrpc":"2.0","method":"notifications/initialized"}' \
-		'{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
-		> /tmp/pinakes-smoke/session.jsonl
-	uv run --isolated --no-project --with dist/*.whl pnk serve /tmp/pinakes-smoke/kb \
-		< /tmp/pinakes-smoke/session.jsonl > /tmp/pinakes-smoke/out.jsonl
-	grep -q '"serverInfo"' /tmp/pinakes-smoke/out.jsonl
-	grep -q 'pinakes_search' /tmp/pinakes-smoke/out.jsonl
+	uv run --isolated --no-project --with dist/*.whl python tools/mcp_handshake_gate.py \
+		--kb /tmp/pinakes-smoke/kb \
+		--expect-version "$$(basename dist/*.whl | cut -d- -f2)"
 	@echo "smoke: the built wheel installs, imports every module and answers an MCP handshake."
 
 release-check:  ## Verify the git tag you are about to push matches pinakes.__version__
