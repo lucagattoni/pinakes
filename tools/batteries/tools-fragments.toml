@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 19
+mutants = 20
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -192,3 +192,16 @@ file = "tools/fragments.py"
 old = '''        if _without_position(problem) not in already:'''
 new = '''        if True:'''
 kills = "tests/test_fragments.py::test_a_fault_already_in_the_document_is_reported_once_not_twice"
+
+# `--check` stopped being read-only when it began simulating the write, so it and `--apply` must
+# agree about assembly forever — and a disagreement is silent. `main` calls `prospective` rather
+# than re-deriving; this row is the drift that sharing is meant to prevent.
+
+[[mutant]]
+name = "--apply re-derives its own assembly, and it differs from the one --check validated"
+file = "tools/fragments.py"
+old = '''        spliced = prospective(stream, repo)'''
+new = '''        spliced = (
+            splice(stream, render(stream, repo) + "\n", repo) if render(stream, repo) else None
+        )'''
+kills = "tests/test_fragments.py::test_check_validates_the_exact_bytes_apply_writes"

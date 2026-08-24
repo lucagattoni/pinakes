@@ -554,15 +554,20 @@ def main() -> int:
             for problem in problems:
                 print(problem, file=sys.stderr)
             return 1
-        rendered = render(stream, repo)
-        if not rendered:
-            if args.apply:
-                print(f"fragments: nothing to apply for {stream.name}.")
-            continue
         if args.render:
-            print(rendered, end="")
+            if rendered := render(stream, repo):
+                print(rendered, end="")
             continue
-        spliced = splice(stream, rendered, repo)
+        # `prospective` — the same function `--check` validates through, called rather than
+        # re-derived. `--check` now simulates a write, so the two must agree about assembly
+        # forever, and a disagreement between them would be *silent*: `--check` green on an
+        # assembly `--apply` would never produce. Sharing the definition makes them the same code
+        # rather than two paths that happen to match;
+        # `test_check_validates_the_exact_bytes_apply_writes` holds them to it from the outside.
+        spliced = prospective(stream, repo)
+        if spliced is None:
+            print(f"fragments: nothing to apply for {stream.name}.")
+            continue
         # Checked before the write, and therefore before the deletes below. A malformed document
         # found *after* `--apply` is found with the fragments that caused it already gone — the
         # same reasoning `check.sh` gives for running `--check` at commit time rather than at

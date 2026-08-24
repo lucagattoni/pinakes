@@ -12,9 +12,11 @@ about what splicing must leave *untouched*.
 
 from __future__ import annotations
 
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -684,3 +686,44 @@ def test_a_fault_already_in_the_document_is_reported_once_not_twice(repo: Path) 
     assert result.returncode == 1
     assert result.stderr.count("repeats the heading") == 1, "the pre-existing fault, once"
     assert "would write, not the one on disk" not in result.stderr
+
+
+def test_check_validates_the_exact_bytes_apply_writes(repo: Path) -> None:
+    """**The coupling `--check` acquired when it stopped being read-only.** It no longer inspects
+    the document; it simulates the write. So `--check` and `--apply` must agree about assembly
+    forever, and a disagreement would be silent — `--check` green on an assembly `--apply` would
+    never produce, which is the failure mode this whole increment exists to remove.
+
+    `main` calls `prospective` rather than re-deriving the splice, so they are the same code and
+    not two paths that happen to match. This holds them to it from the outside anyway: the module
+    is imported by path — the pattern `tests/test_markdown_link_gate.py` uses to keep the gate and
+    `mkdocs_hooks.py` from drifting — and the bytes are compared against what the real subprocess
+    writes. A refactor giving either path its own assembly turns this red.
+    """
+    spec = importlib.util.spec_from_file_location("_fragments", TOOL)
+    assert spec is not None and spec.loader is not None
+    module: Any = importlib.util.module_from_spec(spec)
+    # Registered *before* `exec_module`: `@dataclass` resolves its annotations through
+    # `sys.modules[cls.__module__]`, which is `None` while the module is still executing.
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+
+        write(repo, "changelog.d/added-one.md", "- **A new thing.**")
+        write(repo, "changelog.d/fixed-two.md", "- **A fixed thing.**")
+        write(repo, "retro.d/a-lesson.md", "## A lesson\n\nProse.")
+
+        predicted = {
+            name: module.prospective(stream, repo) for name, stream in module.STREAMS.items()
+        }
+        targets = {name: str(stream.target) for name, stream in module.STREAMS.items()}
+    finally:
+        del sys.modules[spec.name]
+
+    assert run(repo, "--apply").returncode == 0
+
+    for name, target in targets.items():
+        assert predicted[name] is not None, f"{name}: nothing predicted for a stream with fragments"
+        assert predicted[name] == (repo / target).read_text(encoding="utf-8"), (
+            f"{name}: --check validated bytes --apply did not write"
+        )
