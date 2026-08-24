@@ -192,6 +192,15 @@ that a boundary needing a context clear is a **stop** rather than an offer
 | **The plan's baseline / measurement block** | which of its rows this increment just falsified, and how far `file:line` moved. Every plan here has drifted this way; the template release's did about thirty times in four days |
 | **[STATUS.md](STATUS.md)** | the surface row — `on `main`, unreleased` between landing and release, then the version |
 
+**All five are planner-only, so an implementer hands over by *proposing* them.** The rule that the
+handover lands in the same branch as the work (the user, 20260811 15:37) is unchanged and is not
+weakened here: what lands in that branch is the `git diff <sha> -- <file>` for each row, per
+[§ Proposing a change to a document you do not own](#proposing-a-change-to-a-document-you-do-not-own).
+The planner incorporates them. **An implementer that edits these directly has broken the ownership
+rule, not satisfied the handover one** — and an implementer that writes nothing has satisfied
+neither. The two rules meet here rather than collide; only the *form* of the handover differs by
+role.
+
 **A pointer nothing links to is not a handover.** Verify by opening what a fresh session opens —
 `CLAUDE.md`, then `docs/`, then the plan — not by trusting that you wrote it down somewhere. A
 *missing* row has no wrong text to find, so no diff review and no grep reaches it; only the question

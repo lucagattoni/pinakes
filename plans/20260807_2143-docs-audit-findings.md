@@ -33,6 +33,84 @@ cheaper after T2 than before. Second, the three currency headers (`GUIDE:3`, `MA
 `DESIGN:5`) claim the file was verified against a version; **restamp those last**, because the
 stamp is only worth writing once everything under it is true.
 
+## Re-verified 20260823 against `c45ffa8` (0.29.1) — 34 of 39 remain
+
+**Every `file:line` in a heading below is as of 20260807 and is stale.** Thirteen releases landed
+between the audit and this pass. **Locate a finding by its content, never by its line number.** This
+pass re-read each claim in the document as it stands and re-ran its evidence.
+
+| | |
+|---|---|
+| Open at the audit | 39 |
+| **Fixed since, by other work** | **6** |
+| **Half-fixed — still open, now narrower** | **1** (`docs/DESIGN.md:711`) |
+| **Still open, stated fix no longer applies** | **5** — marked ⚠ below |
+| **Still open as written** | **28** |
+| **Remaining** | **34** |
+
+**How the pass ran, including the part that failed.** Eleven agents, one per document cluster, each
+re-reading the claim and re-running its evidence; then an adversary per cluster prompted to *refute*
+every *already fixed* verdict, since that is the direction that silently drops a verified defect.
+**The adversary overturned nothing, and it was wrong to.** Hand-checking all seven *already fixed*
+verdicts afterwards found one false: `docs/DESIGN.md:711` asked to drop two phrases and only one had
+gone — *a manifest and a template drift silently* still stands at `docs/DESIGN.md:856` while
+`doctor.py:303,312` prints the drift it denies. **A pass that returns zero is a claim about the
+pass.** The six confirmations below are hand confirmations, not the fan-out's.
+
+**Fixed since the audit — confirmed by reading the current text, not by a tool:**
+
+| Finding | What it says today |
+|---|---|
+| `docs/DESIGN.md:715` | `[KB-UPDATES.md](KB-UPDATES.md)` works the problem through and records what has been decided… |
+| `docs/GUIDE.md:3` | How to build, feed, search and share a knowledge base. Every command here was re-run again… |
+| `docs/GUIDE.md:93` | my-kb/
+├── pinakes.toml     # the manifest — sources, models, chunking, budget
+├── docs/  … |
+| `docs/KB-UPDATES.md:24` | Sentence quoted in the finding is absent. `grep -n "deferred command\\|no detection at all\… |
+| `docs/MEASUREMENT-RUN.md:168` | 5. **STATUS.md** gains what this run measured. (Its "output quality is not yet measured" c… |
+| `docs/STATUS.md:303` | 355: \| **0.15.0** ✅ \| ... \| \n 356: \| **0.15.1** ✅ \| ... \| \n 357: \| **0.16.0** ✅ \| ... \| … |
+
+**Still open. The location column was measured against `c45ffa8` and rots at the next release** —
+it is a working aid, not a fact. ⚠ marks a finding whose stated **Fix** no longer applies as
+written; re-derive it before applying.
+
+| Finding | Severity today | Current location |
+|---|---|---|
+| `docs/CLI.md:26` | medium | `docs/CLI.md:27` |
+| `docs/DESIGN.md:525` | medium | `docs/DESIGN.md:605-607` |
+| `docs/DESIGN.md:699` | low | `docs/DESIGN.md:825` |
+| `docs/DESIGN.md:711` | none | `docs/DESIGN.md:854-859` |
+| `docs/GUIDE.md:305` | medium | `docs/GUIDE.md:566` |
+| `docs/MANIFEST.md:3` | medium | `docs/MANIFEST.md:3` |
+| `docs/README.md:98` | medium | `docs/README.md:103-104` |
+| `docs/VERIFICATION.md:28` | medium | `docs/VERIFICATION.md:27-29` |
+| `docs/graph/PINAKES_APPROACH.md:7` | medium | `docs/graph/PINAKES_APPROACH.md:3-8` |
+| `README.md:97` | low | `README.md:104-106` |
+| `docs/CLI.md:23` | low | `absent` |
+| `docs/CLI.md:26` | low | `docs/CLI.md:27` ⚠ |
+| `docs/CLI.md:76` | low | `docs/CLI.md:108-109` |
+| `docs/CLI.md:94` | low | `docs/CLI.md:126` |
+| `docs/CLI.md:179` | low | `docs/CLI.md:408-415` |
+| `docs/CLI.md:255` | low | `docs/CLI.md:510` |
+| `docs/CLI.md:298` | low | `docs/CLI.md:553-554` |
+| `docs/CLI.md:468` | medium | `docs/CLI.md:845-853` ⚠ |
+| `docs/DESIGN.md:5` | low | `docs/DESIGN.md:5` |
+| `docs/DESIGN.md:524` | low | `docs/DESIGN.md:604` |
+| `docs/DESIGN.md:763` | low | `Three sites, all shifted by the same earlier…` |
+| `docs/GUIDE.md:9` | low | `docs/GUIDE.md:16-26` ⚠ |
+| `docs/GUIDE.md:190` | medium | `docs/GUIDE.md:240-241` |
+| `docs/GUIDE.md:285` | medium | `docs/GUIDE.md:546-548` |
+| `docs/GUIDE.md:535` | medium | `docs/GUIDE.md:878-880` |
+| `docs/KB-UPDATES.md:30` | low | `docs/KB-UPDATES.md:37` |
+| `docs/KB-UPDATES.md:62` | low | `docs/KB-UPDATES.md:76-78` ⚠ |
+| `docs/KB-UPDATES.md:88` | low | `docs/KB-UPDATES.md:102` |
+| `docs/MANIFEST.md:111` | low | `docs/MANIFEST.md:118` |
+| `docs/MANIFEST.md:176` | low | `docs/MANIFEST.md:184` |
+| `docs/MEASUREMENT-RUN.md:172` | low | `docs/MEASUREMENT-RUN.md:193` |
+| `docs/README.md:25` | low | `docs/README.md:17-29` |
+| `docs/VERIFICATION.md:27` | medium | `docs/VERIFICATION.md:25-29` ⚠ |
+| `docs/graph/README.md:54` | low | `docs/graph/README.md:54` |
+
 ## Where they are
 
 | File | Open | Medium | Low |

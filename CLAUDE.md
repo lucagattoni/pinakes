@@ -39,8 +39,13 @@ Landing a branch](docs/RELEASING.md#landing-a-branch).
 
 Set by the user 20260808 04:39. It **overrides the global default of stopping to check in.**
 
-- **Run to completion.** Pick the next increment from `plans/`, build it, land it, cut the release,
-  pick the next. Stop when the user takes control back — not at increment boundaries.
+- **Run to completion.** Pick the next increment from `plans/`, build it, land it, write the
+  fragments, pick the next. Stop when the user takes control back — not at increment boundaries.
+- **Cutting the release is the planner's, and so is the handover** — both write documents the
+  ownership table below makes planner-only, and that table wins. **An implementer's increment ends
+  at the fragments**: it lands, it proposes what a planner-owned document needs, and it does not
+  release. Complete work then waits for a planner rather than lingering by accident, which is the
+  cost of one owner and is accepted.
 - **A choice you can take, you take** — after weighing each option's real pros and cons in the open
   and saying which you chose and why. Needing an answer in order to proceed is the bar for asking;
   "the user might have preferred otherwise" is not.
@@ -147,10 +152,9 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   proposed-unscheduled.** **Do not read that as *nothing to do*** — read it as *the next thing to
   build has not been planned yet*, which makes planning the work rather than an interruption to it.
   `docs/ROADMAP.md` Part 5 and `docs/README.md`'s routing table hold the candidates.
-- **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) holds two
-  live items** — E5's gitignore-warning question, a decision rather than a task, and
-  `tools/fragments.py` validating the fragments it reads but never the document it writes. The list
-  has emptied and refilled twice: **read an empty list as *nobody has run Pinakes lately*, never as
+- **[`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) holds one
+  live item** — E5's gitignore-warning question, a decision rather than a task. The list has emptied
+  and refilled twice: **read an empty list as *nobody has run Pinakes lately*, never as
   *finished***, and **an item that reads as a decision may only be an unchecked assumption**.
 
 ## Landing work: always push, always release

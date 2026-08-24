@@ -1,7 +1,12 @@
 # Cutting a release
 
-**Audience: the agent cutting it. Goal: executor.** Follow it in order; nothing here is a judgement
-call. The *rules* about when to release stay in
+**Audience: the planner. Goal: executor.** Follow it in order; nothing here is a judgement call.
+**Only the planner cuts a release** — every step below writes a planner-only document
+(`CHANGELOG.md`, `docs/STATUS.md`, `docs/ROADMAP.md`, and the sweep reaches `README.md` too), so
+this procedure is unavailable to an implementer by the ownership rule rather than by preference.
+An implementer lands its work, writes its fragments, and stops there.
+
+The *rules* about when to release stay in
 [`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md) — this file is the
 procedure they point at, plus the one trap whose mechanism is too long to keep there
 ([§ Landing a branch](#landing-a-branch)).
