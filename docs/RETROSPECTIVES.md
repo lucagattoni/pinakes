@@ -5756,10 +5756,6 @@ module", "the only place") rather than for the diff, which is the same move that
 `docs/ROADMAP.md:139` at E2's handover: a stale pointer has no wrong text to search for, only a
 claim that is no longer true.
 
----
-category: lesson
----
-
 ## A Ctrl-C voided a call that may have billed — in both paid clients, for as long as either existed
 
 **Found by working an exit criterion nobody had tested.** E4's plan asks that *"interrupting
@@ -5785,10 +5781,6 @@ been since I7b: no catch-all at all, so an ordinary defect voided too.
 * **The sibling had it too, and fixing one would have been the defect surviving.** One invariant,
   two call sites, two identical clauses — so both moved in the same change, and both tests raise a
   `BaseException` rather than a `RuntimeError`, because a narrower one passes against broken code.
-
----
-category: lesson
----
 
 ## The same GUIDE block quoted a retired sentence twice — so the second time it became a gate
 
