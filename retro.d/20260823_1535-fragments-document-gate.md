@@ -34,8 +34,9 @@ that has nothing to do with this gate. The 0.24.0 front-matter residue — `---`
 a *text* line underlines it into a **setext H2**, so each residue renders as a heading titled with
 its own metadata. There are **five**, not the three this module recorded: three in `CHANGELOG.md`
 under `## [0.24.0]` and two in `docs/RETROSPECTIVES.md`, which the original count missed because it
-looked only at the stream the refusal was written for. The published site carries
-`<h2 id="category-lesson">category: lesson</h2>` twice — page, permalinks and search index.
+looked only at the stream the refusal was written for. The published site carried
+`<h2 id="category-lesson">category: lesson</h2>` twice — page, permalinks and search index. All
+five were removed at `9718aaa`, in the same afternoon and by the agent that owns those documents.
 
 Every instrument is green on it. `mkdocs build --strict` resolves links and a spurious heading is
 not a broken link; `markdown_link_gate` reads link targets; and **this increment's own gate misses
