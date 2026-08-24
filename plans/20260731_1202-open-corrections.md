@@ -116,6 +116,41 @@ a row. Nothing here has ever read the assembled file at all.
 **Ordering.** The content fix landed first, in 0.30.0. A consecutive-heading check written against
 an unrepaired `main` arrives red, and its first act is to block the commit that would satisfy it.
 
+
+**CLOSED 20260824 00:35** — both decided checks shipped, plus a structural fix the build surfaced:
+`--check` now calls the same `prospective()` that `--apply` uses rather than re-deriving the splice,
+so there is no second definition of the assembly to drift, and a byte-comparison test pins them. The
+body-starts-with-`- ` check is **changelog-stream only**, as decided.
+
+**This item had been closed once before, on a mechanism that cannot have fixed it — and the defect
+then recurred twice.** The old row credited `_merge_into_section`, which `git log -S` dates to
+**20260729** (`9f7ed5c`, 0.3.0). The duplicate heading it supposedly fixed shipped in 0.6.0 on
+**20260801 10:53** (`68ca96b`) — three days *later* — and was hand-repaired seven minutes after
+release (`5920f41`). The item was closed on **20260803** (`5bef91f`) crediting that mechanism, and
+0.28.3 shipped the identical defect on **20260823** (`2f633a8`). Two different mechanisms had been
+conflated: `_merge_into_section` fixes *the section's prose already carries the heading*; the one
+that kept recurring is *a fragment body that opens with its own `### Fixed`*, which `render` then
+wraps in a second one.
+
+**The check that catches this class, and it is one command: is the fix older than the defect it
+claims to fix?** Every closing note names a mechanism; a mechanism has a commit; a commit has a
+date. Here it answers three days on the wrong side. **A fix that predates its defect is not a fix;
+it is a coincidence with a plausible name** — and a wrong closing note is worse than an open item,
+because it spends the evidence and buys nothing.
+
+**A trap in running that check here.** `git log -S <string> -- <path>` **stops at a rename** and
+returns only the rename commit. Every file in `plans/` was renamed retrospectively to the
+`YYYYMMDD_HHMM-` form, so the closure above dates to 20260804 rather than 20260803 unless you use
+`--follow` or the pre-rename path.
+
+**Left open deliberately: widening the body rule.** `CHANGELOG.md` carried a fourth bare-paragraph
+body that is *not* the first line under its heading, so the decided rule does not reach it (fixed by
+hand in `9718aaa`). **Widening is two different decisions, and only one of them reaches the class
+that actually shipped.** *Reads every entry rather than the first* catches that fourth body.
+*Reads rendered structure rather than source lines* is what would catch the two classes this repo
+met on 20260823 — five setext front-matter residues rendering as `<h2>`, and a top-level entry
+wrongly indented into a sub-item — both invisible to an ATX-on-source-lines rule. Neither is taken.
+
 ---
 
 ## Closed — recorded so nobody reopens them
