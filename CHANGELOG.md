@@ -620,26 +620,18 @@ because a module nothing can reach carries no user-visible change and this is wh
   allowlist: it imports no client (it is handed the caller's already-imported module), so the gate
   scans it like any other file and would refuse an `import anthropic` added to it.
 
----
-category: added
----
+- `pnk ask --deep` — the bounded reasoning loop, and the release's headline feature. A confident
+  question takes the cheap branch (one synthesis call over the free retrieval's own passages); a
+  low-confidence one decomposes, searches per subproblem, answers and re-folds, stopping at
+  sufficiency; an uncalibrated one runs the same loop with no early stop and says which bound ended
+  it. Every run is estimated before its first call, refused against all three `[budget]` windows at
+  once with the exact manifest edit that would admit it, confirmed once, then reserved and reconciled
+  per call.
 
-`pnk ask --deep` — the bounded reasoning loop, and the release's headline feature. A confident
-question takes the cheap branch (one synthesis call over the free retrieval's own passages); a
-low-confidence one decomposes, searches per subproblem, answers and re-folds, stopping at
-sufficiency; an uncalibrated one runs the same loop with no early stop and says which bound ended
-it. Every run is estimated before its first call, refused against all three `[budget]` windows at
-once with the exact manifest edit that would admit it, confirmed once, then reserved and reconciled
-per call.
-
----
-category: added
----
-
-`[deep]` in `pinakes.toml`: `model` (default `claude-opus-5`, the only priced entry) and
-`max_rounds` (default 3). Settable but **unstamped**, the precedent `adjacent_k` sets — a manifest
-carrying a key an older Pinakes has never heard of cannot be read by it at all — so the template
-ships the section commented out with its defaults written in.
+- `[deep]` in `pinakes.toml`: `model` (default `claude-opus-5`, the only priced entry) and
+  `max_rounds` (default 3). Settable but **unstamped**, the precedent `adjacent_k` sets — a manifest
+  carrying a key an older Pinakes has never heard of cannot be read by it at all — so the template
+  ships the section commented out with its defaults written in.
 
 ### Changed
 
@@ -663,17 +655,13 @@ ships the section commented out with its defaults written in.
   as the check every release adding a surface should make. `0.23.0` itself also resolved on the
   **first** install attempt, unlike the previous three.
 
----
-category: changed
----
-
-**The default `[budget]` caps rise so `pnk ask --deep` works out of the box**: `per_operation_eur`
-0.30 → 2.00 and `daily_eur` 1.00 → 6.00, with the new `[deep] max_rounds` defaulting to 3. At the
-shipped widths even a one-round loop prices at EUR 0.5624, so the old cap refused `--deep` on every
-KB stamped from the template. `daily_eur` moves with `per_operation_eur` because all three windows
-are checked before every call and nothing warns that a lower one binds. The `notes` template is
-version **1.2**, and `pnk upgrade` will report the change — **an existing KB keeps the caps it
-stamped**, and the refusal names the key, the number and the value that would admit the run.
+- **The default `[budget]` caps rise so `pnk ask --deep` works out of the box**: `per_operation_eur`
+  0.30 → 2.00 and `daily_eur` 1.00 → 6.00, with the new `[deep] max_rounds` defaulting to 3. At the
+  shipped widths even a one-round loop prices at EUR 0.5624, so the old cap refused `--deep` on every
+  KB stamped from the template. `daily_eur` moves with `per_operation_eur` because all three windows
+  are checked before every call and nothing warns that a lower one binds. The `notes` template is
+  version **1.2**, and `pnk upgrade` will report the change — **an existing KB keeps the caps it
+  stamped**, and the refusal names the key, the number and the value that would admit the run.
 
 ## [0.23.0] — 20260811 15:25
 
@@ -2059,11 +2047,10 @@ Numbers, and the two findings behind them, in
   and `provenance: {}` on any sidecar rewrite, against the byte-identity promise. Reachable before
   now only from a paid PDF extraction; `pnk link` would have reached it on a first link.
 
-
-Four tests that build an unreadable directory now skip where the process bypasses directory
-permissions (root, as in CI's container) instead of asserting against a precondition they could not
-construct, and a test asserting `pathlib`'s exact "unacceptable pattern" wording now asserts the
-property it meant. No shipped behaviour changes.
+- Four tests that build an unreadable directory now skip where the process bypasses directory
+  permissions (root, as in CI's container) instead of asserting against a precondition they could not
+  construct, and a test asserting `pathlib`'s exact "unacceptable pattern" wording now asserts the
+  property it meant. No shipped behaviour changes.
 
 - **Retrieval results no longer depend on how the index was built.** Every tiebreak in the pipeline
   ultimately resolved to `chunks.id` — the rowid, which the schema says has no identity across
