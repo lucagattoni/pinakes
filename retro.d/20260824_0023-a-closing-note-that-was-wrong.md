@@ -28,6 +28,26 @@ Both recurrences are the second mechanism, and it is checkable in one command:
     $ git show 2f633a8^:changelog.d/20260823_0233-fixed-published-versions-row-…md | head -1
     ### Fixed
 
+### Three instruments that reported the previous truth, in one exchange
+
+The same afternoon produced three more, all of the same shape — **an instrument reporting the
+previous truth is indistinguishable from one reporting the current truth, unless you know which it
+is.** None of the three is exotic; all three are the everyday tool used the everyday way.
+
+| Instrument | What it actually answers | How it misled |
+|---|---|---|
+| `git fetch` then reading `origin/main` | *what did I last hear from the remote* | Reported a peer's landing as absent. `origin/main` is a **local cache**; only `git ls-remote origin refs/heads/main` asks the remote |
+| `git log -S <string> -- <path>` | *history of this path, stopping at renames* | Returned only the rename commit for a plan file, dating a closure `20260804` instead of `20260803`. **In a repo that renamed every plan to `YYYYMMDD_HHMM-` retrospectively, every `-S` in `plans/` inherits this**; `--follow` or the pre-rename path is the answer |
+| `awk '…{print NR}' fileA fileB` | *cumulative record number across all files* | Reported residues in `docs/RETROSPECTIVES.md` at lines `9718`/`9748` — the real lines plus `CHANGELOG.md`'s 3957. `FNR` is the per-file number, and a line number carrying another file's length in it looks exactly like a line number |
+
+The third was **mine**, in a message asserting a peer's work had not landed. Both halves of that
+message were wrong, from two different instruments, in the same sentence — and the report read as
+confident because each number was real. **A wrong number that was measured is more persuasive than
+a guess, which is what makes this class expensive.**
+
+The cheap defence is the same in all three: **name what the instrument reads before trusting what
+it says.** A cache is not a remote, a path is not a file's history, and `NR` is not a line number.
+
 ### The lesson, which is about closing notes rather than about splicing
 
 **A wrong closing note is worse than an open item.** An open item is a standing invitation to look;

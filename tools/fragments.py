@@ -24,22 +24,25 @@ readable summary of everything unreleased.
 
 That rule is now a gate rather than a convention, because it was silently not followed: three
 fragments written for 0.24.0 carried YAML front matter (`---` / `category: added` / `---`), and
-`--apply` spliced all three verbatim into `CHANGELOG.md`, where they are still published. Nothing
+`--apply` spliced all three verbatim into `CHANGELOG.md`, where they stayed for six weeks. Nothing
 here could see it — the category was read from the filename, so the front matter was inert, and a
 body is copied unchanged by design. `check` therefore refuses a fragment whose first non-blank line
 is a `---` fence, which is the one shape that means "front matter" rather than "a horizontal rule".
 
-**Both streams took it, and the residue is worse than "still published".** Re-measured 20260823:
+**Both streams took it, and the residue was worse than "spliced text".** Re-measured 20260823:
 three in `CHANGELOG.md` under `## [0.24.0]` and **two more in `docs/RETROSPECTIVES.md`**, which the
-earlier count missed because it only looked at the stream the refusal was written for. And the
-spliced shape is not inert text. `category: added` followed by `---` is a **setext H2**, so each
-residue renders as a heading: `site/RETROSPECTIVES/index.html` carries
+first count missed because it looked only at the stream the refusal was written for. And the
+spliced shape is not inert. `category: added` followed by `---` is a **setext H2**, so each residue
+*rendered as a heading* — `site/RETROSPECTIVES/index.html` carried
 `<h2 id="category-lesson">category: lesson</h2>` twice, permalinks and search index included, on
-the published site. `mkdocs build --strict` is green on it, because a spurious heading is not a
-broken link — and `document_problems` below does not catch it either, because it reads ATX
-headings and this is setext. Repairing the documents is the planner's; a third rule is a plan
-decision, not this module's to take. Recorded here so the next reader of this paragraph has the
-measurement rather than the undercount.
+the published site. All five were removed at `9718aaa` (20260824 01:17), and the count in
+both files is now zero.
+
+**What the repair does not change, and the reason this paragraph stays:** `mkdocs build --strict`
+was green on it throughout, because a spurious heading is not a broken link — and
+`document_problems` below would not catch it either, because it reads **ATX** headings and this is
+**setext**. That blind spot is still here. So is the lesson the undercount taught: the first
+measurement looked at one stream and was reported as the whole story.
 
 **The assembled document is checked too, not only the fragments going into it.** `--check` read
 every pending fragment and asserted nothing about the result, so a splice could leave
