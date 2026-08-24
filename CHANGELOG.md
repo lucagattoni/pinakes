@@ -10,6 +10,71 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **`tools/fragments.py --check` now reads the document `--apply` would write, not only the
+  fragments going into it.** Both the file on disk and the assembly the pending fragments would
+  produce — the item's own sentence is that `--check` *"asserts nothing about the result of
+  `--apply`"*, and reading only the file on disk answers whether the **last** splice went well
+  while the fragment that will break the next one sits in the tree unread. Replayed against the
+  trees as they stood at 0.6.0 and 0.28.3, it exits 1 at the commit that added the fragment —
+  twenty-two days before 0.28.3's defect was noticed, and seven minutes before 0.6.0's was
+  hand-repaired after release. It parsed every pending fragment and asserted nothing about the result, so a
+  splice could leave `CHANGELOG.md` malformed with every gate in this repository green — and had:
+  `## [0.28.3]` carried `### Fixed` twice consecutively with a bare paragraph for a body, and one
+  `### Changed` further down did the same, all three passing `--check` with exit 0. Two rules on
+  the assembled document: a heading never repeats consecutively (both streams), and an entry opens
+  with a `- ` list item (`changelog` only — `retro.d/` is free-form prose carrying its own `##`).
+  Run against the unrepaired document the gate reports exactly those three and exits 1; against
+  `main` at 0.30.0, zero. `--apply` validates the spliced text **before** writing it and therefore
+  before deleting the fragments it consumed, because a malformed document found afterwards is found
+  with its cause already gone. Scanning skips fenced blocks and the fence may be indented — measured
+  20260823, `CHANGELOG.md`'s only fenced block sits two spaces inside a bullet and the file has no
+  column-zero fence at all, so the first draft skipped nothing in the document it most needs to
+  read. Closes the open-corrections item opened at 0.30.0.
+
+### Fixed
+
+- **Five blocks of front-matter residue were rendering as headings, two of them on the published
+  site.** A splice long ago left `---` / `category: <x>` / `---` in the assembled documents. That is
+  not inert text: `---` after a *blank* line is a thematic break, but after a *text* line it
+  underlines that line into a **setext H2** — so each block rendered as a rule followed by a heading
+  titled `category: added`, `category: changed` or `category: lesson`.
+  `lucagattoni.github.io/pinakes` was serving two of them, with real permalink anchors, and
+  `mkdocs build --strict` was green throughout: a spurious heading is not a broken link. Three in
+  `CHANGELOG.md` under `## [0.24.0]` and two in `docs/RETROSPECTIVES.md`, all removed.
+- **Three changelog entries had lost their bullet, and the residue was what had been separating
+  them.** Each `---` block in `CHANGELOG.md` sat immediately before an entry body written as a bare
+  paragraph, so deleting the residue alone would have run three entries together. They are restored
+  as `- ` items with their continuations indented; no prose changed.
+
+- **`--apply` spliced entries inside fenced code blocks, and was not atomic across streams.** Three
+  defects, each reproduced end to end before repair — written, fragments deleted, exit 0, and a
+  follow-up `--check` green on the wreckage. `_merge_into_section` and `splice` scanned for
+  headings without skipping fenced blocks, so a column-zero fence containing `### Added` was a
+  heading to the splicer and not to the new gate: an entry landed *inside* the code block,
+  rendering as sample code, invisible to the check that exists to catch it. The same disagreement
+  one function up let a changelog entry quoting `## [Unreleased]` become the insertion point for
+  every future release. And `--apply` walks two streams: refusing on the second wrote the first and
+  deleted its fragments, then exited 1 printing *"Nothing written, no fragment deleted"* — false
+  about a half-applied release, in the direction that destroys the evidence. Every stream is now
+  spliced and validated before any stream is written. Separately, an unclosed fence made the
+  scanner swallow every line below it and still report the document well-formed; it now refuses,
+  naming the fence's own line.
+
+- **Four documents told an implementer to write files the ownership table forbids it.** `CLAUDE.md`
+  § *Documentation has one owner* makes `docs/**`, `plans/**`, `README.md`, `CLAUDE.md` and
+  `CHANGELOG.md` planner-only, unconditionally. Four other places contradicted it: § *Working mode*
+  said an increment ends at *"cut the release"*; `docs/RELEASING.md` addressed *"the agent cutting
+  it"* without ever saying who that is, while directing them into three planner-only documents;
+  `docs/README.md`'s landing checklist handed its reader **STATUS, CLI, MANIFEST, GUIDE and
+  DESIGN**; and `docs/BUILDING.md` § *Hand over before you stop* mandated five planner-only writes
+  *"landed in the same branch as the work"*. **No rule was added** — the restriction already existed
+  and was already obeyed, measured across eight release commits (each writing five to seven
+  planner-only documents) and six implementer commits (none writing any). The four sentences that
+  denied it are corrected instead. The handover rule (the user, 20260811 15:37) is **not** weakened:
+  it still lands in the increment's own branch, as proposals rather than edits.
+
 ## [0.30.0] — 20260823 15:05
 
 ### Added
