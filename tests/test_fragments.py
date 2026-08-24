@@ -12,9 +12,11 @@ about what splicing must leave *untouched*.
 
 from __future__ import annotations
 
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -348,14 +350,380 @@ def test_a_horizontal_rule_inside_a_body_is_left_alone(repo: Path) -> None:
 
 def test_front_matter_is_refused_before_apply_can_splice_it(repo: Path) -> None:
     """`--apply` deletes the fragments it consumed, so a fragment found malformed *afterwards* is
-    found with the evidence already gone. The target must be byte-identical after the refusal."""
+    found with the evidence already gone. The target must be byte-identical after the refusal.
+
+    **The refusal is named, not just counted.** 0.30.0's document gate gave `--apply` a second
+    reason to refuse this same fragment — a spliced `---` is not a `- ` list item either — so
+    every assertion below passed whether or not the front-matter check still ran, and the battery
+    row claiming it did went from KILLED to SURVIVED. A test that cannot say *which* guard fired
+    stops pinning either of them once a second one exists."""
     before = changelog(repo)
     write(repo, "changelog.d/added-one.md", "---\ncategory: added\n---\n\n- **A new thing.**\n")
 
     result = run(repo, "--stream", "changelog", "--apply")
 
     assert result.returncode == 1
+    assert "front-matter fence" in result.stderr, (
+        "refused as front matter, not as a stray non-bullet"
+    )
     assert changelog(repo) == before, "a refused run must not have written to the document"
     assert (repo / "changelog.d" / "added-one.md").exists(), (
         "nor deleted the fragment that explains the failure"
     )
+
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# The assembled document, rather than the fragments going into it (0.30.0's open-corrections item).
+#
+# `--check` read every pending fragment and asserted nothing about the result of `--apply`, so a
+# splice could leave `CHANGELOG.md` malformed with every gate in this repository green — and had.
+# The fixtures below are the real shapes, reduced: `## [0.28.3]` carried `### Fixed` twice
+# consecutively with a bare paragraph for a body, and one `### Changed` further down did the same.
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+def test_a_heading_that_repeats_consecutively_is_refused(repo: Path) -> None:
+    """`## [0.28.3]`'s real shape. `_merge_into_section` reuses the first heading it finds, so
+    nothing can ever merge into the second and a reader scanning for the category stops at the
+    first — while every gate in this repository stayed green on it."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n### Fixed\n\n- **A fix.**\n",
+    )
+
+    result = run(repo, "--stream", "changelog", "--check")
+
+    assert result.returncode == 1
+    assert "repeats the heading on line" in result.stderr
+    assert "CHANGELOG.md:9" in result.stderr, "the second heading is named, with its line"
+
+
+def test_the_same_heading_under_a_different_release_is_left_alone(repo: Path) -> None:
+    """The discriminating case, and the one that decides whether this can land at all: every
+    changelog repeats `### Fixed` once per release. The rule is *adjacency*, never recurrence."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.2.0] - 20260102 09:00\n\n"
+        "### Fixed\n\n- **A later fix.**\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n- **An earlier fix.**\n",
+    )
+
+    assert run(repo, "--stream", "changelog", "--check").returncode == 0
+
+
+def test_a_heading_that_repeats_after_intervening_entries_is_the_decided_scope(repo: Path) -> None:
+    """**A hole, pinned deliberately rather than left to be discovered.** The rule decided in
+    `plans/20260731_1202-open-corrections.md` is *adjacency* — "a stream heading never repeats
+    consecutively" — because that is the shape the evidence had. A repeat separated by real
+    entries is a defect this does **not** catch, and asserting so here is what keeps that a
+    decision: strengthening it to section-scoped changes what the plan specified, so it reopens
+    the item rather than quietly widening the gate."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n- **A fix.**\n\n### Fixed\n\n- **Another, under a second heading.**\n",
+    )
+
+    assert run(repo, "--stream", "changelog", "--check").returncode == 0
+
+
+def test_an_entry_that_opens_with_a_paragraph_is_refused(repo: Path) -> None:
+    """`render` splices a fragment body verbatim, so a paragraph in the document is a paragraph
+    the fragment wrote. `changelog.d/README.md` requires `- **claim.**`."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Changed\n\n`pnk doctor` reports link coverage as a ratio.\n",
+    )
+
+    result = run(repo, "--stream", "changelog", "--check")
+
+    assert result.returncode == 1
+    assert "opens with a paragraph rather than a `- ` list item" in result.stderr
+
+
+def test_a_bullets_indented_continuation_is_not_read_as_a_second_entry(repo: Path) -> None:
+    """Only the *first* non-blank line under a heading is judged. A wrapped bullet indents its
+    continuation to the content column, and reading that as an entry would refuse every long
+    entry in the document."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n- **A fix.** Its first line.\n  a continuation, indented, not a bullet.\n\n"
+        "- **Another fix.**\n",
+    )
+
+    assert run(repo, "--stream", "changelog", "--check").returncode == 0
+
+
+def test_the_bullet_rule_never_reaches_the_free_form_stream(repo: Path) -> None:
+    """`retro.d/` fragments are free-form prose carrying their own `##` heading. A bullet
+    requirement there would refuse the format that stream exists for — so the rule is scoped to
+    the stream with a category vocabulary, and this is the assertion that says so.
+
+    **The `###` heading in the fixture is load-bearing.** The bullet rule only ever reads a `###`,
+    so a fixture built from `##` alone exercises nothing and the scoping guard could be deleted
+    with this test still green — which is what the mutation pass reported. The real document
+    carries thirty-four `###` headings, every one of them opening with prose."""
+    write(
+        repo,
+        "docs/RETROSPECTIVES.md",
+        "# Retrospectives\n\n## I1 - first (20260725 13:40)\n\n"
+        "A paragraph, which is what this document is made of.\n\n"
+        "### The review pass over I1's own diff\n\n"
+        "Three defects, all in the new check — prose under a `###`, which the real document does "
+        "thirty-four times.\n\n"
+        "## Design review passes 1-7 (pre-implementation)\n\nfooter\n",
+    )
+
+    assert run(repo, "--stream", "retrospectives", "--check").returncode == 0
+
+
+def test_a_heading_inside_a_fenced_block_is_not_read_as_structure(repo: Path) -> None:
+    """An entry demonstrating Markdown is an ordinary thing to write. A line-based scanner reading
+    a fenced example as document structure would refuse a correct document, and
+    `tools/markdown_link_gate.py` records a false positive of exactly that shape being *acted on*
+    before it was disbelieved."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n- **A fix.** It renders this:\n\n"
+        "  ```markdown\n### Fixed\n### Fixed\nnot a bullet\n  ```\n",
+    )
+
+    assert run(repo, "--stream", "changelog", "--check").returncode == 0
+
+
+def test_apply_refuses_to_write_a_document_it_would_leave_malformed(repo: Path) -> None:
+    """The refusal is placed before the write, and therefore before the deletes. Found *after*
+    `--apply`, a malformed document is found with the fragments that caused it already gone —
+    which is the same reason `check.sh` runs `--check` at commit time rather than at release
+    time, one step further in."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n### Fixed\n\n### Fixed\n\n- **existing.**\n\n"
+        "## [0.1.0] - 20260101 09:00\n\n- older\n",
+    )
+    write(repo, "changelog.d/added-one.md", "- **A new thing.**")
+    before = changelog(repo)
+
+    result = run(repo, "--stream", "changelog", "--apply")
+
+    assert result.returncode == 1
+    assert "refusing to write" in result.stderr
+    assert changelog(repo) == before, "nothing written"
+    assert (repo / "changelog.d" / "added-one.md").is_file(), "no fragment deleted"
+
+
+def test_the_real_documents_are_clean_which_is_this_checkers_only_control() -> None:
+    """A control leg, for the reason `tools/markdown_link_gate.py` gives: the fixtures above prove
+    the checker *fires*, and nothing else proves it does not fire on a correct document. Run
+    against the two real documents, over their full history, the answer must be zero — so a
+    failure here means **the checker is wrong, or the document is**, and the message says which
+    line to read to tell them apart."""
+    repo = Path(__file__).parent.parent
+    result = run(repo, "--check")
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_an_unclosed_fence_is_refused_rather_than_silently_swallowing_the_rest(repo: Path) -> None:
+    """A skipped region is not a checked region. An unclosed fence hides every line below it, so
+    without this the gate prints *well-formed* having read half the document — the shape
+    `tools/markdown_link_gate.py` names as "a clean bill it never earned". The malformed content
+    below the fence is real and would be caught if the fence were closed."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n- **A fix.**\n\n```text\nnever closed\n\n### Fixed\n\n### Fixed\n\nprose\n",
+    )
+
+    result = run(repo, "--stream", "changelog", "--check")
+
+    assert result.returncode == 1
+    assert "opened here and never closed" in result.stderr
+    assert "CHANGELOG.md:11" in result.stderr, "the fence's own line, not the damage below it"
+
+
+def test_the_duplicate_message_names_the_mechanism_that_belongs_to_the_stream(repo: Path) -> None:
+    """`_merge_into_section` runs only for a stream with a category vocabulary, so quoting it at
+    `docs/RETROSPECTIVES.md` would explain a mechanism that never touches that file. An error
+    message describing the wrong cause sends the reader to the wrong code."""
+    write(
+        repo,
+        "docs/RETROSPECTIVES.md",
+        "# Retrospectives\n\n## I1 - first (20260725 13:40)\n\n"
+        "## I1 - first (20260725 13:40)\n\nbody\n\n"
+        "## Design review passes 1-7 (pre-implementation)\n\nfooter\n",
+    )
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n### Fixed\n\n- **A fix.**\n",
+    )
+
+    retro = run(repo, "--stream", "retrospectives", "--check").stderr
+    changelog_err = run(repo, "--stream", "changelog", "--check").stderr
+
+    assert "repeats the heading" in retro and "repeats the heading" in changelog_err
+    assert "_merge_into_section" in changelog_err, "the stream that actually has that merge step"
+    assert "_merge_into_section" not in retro, "…and the stream that does not, must not claim it"
+
+
+def test_apply_is_one_step_or_none_across_every_stream(repo: Path) -> None:
+    """`--apply` walks two streams. Refusing mid-walk wrote `CHANGELOG.md` and deleted its
+    fragments, then exited 1 printing *"Nothing written, no fragment deleted"* — a false statement
+    about a half-applied release, in the direction that destroys the evidence. Every stream is
+    spliced and validated before any stream is written."""
+    write(
+        repo,
+        "docs/RETROSPECTIVES.md",
+        "# Retrospectives\n\n## I1 - first (20260725 13:40)\n\n"
+        "## I1 - first (20260725 13:40)\n\nbody\n\n"
+        "## Design review passes 1-7 (pre-implementation)\n\nfooter\n",
+    )
+    write(repo, "changelog.d/added-one.md", "- **A changelog thing.**")
+    write(repo, "retro.d/a-lesson.md", "Retro prose.")
+    before = changelog(repo)
+
+    result = run(repo, "--apply")
+
+    assert result.returncode == 1
+    assert "no fragment deleted" in result.stderr
+    assert changelog(repo) == before, "the healthy stream must not be written either"
+    assert (repo / "changelog.d" / "added-one.md").is_file(), "…nor its fragments deleted"
+
+
+def test_a_heading_inside_a_fenced_block_is_not_a_splice_target(repo: Path) -> None:
+    """The splicer and the checker have to agree about what a heading is. `document_problems`
+    skips fenced blocks and `_merge_into_section` did not, so a column-zero fence containing
+    `### Added` was a heading to one and not the other: the entry spliced *inside* the code block,
+    `--apply` exited 0, the fragment was deleted, and `--check` passed on the result — the entry
+    rendering as sample code nobody would ever find."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n- **Pre-existing.** Rendered:\n\n"
+        "```markdown\n### Added\n\n- an example, inside a fence\n```\n\n"
+        "## [0.1.0] - 20260101 09:00\n\n- older\n",
+    )
+    write(repo, "changelog.d/added-one.md", "- **A new thing.**")
+
+    assert run(repo, "--stream", "changelog", "--apply").returncode == 0
+
+    after = changelog(repo)
+    unreleased = after[after.index("## [Unreleased]") : after.index("## [0.1.0]")]
+    entry = unreleased.index("A new thing")
+    fences = [i for i, line in enumerate(unreleased[:entry].split("\n")) if line.startswith("```")]
+    assert len(fences) % 2 == 0, "the entry landed inside the fenced example"
+    assert unreleased.index("### Added") < entry, "…under a real heading of its own"
+
+
+def test_an_anchor_inside_a_fenced_block_is_not_the_splice_point(repo: Path) -> None:
+    """Same disagreement, one function up: `splice` finds the anchor by scanning for the literal
+    line, so a changelog entry quoting `## [Unreleased]` inside a fence would become the insertion
+    point and bury every future release inside a code block."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n- **A note.** The anchor looks like this:\n\n"
+        "```markdown\n## [Unreleased]\n```\n\n"
+        "## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n- older\n",
+    )
+    write(repo, "changelog.d/added-one.md", "- **A new thing.**")
+
+    assert run(repo, "--stream", "changelog", "--apply").returncode == 0
+
+    after = changelog(repo)
+    assert after.index("A new thing") > after.index("```\n\n## [Unreleased]"), (
+        "spliced at the quoted anchor rather than the real one"
+    )
+
+
+def test_check_reads_the_document_apply_would_write_not_only_the_one_on_disk(repo: Path) -> None:
+    """The item's own sentence: *"It asserts nothing about the result of `--apply`."* Reading only
+    the file on disk answers whether the **last** splice went well, while the fragment that will
+    break the next one sits in the tree unread.
+
+    This fixture is the recurring cause, reduced. Both instances the item cites came from a
+    fragment whose body opens with its own `### Fixed`, which `render` then wraps in a second one —
+    `changelog.d/fixed-two-frozen-yaml-behaviours.md` at 0.6.0, hand-repaired seven minutes after
+    the release, and `…0233-fixed-published-versions-row…` at 0.28.3, twenty-two days later.
+    Replayed against the tree as it stood at each of those commits, this check exits 1."""
+    write(repo, "changelog.d/fixed-one.md", "### Fixed\n\n- **A fix.**\n")
+
+    result = run(repo, "--stream", "changelog", "--check")
+
+    assert result.returncode == 1
+    assert "repeats the heading" in result.stderr
+    assert "would write, not the one on disk" in result.stderr, "and says which document it read"
+    assert changelog(repo) == CHANGELOG_BEFORE, "a check writes nothing"
+
+
+def test_a_fault_already_in_the_document_is_reported_once_not_twice(repo: Path) -> None:
+    """The assembly contains the whole file, so every existing fault appears in both documents at
+    different line numbers. Reporting each twice would bury the one that is new."""
+    write(
+        repo,
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n## [0.1.0] - 20260101 09:00\n\n"
+        "### Fixed\n\n### Fixed\n\n- **A fix.**\n",
+    )
+    write(repo, "changelog.d/added-one.md", "- **A new thing.**")
+
+    result = run(repo, "--stream", "changelog", "--check")
+
+    assert result.returncode == 1
+    assert result.stderr.count("repeats the heading") == 1, "the pre-existing fault, once"
+    assert "would write, not the one on disk" not in result.stderr
+
+
+def test_check_validates_the_exact_bytes_apply_writes(repo: Path) -> None:
+    """**The coupling `--check` acquired when it stopped being read-only.** It no longer inspects
+    the document; it simulates the write. So `--check` and `--apply` must agree about assembly
+    forever, and a disagreement would be silent — `--check` green on an assembly `--apply` would
+    never produce, which is the failure mode this whole increment exists to remove.
+
+    `main` calls `prospective` rather than re-deriving the splice, so they are the same code and
+    not two paths that happen to match. This holds them to it from the outside anyway: the module
+    is imported by path — the pattern `tests/test_markdown_link_gate.py` uses to keep the gate and
+    `mkdocs_hooks.py` from drifting — and the bytes are compared against what the real subprocess
+    writes. A refactor giving either path its own assembly turns this red.
+    """
+    spec = importlib.util.spec_from_file_location("_fragments", TOOL)
+    assert spec is not None and spec.loader is not None
+    module: Any = importlib.util.module_from_spec(spec)
+    # Registered *before* `exec_module`: `@dataclass` resolves its annotations through
+    # `sys.modules[cls.__module__]`, which is `None` while the module is still executing.
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+
+        write(repo, "changelog.d/added-one.md", "- **A new thing.**")
+        write(repo, "changelog.d/fixed-two.md", "- **A fixed thing.**")
+        write(repo, "retro.d/a-lesson.md", "## A lesson\n\nProse.")
+
+        predicted = {
+            name: module.prospective(stream, repo) for name, stream in module.STREAMS.items()
+        }
+        targets = {name: str(stream.target) for name, stream in module.STREAMS.items()}
+    finally:
+        del sys.modules[spec.name]
+
+    assert run(repo, "--apply").returncode == 0
+
+    for name, target in targets.items():
+        assert predicted[name] is not None, f"{name}: nothing predicted for a stream with fragments"
+        assert predicted[name] == (repo / target).read_text(encoding="utf-8"), (
+            f"{name}: --check validated bytes --apply did not write"
+        )

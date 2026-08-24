@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 4
+mutants = 20
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -52,3 +52,156 @@ file = "tools/fragments.py"
 old = '''        elif opens_with_front_matter(body):'''
 new = '''        elif False and opens_with_front_matter(body):'''
 kills = "tests/test_fragments.py::test_front_matter_is_refused_before_apply_can_splice_it"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260823 · the assembled document, not the fragments going into it
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Closes the open-corrections item that landed in 0.30.0 — a reference to a cut release,
+# not a version for this work, which is not cut (`README.md`: unreleased says so).
+# `--check` parsed every pending fragment and asserted nothing about the result of `--apply`.
+# `## [0.28.3]` carried `### Fixed` twice consecutively with a bare paragraph for a body, and
+# `--check` exited 0. Two rules on the result: a heading never repeats consecutively, an entry
+# opens with `- `. Rows 2, 5 and 7 below are the *over*-firing direction — a gate that refuses a
+# correct document is the failure that gets acted on, and row 7 is the bug this increment actually
+# shipped and caught before landing.
+
+[[mutant]]
+name = "the consecutive-heading check never fires"
+file = "tools/fragments.py"
+old = '''            if previous is not None and previous[1] == heading:'''
+new = '''            if False:'''
+kills = "tests/test_fragments.py::test_a_heading_that_repeats_consecutively_is_refused"
+
+[[mutant]]
+name = "DISCRIMINATING — adjacency stops reading the text, so any two headings in a row are refused"
+file = "tools/fragments.py"
+old = '''            if previous is not None and previous[1] == heading:'''
+new = '''            if previous is not None:'''
+kills = "tests/test_fragments.py::test_the_same_heading_under_a_different_release_is_left_alone"
+
+[[mutant]]
+name = "content stops resetting the run, so a repeat separated by entries is refused too"
+file = "tools/fragments.py"
+old = '''        elif line.strip():
+            previous = None'''
+new = '''        elif line.strip():
+            pass'''
+kills = "tests/test_fragments.py::test_a_heading_that_repeats_after_intervening_entries_is_the_decided_scope"
+
+[[mutant]]
+name = "the `- ` list-item rule never fires"
+file = "tools/fragments.py"
+old = '''            if not line.startswith("- "):'''
+new = '''            if False:'''
+kills = "tests/test_fragments.py::test_an_entry_that_opens_with_a_paragraph_is_refused"
+
+[[mutant]]
+name = "DISCRIMINATING — the bullet rule reaches the free-form stream it was scoped away from"
+file = "tools/fragments.py"
+old = '''    if stream.categories is None:
+        return problems'''
+new = '''    if False:
+        return problems'''
+kills = "tests/test_fragments.py::test_the_bullet_rule_never_reaches_the_free_form_stream"
+
+[[mutant]]
+name = "every line under a heading is judged, not only the first, so continuations are refused"
+file = "tools/fragments.py"
+old = '''                )
+            opened = None'''
+new = '''                )'''
+kills = "tests/test_fragments.py::test_a_bullets_indented_continuation_is_not_read_as_a_second_entry"
+
+[[mutant]]
+name = "the shipped bug — a fence is recognised only at column zero, so an indented one is missed"
+file = "tools/fragments.py"
+old = '''_FENCE = re.compile(r"^[ \t]*(```+|~~~+)")'''
+new = '''_FENCE = re.compile(r"^(```+|~~~+)")'''
+kills = "tests/test_fragments.py::test_a_heading_inside_a_fenced_block_is_not_read_as_structure"
+
+[[mutant]]
+name = "--apply writes the document before validating it, deleting the fragments that caused it"
+file = "tools/fragments.py"
+old = '''        if damage := document_problems(stream, spliced):'''
+new = '''        if False and document_problems(stream, spliced):'''
+kills = "tests/test_fragments.py::test_apply_refuses_to_write_a_document_it_would_leave_malformed"
+
+# Two more, from the adversarial pass over this increment's own diff. Both are *silent* failures:
+# a scanner that skips without saying so, and a message that explains a mechanism the stream it is
+# printed for does not have.
+
+[[mutant]]
+name = "an unclosed fence is skipped silently, so the rest of the document goes unread"
+file = "tools/fragments.py"
+old = '''    if unclosed is not None:'''
+new = '''    if False:'''
+kills = "tests/test_fragments.py::test_an_unclosed_fence_is_refused_rather_than_silently_swallowing_the_rest"
+
+[[mutant]]
+name = "the duplicate message quotes `_merge_into_section` at the stream that never calls it"
+file = "tools/fragments.py"
+old = '''                    if stream.categories is not None'''
+new = '''                    if True'''
+kills = "tests/test_fragments.py::test_the_duplicate_message_names_the_mechanism_that_belongs_to_the_stream"
+
+# Three from the adversarial pass, all one defect wearing three hats: the splicer and the checker
+# disagreed about what a heading is, and `--apply` was not atomic across streams. Each was
+# reproduced end to end — written, fragments deleted, exit 0 — before it was fixed.
+
+[[mutant]]
+name = "--apply writes each stream as it goes, so a later refusal reports a lie about an earlier one"
+file = "tools/fragments.py"
+old = '''        planned.append((stream, spliced))'''
+new = '''        (repo / stream.target).write_text(spliced, encoding="utf-8")
+        for path in fragments_of(stream, repo):
+            path.unlink()
+        print(f"fragments: applied {stream.name} into {stream.target}, fragments removed.")'''
+kills = "tests/test_fragments.py::test_apply_is_one_step_or_none_across_every_stream"
+
+[[mutant]]
+name = "the merge scan stops skipping fences, so a fenced `### Added` becomes a splice target"
+file = "tools/fragments.py"
+old = '''        if index not in prose:
+            continue'''
+new = '''        if False:
+            continue'''
+kills = "tests/test_fragments.py::test_a_heading_inside_a_fenced_block_is_not_a_splice_target"
+
+[[mutant]]
+name = "the anchor scan stops skipping fences, so a quoted `## [Unreleased]` becomes the insert point"
+file = "tools/fragments.py"
+old = '''            if index in prose and line.rstrip("\n") == stream.insert_after:'''
+new = '''            if line.rstrip("\n") == stream.insert_after:'''
+kills = "tests/test_fragments.py::test_an_anchor_inside_a_fenced_block_is_not_the_splice_point"
+
+# `--check` reads the document `--apply` *would* write, which is the item's own sentence and the
+# half a first draft left out. Replayed against 0.6.0's and 0.28.3's trees, it exits 1 at the
+# commit that added the fragment.
+
+[[mutant]]
+name = "--check reads only the document on disk, so the fragment that breaks the next splice is unread"
+file = "tools/fragments.py"
+old = '''        assembled = prospective(stream, repo)'''
+new = '''        assembled = None'''
+kills = "tests/test_fragments.py::test_check_reads_the_document_apply_would_write_not_only_the_one_on_disk"
+
+[[mutant]]
+name = "DISCRIMINATING — an existing fault is reported twice, burying the one that is new"
+file = "tools/fragments.py"
+old = '''        if _without_position(problem) not in already:'''
+new = '''        if True:'''
+kills = "tests/test_fragments.py::test_a_fault_already_in_the_document_is_reported_once_not_twice"
+
+# `--check` stopped being read-only when it began simulating the write, so it and `--apply` must
+# agree about assembly forever — and a disagreement is silent. `main` calls `prospective` rather
+# than re-deriving; this row is the drift that sharing is meant to prevent.
+
+[[mutant]]
+name = "--apply re-derives its own assembly, and it differs from the one --check validated"
+file = "tools/fragments.py"
+old = '''        spliced = prospective(stream, repo)'''
+new = '''        spliced = (
+            splice(stream, render(stream, repo) + "\n", repo) if render(stream, repo) else None
+        )'''
+kills = "tests/test_fragments.py::test_check_validates_the_exact_bytes_apply_writes"
