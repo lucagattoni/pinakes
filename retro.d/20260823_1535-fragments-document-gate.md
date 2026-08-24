@@ -85,6 +85,33 @@ The third is the plainer lesson and the one with teeth: **a refusal message is a
 the world, and it was false.** "Nothing written" was true of the stream that failed and false of
 the run. A release step is one step or none.
 
+### The check stopped being read-only, and that is a cost worth naming
+
+The item's stated defect is that `--check` *"asserts nothing about the result of `--apply`"*. The
+first draft read the file **on disk** — which asserts something about the result of the *previous*
+`--apply`, and nothing about the next one, the one the sentence names. So the narrow draft
+satisfied a weaker item. `--check` now validates the assembly the pending fragments would produce.
+
+**The evidence is the replay.** Both instances the item cites came from a fragment whose body opens
+with its own `### Fixed`. Run against the tree as it stood at each of those commits, the widened
+check exits 1 **at the commit that added the fragment** — at 0.6.0, whose duplicate was
+hand-repaired seven minutes after release, and at 0.28.3, twenty-two days before anyone noticed.
+Both exited 0 before, and the failure surfaced at release time — **which is exactly when
+`docs/RELEASING.md` has somebody weighing whether to hand-edit a document to get a release out.**
+
+**And the cost, which a peer named and this increment had not.** `--check` is no longer a
+read-only validator: it simulates the write. So `--check` and `--apply` must agree about assembly
+**forever**, and a disagreement between them would be *silent* — `--check` green on an assembly
+`--apply` would never produce. That is this increment's own failure mode, reintroduced one layer
+up. It is not an argument against the widening; it is the argument for making the two **the same
+code** rather than two paths that agree: `main` calls `prospective`, the function `--check`
+validates through, and a test imports the module by path and compares the predicted bytes against
+what the real subprocess writes. A refactor that gives either path its own assembly turns it red.
+
+**Every new guard buys a new invariant.** Three of this increment's four defects were the previous
+instance of that: a checker and a splicer that disagreed about what a heading is, harmless for
+eleven releases because nothing read the document, and false the moment something did.
+
 ### The hole that was pinned rather than closed
 
 The decided rule is *adjacency*, because that is the shape the evidence had. A heading that repeats
