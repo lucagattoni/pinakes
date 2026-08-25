@@ -23,11 +23,13 @@ test, or write **none** and say why in the same commit.
   wrong (the completeness audit's). Treat a row as a strong pointer, not a proof.
 * **The scope began as `plans/20260727_1543-v0.2.md`'s promises**, which is what the table this
   replaces covered, and has grown with the work since. **Measured 20260825 12:49 UTC on `c23359f`:
-  923 rows, 44 distinct increment ids** (I1–I11, L1–L8, G1–G6, T1–T7, E1–E7, D-16 and a large `fix`
+  890 rows, 44 distinct increment ids** (I1–I11, L1–L8, G1–G6, T1–T7, E1–E7, D-16 and a large `fix`
   class), **naming 62 of the 67 test modules in `tests/`.** An earlier version of this paragraph said
   the table *"stopped"* at 0.12.0 and that the gap was *"four releases wide"*; both were true when
   written and neither has been true for a long time. **Do not restate a release count here** — it
-  goes stale silently, which is what happened. State what was measured and when.
+  goes stale silently, which is what happened. State what was measured and when — **and count the rows
+  the way the gate does**: an earlier version of this paragraph said 923, which counted the 33 table
+  headers `tests/test_verification.py` skips.
 * **Two gaps remain, and they are different in kind.** **Six modules carry zero rows** —
   `test_chunk.py`, `test_ids.py`, `test_lock.py`, `test_pairing.py`, `test_uri.py`, `test_embed.py`.
   They predate the table and are not unowned. **Five more are named by no row at all** —
