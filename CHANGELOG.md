@@ -10,7 +10,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Added
+## [0.30.1] — 20260824 23:55
+
+### Fixed
 
 - **`tools/fragments.py --check` now reads the document `--apply` would write, not only the
   fragments going into it.** Both the file on disk and the assembly the pending fragments would
@@ -32,8 +34,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   20260823, `CHANGELOG.md`'s only fenced block sits two spaces inside a bullet and the file has no
   column-zero fence at all, so the first draft skipped nothing in the document it most needs to
   read. Closes the open-corrections item opened at 0.30.0.
-
-### Fixed
 
 - **Five blocks of front-matter residue were rendering as headings, two of them on the published
   site.** A splice long ago left `---` / `category: <x>` / `---` in the assembled documents. That is
@@ -3952,7 +3952,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.30.0...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.30.1...HEAD
+[0.30.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.30.1
 [0.30.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.30.0
 [0.29.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.29.2
 [0.29.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.29.1

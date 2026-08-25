@@ -29,6 +29,13 @@ extended on 20260823 when it crossed it again. Nothing was dropped in either mov
 1. `python3 tools/fragments.py --apply` — splices `changelog.d/` and `retro.d/` into `CHANGELOG.md`
    and `docs/RETROSPECTIVES.md`, then deletes the fragments. A release that skips this and runs it
    later splices into the wrong version.
+
+   > ⚠️ **`--apply` can refuse, as of 0.30.1.** It validates the spliced text of *every* stream
+   > before writing *any* of them, and exits 1 with `refusing to write <target> — the splice would
+   > leave it malformed. Nothing written, no fragment deleted.` That sentence is now true of the
+   > run and not merely of one stream: before 0.30.1 a refusal on the second stream had already
+   > written the first and deleted its fragments. **A refusal here is not a reason to hand-edit the
+   > document** — fix the fragment it names and re-run, because the fragments are still on disk.
 2. Bump `__version__` in `src/pinakes/__init__.py`.
 3. **Insert** a dated `## [x.y.z] — YYYYMMDD HH:MM` heading *below* `## [Unreleased]`, so the freshly
    spliced entries fall under it. **Add its link definition at the foot and repoint `[Unreleased]`'s
