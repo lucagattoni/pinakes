@@ -14,7 +14,7 @@ from pinakes.ci import WORKFLOW_PATH
 from pinakes.cli import main
 from pinakes.errors import InitError, TemplateError
 from pinakes.ids import parse_kb_id
-from pinakes.init import init
+from pinakes.init import _index_pathspec, _tracked_by_git, init
 from pinakes.manifest import load
 
 
@@ -933,3 +933,155 @@ def test_init_stamps_the_files_a_template_declares(
     assert not (result.root / "NOT-DECLARED.md").exists()
     # The historical pair is *not* implied once a template declares its own list.
     assert not (result.root / "eval" / "questions.yaml").exists()
+
+
+def _repo_tracking_pinakes(
+    root: Path, gitignore: str | None = None, *, commit: bool = True
+) -> Path:
+    """A repository that put `.pinakes/` in the index **before** any ignore rule existed.
+
+    The order is the whole point, and it is the order a real user reaches: run `pnk init`, miss the
+    warning, `pnk sync`, `git add -A && git commit`, and add the rule only later — prompted by the
+    warning finally read, or by a second KB. `-f` on the add is simply what a plain `git add -A`
+    did at the time, when no rule was in the way.
+    """
+    root.mkdir(parents=True, exist_ok=True)
+    for command in (
+        ["git", "init", "-q"],
+        ["git", "config", "user.email", "t@example.invalid"],
+        ["git", "config", "user.name", "t"],
+    ):
+        subprocess.run(command, cwd=root, check=True)
+    deep = root / ".pinakes" / "deep"
+    deep.mkdir(parents=True)
+    (deep / "op1.json").write_text('{"question": "verbatim"}', encoding="utf-8")
+    (root / ".pinakes" / "ledger.jsonl").write_text("{}\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A", "-f"], cwd=root, check=True)
+    if commit:
+        subprocess.run(["git", "commit", "-qm", "before the rule existed"], cwd=root, check=True)
+    if gitignore is not None:
+        (root / ".gitignore").write_text(gitignore, encoding="utf-8")
+    return root
+
+
+def test_a_tracked_pinakes_is_reported_even_when_git_ignores_it(tmp_path: Path) -> None:
+    """**The state the previous check called protected.** A correct `.gitignore` arriving after the
+    commit ignores nothing that is already in the index, so every `git commit -a` keeps publishing
+    the deep transcripts — and `check-ignore` reports a tracked path as *not ignored*, which is why
+    the probes cannot see this and a second question is needed."""
+    root = _repo_tracking_pinakes(tmp_path / "repo", ".pinakes/\n")
+    result = init(root)
+
+    assert result.gitignore_unprotected is False, "the rule is correct — that is exactly the trap"
+    assert result.pinakes_tracked is True, "and the files are still in the index"
+
+
+def test_a_tracked_pinakes_is_reported_when_init_writes_the_gitignore(tmp_path: Path) -> None:
+    """**The placement test, and it is not the obvious one.**
+
+    Every other gitignore test in this file is built around an *adopted* file, because that is what
+    the existing warning needs. But the whole warning block is gated on `if gitignore in adopted:`,
+    and a repository that tracks `.pinakes/` with no ignore rule at all is the commonest shape of
+    this fault — so `init` **writes** the file, `adopted` stays empty, and a tracked-check placed
+    inside that block never runs in the state it exists for. A test written in the shape of the
+    tests around it inherits their blind spot and passes while the defect ships.
+    """
+    root = _repo_tracking_pinakes(tmp_path / "repo")
+    result = init(root)
+
+    assert (root / ".gitignore") not in result.adopted, "init wrote it; nothing was adopted"
+    assert result.pinakes_tracked is True, (
+        "the index question must be asked outside the adopted-only gate — it is a question about "
+        "the index, and the index does not care who wrote the ignore file"
+    )
+
+
+def test_the_index_question_is_scoped_absolutely_and_literally() -> None:
+    """**Pinned on the pathspec, because the answer cannot show it.**
+
+    `_ask_git` runs git with `cwd=root`, so a bare `.pinakes` resolves against the same directory
+    and returns an identical verdict in every case measured — from a subdirectory, and with a
+    relative root. A behavioural test therefore passes against the relative form it exists to
+    forbid. The constraint is real (it makes correctness independent of a coupling no caller can
+    see, and of a KB root containing `*` or `[`), so it is asserted where it can actually fail.
+    """
+    spec = _index_pathspec(Path("a-relative-kb"))
+
+    assert spec.startswith(":(literal)"), "a pathspec is glob-matched unless told otherwise"
+    assert Path(spec.removeprefix(":(literal)")).is_absolute()
+    assert spec.endswith(".pinakes")
+
+
+def test_a_repository_that_tracks_nothing_reports_nothing_tracked(tmp_path: Path) -> None:
+    """The control. Without it an implementation that answered `True` unconditionally would pass
+    every test above."""
+    assert init(_git_repo(tmp_path / "clean", ".pinakes/\n")).pinakes_tracked is False
+
+
+def test_outside_a_repository_nothing_is_claimed_about_tracking(tmp_path: Path) -> None:
+    """`git ls-files` exits **128** with `fatal:` on stderr outside a repository. That is *unknown*,
+    and unknown must be reported as no claim — never as clean, which is the silence this check
+    exists to end."""
+    assert init(tmp_path / "loose").pinakes_tracked is False
+
+
+def test_a_staged_but_never_committed_pinakes_is_already_tracked(tmp_path: Path) -> None:
+    """`git ls-files` reads the index, so a `git add` with no commit is already exposure waiting on
+    one keystroke. Reporting only committed files would miss the moment it is still cheap to fix."""
+    root = _repo_tracking_pinakes(tmp_path / "staged", ".pinakes/\n", commit=False)
+
+    assert init(root).pinakes_tracked is True
+
+
+def test_the_tracked_remedy_says_index_not_disk_and_claims_nothing_about_pushed_history(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A field nothing prints is not a fix, and `git rm -r --cached` is a destructive-*shaped*
+    instruction: verified by running it, the files stay on disk and byte-readable. What it does to
+    already-pushed history is unverified, so the text must not imply it undoes any of it."""
+    root = _repo_tracking_pinakes(tmp_path / "ignored-and-tracked", ".pinakes/\n")
+
+    assert main(["init", str(root)]) == 0
+    said = capsys.readouterr().out
+
+    assert "already tracking files under `.pinakes/`" in said
+    assert "git rm -r --cached .pinakes" in said
+    assert "not from your disk" in said
+    assert "does not change any commit you have already pushed" in said
+    assert "Add the line above first" not in said, (
+        "the ignore rule is already correct here; naming a line to add would instruct an action "
+        "that changes nothing — the rule init.py states and this check must not break"
+    )
+
+
+def test_when_the_rule_is_missing_too_the_remedy_puts_the_line_before_the_untrack(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """**Order is load-bearing, and it is stated rather than implied by layout.** Measured: in a
+    repository with no ignore rule, `git rm -r --cached .pinakes` followed by any ordinary
+    `git add -A` puts the file straight back into the index. The reverse order looks like it
+    worked and reverts on the user's next `add`."""
+    root = _repo_tracking_pinakes(tmp_path / "neither", "node_modules/\n")
+
+    assert main(["init", str(root)]) == 0
+    said = capsys.readouterr().out
+
+    assert "Add this line" in said, "the ignore rule really is missing here"
+    assert "Add the line above first" in said
+    assert said.index("Add this line") < said.index("git rm -r --cached"), (
+        "the untrack must come second, or the next `git add` undoes it"
+    )
+
+
+def test_an_unanswerable_index_question_is_unknown_rather_than_clean(tmp_path: Path) -> None:
+    """**Asked of the function, because `InitResult` cannot show it.** `pinakes_tracked` is a
+    `bool`, so `None` and `False` collapse into the same field and no test through `init` can tell
+    them apart — an implementation returning `False` outside a repository would pass every other
+    test here. The distinction is the constraint: git exits **128** with `fatal:` on stderr when
+    there is no repository, and reading that as *nothing is tracked* is a guess wearing an exit
+    code. It matters for the next caller, which will not be `init`.
+    """
+    outside = tmp_path / "not-a-repo"
+    outside.mkdir()
+
+    assert _tracked_by_git(outside) is None, "no repository is unknown, never clean"

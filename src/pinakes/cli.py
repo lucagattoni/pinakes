@@ -147,6 +147,31 @@ def run_init(args: argparse.Namespace) -> int:
             print("        .pinakes/")
         print("      It holds the index and the spend ledger — ignoring it is what keeps them")
         print("      off any remote you push to.")
+    if result.pinakes_tracked:
+        # **Its own state, and it must not be folded into the verdict above.** An ignore rule
+        # governs files git has not seen; a tracked file is already past it. The two are
+        # independent, so a KB can be ignored *and* tracked — which is what a user reaches by
+        # committing first and adding the rule afterwards, and what the previous check called
+        # protected.
+        print("\n  ⚠️  git is already tracking files under `.pinakes/`.")
+        print("      Ignoring a directory does not untrack what is already in the index, so")
+        print("      these keep being committed — including the deep transcripts, which hold")
+        print("      the questions you typed.")
+        if result.gitignore_unprotected:
+            # **Order is load-bearing and is stated, not implied by layout.** Measured: with no
+            # ignore rule in place, `git rm -r --cached` followed by any ordinary `git add -A`
+            # puts the files straight back. The reverse order looks like it worked.
+            first = (
+                "Fix the override above first"
+                if result.remedy_already_present
+                else "Add the line above first"
+            )
+            print(f"      {first} — otherwise the next `git add` re-adds them.")
+        print("      Then:")
+        print("        git rm -r --cached .pinakes")
+        print('        git commit -m "stop tracking .pinakes/"')
+        print("      That removes them from git's index, not from your disk — the files stay")
+        print("      where they are. It does not change any commit you have already pushed.")
     print("\nNext:")
     print(f"  1. put Markdown files in {result.root / 'docs'}")
     print("  2. `pnk sync` to index them, then commit the sidecars it writes")
