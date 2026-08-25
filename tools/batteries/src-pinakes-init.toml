@@ -1,0 +1,83 @@
+# Mutation battery — `src/pinakes/init.py`.
+#
+#     python3 tools/mutate.py tools/batteries/src-pinakes-init.toml
+#
+# **The first battery under `src/`.** Every other one covers `tools/`, and
+# `tools/batteries/README.md` says so as a limitation rather than a design: *"No module under
+# `src/` has one, and no invariant in docs/INVARIANTS.md is covered."* This one covers the part of
+# `init` that decides whether `.pinakes/` — the index, the spend ledger and every deep transcript —
+# can leave the machine, which is `docs/INVARIANTS.md`'s territory rather than a gate's.
+#
+# Every row is a way the check could be wrong while `pnk init` still prints a confident, plausible
+# line. **A row is a claim about one assertion, never about the file.**
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 7
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260825 · the `.gitignore` check answers what git answers
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# The shipped defect this increment closed: `".pinakes/" not in gitignore.read_text()`, a substring
+# test standing in for git's ignore semantics. It was wrong in **both** directions — it warned about
+# `.pinakes` and `.pin*`, which git ignores, and stayed silent for `!.pinakes/` and a commented-out
+# `#.pinakes/`, which git does not. The silent half left the ledger and every transcript tracked.
+#
+# Two of the rows below are that defect, re-expressed: row 5 is the comment blindness and row 6 is
+# the missing-trailing-slash blindness, both in the fallback where no git can be asked.
+
+[[mutant]]
+name = "the probe becomes the bare directory, so the canonical `.pinakes/` pattern reads as unprotected"
+file = "src/pinakes/init.py"
+old = '''GITIGNORE_PROBES = (
+    ".pinakes/index.db",
+    ".pinakes/ledger.jsonl",
+    ".pinakes/deep/transcript.json",
+)'''
+new = '''GITIGNORE_PROBES = (".pinakes",)'''
+kills = "tests/test_init.py::test_the_gitignore_check_answers_what_git_answers"
+
+[[mutant]]
+name = "DISCRIMINATING — any probe matching counts as full protection, so ignoring only the ledger hides a tracked index"
+file = "src/pinakes/init.py"
+old = '''    return len(matched) == len(GITIGNORE_PROBES)'''
+new = '''    return len(matched) > 0'''
+kills = "tests/test_init.py::test_ignoring_only_part_of_pinakes_is_not_protection"
+
+[[mutant]]
+name = "a `not ignored` answer is mistaken for `git could not answer`, handing the verdict back to the text scan"
+file = "src/pinakes/init.py"
+old = '''    if completed.returncode not in (0, 1):'''
+new = '''    if completed.returncode != 0:'''
+kills = "tests/test_init.py::test_the_gitignore_check_answers_what_git_answers"
+
+[[mutant]]
+name = "git is never asked at all — the fallback becomes the only answer, in a repository"
+file = "src/pinakes/init.py"
+old = '''    protected = _ignored_by_git(root)'''
+new = '''    protected = None'''
+kills = "tests/test_init.py::test_protection_that_lives_outside_gitignore_is_still_protection"
+
+[[mutant]]
+name = "THE SHIPPED DEFECT, half one — the fallback stops stripping comments, so `#.pinakes/` reads as protection"
+file = "src/pinakes/init.py"
+old = '''        if not stripped or stripped.startswith("#"):'''
+new = '''        if not stripped:'''
+kills = "tests/test_init.py::test_outside_a_repository_the_fallback_still_strips_comments"
+
+[[mutant]]
+name = "THE SHIPPED DEFECT, half two — the fallback demands an exact `.pinakes`, so a trailing slash stops counting"
+file = "src/pinakes/init.py"
+old = '''        if stripped.rstrip("/") == ".pinakes":'''
+new = '''        if stripped == ".pinakes":'''
+kills = "tests/test_init.py::test_outside_a_repository_the_fallback_still_strips_comments"
+
+[[mutant]]
+name = "a missing git is read as protection rather than as no answer, silencing the warning on every machine without git"
+file = "src/pinakes/init.py"
+old = '''    except OSError:'''
+new = '''    except OSError:
+        return True
+    if False:'''
+kills = "tests/test_init.py::test_init_still_stamps_a_kb_when_git_is_not_installed"
