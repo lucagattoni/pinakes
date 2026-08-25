@@ -83,14 +83,18 @@ Decided by the user 20260801 01:24.
 
 | | |
 |---|---|
-| **Planner-only** | `docs/**`, `plans/**`, `README.md`, `CLAUDE.md`, `CHANGELOG.md` |
+| **Planner-only** | `docs/**`, `plans/**`, **any `README.md`, at any depth** (root, `tools/batteries/`, `changelog.d/`, `retro.d/`), `CLAUDE.md`, `CHANGELOG.md` |
 | **Yours to write** | `changelog.d/` and `retro.d/` fragments; docstrings and comments in `src/`, `tests/`, `tools/`. Fragments exist so an implementer records what it changed *without* touching a shared document — that is the mechanism, not an exception to it |
 | **One narrow exception** | `docs/VERIFICATION.md`: add **only** the row a test you wrote requires. `tests/test_verification.py` hard-fails on an unresolvable name, so a renamed or new test with no row makes *your own* branch red. Nothing else in that file |
 
 **Propose as `git diff <sha> -- <file>` against a named commit** — never an edit, never "it is one
 line". When the planner incorporates it, and why the cost is accepted: [`docs/BUILDING.md` §
 Proposing a change to a document you do not
-own](docs/BUILDING.md#proposing-a-change-to-a-document-you-do-not-own).
+own](docs/BUILDING.md#proposing-a-change-to-a-document-you-do-not-own). **When the text must land in
+*your* commit** — a gate's `VERIFICATION.md` section, a counted paragraph a test asserts — the
+planner dictates it and you paste it unchanged: **ask, do not draft**
+([`docs/BUILDING.md` § Content mine, keystrokes
+yours](docs/BUILDING.md#content-mine-keystrokes-yours)).
 
 ## 🚫 Unbuilt work is named, never numbered
 
