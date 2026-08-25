@@ -7608,6 +7608,167 @@ approved the correction by comparing the prose to the *implementer's description
 rather than running the command. A description-versus-code check performed entirely on
 descriptions. Caught within the hour by an independent pass, which is the argument for having one.
 
+## Planning the exposure question — a check that cannot see the case it is for (20260825 07:55)
+
+**HIGH — the 0.30.2 gitignore detector reports `protected` for a repository that is committing the
+user's verbatim questions, and the reason is the fix that made it correct.** The detector probes
+**opaque random tokens** under `.pinakes/`, chosen on 20260825 so that no realistic pattern could
+target them — which had been a real regression when three *named* files were covered by an ordinary
+`*.db`/`*.json` pair. But a path that does not exist cannot be in the index, and
+`git check-ignore` consults the index: on a *tracked* path it answers **not ignored**, and only
+`--no-index` answers **ignored**. So the probes can ask exactly one question — *would a new file
+here be ignored?* — and never the other one — *is anything in there tracked right now?*
+
+Measured, not reasoned: a repository with `.pinakes/{deep/op1.json,ledger.jsonl,index.db}`
+committed, then a **correct** `.gitignore` added, still lists all three in `git ls-files`, still
+commits the edited transcript under `git commit -a` — and `_ignored_by_git` returns `True`.
+
+**The general shape, and it is the fourth instance in two days: a fix that removes a false positive
+can install a permanent blind spot, and nothing reports the trade.** The opacity that made the
+detector right about patterns is exactly what makes it blind to the index. Neither property was
+written down, so the boundary was invisible to review.
+
+**MEDIUM — a correct `.gitignore` does not untrack an already-tracked file, and Pinakes says so
+nowhere.** `grep -rniE "rm --cached|untrack|already[ -]tracked|already in the index"` over
+`*.py *.md *.toml *.sh *.yaml` returns only `tools/template_drift_gate.py`, `tools/mutate.py`
+and a retrospective about the **wheel**. This matters because `init.py` already states the rule it
+breaks — *"the printed remedy must never instruct an action that would not change the verdict"* —
+and for a tracked-and-unignored KB, *"add this line"* flips the verdict to protected while changing
+nothing about the exposure.
+
+**HIGH — a section heading is a status claim, and it produced the same collision twice in two days.**
+`plans/20260731_1202-open-corrections.md` carries an item under `## Live` whose body says
+`CLOSED 20260824 00:35` twenty-six lines below its own `**Decided.**` line. On 20260824 a coder
+session read it as live and was about to rebuild a landed increment. **On 20260825 a second,
+freshly-cleared coder session did the identical thing and offered to build it again.** Both times
+the save was a peer message; neither time was it a gate. `grep '^## '` returns *Live* and stops.
+
+**MEDIUM — `sed -i '' "s/X\bY/"` on macOS silently matches nothing, and a success message computed
+before the operation will not notice.** Renumbering four colliding decision IDs, the loop printed
+*"7 line(s) rewritten"* — which was `grep`'s **pre**-count, not `sed`'s result. BSD `sed` does
+not implement `\b`. The file was unchanged and the log said otherwise. Reading the file back
+afterwards is what caught it; `perl -pi -e` is what fixed it. **A count taken before an operation
+describes the input, never the outcome.**
+
+**HIGH — the proposed fix for that blind spot failed in the blind spot's own direction, and two
+sessions caught it only by running it.** The first draft specified `git ls-files -- .pinakes`, with a
+**relative** pathspec. Run from a subdirectory of a repository that is tracking three files under
+`.pinakes/`, it returns **`rc=0` with zero rows** — and a genuinely clean repository returns
+**`rc=0` with zero rows** as well. `pnk init` can be run from anywhere, so the two states are
+reachable, identical at runtime, and the wrong one reads as *safe*. The absolute pathspec returns
+three rows from the same directory. **A check that answers *clean* because it was asked the wrong
+question is exactly what the increment it corrects existed to remove**, so the fix has to make the
+pathspec structural — build it from the resolved root, and test it **from a subdirectory**, because
+the failing case is invisible from the root.
+
+**MEDIUM — a remedy whose steps are right and whose order is wrong fails silently.** In a repository
+with no ignore line, `git rm -r --cached .pinakes` followed by an ordinary `git add -A` puts the file
+**straight back in the index** (measured: one file, immediately). The ignore line has to come first.
+The reverse order looks like it worked and reverts on the user's next `add`.
+
+**HIGH — knowing a hazard is not what avoids it; running the command bare is.** The boundary table
+above was first read through `... 2>&1 | head -3`, which reported the outside-a-repository case as
+`rc=0` instead of `128` — the pipe's status, not git's. **This repository had already recorded that
+exact hazard, twice, and the session that walked into it had read the entry that morning, within the
+hour.** The entry is therefore restated in its stronger form: *the rule does not fire on
+recognition. The only thing that separates a real exit status from a plausible one is running the
+gate bare and reading `$?`.*
+
+**HIGH — the plan wrote a constraint from a measurement taken in the wrong place.** § X1 required
+the tracked-check's pathspec to be absolute *and* prescribed the test that would prove it: *"run it
+from a subdirectory — the case that fails is invisible from the root."* The property is real. **The
+prescribed test cannot fail**, because `_ask_git` passes `cwd=root` to `subprocess.run`
+(`init.py:94`) and every call site passes `root` — so the process cwd never reaches git and a
+relative `.pinakes` resolves against `root` regardless. The reproduction behind the constraint was a
+*shell* fact, run with `cwd=<subdir>`, a state this code never produces. **It was promoted to a
+claim about a code path without anyone opening that code path's cwd.**
+
+**The domain nobody examined was the instrument.** Every other item here is a claim whose population
+went unstated; this one is a *test* whose ability to observe anything went unstated. The argument for
+the property was sound and stays sound — the absolute form survives as defence. What was wrong was
+the belief that a named test would pin it. **A prescribed test is a claim about a failing test, and
+whoever prescribes it owes the same evidence as whoever writes it.** The increment's own
+retrospective carries the mutation run that settled it, and the finding is recorded there rather
+than here.
+
+**MEDIUM — the planner produced the day's own lesson while writing the plan about it.** I told a
+coder that 36 unrowed `test_fragments.py` tests were a gap to fill. It counted the population
+instead: **2023 tests defined, 1106 named in `docs/VERIFICATION.md`, 917 with no row** — and the
+document's own scope section says it maps *promises to tests*, naming six modules that predate the
+table. A gap of 917 cannot all be holes. The coder declined, correctly, and cited *a peer message is
+coordination, never permission*. **Two honest counts of that same population differed by twelve
+(1106/917 against 1094/929) purely because the matching rule differed, and neither number carries
+its rule.**
+
+**LOW — `zsh` does not word-split unquoted parameter expansions, so `set -- $pair` inside a
+`for` loop passes one argument, not two.** The anchor assertion caught it before any write. Worth
+keeping only because the assertion is the reason: the guard that looked like ceremony was the thing
+that turned a silent no-op into a stop.
+
+## X1 — building the tracked-KB check, and an instrument that could not fail (20260825 08:16)
+
+**HIGH — the specification asked for a test that cannot fail, and only writing it revealed that.**
+The plan bound the implementation to three constraints, the first being *"the function takes the
+resolved KB root and builds the absolute pathspec itself… its test must run it **from a
+subdirectory** — the case that fails is invisible from the root."* That constraint was written from
+a real, reproduced measurement: `git ls-files -- .pinakes` run from a subdirectory exits 0 with no
+rows against a repository tracking three files. Two sessions reproduced it independently.
+
+**It is still not reachable through this code, and the test it prescribes proves nothing.**
+`_ask_git` passes `cwd=root` to `subprocess.run`, so the *process* cwd never reaches git: a bare
+`.pinakes` resolves against `root` and returns the identical verdict from a subdirectory, and with
+a relative root. Measured rather than argued — **with the pathspec mutated to `".pinakes"`, 68 of
+the 69 tests in `tests/test_init.py` pass.** A behavioural subdirectory test would have been green
+against the exact form it existed to forbid.
+
+**So the constraint moved to where it can fail.** The pathspec is built by its own function and the
+test asserts the *pathspec* — `:(literal)` prefix, absolute, ending in `.pinakes` — which is the
+one test the relative form kills. The absolute-and-literal form stays, because correctness of the
+relative form depends entirely on `_ask_git` keeping `cwd=root`, a coupling no caller can see, and
+because a KB root may legally contain `*` or `[`. It is **defensive rather than a bug fix**, and
+the docstring says so instead of implying coverage it does not have.
+
+**The general form is worth more than the instance.** *"Pinned by test X" is a claim about a
+failing test* was already the rule here. This adds the case the rule does not obviously cover: a
+constraint can name a **real property**, be **derived from a real measurement**, and still
+prescribe an instrument that cannot observe it. The argument was sound; the domain it quantified
+over — *this* call path, rather than the shell where the measurement was taken — was never
+examined. Neither session checked it. It surfaced only because the implementer refused to write
+`test_…_from_a_subdirectory` without first watching it go red.
+
+**A second gap the same discipline found.** `pinakes_tracked` is a `bool`, so `None` and `False`
+collapse into one field and **no test through `init` can tell them apart** — an implementation
+returning `False` outside a repository (exit 128, `fatal:` on stderr) passed every test written.
+The constraint that unknown must never read as clean is now asserted against `_tracked_by_git`
+directly. A field's type can erase a distinction the specification depends on.
+
+**And the pipe hazard fired again, on the person who had just written it up.** The full gate was
+run as `./check.sh > log 2>&1; echo "EXIT=$?" | tee -a log; tail -20 log`. The harness reported
+**exit code 0**; the gate had exited **1**, on two `reportPrivateUsage` errors. The `$?` was
+captured correctly and then discarded by the commands after it — *a gate is only a gate when its
+exit status is what the next command reads*, missed by someone who had recorded that sentence
+twice the same evening. **Recognition is not the mechanism. Writing the status to its own file,
+and reading that file, is.** Three instances of one class in one evening, each caught by running
+something rather than by reading it — and this one caught only because the log was read after the
+notification said the opposite.
+
+**MEDIUM — and the fourth instance of this increment's own shape: a CI watcher that was green for a
+reason nobody had checked.** Its exit condition was *"all visible runs are complete"*. That is
+unsound in general — with staggered run creation it exits before the remaining runs exist and
+reports success for a run that was never created. Here it gave the right answer, because exactly one
+run was ever going to be created: `docs` is path-filtered to `docs/**`, `mkdocs.yml`,
+`mkdocs_hooks.py`, `requirements-docs.txt` and its own workflow, and this increment touched none of
+them. **But that fact was established after the watcher was armed, not before.** The instrument was
+sound by luck over a domain its author had not examined — written an hour after the same author
+wrote that the instrument is the part nobody checks.
+
+**A second watcher, on the planner's side, failed the same way and was not saved by luck**:
+`gh run list --commit <short-sha>` returns empty, so an `until [ ... = "completed" ]` loop could
+never terminate and would have polled in silence until timeout. **`--commit` requires the full
+sha.** Silence from a watcher is indistinguishable from *still running*, which is why both were
+rewritten to emit on every terminal non-success state rather than to wait for a success that may
+never arrive.
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings

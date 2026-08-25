@@ -17,10 +17,10 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260825 00:45 UTC
+## Where things stand right now — 20260825 08:27 UTC
 
-- **56 releases in 31 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.30.2`](#0302--the-check-that-was-not-git--20260825-0045)
+- **57 releases in 31 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.30.3`](#0303--the-question-the-probes-could-not-ask--20260825-0827)
   on 20260825.
 - **Latest on PyPI: `0.30.2`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
@@ -108,8 +108,8 @@ precision nobody measured.
   from **generalising a fix** — asking where else the defect just repaired still lives.
 - **🛑 One thing is scheduled, as of 20260825: the exposure plan**
   ([`plans/20260825_0749-exposure-and-silent-status.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260825_0749-exposure-and-silent-status.md)).
-  Its § X1 is buildable and needs no decision — the `.pinakes/` ignore check cannot see an
-  already-tracked KB, measured; the rest waits on D-31 to D-34, **proposed and not taken**.
+  Its § X1 is **built** — the `.pinakes/` ignore check could not see an already-tracked KB, and now
+  a second question asks the index; the rest waits on D-31 to D-34, **proposed and not taken**.
   Otherwise every named body of work is shipped or gated:
   the open-corrections list holds one live *decision*, T6 waits on a **trigger** (a queried KB past
   ~50 000 chunks *with* felt latency), the staged graph channels wait on a **corpus**, and
@@ -191,6 +191,7 @@ number belongs to a release only when it is cut
 | **[0.30.0](#0300--the-markdown-the-docs-site-never-sees-now-gated--20260823-1505)** | 20260823 15:05 | the Markdown the docs site never sees, now gated | • `tools/markdown_link_gate.py` — every relative link and anchor in the Markdown `--strict` never sees<br>• **stdlib-only, 0.25s**, licensed by measuring the extractor against a real renderer over 894 links<br>• **A quoted link is left alone** — quoting a document never requires corrupting the quotation<br>• Caught a dead link in **this release's own fragment**: right in `changelog.d/`, wrong once spliced<br>• **§ *Landing beside a peer*** — the overlap tool compares to `origin/main`, never to a sibling branch<br>• A landing **order can be forced**, and running the peer's gate is what finds it<br>• `fragments.py --check` never reads the document it writes — **closed in 0.30.1**<br>• no code path changed |
 | **[0.30.1](#0301--the-assembled-document-nobody-read--20260824-2355)** | 20260824 23:55 | the assembled document nobody read | • `fragments.py --check` now validates **the assembly `--apply` would write**, not only the fragments going in<br>• **One definition of the splice** — `--check` calls the same `prospective()`, pinned by a byte-comparison test<br>• Replayed: exits 1 **at the commit that added the fragment**, at 0.6.0 and 0.28.3<br>• The bullet rule is **changelog-only by construction** — the retro stream has no category vocabulary to reach it<br>• `--apply` spliced entries **inside fenced code blocks**, and would have taken a quoted `## [Unreleased]` as its anchor<br>• `--apply` **was not atomic across streams** — wrote one, deleted its fragments, then printed *"Nothing written"*<br>• **Five front-matter residues rendered as setext `<h2>`**, two on the published site, `--strict` green throughout<br>• Four documents told an implementer to write **planner-only files** — no rule added, four sentences corrected<br>• no code path changed |
 | **[0.30.2](#0302--the-check-that-was-not-git--20260825-0045)** | 20260825 00:45 | the check that was not git | • `pnk init` asks **git** whether `.pinakes/` is ignored — the old check was a substring test, **wrong in both directions**<br>• Silent for a commented-out `#.pinakes/`, leaving the ledger and every **verbatim question** tracked<br>• Probes an **arbitrary** path under the directory, not named files<br>• **The first fix was itself a regression** — three named probes read `*.db`/`*.json` as protection while `index.db-wal` stayed tracked<br>• Caught by adversarial review, **not by any gate**; the reviewer's own fix was insufficient too, and only measurement showed it<br>• The remedy no longer says *"add this line"* to someone whose line is already there and negated<br>• Outside a repository the same probes run in a throwaway repo — one definition of the answer<br>• `pnk doctor` re-checking, and WARN-vs-note, **still undecided**<br>• ships in the wheel |
+| **[0.30.3](#0303--the-question-the-probes-could-not-ask--20260825-0827)** | 20260825 08:27 | the question the probes could not ask | • `pnk init` reports a `.pinakes/` git is already **tracking** — 0.30.2's check could not see it<br>• `check-ignore` consults the index, and the opaque probes are never *in* it, so it answered only *would a new file be ignored*<br>• A KB committed before its ignore rule reads as **protected** while `git commit -a` republishes the **verbatim questions**<br>• A second **question** (`git ls-files`), asked whether or not the `.gitignore` was adopted<br>• **Remedy order is load-bearing** — ignore line first, or the next `git add -A` re-adds; absolute path, or it fails from the repo root<br>• Says index-not-disk, and claims nothing about pushed history<br>• **Two of three specified constraints were corrections to the plan**: the prescribed test could not fail (68/69 survived the mutant), and `rc=128` needed asserting below a `bool`<br>• `pnk doctor` re-checking, and WARN-vs-note, **still undecided** (D-31 to D-33)<br>• ships in the wheel |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -2189,6 +2190,48 @@ answers correctly.
 releases before it, whose subjects were `tools/` gates that reach no user. The artifact claim is
 positive for the first time since 0.26.0: the fix must be *present* in the published package, not
 absent from it.
+
+## 0.30.3 — the question the probes could not ask · 20260825 08:27
+
+**0.30.2 made the ignore check answer what git answers. It could still not answer the question that
+matters once a KB has been committed.** `git check-ignore` consults the index, so for a *tracked*
+path it reports **not ignored** — and 0.30.2's probes are opaque random tokens chosen so no pattern
+could target them, which is exactly what stops anything from ever adding them to the index. The
+check could therefore ask *would a new file here be ignored?* and never *is anything in there
+tracked right now?*
+
+**Those two questions come apart in the case that costs the most.** A KB committed before its ignore
+rule existed reads as **protected** from the moment the rule is added, while every `git commit -a`
+keeps republishing `.pinakes/deep/`, which holds the user's verbatim questions. **A correct
+`.gitignore` does not untrack an already-tracked file, and nothing in Pinakes said so anywhere.**
+Reproduced end to end before a line was written.
+
+The fix is a second **question**, not a different probe: `git ls-files` over the index, reported as
+its own state with its own remedy — and asked **whether or not the `.gitignore` was adopted**, since
+the state it exists for is most often a repository with no `.gitignore` at all, where `init` writes
+one and an adopted-only gate would skip it.
+
+**The remedy's order is load-bearing and is stated rather than implied.** With no ignore rule,
+`git rm -r --cached` followed by any ordinary `git add -A` puts the file straight back in the index,
+so the ignore line goes first. The printed command carries an **absolute** path: with the KB at
+`repo/kb/`, the relative form prints `fatal: pathspec did not match` from the repository root and
+leaves the KB tracked. The text says the removal is from git's index and **not** from disk, and
+claims nothing about commits already pushed.
+
+**Two of the three constraints its plan specified turned out to be corrections to the plan rather
+than to the code, and both were found by running them.** The prescribed test — *run the pathspec
+check from a subdirectory* — **cannot fail**, because `_ask_git` pins git's cwd to the KB root; with
+the pathspec mutated to the relative form, **68 of 69 tests in the module still passed**, so the
+test would have been green against the form it existed to forbid. The absolute `:(literal)` pathspec
+stays as defence, and the assertion moved onto `_index_pathspec`, which the mutant does kill. And
+`rc=128 → None` could not be asserted through `init` at all: the reported field is a `bool`, so
+`None` and `False` collapse into it and an implementation returning `False` outside a repository
+passed every end-to-end test.
+
+**What is still undecided is what it was before**: whether `pnk doctor` carries a recurring version
+of this check, and whether that is a WARN or an OK-with-a-note — D-31 to D-33 in
+[the exposure plan](https://github.com/lucagattoni/pinakes/blob/main/plans/20260825_0749-exposure-and-silent-status.md),
+proposed and not taken.
 
 # Part 5 · What is not built
 
