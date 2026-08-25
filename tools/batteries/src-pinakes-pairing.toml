@@ -1,0 +1,126 @@
+# Mutation battery — `src/pinakes/pairing.py`, spanning `src/pinakes/sync.py`.
+#
+#     python3 tools/mutate.py tools/batteries/src-pinakes-pairing.toml
+#
+# **Two files, because the guarantee spans two.** `pairing` decides whether an id is ending or
+# moving; `sync` applies that decision against a UNIQUE constraint on `documents.path`. Neither
+# half is wrong on its own in any of the rows below — every one of them is a plan and an execution
+# that disagree, which is the shape that loses a document without raising anything.
+#
+# `pairing.py`'s own docstring calls it "the logic that silently corrupts a KB when it is wrong",
+# and `sync.py` was named in `tools/batteries/README.md` as the highest-churn file in the
+# repository with no battery at all. This is that gap, closed for one guarantee and not for the
+# file.
+#
+# Every row is a way the code could be wrong while `pnk sync` still prints a confident, plausible
+# summary and exits 0. **A row is a claim about one assertion, never about the file.**
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 6
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260825 · a plan must never retire an id it also adopts
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# The shipped defect this increment closed. When a sidecar's id disagreed with the row at its path,
+# `pair()` retired the row and adopted the sidecar's id — unconditionally. With two documents
+# renamed past each other both halves fire, and the plan carries a `SoftDelete` and an `Adopt` for
+# the same id: the outcome then depends on which is applied last, and both orders are wrong.
+#
+# Rows 1 and 2 are the two directions of that guard. Row 3 restricts the lookahead to sidecars
+# sitting beside a file the walk actually found.
+#
+# **Rows 2 and 3 both SURVIVED their first selector, and the reason is worth more than the rows.**
+# Neither mutant changes *which* actions a plan contains — when the same-path branch stops emitting
+# the `SoftDelete`, the vanished-path loop re-emits one further down the list. The census is
+# identical; only the ORDER moves, from `[SoftDelete, Adopt]` to `[Adopt, Adopt-collides]`. Every
+# assertion pointed at `describe()` therefore passed, and row 3 survived the whole suite of 267
+# tests. `documents.path` is UNIQUE, so the order is the entire behaviour: an `Adopt` applied while
+# the row it replaces is still active raises `IntegrityError`. Both now name a test that asserts
+# the order rather than the counts.
+
+[[mutant]]
+name = "THE SHIPPED DEFECT — the row is retired unconditionally, so a name swap retires the id it just adopted"
+file = "src/pinakes/pairing.py"
+old = '''            if document.id not in claimed_by_id:
+                actions.append(SoftDelete(doc_id=document.id, path=path))
+                handled_ids.add(document.id)'''
+new = '''            actions.append(SoftDelete(doc_id=document.id, path=path))
+            handled_ids.add(document.id)'''
+kills = "tests/test_pairing.py::test_a_name_swap_never_retires_an_id_the_same_plan_adopts"
+
+[[mutant]]
+name = "the guard is inverted, so an ordinary in-place id change stops retiring the row it replaces"
+file = "src/pinakes/pairing.py"
+old = "            if document.id not in claimed_by_id:"
+new = "            if document.id in claimed_by_id:"
+kills = "tests/test_pairing.py::test_a_replaced_row_is_always_retired_before_its_replacement_is_adopted"
+
+[[mutant]]
+name = "an orphaned sidecar counts as a claim, so the row is retired AFTER its replacement is adopted"
+file = "src/pinakes/pairing.py"
+old = '''    claimed_by_id = {
+        sidecar.id: sidecar for sidecar in after.sidecars if sidecar.document_path in after_by_path
+    }'''
+new = "    claimed_by_id = {sidecar.id: sidecar for sidecar in after.sidecars}"
+kills = "tests/test_pairing.py::test_a_replaced_row_is_always_retired_before_its_replacement_is_adopted"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260825 · the retiring DELETE, and why its scope is the load-bearing half
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Row 4 is the collision itself: a retired row keeps its `path`, `documents.path` is UNIQUE, and
+# `ON CONFLICT (id)` is structurally unable to see a conflict on the path.
+#
+# **Row 5 is the one worth the battery.** A previous attempt at this fix shipped the same DELETE
+# without the `state = 'deleted'` scope and the whole suite stayed green — the review that caught it
+# could not find a reachable case and left the question open. It is reachable: a rename cycle whose
+# second half fails to index. Every action commits on its own, so the unscoped DELETE destroys a
+# live row before knowing the replacement will land. Measured with the scope removed: `pnk sync`
+# exits **0**, the document sits on disk with its sidecar and has **no row at all** — which is worse
+# than the defect this increment closed, because a row that does not exist cannot be retired, so
+# `doctor`'s own check for this cannot see it either.
+
+[[mutant]]
+name = "the retiring DELETE is gone, so a changed sidecar id collides with the corpse of the row it replaces"
+file = "src/pinakes/sync.py"
+old = '''    connection.execute(
+        "DELETE FROM documents WHERE path = ? AND id != ? AND state = 'deleted'",
+        (path, doc_id),
+    )
+    connection.execute(
+        "INSERT INTO documents (id, path, content_hash, sidecar_hash, mtime, source_type, title, "'''
+new = '''    connection.execute(
+        "INSERT INTO documents (id, path, content_hash, sidecar_hash, mtime, source_type, title, "'''
+kills = "tests/test_sync.py::test_a_retired_row_no_longer_blocks_a_new_id_at_its_own_path"
+
+[[mutant]]
+name = "THE SURVIVOR FROM THE PREVIOUS ATTEMPT — the DELETE loses its scope and takes live rows with it"
+file = "src/pinakes/sync.py"
+old = "        \"DELETE FROM documents WHERE path = ? AND id != ? AND state = 'deleted'\","
+new = '        "DELETE FROM documents WHERE path = ? AND id != ?",'
+kills = "tests/test_sync.py::test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260825 · the population walk opens nothing
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# `pnk doctor` needs to know *which* documents the KB collects, never their content. Hashing them
+# there would import the walk's own unreadable-file failure into the command you run when the KB is
+# already broken — a raw traceback out of the diagnostic. The mutant is the easy accident: someone
+# simplifies the conditional away and every assertion about `doctor`'s *output* still passes,
+# because the output is identical. Only a test that watches for the `open()` can see it.
+
+[[mutant]]
+name = "the population walk hashes every document again, so `pnk doctor` reads the whole corpus"
+file = "src/pinakes/sync.py"
+old = '''                files[relative] = WalkedFile(
+                    path=relative,
+                    content_hash="" if _documents_only else hash_file(candidate),
+                )'''
+new = '''                files[relative] = WalkedFile(
+                    path=relative,
+                    content_hash=hash_file(candidate),
+                )'''
+kills = "tests/test_sync.py::test_the_population_walk_never_opens_a_document"

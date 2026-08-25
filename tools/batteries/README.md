@@ -25,13 +25,16 @@ finding… It is not a harness failure, so this exits 0 — read the rows."* So 
 carry a coverage regression, and anything CI-shaped built on top of this needs its own check on the
 survivor count. `tests/test_batteries.py` is a **resolvability gate**, not a regression gate.
 
-**And the denominator.** Six batteries, six primary targets. Five are under `tools/`; **exactly one
-module under `src/` has one** — `src-pinakes-init.toml`, over the check that decides whether a KB's
-`.pinakes/` can reach a remote. No invariant in [`docs/INVARIANTS.md`](../../docs/INVARIANTS.md) has
-a battery of its own. The covered files change 3–11 times a month; `src/pinakes/cli.py` changes 58
-times and `sync.py` 40. This is a starting point, not a coverage claim, and a reader who greps a
-battery and finds every anchor resolving has learned nothing about the code that has no battery at
-all.
+**And the denominator.** Seven batteries, seven primary targets. Five are under `tools/`; **two
+modules under `src/` have one** — `src-pinakes-init.toml`, over the check that decides whether a
+KB's `.pinakes/` can reach a remote, and `src-pinakes-pairing.toml`, which spans **two** files,
+`src/pinakes/pairing.py` and `src/pinakes/sync.py`, because the guarantee it mutates spans both. No
+invariant in [`docs/INVARIANTS.md`](../../docs/INVARIANTS.md) has a battery of its own. The covered
+files change 3–11 times a month — **except `sync.py` at 40, which was this paragraph's own example
+of high-churn code with no battery until 20260825**, and is named here so that change is visible
+rather than quietly dropped. `src/pinakes/cli.py`, at 58 changes a month, still has none. This is a
+starting point, not a coverage claim, and a reader who greps a battery and finds every anchor
+resolving has learned nothing about the code that has no battery at all.
 
 **This paragraph is asserted, because it went stale in silence.** It read *"Four batteries, four
 primary targets"* while five were on disk — the fifth arrived and nobody re-counted, which is the

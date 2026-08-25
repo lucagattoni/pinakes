@@ -12,6 +12,7 @@ from pinakes.pairing import (
     IndexSnapshot,
     Mint,
     PaidExtractionRequired,
+    PairingResult,
     Reembed,
     RefreshMetadata,
     Rename,
@@ -41,6 +42,27 @@ def indexed(
         sidecar_hash=sidecar_hash,
         state=state,
         extraction_backend=extraction_backend,
+    )
+
+
+def retires_before_adopting(result: PairingResult) -> bool:
+    """No `Adopt` may land on a path whose current row this same plan retires *later*.
+
+    `describe()` cannot see this and two mutants survived because of it. When the same-path branch
+    skips a `SoftDelete`, the vanished-path loop re-emits one further down the list, so a plan with
+    the two in the wrong order has an **identical census** — same actions, same counts, different
+    meaning. Order is what execution depends on: `documents.path` is UNIQUE, so an `Adopt` applied
+    while the row it replaces is still active raises `IntegrityError` instead of replacing it.
+    """
+    retired_at = {
+        action.path: position
+        for position, action in reversed(list(enumerate(result.actions)))
+        if isinstance(action, SoftDelete)
+    }
+    return all(
+        retired_at[action.path] < position
+        for position, action in enumerate(result.actions)
+        if isinstance(action, Adopt) and action.path in retired_at
     )
 
 
@@ -261,6 +283,7 @@ def test_a_sidecar_disagreeing_with_the_index_wins() -> None:
     assert describe(result) == {"SoftDelete": 1, "Adopt": 1}
     assert actions_of(result, SoftDelete)[0].doc_id == old
     assert actions_of(result, Adopt)[0].doc_id == new
+    assert retires_before_adopting(result)
 
 
 def test_a_whole_mixed_sync() -> None:
@@ -482,3 +505,30 @@ def test_an_orphaned_sidecar_does_not_keep_a_replaced_id_alive() -> None:
     assert describe(result) == {"SoftDelete": 1, "Adopt": 1}
     assert actions_of(result, SoftDelete)[0].doc_id == old
     assert actions_of(result, Adopt)[0].doc_id == new
+    assert retires_before_adopting(result), "the row must be retired before its replacement lands"
+
+
+def test_a_replaced_row_is_always_retired_before_its_replacement_is_adopted() -> None:
+    """The half a census cannot assert, and the half execution actually depends on.
+
+    Both of these plans retire one id and adopt another **at the same path**. Whether the retirement
+    is emitted by the same-path branch or picked up by the vanished-path loop further down, the
+    counts are identical — so `describe()` reports the same thing for a plan that works and a plan
+    that raises `sqlite3.IntegrityError` on the first action. Two mutants survived a suite of 267
+    tests on exactly that blindness before this test existed.
+    """
+    for label, sidecars in (
+        ("nothing else claims the displaced id", None),
+        ("its own sidecar is orphaned elsewhere", "docs/gone.md"),
+    ):
+        old, new = mint_doc_id(), mint_doc_id()
+        walked_sidecars = [sidecar("docs/a.md", new)]
+        if sidecars is not None:
+            walked_sidecars.append(sidecar(sidecars, old))
+        result = pair(
+            IndexSnapshot((indexed(old, "docs/a.md", "h1"),)),
+            WalkSnapshot((walked("docs/a.md", "h1"),), tuple(walked_sidecars)),
+        )
+        kinds = [type(action).__name__ for action in result.actions]
+        assert kinds == ["SoftDelete", "Adopt"], f"{label}: {kinds}"
+        assert retires_before_adopting(result), label
