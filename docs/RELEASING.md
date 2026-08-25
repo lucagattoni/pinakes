@@ -160,6 +160,14 @@ prints `Uploading pinakes-x.y.z-py3-none-any.whl` per file and cannot be cached 
 after **both** of those is a failed publish (20260729 — a correct 0.4.0 upload read as missing;
 20260804 — 0.10.0 read as missing from `/simple/` while its two files were already on the index).
 
+**And never read that confirmation through `tail`.** Run seconds after 0.30.2's upload, the install
+printed `unsatisfiable`; piped through `tail -1` that is the *only* word you see, and a confident
+one-word failure is indistinguishable at a glance from a real one. A moment later the same command
+returned `pinakes 0.30.2`, twice. The wait-and-retry rule above is what covers the timing; this
+covers the *reading*, and the two fail independently — the row above tells you to poll rather than
+conclude from one attempt, and a truncated pipe is how you conclude from one attempt without
+noticing you did. Found 20260825, by the session that had not run the publish.
+
 Caught 20260729: `STATUS.md` still said "Published version: 0.2.2 **only**" three hours after 0.3.0
 was on PyPI, and the roadmap still listed the paid-extraction release as unbuilt.
 
