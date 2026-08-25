@@ -188,8 +188,16 @@ def _git_repo(root: Path, gitignore: str | None = None) -> Path:
         # files reported PROTECTED here while `index.db-wal` — megabytes of verbatim document text
         # in WAL mode — stayed tracked. The substring test this replaces *warned*. A check that
         # answers about filenames cannot answer a question about a directory.
-        ("*.db and *.json, which cover the probes but not the directory", "*.db\n*.json\n*.jsonl\n", True),
-        ("everything under .pinakes ignored except the extraction cache", ".pinakes/*\n!.pinakes/cache\n", True),
+        (
+            "*.db and *.json, which cover the probes but not the directory",
+            "*.db\n*.json\n*.jsonl\n",
+            True,
+        ),
+        (
+            "everything under .pinakes ignored except the extraction cache",
+            ".pinakes/*\n!.pinakes/cache\n",
+            True,
+        ),
         # Controls. Without these a check that always answered the same way would pass four of six.
         ("the exact line this file writes", ".pinakes/\n", False),
         ("nothing to do with pinakes", "node_modules/\n", True),
@@ -338,6 +346,7 @@ def test_a_git_that_never_returns_does_not_hang_init(
 ) -> None:
     """`check-ignore` refreshes the index, which runs the `core.fsmonitor` hook — a wedged Watchman
     blocks it forever. A timeout has to degrade to an answer, not to a traceback."""
+
     def _timeout(*args: object, **kwargs: object) -> object:
         raise subprocess.TimeoutExpired(cmd="git", timeout=5)
 
