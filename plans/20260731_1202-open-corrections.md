@@ -64,7 +64,7 @@ default *on a corpus where three of the seven edge kinds derived zero edges*.
 
 ---
 
-## Live · **one item live and no longer a decision, one CLOSED 20260824 — read each body**
+## Live · **three items live, one CLOSED 20260824 — read each body, not this heading**
 
 > **20260825 18:16 — the live item's *decision* is taken; its *build* is not.** D-31, D-32 and D-33
 > were answered by the user: **`pnk doctor` asks both questions — tracked *and* ignored —
@@ -76,6 +76,56 @@ default *on a corpus where three of the seven edge kinds derived zero edges*.
 **It emptied at 0.22.0 (20260811) and refilled the next day, from E5** — the third time in its
 life, and again within days. **An empty list means nobody has run Pinakes lately, never that it is
 finished.** Add to it when something bites.
+
+### The paid re-extraction loop's deferral needs its trigger pasted into `src/pinakes/extract/audit.py` · **LIVE, added 20260825 19:02 — planner-dictated text, coder keystrokes**
+
+**Deferred, not declined**, by the user 20260825 18:16 — and the decision includes *where the trigger
+lives*: `audit.py`'s docstring, read by exactly the person who would build the loop, rather than a
+roadmap row read by a sweeper. That placement is the decision, not a preference.
+
+**The text is the planner's and is dictated verbatim** (*Content mine, keystrokes yours*); the coder
+pastes it unedited when next in that file. The substance it must carry: the loop **cannot fire on
+this corpus at all**, and the missing floor is not why — `SCANNED_PAGE_FRACTION = 0.10` admits a
+document only when ≥10% of its pages fall *below* the yield floor, which is exactly the condition
+`audit.py` uses to *exempt* a page, so the pages justifying the spend are invisible to the audit by
+construction. Measured over all 18 readable fixtures, every document accepted without `--force` has
+≤1 auditable page. **The trigger costs nothing to evaluate**: run `survey_free_yield` over a *real*
+corpus and count documents clearing the paid-path gate that still retain ≥2 auditable pages. Nobody
+has run it.
+
+### 🛑 `make release-check` verifies nothing, and it is the only thing standing before an irreversible publish · **LIVE, added 20260825 19:02 — planner-raised, coder-owned**
+
+**`CLAUDE.md` says `make release-check` runs *before* the tag, never after, because PyPI never
+accepts a version twice.** The target's own help text promises *"Verify the git tag you are about to
+push matches `pinakes.__version__`"*. **It runs no gate.** The recipe is three `echo`s — it reads
+`__version__`, prints it, prints `v$version`, prints the command to run. There is **no comparison
+and no failure path**, so it cannot fail and therefore cannot verify. `docs/RELEASING.md` describes
+it honestly; the `##` help string does not, and the help string is what a release operator reads.
+
+**What it must do**, and both halves matter: compare the tag against `pinakes.__version__` and exit
+non-zero on a mismatch, **and fail when there is no tag at all** — a gate that passes on absence is
+the same defect one layer out. **Watch it go red before believing it**, and say in the commit what
+made it red.
+
+**Sequencing — this is bound to the tag, not to the S-queue.** It does not outrank the live
+user-facing defects (S2, S16, S3, S1, S4), which harm users on PyPI today while this one harms
+nobody until someone tags. But **the 0.30.3 tag is taken and pending**, gated on D-35 layer 2, so
+this must land **before that tag is pushed** and belongs beside layer 2 rather than at a queue
+position. Both exist for the same reason: the release path relies on somebody remembering.
+
+### `src/pinakes/extract/pageyield.py` justifies its constant with an example the constant refuses — **at two sites** · **LIVE, added 20260825 19:02 — planner-raised, coder-owned**
+
+`SCANNED_PAGE_FRACTION = 0.10`, and `needs_the_paid_path` requires `scanned_fraction >= 0.10`. Both
+the constant's comment (`:35-38`) and `needs_the_paid_path`'s docstring (`:79-80`) justify it with
+*"a 200-page report with eight scanned inserts has a healthy median and still needs the paid path"*.
+**8/200 = 4%. That document is refused without `--force`.**
+
+**It is two sites, and that is the point of this row.** An earlier handover named only the first;
+fixing that one would have left the identical false claim eight lines below it, which is how the
+first survived. **Grep the phrasing across the repo before closing** — a justification that has been
+quoted elsewhere fails the same way one layer out. The honest fix is an example the predicate
+accepts (25 inserts in 200 pages), not a `--force` caveat, because the comment exists to justify the
+constant.
 
 ### `pnk init`'s gitignore warning is the only thing keeping a KB's `.pinakes/` out of a repository, and E5 raised what is in there
 
