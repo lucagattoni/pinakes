@@ -86,7 +86,7 @@ pnk templates [--json]
 
 Lists the templates this build can stamp a KB from — the names `pnk init --template` accepts.
 
-    notes  1.1  Plain Markdown notes: the smallest useful knowledge base.
+    notes  1.2  Plain Markdown notes: the smallest useful knowledge base.
 
 **It takes no `--kb`, and that is not an omission.** The answer is a property of the *install*, not
 of any KB, and it is the same wherever you run it from. To ask which template a given KB is on and

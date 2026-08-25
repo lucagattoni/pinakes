@@ -2499,8 +2499,10 @@ recording `notes@1.0`, whose content was never archived, which is every KB that 
 `pnk upgrade` (T3) prints the lines themselves and **`--apply` (T4) adopts them** — the hunks that
 fit, after printing every one of them, refusing the whole run if any conflicts. **What remains
 missing is not adoption but a baseline**: a KB recording `notes@1.0` has no archived content to
-adopt against, so for every KB that exists today the last step is still the user's own edit, and
-will be until the next template bump.
+adopt against, so for such a KB the last step is still the user's own edit. **That is no longer
+*every* KB**: the archive has shipped `notes@1.1` since 0.17.0 and `notes@1.2` since 0.24.0, so a
+KB created from 0.17.0 onward is compared automatically. It remains true for every KB recording
+`notes@1.0`, whose content was never archived and never can be.
 
 **State:** the plan
 ([`plans/20260804_1016-template-release.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260804_1016-template-release.md))
