@@ -36,7 +36,20 @@ one population differ by twelve, and nothing in either number says which rule pr
 
 # Part 1 — E5: what Pinakes promises about `.pinakes/`
 
-## X1 — NEW, and it is the strongest item here: the detector cannot see an already-tracked KB
+## X1 — ✅ BUILT and on `main` (`35cdc79`, unreleased): the detector cannot see an already-tracked KB
+
+**Built 20260825. What the increment changed relative to what this section asked for**, recorded
+because two of the three were corrections to *this plan* rather than to the code:
+
+| This section asked for | What shipped |
+|---|---|
+| an absolute pathspec, pinned by a test run **from a subdirectory** | the pathspec, in `_index_pathspec` — but **reclassified as defensive**: `_ask_git` pins git's cwd to `root`, so the behavioural test could not fail. The assertion moved onto the pathspec itself, which the relative form does kill |
+| `rc=128` → `None`, asserted through `init` | asserted against **`_tracked_by_git`** instead: the reported field is a `bool`, so `None` and `False` collapse into it and an implementation returning `False` passed every end-to-end test |
+| the remedy, ordered ignore-line-first | shipped, **plus an absolute path this section did not anticipate** — with the KB at `repo/kb/`, the relative form printed `fatal: pathspec did not match` from the repo root and left the KB tracked |
+
+**Symbols rather than line numbers, because these lines have already moved once:**
+`_index_pathspec`, `_tracked_by_git`, and the `pinakes_tracked` assignment — which sits **outside**
+the adopted gate, as constraint #2 required.
 
 **This is not a defect in the 0.30.2 detector. It is a boundary the 0.30.2 design chose, and nobody
 wrote down.**
@@ -121,10 +134,10 @@ answers *clean* when it was asked the wrong question is precisely what 0.30.2 ex
 ### ⚠️ And it must not go where the surrounding code invites it
 
 **Found on review, before this plan landed — the third instance of X1's own shape in one evening.**
-`init.py:326` gates the entire existing warning behind `if gitignore in adopted:`, and `adopted`
-receives `.gitignore` **only when it already existed** (`init.py:312-317`). When `init` writes a
-fresh one, every check in that block is skipped — `tests/test_init.py:375`
-(`test_a_gitignore_written_by_init_is_not_re_examined`) pins exactly that.
+`init.py`'s `if gitignore in adopted:` (line 392 as of `35cdc79`) gates the existing *ignore* warning,
+and `adopted` receives `.gitignore` **only when it already existed**. When `init` writes a
+fresh one, every check in that block is skipped — `tests/test_init.py`'s
+`test_a_gitignore_written_by_init_is_not_re_examined` (line 379 as of `35cdc79`) pins exactly that.
 
 **Cross that with the state table and the natural placement is silent in the state it exists for.**
 A KB whose `.pinakes/` is already tracked and has no ignore rule is, most commonly, a repository
@@ -139,12 +152,13 @@ the ignore file.** Ask it whenever `init` is inside a repository at all.
 
 **The test that catches this is not the obvious one.** It needs a repository that tracks `.pinakes/`
 **and has no `.gitignore`**, then asserts `init` still reports tracked. Every existing gitignore test
-in `tests/test_init.py` is shaped around an *adopted* file (`:126`, `:214`, `:249`, `:375`, `:470`),
+in `tests/test_init.py` was shaped around an *adopted* file,
 so the natural test to write passes while the defect ships. **A test written in the shape of the
 existing tests inherits their blind spot.**
 
-**Do not quote `init.py:319-325` as settled reasoning.** That comment narrows the check's scope and
-justifies it partly with *"what widening it did reach was a path already in the index, where
+**⚠️ RESOLVED — that comment is gone.** X1 rewrote it; the sentence below is quoted from the version
+that existed before `35cdc79` and no longer appears in the tree. It narrowed the check's scope and
+justified it partly with *"what widening it did reach was a path already in the index, where
 `check-ignore` reports not-ignored"*. It identified the right phenomenon and drew the wrong
 conclusion: **a path already in the index is not a reason to narrow the check — it is a second
 question that was never asked.** Rewriting that comment is part of the increment and belongs to the
@@ -173,7 +187,8 @@ this plan's subject twice over.
 from your disk"* is an observation. **Nothing has been verified about already-pushed history and
 the printed text must not imply it unpublishes anything.**
 
-**This satisfies a rule the repository already set and currently breaks.** `init.py:247` states it:
+**This satisfies a rule the repository already set and, before X1, broke.** `init.py`'s
+`remedy_already_present` docstring (line 296 as of `35cdc79`) states it:
 *"the printed remedy must never instruct an action that would not change the verdict."* Today, for a
 tracked-and-unignored KB, *"add this line"* **does** flip the verdict to protected — and changes
 nothing about the exposure. The rule was written against a narrower case (`remedy_already_present`)

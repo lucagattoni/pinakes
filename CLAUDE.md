@@ -150,8 +150,8 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
 
 - **🛑 One plan has scheduled work:
   [`plans/20260825_0749-exposure-and-silent-status.md`](plans/20260825_0749-exposure-and-silent-status.md).**
-  Its **§ X1 is buildable now and needs no decision**; D-31 to D-34 are **proposed and not taken**,
-  so everything else there is a stop. Every other file in `plans/` is closed, answered, deferred or
+  **§ X1 is built and on `main`** (`35cdc79`, unreleased at the time of writing). **D-31 to D-34 are
+  proposed and not taken**, so everything remaining there is a stop, not a task. Every other file in `plans/` is closed, answered, deferred or
   proposed-unscheduled — and **an empty-looking list still means *the next thing to build has not
   been planned yet*, never *nothing to do***. `docs/ROADMAP.md` Part 5 holds what comes after.
 - **A `##` heading is a status claim, and nothing gates it.** In

@@ -108,8 +108,8 @@ precision nobody measured.
   from **generalising a fix** — asking where else the defect just repaired still lives.
 - **🛑 One thing is scheduled, as of 20260825: the exposure plan**
   ([`plans/20260825_0749-exposure-and-silent-status.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260825_0749-exposure-and-silent-status.md)).
-  Its § X1 is buildable and needs no decision — the `.pinakes/` ignore check cannot see an
-  already-tracked KB, measured; the rest waits on D-31 to D-34, **proposed and not taken**.
+  Its § X1 is **built** — the `.pinakes/` ignore check could not see an already-tracked KB, and now
+  a second question asks the index; the rest waits on D-31 to D-34, **proposed and not taken**.
   Otherwise every named body of work is shipped or gated:
   the open-corrections list holds one live *decision*, T6 waits on a **trigger** (a queried KB past
   ~50 000 chunks *with* felt latency), the staged graph channels wait on a **corpus**, and
