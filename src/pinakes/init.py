@@ -230,12 +230,22 @@ class InitResult:
     `.gitignore` before it is ever a KB), and overwriting either would be destroying the user's
     work to make room for a template's."""
     gitignore_unprotected: bool = False
-    """An existing `.gitignore` that does not mention `.pinakes/`.
+    """An existing `.gitignore` under which **git does not ignore `.pinakes/`**.
 
     Reported loudly rather than fixed: `.gitignore` is the one skipped file whose *absence of
     content* has a consequence — an index and a spend ledger that can leave the machine. Appending
     to it would be editing a file this tool does not own, so the CLI names the line to add
     instead.
+    """
+    remedy_already_present: bool = False
+    """`.gitignore` already carries the line the remedy would tell the user to add.
+
+    Only meaningful when `gitignore_unprotected`, and it exists so the CLI can obey one rule: **the
+    printed remedy must never instruct an action that would not change the verdict.** A file
+    reading `.pinakes/` and then `!.pinakes/` is unprotected while already containing the exact
+    line, and *"add this line"* sends the user to do something with no effect and no explanation.
+    That output became reachable when the check stopped being a substring test — under the old one
+    the string's presence *was* the verdict, so the remedy could not be redundant.
     """
 
 
@@ -310,11 +320,14 @@ def init(
     # user to add a line their file already has. Narrowed back: this increment fixes the existing
     # check's correctness, and does not change when it fires.
     gitignore_unprotected = False
+    remedy_already_present = False
     if gitignore in adopted:
+        names_it = _gitignore_names_pinakes(_read_or_empty(gitignore))
         protected = _ignored_by_git(root, gitignore)
         if protected is None:
-            protected = _gitignore_names_pinakes(_read_or_empty(gitignore))
+            protected = names_it
         gitignore_unprotected = not protected
+        remedy_already_present = gitignore_unprotected and names_it
 
     extras, extras_adopted = template.copy_extras(template_name, root, validated=declared)
     adopted.extend(extras_adopted)
@@ -333,6 +346,7 @@ def init(
         workflow=workflow,
         adopted=adopted,
         gitignore_unprotected=gitignore_unprotected,
+        remedy_already_present=remedy_already_present,
     )
 
 

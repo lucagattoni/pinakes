@@ -13,7 +13,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 10
+mutants = 12
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · the `.gitignore` check answers what git answers
@@ -120,3 +120,17 @@ file = "src/pinakes/init.py"
 old = '''    return any(line.strip().rstrip("/") == ".pinakes" for line in text.splitlines())'''
 new = '''    return ".pinakes" in text'''
 kills = "tests/test_init.py::test_init_still_stamps_a_kb_when_git_is_not_installed"
+
+[[mutant]]
+name = "the remedy flag is never set, so a user whose line is already there is told to add it again"
+file = "src/pinakes/init.py"
+old = '''        remedy_already_present = gitignore_unprotected and names_it'''
+new = '''        remedy_already_present = False'''
+kills = "tests/test_init.py::test_the_warning_never_tells_you_to_add_a_line_you_already_have"
+
+[[mutant]]
+name = "DISCRIMINATING — the flag is computed but nothing branches on it, which a field-only test would not notice"
+file = "src/pinakes/cli.py"
+old = '''        if result.remedy_already_present:'''
+new = '''        if False:'''
+kills = "tests/test_init.py::test_the_warning_never_tells_you_to_add_a_line_you_already_have"

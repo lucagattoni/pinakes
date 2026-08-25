@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from pinakes import template
+from pinakes.cli import main
 from pinakes.ci import WORKFLOW_PATH
 from pinakes.errors import InitError, TemplateError
 from pinakes.ids import parse_kb_id
@@ -281,6 +282,56 @@ def test_outside_a_repository_git_is_asked_in_a_scratch_repository(
     (root / ".gitignore").write_text(gitignore, encoding="utf-8")
 
     assert init(root).gitignore_unprotected is unprotected, case
+
+
+@pytest.mark.parametrize(
+    ("case", "gitignore", "already_present"),
+    [
+        ("the line is there and then negated", ".pinakes/\n!.pinakes/\n", True),
+        ("the line is simply missing", "node_modules/\n", False),
+        ("the line is present only inside a comment", "#.pinakes/\n", False),
+        (
+            "a narrower rule, so adding the line really would help",
+            ".pinakes/*\n!.pinakes/cache\n",
+            False,
+        ),
+    ],
+)
+def test_the_remedy_is_only_offered_when_it_would_change_the_verdict(
+    tmp_path: Path, case: str, gitignore: str, already_present: bool
+) -> None:
+    """Every one of these is unprotected. They differ in whether *adding the line* fixes it.
+
+    This became reachable when the check stopped being a substring test: under the old one the
+    string's presence **was** the verdict, so a redundant remedy was impossible. Asking git made
+    "unprotected" and "the line is missing" two different facts, and the message still assumed they
+    were one.
+    """
+    root = _git_repo(tmp_path / "repo", gitignore)
+
+    result = init(root)
+
+    assert result.gitignore_unprotected is True, case
+    assert result.remedy_already_present is already_present, case
+
+
+def test_the_warning_never_tells_you_to_add_a_line_you_already_have(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The printed text, not just the flag — a field nothing prints is not a fix."""
+    negated = _git_repo(tmp_path / "negated", ".pinakes/\n!.pinakes/\n")
+    assert main(["init", str(negated)]) == 0
+    said = capsys.readouterr().out
+    assert "even though your .gitignore names it" in said
+    assert "Add this line" not in said, (
+        "the line is already there; adding it again changes nothing and explains nothing"
+    )
+    assert "git check-ignore -v" in said, "say how to see what actually matched"
+
+    missing = _git_repo(tmp_path / "missing", "node_modules/\n")
+    assert main(["init", str(missing)]) == 0
+    said = capsys.readouterr().out
+    assert "Add this line" in said, "here the remedy is real and must still be given"
 
 
 def test_a_gitignore_written_by_init_is_not_re_examined(tmp_path: Path) -> None:
