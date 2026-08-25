@@ -7255,6 +7255,303 @@ case it constructs, not what the checker fails to look at. And a test asserting 
 refused stops pinning *why* the moment a second guard can refuse it too — all three were found here,
 and all three had been green for weeks.
 
+## Two precedents that agree are not a pattern (20260825 00:11)
+
+**HIGH — a decision arrived pre-framed by two real precedents, and the framing was refuted by the
+three it did not mention.** The question was whether the owed release was `0.31.0` or `0.30.1`. It
+was handed over as a genuine fork with evidence on both sides: *`0.27.0` was MINOR for a new tool
+file; `0.28.3` was PATCH for extending an existing one; `0.27.0`'s precedent is a new file, this is
+not.* Every clause of that is true. It is also **the two cases out of ten that agree with each
+other**, and the criterion it implies — *new file versus existing file* — appears **nowhere** in the
+governing SemVer rule, which says `MINOR = new skill, command, capability, or feature` and
+`PATCH = bug fix, doc update, or dependency/component change`.
+
+Measured across the ten tooling-only releases (those whose `src/` diff is `__init__.py` alone):
+
+| Claim | Verdict |
+|---|---|
+| new tool file ⇒ MINOR | **refuted.** `0.22.2` shipped a brand-new `tools/release_order_gate.py` as PATCH; `0.27.2` shipped a brand-new `tools/wheel_import_gate.py` as PATCH, *with* an `### Added` section |
+| an `### Added` section ⇒ MINOR | **refuted.** Seven PATCH releases carry one; `0.18.0` is a MINOR carrying none |
+| existing tool ⇒ PATCH | 4 of 4 — and the set is **not vacuous**, which is the check that mattered |
+
+**The load-bearing check was whether that last row was an artefact of confounding.** If all four had
+been ordinary bug fixes *to* a tool, the axis would have been "fixes are PATCH" and would have said
+nothing about adding a capability to an existing tool. It was not: **`0.27.1` added a brand-new
+refusal to `tools/fragments.py` — this same file — and was cut PATCH under `### Fixed`**, and
+`0.28.1` did the same to `release_order_gate.py`. The one apparent counterexample, `0.29.0` putting
+`--check-anchors` on the existing `mutate.py` under a MINOR, is confounded: that release's headline
+was five new battery files and `--check-anchors` is not among its `Added` bullets.
+
+**The generalisation is about the shape of the offer, not about versioning.** A framing assembled
+from two agreeing examples is the most persuasive form a wrong answer takes here, because no
+sentence in it is false. The defence is not scepticism about the examples — they survive checking —
+it is **enumerating the population they were drawn from**. The test set is the one you did not
+choose.
+
+**MEDIUM — the categorisation was the real question, and the implementer is the worst-placed judge
+of it.** The fragment was named `added-…`, and `changelog.d/README.md` makes the filename
+authoritative for the assembler. But it was chosen by the session that had just built the thing,
+labelling its own increment — the position with the least distance on whether what it built is a
+feature. The entry was re-filed under `### Fixed` on grounds independent of the version choice, so
+the reasoning does not close on itself: it closes an item from a **corrections** plan, its body is a
+defect narrative, and it is replayed against history to show it would have caught two past defects,
+which is a fix with a regression test. A PATCH carrying `### Added` has happened once in the modern
+convention (`0.27.2`); this does not make it twice.
+
+**MEDIUM — `%an` cannot distinguish the agents in this repository, and the commit body can.** All
+1029 commits are authored `Luca Gattoni <…>`, committer identical. Measuring those fields and
+generalising to *"git cannot answer who wrote this"* was wrong, and it was wrong in the specific way
+this repository keeps rediscovering: **the instrument was named after what it was hoped to answer
+rather than after what it reads.** The trailers are not uniform — 20+ distinct `Claude-Session` ids
+and four `Co-Authored-By` models — and they are in `%B`, which no identity-field query touches.
+
+    git show -s --format='%B' <sha> | grep Claude-Session
+
+That turns *"was this closing note written by the session that did the work, or by a later one
+reconstructing it?"* into a checkable question, which is precisely the class behind the two defects
+closed the day before: a closing note crediting a mechanism three days older than the defect, and a
+message asserting a peer's work had not landed. Both were written by someone reconstructing, and
+nothing in the repository could say so.
+
+**MEDIUM — a section heading is a status claim, and no gate reads it.** A `###` item in
+`plans/20260731_1202-open-corrections.md` sits under `## Live` while its own body, 26 lines down,
+carries `**CLOSED 20260824 00:35**`. `grep '^## '` — how anyone triages that file — returns *Live*
+and stops. **It cost a real collision**: a coder session read it as live and was minutes from
+rebuilding a landed increment. The convention it should follow already exists two files away —
+`T6` and `T8` in `plans/20260804_1016-template-release.md` carry `· **CLOSED <date>,
+<disposition>**` in the `###` heading itself — so the repair is conformance rather than design.
+**Not done yet, deliberately:** the item is *partial*, not closed (the body-rule widening is
+explicitly untaken), so moving it into `## Closed — recorded so nobody reopens them` would file an
+undecided design question under a heading promising the opposite.
+
+**LOW, and it recurred twice in one session — a gate is only a gate when its exit status is what
+the next command reads.** `make docs 2>&1 | tail -12` followed by `echo "DOCS_EXIT=${PIPESTATUS[0]}"`
+printed `DOCS_EXIT=` — empty. The value read was the pipeline's, not the build's. Both instances
+were caught and re-run bare, so what actually gated the release was `./check.sh` and `make docs`
+redirected to a log with `$?` read directly. The rule was already written, in `CLAUDE.md`, and had
+been read that same session. **A rule that is known and still broken twice in four hours is a rule
+whose failure mode is invisible at the moment of committing it**, which is the argument for the
+redirect-and-read-`$?` form being the only form ever typed, rather than the one used when it seems
+to matter.
+
+**LOW — a count word and the list beside it drift independently.** `docs/STATUS.md` held two
+instances of `forty-seven` and exactly one was wrong: the other sits inside `0.30.0`'s own
+published-verification entry, where it was accurate when written. A `replace_all` would have
+silently falsified a historical record. Same family as the `| head` truncation that shipped a broken
+anchor a day earlier — **the edit whose anchor matches more than once is the one that needs the
+count taken first.**
+
+**LOW — a peer renaming itself is indistinguishable from a peer dying.** This session's name changed
+from `pinakes-d1` to `pinakes-7c` mid-work. A coder session correctly observed that `pinakes-d1` had
+left `ListAgents`, correctly inferred a usage-limit kill, and wrote a careful handover describing a
+release as *stranded mid-cut* — while it was still moving. Nothing was lost, because the branch had
+been committed and pushed at every step, which is the actual defence. But `ListAgents` cannot
+distinguish *gone* from *renamed*, so a peer's absence is evidence about the listing and not about
+the peer.
+
+**LOW, and found by a number that failed to move — `tools/markdown_link_gate.py` reads
+`git ls-files`, so a file that is written but not yet staged is invisible to it.** A full
+`./check.sh` run immediately after writing this very fragment reported `84 ungated file(s), 301
+link(s)` — byte-identical to the run before the fragment existed. Staging it and re-running gave
+`85`. **So the ordinary sequence — write a fragment, run the gate, commit — produces a green that
+says nothing whatsoever about the new file**, and the first thing to actually read it is CI, after
+the push. It is the same sentence as the item this release is about, one directory over: *a green
+signal is only evidence about the thing it actually measures*, and here the thing measured is the
+index rather than the working tree. Nothing was wrong with the fragment; the gate simply had not
+been shown it. **`git add` before the last gate run, not after** — which is also the only ordering
+under which the gate's answer describes the commit about to be made.
+
+**HIGH — a sweep for one direction of error is blind to its mirror, and the mirror is where the
+confident mistakes live.** A peer session swept `plans/` for *work filed as done that is not*. Its
+single strongest-worded finding was the opposite kind and it was wrong: `sidecar.py:125-127` really
+does accept a uniformly non-string-keyed mapping and silently coerce it, and Decision 19 really is
+marked *shipped in 0.5.0* — but the decision's own sentence reads *"**Top level only**"*, so a
+nested mapping is outside its scope by construction, and the behaviour is separately recorded at
+`plans/20260731_1202-open-corrections.md:205` under **`## Not to be fixed — recorded so nobody
+tries`**. Behaviour filed as *never-to-be-done* was read as *undone*.
+
+**`## Not to be fixed` is exactly as load-bearing as `## Closed`, and strictly easier to miss**: a
+sweep hunting false closure has no reason to open it, and a vocabulary grep has no token for it. The
+confidence came from having read the *code*, which was accurate; what decided the question was the
+decision's own sentence, which had not been read. Withdrawn by its author on being shown both lines.
+
+**HIGH — the filter that decides what gets examined is itself unexamined.** That sweep classified
+each `##` section LIVE / CLOSED / MIXED from its **heading**, and sent only the first two for a
+semantic read. **Nine of twenty files were dropped unread**, and at least one wrongly:
+`plans/20260804_1844-decision-parent-child-arity.md`'s `## The decision` was classified CLOSED while
+holding the file's only outstanding work — a measured ceiling required before G5's gate runs. **A
+section named for a decision is not a section whose decision has been discharged.** The number worth
+carrying forward is therefore **11 of 20 files read**, not the finding count; a report's coverage is
+a property of its filter, and a filter that reads headings inherits every defect that headings have.
+That is the same shape as the item three paragraphs up — one instance found and generalised — one
+level higher: the classifier looked at eleven files and silently declined nine.
+
+**MEDIUM — the stale-section-under-a-current-banner defect has a second, larger instance.**
+`plans/20260729_0256-links-and-graph.md`'s entire `## Baseline` asserts a world that ended at
+0.11.0, while **the file's own banner at line 8 already says so**. A reader going top-down meets
+*"G3 is the next increment to build"* (`:69`), *"Do not start any of them"* (`:82`), *"One cut
+remains … it is **blocked**, not pending"* (`:103`) and *"G3 is the increment to pick up"* (`:124`)
+before reaching the correction. Verified against the tree rather than against the plan:
+`store.py:28` reads `SCHEMA_VERSION: Final = 3` and the schema carries both `nodes` and `edges`, so
+G3, G5 and G6 all shipped. **None of it matches any status vocabulary; a grep finds nothing here.**
+
+**And the fourth class is now demonstrated rather than hypothesised — work silently overtaken.**
+`:642` states *"Its exit criterion is not discharged by any test."* It is:
+`tests/test_manifest_compat.py::test_a_manifest_requiring_a_newer_pinakes_names_the_version` exists
+and asserts exactly it. Something closed the requirement and never came back to say so, which no
+search for a *status word* can reach — the sentence is a claim about the test suite, and only the
+test suite can refute it.
+
+## The check that was not git — and the mutant that was not a test (20260825 00:14)
+
+**HIGH — a substring test stood in for git's ignore semantics, and it was wrong in both
+directions.** `pnk init` decided whether a KB's `.pinakes/` could reach a remote with
+`".pinakes/" not in gitignore.read_text()`. Four failure modes, all reproduced by running rather
+than by reading:
+
+| `.gitignore` contains | git ignores `.pinakes/`? | `init` said | |
+|---|---|---|---|
+| `.pinakes` (no slash) | yes | ⚠️ warns | false positive |
+| `.pin*` | yes | ⚠️ warns | false positive |
+| `.pinakes/` then `!.pinakes/` | no | silent | false negative |
+| `#.pinakes/` | no | silent | **false negative, with a consequence** |
+
+The two false positives train a user to disregard the warning. The false negatives are worse
+because they are silent, and the commented-out line is the cheapest way to reach one: comment it
+out to debug, re-run `init`, and the ledger and every transcript are tracked with nothing said.
+
+**The general shape: a cheap proxy for an authority, where the authority was one subprocess away.**
+git already knows what git ignores — it reads nested ignore files, `.git/info/exclude`, the user's
+global excludes and a parent repository's rules, none of which any amount of reading one
+`.gitignore` can see. The proxy was not a simplification of the rule; it was a different rule that
+agreed with it on the common case.
+
+**MEDIUM — the measurement trap that makes this easy to get wrong twice.**
+`git check-ignore .pinakes` returns *not ignored* for the pattern `.pinakes/` whenever the
+directory does not exist on disk: a trailing slash only matches a path git can already see is a
+directory. At `init` time `.pinakes/` has never been created, so the obvious probe answers
+"unprotected" for the very pattern `init` itself writes. A path *inside* the directory carries the
+directory in its own name and answers correctly either way. Anyone re-testing this by hand must
+`mkdir .pinakes` first, or a correct pattern will look broken.
+
+**MEDIUM — `check-ignore` exits 0 when _any_ argument is ignored, not when all are.** Probing three
+paths and reading the exit status would have called a `.gitignore` naming only the ledger full
+protection, while the index stayed tracked. The matched paths have to be counted.
+
+**HIGH — the survivor was the useful half of the mutation run, and it found redundant code rather
+than a missing test.** Seven mutants; six killed. The survivor deleted an explicit
+`startswith("#")` comment-skip from the offline fallback, and every test stayed green. Not a
+coverage gap: `"#.pinakes/".rstrip("/")` is `"#.pinakes"`, which already fails a whole-line
+equality test, so the skip never decided anything. The code claimed a care it did not exercise,
+and the docstring said so in as many words. The loop became one `any(...)`, and the row now
+mutates the property that is really load-bearing — whole-line equality against
+`".pinakes" in text`, which *is* the shipped defect. **A SURVIVED row is a claim about a pair, and
+this time the wrong half was the code.**
+
+**MEDIUM — the tests answered from the developer's machine.** `check-ignore` honours a global
+`core.excludesFile` and a system config. A developer with `.pinakes/` in their personal global
+ignore file — a sensible thing to have — turned three of these tests red and made two others pass
+for a reason the code had nothing to do with (measured: 3 failed, 9 passed). An autouse fixture
+points `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_SYSTEM` at `os.devnull`. The production code still
+honours those files, because a global ignore really does protect the ledger; only the tests must
+not depend on which machine runs them. **A test that shells out inherits the whole environment,
+and the environment is not part of the fixture unless it is made to be.**
+
+**HIGH — the replacement's first draft was a *regression*, and only an adversarial pass found it.**
+It probed three named files: `index.db`, `ledger.jsonl`, `deep/transcript.json`. A `.gitignore`
+carrying `*.db` and `*.json` — an ordinary thing to write — ignores all three, so the new check
+reported **protected** while `index.db-wal` stayed tracked, and in WAL mode that file holds
+megabytes of verbatim document text. **The substring test being replaced warned there.** The
+general shape is worth more than the instance: *a check that answers about three filenames cannot
+answer a question about a directory*, and the docstring's careful reasoning that every probe must
+match made the answer sound complete when the probe set was the incomplete part. **A sound argument over
+an unstated domain** — every clause true, the population unexamined, which is the same skeleton as
+the version framing that opened this session and as the status-word grep that swept `plans/`. Three
+instances in one night, in three unrelated places. The probes are now opaque random paths only a
+directory-covering rule can match.
+
+**MEDIUM — a reviewer's fix is a hypothesis exactly like the code it corrects.** The
+suggestion was two opaque probes, flat and nested. Measured against ground truth — `git add -A`
+then `git ls-files --cached`, so the oracle never goes through `check-ignore` — that set still
+reports protected for `.pinakes/*` with `!.pinakes/cache`, which tracks the entire extraction
+cache. Four probes, two of them under `cache/extract/` and `deep/`, is what passes all eleven
+configurations. The review was **right about the defect and wrong about the fix**, and only
+measurement separated those two — a distinction that disappears if a reviewer's remedy is applied
+because the reviewer was right about the problem.
+
+**MEDIUM — a hand-rolled fallback disagreed with the thing it was standing in for.** Outside a
+repository the text scan read `.pinakes/` followed by `!.pinakes/` as protection — silently, on the
+very input the in-repo tests assert must warn — and warned about `/.pinakes/`, which git honours.
+Two definitions of one answer will diverge; the fallback now copies the `.gitignore` into a
+throwaway repository and runs the identical probes, and reading the file is reached only when there
+is no `git` at all.
+
+**MEDIUM — the increment had quietly widened its own trigger, and justified it with something
+false.** The check was made to run whether the `.gitignore` was adopted or written, on the reasoning
+that an ancestor repository could negate what `init` wrote. It cannot: git resolves ignore rules by
+directory depth, so the file written in the KB wins over any ancestor. What the widening *did*
+reach was a path already in the index, where `check-ignore` reports not-ignored and the warning
+would tell the user to add a line their file already contains. Narrowed back, and the message that
+case produces was fixed rather than left: **the printed remedy must never instruct an action that
+would not change the verdict**, which the old text could not violate — under a substring test the
+string's presence *was* the verdict, so a redundant remedy was impossible. Asking git split
+"unprotected" from "the line is missing" into two facts and the message went on assuming they were
+one. **A capability arrives with the failure modes it makes reachable, and they are invisible from
+inside the change that adds it.** **Scope creep that survives is usually scope creep with a
+plausible comment attached.**
+
+**HIGH — two mutation survivors, and both were about the test rather than the code.** The first
+deleted a `startswith("#")` comment-skip and nothing went red: `"#.pinakes/".rstrip("/")` already
+fails whole-line equality, so the skip decided nothing and the docstring claimed a care it did not
+exercise. The second was `len(matched) > 0` surviving against
+`test_ignoring_only_part_of_pinakes_is_not_protection` — a test whose *name* is that assertion. Its
+input had been a `.gitignore` naming only the ledger, which discriminated while the probes were
+named files and stopped discriminating the moment they became opaque: no probe matches, so "any"
+and "all" agree. **A test can stop pinning the property it is named for without changing a
+character**, when what changed is the code it points at.
+
+**MEDIUM — the tests answered from the developer's machine.** `check-ignore` honours a global
+`core.excludesFile` and a system config. A developer with `.pinakes/` in their personal global
+ignore file — a sensible thing to have — turned three of these tests red and made two others pass
+for a reason the code had nothing to do with (measured: 3 failed, 9 passed). An autouse fixture
+points `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_SYSTEM` at `os.devnull`. The production code still
+honours those files, because a global ignore really does protect the ledger; only the tests must
+not depend on which machine runs them. **A test that shells out inherits the whole environment, and
+the environment is not part of the fixture unless it is made to be.**
+
+**MEDIUM — shelling out brought six failure modes that had nothing to do with ignore rules.** No
+timeout, so a wedged `core.fsmonitor` hook blocks `init` forever — *after* `pinakes.toml` is
+written, leaving a KB the next `pnk init` refuses as already a KB. An inherited `GIT_DIR` answering
+for an unrelated repository, which git exports to every hook it runs. Exit 1 read as an
+authoritative *not ignored* when git had in fact printed a warning. `text=True` decoding strictly
+*inside* `subprocess.run`, past `except OSError`. An inherited stdin. And a non-UTF-8 `.gitignore`
+aborting with a traceback. Each has a test. **The cost of asking an authority is that you inherit
+its whole process model, not just its answer.**
+
+**HIGH — `7/7 killed` is a ratio with an unstated denominator, and it was read as an answer.** The
+battery was green about the code that had been written, not about the code that should have been;
+the regression above sat outside every mutant in it, because the mutants were derived from the same
+understanding that produced the defect. It was reported as *"7/7 killed, fragments written"* and
+read as completeness by both the implementer who wrote it and the planner who received it. Neither
+asked what the battery covered. **A green battery is a claim about the mutants someone thought of.**
+The defence is not that someone should have been more careful — it is that a ratio whose
+denominator is unstated should read as a question rather than as an answer, and this one names the
+same skeleton as everything else here: a sound argument over an unexamined domain.
+
+**This is the first mutation battery under `src/`.** Every other one covers `tools/`, which
+`tools/batteries/README.md` records as a limitation rather than a design — *"no module under
+`src/` has one, and no invariant in INVARIANTS is covered."* The decision that keeps an index, a
+spend ledger and a set of verbatim questions off a remote is a reasonable place to stop being able
+to say that. Updating that sentence surfaced that it was already stale: it said *"Four batteries,
+four primary targets"* with five on disk. The paragraph that exists to prevent a hidden denominator
+had one.
+
+**Scope, deliberately held.** Only the existing check's *correctness* changed — and its trigger, once
+widened, was put back. Whether `pnk doctor` should carry a recurring check, and whether it reports a
+warning or a note, is a decision reserved to the planner and the user, and this measurement changes
+it rather than settling it: a detector that misfires on `.pinakes` and `.pin*` is a poor candidate
+for firing on every `doctor` run, and a correct one is a much better one.
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings

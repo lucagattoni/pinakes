@@ -17,11 +17,11 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260824 23:55 UTC
+## Where things stand right now — 20260825 00:45 UTC
 
-- **55 releases in 30 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.30.1`](#0301--the-assembled-document-nobody-read--20260824-2355)
-  on 20260824.
+- **56 releases in 31 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.30.2`](#0302--the-check-that-was-not-git--20260825-0045)
+  on 20260825.
 - **Latest on PyPI: `0.30.1`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
@@ -186,6 +186,7 @@ number belongs to a release only when it is cut
 | **[0.29.2](#0292--the-links-no-gate-reads--20260823-1443)** | 20260823 14:43 | the links no gate reads | • **11 broken links** on the surface `mkdocs --strict` never sees — `CHANGELOG.md`, `plans/**`, the fragment READMEs<br>• 3 pointed `../docs/…`, **above the repository root**<br>• 1 anchor **rotted when a re-measurement renamed its heading**<br>• 6 were quotations, now code-spanned — repointing a quoted path would falsify the quotation<br>• **A backslash does not escape a backtick inside a code span**: a published page rendered as broken `<code>` for weeks, `--strict` green throughout<br>• **Render, don't regex** — two regex scanners, seven false positives, one wrong edit<br>• no code path changed |
 | **[0.30.0](#0300--the-markdown-the-docs-site-never-sees-now-gated--20260823-1505)** | 20260823 15:05 | the Markdown the docs site never sees, now gated | • `tools/markdown_link_gate.py` — every relative link and anchor in the Markdown `--strict` never sees<br>• **stdlib-only, 0.25s**, licensed by measuring the extractor against a real renderer over 894 links<br>• **A quoted link is left alone** — quoting a document never requires corrupting the quotation<br>• Caught a dead link in **this release's own fragment**: right in `changelog.d/`, wrong once spliced<br>• **§ *Landing beside a peer*** — the overlap tool compares to `origin/main`, never to a sibling branch<br>• A landing **order can be forced**, and running the peer's gate is what finds it<br>• `fragments.py --check` never reads the document it writes — **closed in 0.30.1**<br>• no code path changed |
 | **[0.30.1](#0301--the-assembled-document-nobody-read--20260824-2355)** | 20260824 23:55 | the assembled document nobody read | • `fragments.py --check` now validates **the assembly `--apply` would write**, not only the fragments going in<br>• **One definition of the splice** — `--check` calls the same `prospective()`, pinned by a byte-comparison test<br>• Replayed: exits 1 **at the commit that added the fragment**, at 0.6.0 and 0.28.3<br>• The bullet rule is **changelog-only by construction** — the retro stream has no category vocabulary to reach it<br>• `--apply` spliced entries **inside fenced code blocks**, and would have taken a quoted `## [Unreleased]` as its anchor<br>• `--apply` **was not atomic across streams** — wrote one, deleted its fragments, then printed *"Nothing written"*<br>• **Five front-matter residues rendered as setext `<h2>`**, two on the published site, `--strict` green throughout<br>• Four documents told an implementer to write **planner-only files** — no rule added, four sentences corrected<br>• no code path changed |
+| **[0.30.2](#0302--the-check-that-was-not-git--20260825-0045)** | 20260825 00:45 | the check that was not git | • `pnk init` asks **git** whether `.pinakes/` is ignored — the old check was a substring test, **wrong in both directions**<br>• Silent for a commented-out `#.pinakes/`, leaving the ledger and every **verbatim question** tracked<br>• Probes an **arbitrary** path under the directory, not named files<br>• **The first fix was itself a regression** — three named probes read `*.db`/`*.json` as protection while `index.db-wal` stayed tracked<br>• Caught by adversarial review, **not by any gate**; the reviewer's own fix was insufficient too, and only measurement showed it<br>• The remedy no longer says *"add this line"* to someone whose line is already there and negated<br>• Outside a repository the same probes run in a throwaway repo — one definition of the answer<br>• `pnk doctor` re-checking, and WARN-vs-note, **still undecided**<br>• ships in the wheel |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -2114,6 +2115,76 @@ handover rule is not weakened: it still lands in the increment's own branch, as 
 than edits.
 
 **No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
+
+## 0.30.2 — the check that was not git · 20260825 00:45
+
+**`pnk init` had been answering a question about git by reading a file.** The check was
+`".pinakes/" not in gitignore.read_text()`, and a substring test is not git's ignore semantics.
+Measured 20260825, it was wrong in **both** directions: it warned about `.pinakes` and `.pin*`,
+which git *does* ignore, and it stayed **silent** for `!.pinakes/` and for a commented-out
+`#.pinakes/`, which git does not.
+
+**The silent half is the one with a consequence.** `.pinakes/` holds the index, the spend ledger,
+and — since the deep release — every transcript, which is the first thing under that directory to
+carry the user's **verbatim question**. Commenting a line out to debug something and re-running
+`init` is an ordinary thing to do, and it was enough to leave all of it tracked with no warning at
+all. Reproduced end to end before repair: `git check-ignore` exited 1, and `git status` then showed
+`?? .pinakes/`.
+
+**The question now goes to `git check-ignore` — and the shape of the question is the whole fix.** It
+asks *is an **arbitrary** path under `.pinakes/` ignored*, with opaque probes that only a rule
+covering the directory itself can match, plus two more under `cache/extract/` and `deep/`. Asking
+about *named files* instead is a different question that looks like the same one, and **the first
+attempt asked it**: probing `index.db`, `ledger.jsonl` and `deep/transcript.json` reports
+**protected** against an ordinary `.gitignore` carrying `*.db` and `*.json`, while `index.db-wal`
+stays tracked — and in WAL mode that file holds megabytes of verbatim document text. That is a
+**silent false reassurance replacing a defect that at least made noise**, which is strictly worse
+than what it replaced.
+
+**It was caught by adversarial review, not by any gate**, and the review's own proposed fix was
+also insufficient — two opaque probes still report protected for `.pinakes/*` with
+`!.pinakes/cache`, which tracks the whole extraction cache. Only measurement against ground truth
+settled it: `git add -A` then `git ls-files --cached`, an oracle that never goes through
+`check-ignore` at all. **A reviewer's fix is a hypothesis exactly like the code it corrects.**
+
+**The remedy stopped lying too, and that failure was created by this change.** The warning printed
+one fixed sentence — *"your `.gitignore` does not ignore `.pinakes/`. Add this line"* — which was
+always right under the substring test, because there the string's presence **was** the verdict, so
+a redundant remedy could not exist. Asking git split *unprotected* from *the line is missing* into
+two facts, and the message went on assuming they were one: it could now tell a user to add a line
+their file already contained and then negated. It says what it measured instead, and points at
+`git check-ignore -v` rather than prescribing an action that would not change the verdict. **A
+capability arrives with the failure modes it makes reachable, and they are invisible from inside
+the change that adds it.**
+
+**Six further failure modes, each with a test**: no timeout (a wedged `core.fsmonitor` hangs `init`
+forever, *after* `pinakes.toml` is written, leaving a directory the next `init` refuses as already
+a KB); an inherited `GIT_DIR` answering for an unrelated repository; exit 1 read as authoritative
+when git had printed a warning; strict decoding inside `subprocess.run`, past the `except OSError`;
+inherited stdin; and a non-UTF-8 `.gitignore` aborting with a traceback. Outside a git repository
+the probes run against a throwaway repository holding the user's `.gitignore`, so there is **one**
+definition of the answer rather than two that can disagree; only a machine with no `git` at all
+falls back to reading the file, and it then asks whether a whole *line* names the directory rather
+than whether the string appears anywhere.
+
+**Scope was narrowed on review, not widened.** The trigger had been extended so the check ran even
+when `init` *wrote* the `.gitignore` itself, justified in a comment by *"an ancestor repository
+could negate what we wrote"* — which cannot happen, because git resolves by directory depth and the
+file in the KB wins. Reverted. **Scope creep that survives is usually scope creep with a plausible
+comment attached.**
+
+**What this does not decide.** Whether `pnk doctor` should re-check on every run, and whether that
+is a WARN or an OK-with-a-note, is untouched and remains the open-corrections item. So is the
+harder question the fix surfaces: `check-ignore` also answers from `.git/info/exclude` and
+`core.excludesFile`, which never travel with the repository — so *"is it ignored here"* and *"will
+it be ignored for everyone who clones"* are different questions, and a check that fires once at
+`init` is the wrong instrument for the second. The first is what `init` is asking and what it now
+answers correctly.
+
+**This one ships in the wheel** — `src/pinakes/init.py` and `src/pinakes/cli.py`, unlike the three
+releases before it, whose subjects were `tools/` gates that reach no user. The artifact claim is
+positive for the first time since 0.26.0: the fix must be *present* in the published package, not
+absent from it.
 
 # Part 5 · What is not built
 
