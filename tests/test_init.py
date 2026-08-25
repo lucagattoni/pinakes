@@ -140,7 +140,7 @@ def test_an_adopted_gitignore_that_misses_pinakes_is_flagged(tmp_path: Path) -> 
 
 
 @pytest.fixture(autouse=True)
-def _git_config_is_this_repository_only(monkeypatch: pytest.MonkeyPatch) -> None:
+def git_config_is_this_repository_only(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep the developer's own git configuration out of every test in this file.
 
     The check asks git, and git answers from more than the `.gitignore` in front of it: a global

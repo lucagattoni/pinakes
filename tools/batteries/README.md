@@ -25,11 +25,20 @@ finding… It is not a harness failure, so this exits 0 — read the rows."* So 
 carry a coverage regression, and anything CI-shaped built on top of this needs its own check on the
 survivor count. `tests/test_batteries.py` is a **resolvability gate**, not a regression gate.
 
-**And the denominator.** Four batteries, four primary targets, **all under `tools/`. No module under
-`src/` has one**, and no invariant in [`docs/INVARIANTS.md`](../../docs/INVARIANTS.md) is covered.
-The covered files change 3–11 times a month; `src/pinakes/cli.py` changes 58 times and `sync.py` 40.
-This is a starting point, not a coverage claim, and a reader who greps a battery and finds every
-anchor resolving has learned nothing about the code that has no battery at all.
+**And the denominator.** Six batteries, six primary targets. Five are under `tools/`; **exactly one
+module under `src/` has one** — `src-pinakes-init.toml`, over the check that decides whether a KB's
+`.pinakes/` can reach a remote. No invariant in [`docs/INVARIANTS.md`](../../docs/INVARIANTS.md) has
+a battery of its own. The covered files change 3–11 times a month; `src/pinakes/cli.py` changes 58
+times and `sync.py` 40. This is a starting point, not a coverage claim, and a reader who greps a
+battery and finds every anchor resolving has learned nothing about the code that has no battery at
+all.
+
+**This paragraph is asserted, because it went stale in silence.** It read *"Four batteries, four
+primary targets"* while five were on disk — the fifth arrived and nobody re-counted, which is the
+same hidden-denominator failure the paragraph exists to prevent.
+`test_the_committed_batteries_cover_only_tools_and_the_readme_says_so` now requires every battery
+whose name does not begin `tools-` to be named here, so a new area cannot be added without the
+sentence moving.
 
 ## Why these are committed
 
