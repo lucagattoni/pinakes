@@ -39,7 +39,7 @@ test, or write **none** and say why in the same commit.
   both were once listed here as absent, in error, and each correction was found by counting rather
   than by reading.
 * **Whether either gap is *work* is undecided, and this paragraph must not be read as saying it is.**
-  `tests/` holds 2 032 test functions against these 923 rows. Whether the table maps *every test* or
+  `tests/` holds 2 032 test functions against these 890 rows. Whether the table maps *every test* or
   *promises only* is **D-34**, open and unscheduled in
   [`plans/20260825_0749-exposure-and-silent-status.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260825_0749-exposure-and-silent-status.md).
   Until it is answered, a large unrowed population is **not** evidence of a hole — that inference was
