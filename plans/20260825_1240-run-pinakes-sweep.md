@@ -1,4 +1,8 @@
-# Running Pinakes found fifteen defects that reading it did not
+# Running Pinakes found defects that reading it did not
+
+**This title deliberately carries no count.** It said *fifteen*, then S16 arrived and falsified it in
+both entry points, then S17 arrived and falsified it again — twice inside two days. **The live tally
+is the section headings below** (High, Medium, Low), and as of 20260825 23:06 it is **seventeen**.
 
 **Written 20260825 12:40 UTC against `main` at `c2c69cb`.** Produced by a coder session sweeping seven
 command surfaces with fourteen agents, each finding re-run from a clean directory by a verifier
@@ -97,7 +101,7 @@ turned this crash into a **green sync that silently loses a document**. The code
 into `pairing` — do not emit `SoftDelete(id)` when the same plan `Adopt`s that id — which is a pure
 function and testable exhaustively. **Read S2's status before touching this.**
 
-## Medium — six
+## Medium — seven
 
 | # | Surface | Finding |
 |---|---|---|
@@ -107,6 +111,54 @@ function and testable exhaustively. **Read S2's status before touching this.**
 | **S7** ‡ | `doctor` | The failure ledger **never clears**, and its own remediation text is wrong. **The verifier strengthened this**: it does not clear when the document is *repaired* either, which is the normal user path |
 | **S8** ‡ | `search` | Negative `-k` is passed through as a **raw Python negative-slice bound**: `-k -1` returns 19 passages, `-k -100` prints `no passages matched.` at **exit 0** |
 | **S9** ‡ | `ask` | `pnk ask -k -1` raises an **unhandled traceback** from `deep/estimate.py:456`. Held at medium because it is loud and immediate rather than silent |
+
+### S17 † — `pnk sync` prints a remedy that never works, and the document stays out of the index
+
+**Found 20260825 by the coder while adversarially reviewing S2; a dead agent's probe file recovered it.
+Pre-existing on `main`, unrelated to S2 and unfixed by it. Reproduced end to end by the planner** on a
+scratch KB outside the repo, free path, against `main` at `03e6f86`:
+
+    pnk init <kb> --backend light      # a.md and b.md, synced clean
+    git mv docs/b.md docs/c.md         # an ordinary rename, sidecar travelling with it
+    git mv docs/b.md.pnk.yaml docs/c.md.pnk.yaml
+    printf '...' > docs/b.md           # a NEW, unrelated document at the freed path
+    pnk sync                           # exit 1
+
+    failed: docs/c.md: SidecarError: c.md.pnk.yaml appeared after the walk had
+            already read this directory.
+    Run `pnk sync` again — the second pass will pick it up.
+
+**The remedy is wrong, and it is wrong in a way that loops.** I ran `pnk sync` three more times: the
+identical failure each time, `0 indexed`, and **`docs/c.md` never gets a row at all** — `select path,
+state from documents` returns only `a.md` and `b.md`. `pnk search` cannot reach its text. The
+document's published ULID sits in the sidecar on disk and in no index. Following the printed advice
+literally never terminates.
+
+**What I established that neither the finder nor the first reading had, and it lowers the severity:**
+
+| | |
+|---|---|
+| `pnk sync` | **exit 1** — this is loud, not silent |
+| `pnk doctor` | **`WARN failures: 4 recorded: docs/c.md (index)`** — it *is* surfaced… |
+| …but | `doctor` **exits 0**, and **`OK orphaned sidecars: none`** — the check whose name sounds like it would catch a sidecar whose document is absent from the index does not catch this one |
+| **`pnk sync --rebuild`** | **RECOVERS IT COMPLETELY** — `3 indexed`, `docs/c.md` active. Nothing is lost |
+| `touch docs/c.md` then `pnk sync` | does **not** recover it — `0 indexed, 3 unchanged` |
+
+**Severity: MEDIUM, and the reasoning is stated because both earlier readings guessed differently.**
+It is not the S2 shape — nothing is silent, sync exits non-zero and doctor WARNs. **And the data is
+not lost: a working remedy exists and is one flag away.** What is broken is that the tool names the
+*wrong* one and sends the user into an unbounded loop. Weighted the other way it would be HIGH,
+because a document is unreachable from search until somebody guesses `--rebuild` — the printed advice
+will never get them there.
+
+**The fix is two-part and the second half is the real one:** correct the message to name
+`pnk sync --rebuild`, **and** make the second pass actually pick the sidecar up, since the message is
+only wrong because the behaviour it promises does not exist. Fixing only the string leaves an ordinary
+`git mv` pair requiring a full rebuild.
+
+**Root cause is the walk's directory-read ordering, not pairing** — so it is *not* foldable into S2 or
+S16 and needs its own increment. Each failed sync appends another identical failure row (4 after four
+runs), so the ledger grows without bound while the state never changes.
 
 ## Low — five
 
