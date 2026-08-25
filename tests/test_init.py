@@ -141,8 +141,8 @@ def test_an_adopted_gitignore_that_misses_pinakes_is_flagged(tmp_path: Path) -> 
 
 
 @pytest.fixture(autouse=True)
-def git_config_is_this_repository_only(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep the developer's own git configuration out of every test in this file.
+def git_config_is_this_repository_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the developer's machine — its config **and its repositories** — out of these tests.
 
     The check asks git, and git answers from more than the `.gitignore` in front of it: a global
     `core.excludesFile`, a system config, a `init.templateDir` that seeds `.git/info/exclude`. A
@@ -156,6 +156,13 @@ def git_config_is_this_repository_only(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
     monkeypatch.setenv("GIT_CONFIG_SYSTEM", os.devnull)
+    # **And the ancestor repository, which the config fixture did not cover.** `pytest --basetemp`
+    # can put `tmp_path` inside a checkout, and then every test here that says *outside a
+    # repository* is running inside one. Measured 20260825 with a basetemp under a repo whose
+    # `.gitignore` reads `.pinakes/`: three tests failed and the rest passed for a reason the code
+    # had nothing to do with. `GIT_CEILING_DIRECTORIES` stops git's upward search at `tmp_path`, so
+    # a repo the test *creates* is still found and one it merely sits inside is not.
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
 
 
 def _git_repo(root: Path, gitignore: str | None = None) -> Path:
@@ -326,12 +333,43 @@ def test_the_warning_never_tells_you_to_add_a_line_you_already_have(
     assert "Add this line" not in said, (
         "the line is already there; adding it again changes nothing and explains nothing"
     )
-    assert "git check-ignore -v" in said, "say how to see what actually matched"
 
     missing = _git_repo(tmp_path / "missing", "node_modules/\n")
     assert main(["init", str(missing)]) == 0
     said = capsys.readouterr().out
     assert "Add this line" in said, "here the remedy is real and must still be given"
+
+
+def test_the_command_the_warning_suggests_actually_prints_something(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """**Run the suggested command and read its output.** The first version of this message said
+    `git check-ignore -v .pinakes/index.db`, and that prints **nothing** in the state the message
+    fires for: `check-ignore` reports only *positively matched* paths, and the branch exists
+    precisely because the path is not matched. A remedy that changes nothing had been replaced by
+    an instruction that shows nothing, inside the commit that forbade the first.
+
+    Asserting the message *mentions* a command is not a test that the command helps, which is why
+    the first one shipped. This runs it.
+    """
+    root = _git_repo(tmp_path / "negated", ".pinakes/\n!.pinakes/\n")
+    assert main(["init", str(root)]) == 0
+    said = capsys.readouterr().out
+
+    lines = said.splitlines()
+    marker = next((i for i, line in enumerate(lines) if "To see the lines:" in line), None)
+    assert marker is not None, f"the warning offers no command to see the cause:\n{said}"
+    suggested = lines[marker + 1].strip()
+    printed = subprocess.run(
+        suggested, cwd=root, shell=True, capture_output=True, text=True, check=False
+    )
+
+    assert printed.stdout.strip(), (
+        f"the warning tells the user to run {suggested!r}, and it prints nothing"
+    )
+    assert "!.pinakes/" in printed.stdout, (
+        "the output has to show the negation, which is the thing the user has to remove"
+    )
 
 
 def test_a_gitignore_written_by_init_is_not_re_examined(tmp_path: Path) -> None:
@@ -354,6 +392,31 @@ def test_a_gitignore_written_by_init_is_not_re_examined(tmp_path: Path) -> None:
     assert result.gitignore_unprotected is False, (
         "init wrote the .gitignore itself; re-examining it only produces a warning whose remedy "
         "is already satisfied"
+    )
+
+
+def test_a_ceiling_the_user_set_is_honoured_rather_than_scrubbed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`GIT_CEILING_DIRECTORIES` is not `GIT_DIR`, and putting them in one list was a mistake.
+
+    `GIT_DIR` and `GIT_WORK_TREE` **redirect** git at a different repository, which must never
+    happen to this check. A ceiling only stops the upward search — so a user who sets one gets a
+    `git add` that cannot see the ancestor repository either, and honouring it is what makes this
+    check agree with their own git rather than contradict it.
+
+    Here the ancestor repository ignores `.pinakes/` and the KB's own adopted `.gitignore` does
+    not. Scrubbing the ceiling would find the ancestor and report protected — while the user's
+    `git add`, run under the same ceiling, would track the ledger.
+    """
+    outer = _git_repo(tmp_path / "outer", ".pinakes/\n")
+    root = outer / "kb"
+    root.mkdir()
+    (root / ".gitignore").write_text("node_modules/\n", encoding="utf-8")
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(outer))
+
+    assert init(root).gitignore_unprotected is True, (
+        "the ceiling hides the ancestor from the user's git too; agreeing with it is the point"
     )
 
 

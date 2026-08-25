@@ -61,9 +61,10 @@ output:
 **One consequence is called out rather than fixed.** If git would not actually ignore `.pinakes/`
 — asked with `git check-ignore` rather than by looking for the text, so a commented-out or negated
 line counts for nothing — `init` says so. It prints the line to add when that is the fix; when the
-line is already there it says that something later overrides it and points at `git check-ignore -v`
-to show what. It will not append to the file: that file is yours, and `.pinakes/` holds the index
-and the spend ledger, so ignoring it is what keeps them off any remote you push to.
+line is already there it says that something later overrides it, and points at
+`grep -n pinakes .gitignore` — the lines in your own file that name it. It will not append to the
+file: that file is yours, and `.pinakes/` holds the index and the spend ledger, so ignoring it is
+what keeps them off any remote you push to.
 
 **`--ci` is refused rather than adopted** when a workflow already exists, and refused *before*
 anything is created — `--ci` is an explicit request, and honouring it by silently doing nothing

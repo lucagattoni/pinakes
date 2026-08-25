@@ -140,8 +140,8 @@ def run_init(args: argparse.Namespace) -> int:
         if result.remedy_already_present:
             print("\n  ⚠️  git does not ignore `.pinakes/`, even though your .gitignore names it.")
             print("      Something later overrides it — a `!` re-include, or a narrower rule.")
-            print("      Adding the line again would not change this. To see what matched:")
-            print("        git check-ignore -v .pinakes/index.db")
+            print("      Adding the line again would not change this. To see the lines:")
+            print("        grep -n pinakes .gitignore")
         else:
             print("\n  ⚠️  your .gitignore does not ignore `.pinakes/`. Add this line:")
             print("        .pinakes/")

@@ -36,6 +36,11 @@ GIT_TIMEOUT_SECONDS = 5
 #: Variables by which git chooses a *different repository* than the one `cwd` names. git exports
 #: them to every hook it runs, so `pnk init` from a hook, a `rebase --exec`, or any wrapper that
 #: sets them would otherwise be answered by an unrelated tree — and answered *confidently*.
+#:
+#: **`GIT_CEILING_DIRECTORIES` is deliberately not here**, though it was at first. It does not
+#: redirect git to another repository; it stops the upward search early. Honouring it makes this
+#: check agree with the user's own `git add` from the same directory, and scrubbing it made the two
+#: disagree. Two different things had been put in one list because they share a prefix.
 GIT_LOCATION_VARIABLES = (
     "GIT_DIR",
     "GIT_WORK_TREE",
@@ -43,7 +48,6 @@ GIT_LOCATION_VARIABLES = (
     "GIT_INDEX_FILE",
     "GIT_OBJECT_DIRECTORY",
     "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-    "GIT_CEILING_DIRECTORIES",
 )
 
 
