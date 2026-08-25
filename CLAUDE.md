@@ -105,6 +105,7 @@ a code comment. Increment IDs (`I7b`, `I8`) stay: they name work inside a plan, 
 | Name | What it is |
 |---|---|
 | **the template release** | Template ecosystem, `pnk upgrade`, the `sqlite-vec` tier |
+| **the graph release, staged** | The PPR graph channel and the `[ner]` extra. **Eval-gated, never scheduled** — neither gets a plan, an increment or a number until its gate passes ([`plans/20260804_1016-staged-channel-gates.md`](plans/20260804_1016-staged-channel-gates.md)). **Not the same name as *the graph release***, which left this table at its final cut, 0.11.0 |
 
 A release that cuts more than once **keeps its name in that table until the final cut** — dropping
 it at an interim cut deletes a name the later increments still need. The rule's origin, and which

@@ -157,7 +157,31 @@ hand in `9718aaa`). **Widening is two different decisions, and only one of them 
 that actually shipped.** *Reads every entry rather than the first* catches that fourth body.
 *Reads rendered structure rather than source lines* is what would catch the two classes this repo
 met on 20260823 — five setext front-matter residues rendering as `<h2>`, and a top-level entry
-wrongly indented into a sub-item — both invisible to an ATX-on-source-lines rule. Neither is taken.
+wrongly indented into a sub-item — both invisible to an ATX-on-source-lines rule.
+
+**DEFERRED with a trigger, 20260825 18:41 UTC — planner.** Neither widening is built. **Owner: the
+user**, because which widening is wanted is a judgement about a rule that fires on nothing today.
+
+- **The trigger.** One residue of either class in a **live** section of a released document — a
+  non-blank line followed by a line of only `=` or `-` outside a fence in `CHANGELOG.md` or
+  `docs/RETROSPECTIVES.md`, or a column-0 non-list line under a `###` heading in any `CHANGELOG.md`
+  section other than `## [0.1.0] — 20260725 15:27`. **Measured 20260825: zero of both**, by a
+  twelve-line stdlib scan. When one appears, this stops being a deferral and becomes a build.
+- **And the implementation is named now, because deferring without it leaves the next implementer to
+  build the expensive wrong thing.** It is the **setext-plus-indentation pair**, *not* widening 1.
+  Widening 1 reaches exactly one section, written 20260725, and **cannot reach the class that
+  actually shipped**. It also needs **three** carve-outs rather than the two named above: without a
+  **column-0 restriction** the same widened rule reports **3 001** violations on today's `CHANGELOG.md`,
+  because every wrapped continuation line of a list item is indented prose — and that third carve-out
+  creates a new blind spot, an indented bare paragraph, in a rule whose sibling exists partly because
+  of a wrongly indented entry.
+- **The stdlib objection does not hold.** `tools/fragments.py` is stdlib-only and `check.sh` invokes
+  it with a plain `python3` that has no `markdown` module — but both target classes are detectable
+  with pure string operations, demonstrated by the scan above. *"No parser is available"* overstates
+  the obstacle and must not be the reason this is declined.
+- **The honest weakness of this deferral, stated rather than buried:** the trigger only fires *after*
+  the harm it exists to prevent. The previous five residues sat on the published site for weeks with
+  every gate green. A trigger is not a gate, and this one is not pretending to be.
 
 ---
 

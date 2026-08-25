@@ -14,7 +14,7 @@ plausible document shapes, that is **5.8×–53.5× the chunk count**.
 It did not bite on the RFC realism corpus — but only because every chunk there has an empty
 `heading_path`, so `parent-child` derived **zero edges**. The cost is real and unmeasured.
 
-## The decision · **requirements 1 and 2 CLOSED (ceiling measured 20260804 21:05; the `--drop parent-child` arm shipped in 0.11.0); requirement 3 LIVE — alarming only on a purpose-built worst-shape corpus (53.42 rows/chunk, +113.4% index, 20260804 22:39), and no immediate-parent arm exists**
+## The decision · **ALL THREE REQUIREMENTS CLOSED.** Requirements 1 and 2 closed 20260804 (ceiling measured 21:05; the `--drop parent-child` arm shipped in 0.11.0). **Requirement 3 CLOSED 20260825 18:41 UTC by the user: its antecedent is measured false on every real corpus, so the conditional never fires and `parent-child` stays transitive exactly as built**
 
 **Keep it transitive, as built.** Three additions, none of them code today:
 
@@ -26,6 +26,28 @@ It did not bite on the RFC realism corpus — but only because every chunk there
    already makes it a flag.
 3. **If the ceiling is alarming, the immediate-parent variant is the arm to measure** — not a
    change to make first and measure afterwards.
+
+> ### ✅ Requirement 3 — CLOSED 20260825 18:41 UTC, taken by the user
+>
+> **A conditional whose antecedent is false closes without deciding anything.** Requirement 3 reads
+> *"**If** the ceiling is alarming…"*, and the ceiling is measured **not** alarming on every real
+> corpus: **4.95** `parent-child` rows/chunk on this repository's own documents, **3.80** across 300
+> real technical specifications re-chunked through the real `chunk_document` and the real fastembed
+> tokenizer, and **0 of those 300** reaching the synthetic **53.42**. The 53.42 figure is real but it
+> comes from a **purpose-built worst-shape corpus**, which is what it was built to be — it bounds the
+> shape, it does not describe one anybody has.
+>
+> **What this closes, and what it does not.** It closes the *cost* question. `parent-child` **stays
+> transitive**, unchanged, and **no immediate-parent arm is owed**. It decides **nothing** about
+> retrieval quality: the arm was never rejected on quality and is not rejected here.
+>
+> **The misreading that kept this open for 21 days.** *"It would be deciding a retrieval question on
+> a cost argument"* — in *Why not the alternatives* below — governs **adopting** immediate-parent-only
+> as the default. It does **not** forbid *declining to measure* it. Reading it as a bar to closing
+> bundled this requirement to the G5 gate re-run, and the two are independent.
+>
+> **What would re-open it:** a real corpus measuring an alarming `parent-child` ceiling. The
+> antecedent is a measurement, so it can fire later; this closes the requirement, not the question.
 
 ## Why transitive
 
@@ -47,7 +69,7 @@ refused to let a reachability ceiling choose the kind set, and sent that questio
 same reasoning applies here, for the same reason: a ceiling gauge cannot rank, and an argument
 cannot measure.
 
-## Why not the alternatives · **the *Immediate parent only* row is not a rejection — its conditional fired 20260804 22:39, on a purpose-built worst-shape corpus**
+## Why not the alternatives · **the *Immediate parent only* row is not a rejection — and its conditional did NOT fire on any real corpus (3.80 rows/chunk over 300 real specifications; the 53.42 that looked like a firing was a purpose-built worst-shape corpus). Requirement 3 closed 20260825 18:41**
 
 | Option | Why not |
 |---|---|
