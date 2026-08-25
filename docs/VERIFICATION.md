@@ -22,15 +22,26 @@ test, or write **none** and say why in the same commit.
   make it obvious — and the I9 review still found one row mapped from a name alone, which was
   wrong (the completeness audit's). Treat a row as a strong pointer, not a proof.
 * **The scope began as `plans/20260727_1543-v0.2.md`'s promises**, which is what the table this
-  replaces covered, and has since taken in the links release, G1–G6, 0.7.1, and 0.12.0's five
-  heading-coverage rows (in *Edge-hub reporting (G6)*, carrying `—` rather than an increment id).
-  **It stopped there: 0.13.0 through 0.16.0 added no rows.** The gap is now four releases wide and
-  is on [`plans/20260731_1202-open-corrections.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260731_1202-open-corrections.md)'s
-  neighbourhood rather than lost. v0.1's own modules — `test_chunk.py`, `test_ids.py`,
-  `test_init.py`, `test_lock.py`, `test_pairing.py`, `test_uri.py`, `test_embed.py` — are not
-  represented and are not unowned; they simply predate the table. (`test_eval.py` **is** represented,
-  throughout *The golden set, per question (G2)*; it was listed here in error.) Closing either gap is
-  worth doing and nobody has.
+  replaces covered, and has grown with the work since. **Measured 20260825 12:49 UTC on `c23359f`:
+  923 rows, 44 distinct increment ids** (I1–I11, L1–L8, G1–G6, T1–T7, E1–E7, D-16 and a large `fix`
+  class), **naming 62 of the 67 test modules in `tests/`.** An earlier version of this paragraph said
+  the table *"stopped"* at 0.12.0 and that the gap was *"four releases wide"*; both were true when
+  written and neither has been true for a long time. **Do not restate a release count here** — it
+  goes stale silently, which is what happened. State what was measured and when.
+* **Two gaps remain, and they are different in kind.** **Six modules carry zero rows** —
+  `test_chunk.py`, `test_ids.py`, `test_lock.py`, `test_pairing.py`, `test_uri.py`, `test_embed.py`.
+  They predate the table and are not unowned. **Five more are named by no row at all** —
+  `test_build_rfc_corpus.py`, `test_deep_reservation.py`, `test_measure_sync_cpu.py`,
+  `test_rfc_golden_set.py`, `test_two_leg_gate.py`. **`test_init.py` is no longer among them: it
+  carries 27 rows**, and `test_eval.py` carries 32 throughout *The golden set, per question (G2)* —
+  both were once listed here as absent, in error, and each correction was found by counting rather
+  than by reading.
+* **Whether either gap is *work* is undecided, and this paragraph must not be read as saying it is.**
+  `tests/` holds 2 032 test functions against these 923 rows. Whether the table maps *every test* or
+  *promises only* is **D-34**, open and unscheduled in
+  [`plans/20260825_0749-exposure-and-silent-status.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260825_0749-exposure-and-silent-status.md).
+  Until it is answered, a large unrowed population is **not** evidence of a hole — that inference was
+  made once here, by a planner, hours after the lesson that named it.
 
 ## Packaging and the extractor registry
 
