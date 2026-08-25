@@ -184,6 +184,12 @@ def _git_repo(root: Path, gitignore: str | None = None) -> Path:
         # debug, re-run `init`, and the ledger and every deep transcript are tracked, in silence.
         ("negated after being listed", ".pinakes/\n!.pinakes/\n", True),
         ("commented out", "#.pinakes/\n", True),
+        # **The cover cases, and the first is a regression the review caught.** Probing three named
+        # files reported PROTECTED here while `index.db-wal` — megabytes of verbatim document text
+        # in WAL mode — stayed tracked. The substring test this replaces *warned*. A check that
+        # answers about filenames cannot answer a question about a directory.
+        ("*.db and *.json, which cover the probes but not the directory", "*.db\n*.json\n*.jsonl\n", True),
+        ("everything under .pinakes ignored except the extraction cache", ".pinakes/*\n!.pinakes/cache\n", True),
         # Controls. Without these a check that always answered the same way would pass four of six.
         ("the exact line this file writes", ".pinakes/\n", False),
         ("nothing to do with pinakes", "node_modules/\n", True),
@@ -231,19 +237,103 @@ def test_protection_that_lives_outside_gitignore_is_still_protection(tmp_path: P
         ("no trailing slash", ".pinakes\n", False),
         ("unrelated", "node_modules/\n", True),
         ("the exact line", ".pinakes/\n", False),
+        # **Both of these were wrong before the scratch repo**, and in opposite directions. The
+        # hand-rolled fallback read `!.pinakes/` as protection — silently, on the same input the
+        # in-repo matrix above asserts must warn — and warned about `/.pinakes/`, the root-anchored
+        # form many editors emit, which git honours perfectly well.
+        ("negated, which the text scan read as protection", ".pinakes/\n!.pinakes/\n", True),
+        ("root-anchored, which the text scan warned about", "/.pinakes/\n", False),
+        ("a doublestar form", "**/.pinakes/\n", False),
     ],
 )
-def test_outside_a_repository_the_fallback_still_strips_comments(
+def test_outside_a_repository_git_is_asked_in_a_scratch_repository(
     tmp_path: Path, case: str, gitignore: str, unprotected: bool
 ) -> None:
-    """A KB stamped in a plain directory has no git to ask. The fallback is deliberately small —
-    comments and a missing trailing slash, nothing else — but it fixes the silent case, which is
-    the one with a consequence."""
+    """A KB is often stamped before `git init`, and there is still no excuse for guessing.
+
+    The `.gitignore` is copied into a throwaway repository and the identical probes are run, so
+    there is **one** definition of the answer rather than two that can disagree. The text scan is
+    reached only when there is no `git` at all.
+    """
     root = tmp_path / "plain"
     root.mkdir()
     (root / ".gitignore").write_text(gitignore, encoding="utf-8")
 
     assert init(root).gitignore_unprotected is unprotected, case
+
+
+def test_a_gitignore_written_by_init_is_not_re_examined(tmp_path: Path) -> None:
+    """The check fires for an **adopted** `.gitignore` only, which is where it always fired.
+
+    A first draft ran it unconditionally, justified by "an ancestor repository could negate what we
+    wrote". Review showed that cannot happen — git resolves by directory depth, so the file `init`
+    writes in the KB wins over any ancestor. What widening it actually reached was a path already
+    in the index, where `check-ignore` says not-ignored and the warning would tell the user to add a
+    line their file already contains.
+    """
+    root = _git_repo(tmp_path / "repo")
+    (root / ".pinakes").mkdir()
+    (root / ".pinakes" / "index.db").write_text("x", encoding="utf-8")
+    subprocess.run(["git", "add", "-Af", ".pinakes"], cwd=root, check=True, capture_output=True)
+
+    result = init(root)
+
+    assert (root / ".gitignore").read_text(encoding="utf-8").splitlines()[-1] == ".pinakes/"
+    assert result.gitignore_unprotected is False, (
+        "init wrote the .gitignore itself; re-examining it only produces a warning whose remedy "
+        "is already satisfied"
+    )
+
+
+def test_an_ambient_git_dir_cannot_answer_for_another_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """git honours `GIT_DIR`/`GIT_WORK_TREE` over `cwd`, and exports both to every hook it runs.
+
+    Without scrubbing them, `pnk init` run from a hook is answered by whichever repository the
+    environment names — confidently, and about the wrong tree.
+    """
+    elsewhere = _git_repo(tmp_path / "elsewhere", ".pinakes/\n")
+    root = _git_repo(tmp_path / "repo", "node_modules/\n")
+    monkeypatch.setenv("GIT_DIR", str(elsewhere / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(elsewhere))
+
+    assert init(root).gitignore_unprotected is True, (
+        "the KB's own repository protects nothing; another repository's rules are not an answer"
+    )
+
+
+def test_a_gitignore_that_is_not_utf8_does_not_abort_a_half_written_kb(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`pinakes.toml` is already on disk by the time this runs, so raising leaves a KB the next
+    `pnk init` refuses as "already a KB". One latin-1 byte in a comment used to do it."""
+
+    def _no_git(*args: object, **kwargs: object) -> object:
+        raise FileNotFoundError("git")
+
+    monkeypatch.setattr("pinakes.init.subprocess.run", _no_git)
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / ".gitignore").write_bytes(b"# caf\xe9 notes\n")
+
+    assert init(root).gitignore_unprotected is True
+
+
+def test_a_git_that_never_returns_does_not_hang_init(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`check-ignore` refreshes the index, which runs the `core.fsmonitor` hook — a wedged Watchman
+    blocks it forever. A timeout has to degrade to an answer, not to a traceback."""
+    def _timeout(*args: object, **kwargs: object) -> object:
+        raise subprocess.TimeoutExpired(cmd="git", timeout=5)
+
+    monkeypatch.setattr("pinakes.init.subprocess.run", _timeout)
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / ".gitignore").write_text("#.pinakes/\n", encoding="utf-8")
+
+    assert init(root).gitignore_unprotected is True
 
 
 def test_init_still_stamps_a_kb_when_git_is_not_installed(

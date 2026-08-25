@@ -6,10 +6,14 @@ last one matters more than it looks — publishing a KB publishes every sidecar,
 ledger must never leave the machine (docs/DESIGN.md §4.7).
 """
 
+import os
+import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import uuid4
 
 from pinakes import template
 from pinakes.ci import WORKFLOW_PATH, write_workflow
@@ -23,60 +27,149 @@ GITIGNORE = """\
 .pinakes/
 """
 
-#: What the warning is actually about: the index, the spend ledger, and a deep transcript — the
-#: first file under `.pinakes/` to hold the user's **verbatim question** (docs/DESIGN.md §4.7).
-#: They are pathnames to ask git about, never files to look for; none of them exists at `init`
-#: time, and `check-ignore` answers about a path whether or not anything is there.
-GITIGNORE_PROBES = (
-    ".pinakes/index.db",
-    ".pinakes/ledger.jsonl",
-    ".pinakes/deep/transcript.json",
+#: How long to wait for git. `check-ignore` refreshes the index, and refreshing the index runs the
+#: `core.fsmonitor` hook — a wedged Watchman daemon makes it block forever. `init` has already
+#: written `pinakes.toml` by the time this runs, so a hang leaves a half-made KB that the next
+#: `pnk init` refuses as "already a KB". Five seconds, then answer from the fallback.
+GIT_TIMEOUT_SECONDS = 5
+
+#: Variables by which git chooses a *different repository* than the one `cwd` names. git exports
+#: them to every hook it runs, so `pnk init` from a hook, a `rebase --exec`, or any wrapper that
+#: sets them would otherwise be answered by an unrelated tree — and answered *confidently*.
+GIT_LOCATION_VARIABLES = (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_COMMON_DIR",
+    "GIT_INDEX_FILE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_CEILING_DIRECTORIES",
 )
 
 
-def _ignored_by_git(root: Path) -> bool | None:
-    """Whether git ignores every path in `GITIGNORE_PROBES`, or `None` when git cannot answer.
+def _probe_paths() -> tuple[str, ...]:
+    """Four pathnames under `.pinakes/` that together ask *is an arbitrary path in there ignored*.
+
+    **Named files were not a cover, and reporting on three of them was a regression.** The first
+    version of this probed `index.db`, `ledger.jsonl` and `deep/transcript.json`. Measured 20260825
+    against ground truth (`git add -A` then `git ls-files --cached`, so the oracle does not go
+    through `check-ignore` at all): a `.gitignore` carrying `*.db` and `*.json` — an ordinary thing
+    to write — ignores all three and leaves `index.db-wal` staged, which in WAL mode holds
+    megabytes of verbatim document text. The substring test this replaced *warned* there. A check
+    that answers about three filenames cannot answer a question about a directory.
+
+    So the probes are **opaque**: a random token no realistic pattern targets, at the top level and
+    nested, which only a rule covering the directory itself can match. Two more sit under
+    `cache/extract/` and `deep/` — the subtrees holding extracted document text and the user's
+    verbatim questions — because `.pinakes/*` with a re-include (`!.pinakes/cache`) ignores both
+    opaque probes and tracks the cache regardless. That case is why four rather than two: measured,
+    the two-probe set still got it wrong.
+    """
+    token = uuid4().hex
+    return (
+        f".pinakes/{token}",
+        f".pinakes/{token}/{token}",
+        f".pinakes/cache/extract/{token}",
+        f".pinakes/deep/{token}",
+    )
+
+
+def _ask_git(arguments: list[str], cwd: Path) -> subprocess.CompletedProcess[str] | None:
+    """Run git for an answer, or `None` if it could not give one.
+
+    Every argument here is a failure this check met in review rather than a precaution:
+    `stdin=DEVNULL` so a helper git spawns cannot consume the terminal's input or block on an
+    invisible prompt; `errors="replace"` because `text=True` alone decodes strictly and raises
+    *inside* `subprocess.run`, past any `except OSError`; the scrubbed environment so git answers
+    about this directory's repository and not one an ambient variable names.
+    """
+    environment = {k: v for k, v in os.environ.items() if k not in GIT_LOCATION_VARIABLES}
+    try:
+        return subprocess.run(
+            ["git", *arguments],
+            cwd=cwd,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            stdin=subprocess.DEVNULL,
+            timeout=GIT_TIMEOUT_SECONDS,
+            env=environment,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def _all_probes_ignored(cwd: Path, probes: tuple[str, ...]) -> bool | None:
+    """Whether git ignores every probe, or `None` when it did not answer.
+
+    **Exit 1 is only an answer when git said nothing on stderr.** `check-ignore` exits 1 for
+    anything short of a fatal, including *"could not open .gitignore"* — a warning. Reading that as
+    an authoritative "not ignored" would be a guess wearing an exit code.
+    """
+    completed = _ask_git(["check-ignore", *probes], cwd)
+    if completed is None or completed.returncode not in (0, 1):
+        return None
+    if completed.returncode == 1 and completed.stderr.strip():
+        return None
+    matched = {line.strip() for line in completed.stdout.splitlines() if line.strip()}
+    return len(matched) == len(probes)
+
+
+def _ignored_by_git(root: Path, gitignore: Path) -> bool | None:
+    """Whether git would keep every path under `.pinakes/` out of the repository.
 
     **Asked of git rather than read out of `.gitignore`.** The text scan this replaces —
     `".pinakes/" not in gitignore.read_text()` — was wrong in both directions, measured 20260825:
     it warned about `.pinakes` and `.pin*`, which git *does* ignore, and stayed **silent** for
-    `!.pinakes/` and a commented-out `#.pinakes/`, which git does *not*. The silent half is the
-    one that matters: a commented-out line left the ledger and every deep transcript tracked, and
-    said nothing. A scan also cannot see `.git/info/exclude`, the user's global excludes, or a
-    parent repository's rules — git can, so git is asked.
+    `!.pinakes/` and a commented-out `#.pinakes/`, which git does *not*. The silent half is the one
+    that matters — a commented-out line left the ledger and every deep transcript tracked, and said
+    nothing. A scan also cannot see `.git/info/exclude`, the user's global excludes, or a parent
+    repository's rules. git can, so git is asked.
 
-    **The probes are descendants, never the bare directory.** `git check-ignore .pinakes` reports
-    *not ignored* for the canonical `.pinakes/` pattern whenever the directory is absent from disk:
-    a trailing slash only matches a path git can already see is a directory. At `init` time
-    `.pinakes/` has never been created, so the bare query would answer "unprotected" for the very
-    pattern this file writes. A path *inside* it carries the directory in its own name and answers
-    correctly either way.
+    **Outside a repository, git is still asked — in a scratch one.** A KB is often stamped before
+    `git init`, and there the hand-rolled fallback got negation *silently* wrong: `.pinakes/`
+    followed by `!.pinakes/` read as protection, the very input this module's own in-repo test
+    asserts must warn. Copying the `.gitignore` into a throwaway repository and running the
+    identical probes keeps one definition of the answer instead of two that can disagree. The text
+    fallback below is now reached only when there is no `git` at all.
+    """
+    verdict = _all_probes_ignored(root, probes := _probe_paths())
+    if verdict is not None:
+        return verdict
 
-    **Every path must match, not merely one.** `check-ignore` exits 0 when *any* argument is
-    ignored, so a `.gitignore` naming only `.pinakes/ledger.jsonl` would otherwise read as full
-    protection while the index stayed tracked. Counting the matched paths is what distinguishes
-    the two.
+    inside = _ask_git(["rev-parse", "--is-inside-work-tree"], root)
+    if inside is None:
+        return None
+    if inside.returncode == 0 and inside.stdout.strip() == "true":
+        # A real repository that git could not answer about. Inventing a verdict from a scratch
+        # repo would silently drop its parent rules, its excludes and its index.
+        return None
+
+    with tempfile.TemporaryDirectory() as scratch:
+        if _ask_git(["init", "-q"], Path(scratch)) is None:
+            return None
+        if gitignore.exists():
+            shutil.copyfile(gitignore, Path(scratch) / ".gitignore")
+        return _all_probes_ignored(Path(scratch), probes)
+
+
+def _read_or_empty(path: Path) -> str:
+    """The file's text, or `""` if it cannot be read.
+
+    `init` has already written `pinakes.toml` by the time this runs, so raising here leaves a
+    half-made KB that the next `pnk init` refuses as "already a KB". A `.gitignore` holding one
+    latin-1 byte — `# café notes` is enough — used to do exactly that, as an unhandled
+    `UnicodeDecodeError` rather than an `InitError` with a remedy. Unreadable means unproven, and
+    unproven means warn, which is the safe direction.
     """
     try:
-        completed = subprocess.run(
-            ["git", "check-ignore", *GITIGNORE_PROBES],
-            cwd=root,
-            capture_output=True,
-            text=True,
-        )
+        return path.read_text(encoding="utf-8", errors="replace")
     except OSError:
-        # git is not on PATH. `init` has never required it, and refusing to stamp a KB because a
-        # version-control tool is missing would be a far worse failure than the one being fixed.
-        return None
-    if completed.returncode not in (0, 1):
-        # 128 — not a git repository. There is no authority to consult, so there is no answer.
-        return None
-    matched = {line.strip() for line in completed.stdout.splitlines() if line.strip()}
-    return len(matched) == len(GITIGNORE_PROBES)
+        return ""
 
 
 def _gitignore_names_pinakes(text: str) -> bool:
-    """Best effort for a directory that is not a git repository, where git cannot be asked.
+    """Last resort for a machine with no `git` installed at all.
 
     Deliberately small, and the smallness is the mechanism. It asks whether a **whole line** names
     the directory, with or without its trailing slash — so `#.pinakes/` cannot match, not because
@@ -84,12 +177,12 @@ def _gitignore_names_pinakes(text: str) -> bool:
     substring test had: `".pinakes/" in text` asks whether the string appears *anywhere*, which a
     comment satisfies. A mutation pass on 20260825 proved the point by deleting an explicit
     comment-skip from this loop and finding every test still green — the skip was never what
-    excluded a comment, and stating it as though it were made the code read as more careful than
-    it was.
+    excluded a comment.
 
-    It does **not** interpret globs, negations or precedence: a text scan that pretends to be git
-    is precisely how the original defect happened, and outside a repository there is nothing yet
-    to protect against.
+    It does **not** interpret globs, negations or precedence, and it is wrong about `/.pinakes/`
+    and `.pinakes/**`, which git honours. That is accepted: `init` has never required git, refusing
+    to stamp a KB over a missing version-control tool would be a worse failure than the one this
+    fixes, and a text scan that pretends to be git is how the original defect happened.
     """
     return any(line.strip().rstrip("/") == ".pinakes" for line in text.splitlines())
 
@@ -209,13 +302,19 @@ def init(
     else:
         gitignore.write_text(GITIGNORE, encoding="utf-8")
 
-    # Asked after the file is on disk, whether it was adopted or just written, so git reads the
-    # state the user will actually have. A KB stamped inside a repository whose rules negate
-    # `.pinakes/` is unprotected however good the file this function wrote is.
-    protected = _ignored_by_git(root)
-    if protected is None:
-        protected = _gitignore_names_pinakes(gitignore.read_text(encoding="utf-8"))
-    gitignore_unprotected = not protected
+    # **Only for a `.gitignore` that was already here.** The first draft ran this unconditionally
+    # and justified it with "a repository whose rules negate `.pinakes/` beats the file we wrote" —
+    # which review showed cannot happen: git resolves by directory depth, so the `.gitignore` this
+    # function just wrote in the KB wins over any ancestor. What widening it *did* reach was a path
+    # already in the index, where `check-ignore` reports not-ignored and the warning would tell the
+    # user to add a line their file already has. Narrowed back: this increment fixes the existing
+    # check's correctness, and does not change when it fires.
+    gitignore_unprotected = False
+    if gitignore in adopted:
+        protected = _ignored_by_git(root, gitignore)
+        if protected is None:
+            protected = _gitignore_names_pinakes(_read_or_empty(gitignore))
+        gitignore_unprotected = not protected
 
     extras, extras_adopted = template.copy_extras(template_name, root, validated=declared)
     adopted.extend(extras_adopted)

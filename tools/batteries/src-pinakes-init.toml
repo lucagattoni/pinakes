@@ -13,7 +13,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 7
+mutants = 10
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · the `.gitignore` check answers what git answers
@@ -24,7 +24,13 @@ mutants = 7
 # `.pinakes` and `.pin*`, which git ignores, and stayed silent for `!.pinakes/` and a commented-out
 # `#.pinakes/`, which git does not. The silent half left the ledger and every transcript tracked.
 #
-# Two of the rows below are that defect, re-expressed: the substring row and the trailing-slash
+# **Rewritten 20260825 after an adversarial pass found a regression**, so four anchors were
+# repaired rather than a second section appended: the design they described no longer exists.
+# The first draft probed three *named* files, and a `.gitignore` carrying `*.db` and `*.json`
+# ignored all three while leaving `index.db-wal` tracked — the substring test it replaced
+# warned there. Row 1 below is that regression, kept as a mutant so it cannot come back.
+#
+# Two of the rows below are the original defect, re-expressed: the substring row and the trailing-slash
 # row, both in the fallback where no git can be asked.
 #
 # **One of these rows replaced a survivor, and the survivor was the useful part of the run.** The
@@ -36,56 +42,81 @@ mutants = 7
 # shipped defect.
 
 [[mutant]]
-name = "the probe becomes the bare directory, so the canonical `.pinakes/` pattern reads as unprotected"
+name = "THE REGRESSION — probes go back to three named files, so `*.db` + `*.json` reads as full protection"
 file = "src/pinakes/init.py"
-old = '''GITIGNORE_PROBES = (
-    ".pinakes/index.db",
-    ".pinakes/ledger.jsonl",
-    ".pinakes/deep/transcript.json",
-)'''
-new = '''GITIGNORE_PROBES = (".pinakes",)'''
+old = '''    token = uuid4().hex
+    return (
+        f".pinakes/{token}",
+        f".pinakes/{token}/{token}",
+        f".pinakes/cache/extract/{token}",
+        f".pinakes/deep/{token}",
+    )'''
+new = '''    return (".pinakes/index.db", ".pinakes/ledger.jsonl", ".pinakes/deep/transcript.json")'''
 kills = "tests/test_init.py::test_the_gitignore_check_answers_what_git_answers"
 
 [[mutant]]
-name = "DISCRIMINATING — any probe matching counts as full protection, so ignoring only the ledger hides a tracked index"
+name = "the cache and deep probes are dropped, so `.pinakes/*` with `!.pinakes/cache` hides a tracked extraction cache"
 file = "src/pinakes/init.py"
-old = '''    return len(matched) == len(GITIGNORE_PROBES)'''
+old = '''        f".pinakes/cache/extract/{token}",
+        f".pinakes/deep/{token}",'''
+new = '''        f".pinakes/{token}/{token}/{token}",'''
+kills = "tests/test_init.py::test_the_gitignore_check_answers_what_git_answers"
+
+[[mutant]]
+name = "DISCRIMINATING — any probe matching counts as full protection rather than all of them"
+file = "src/pinakes/init.py"
+old = '''    return len(matched) == len(probes)'''
 new = '''    return len(matched) > 0'''
 kills = "tests/test_init.py::test_ignoring_only_part_of_pinakes_is_not_protection"
 
 [[mutant]]
 name = "a `not ignored` answer is mistaken for `git could not answer`, handing the verdict back to the text scan"
 file = "src/pinakes/init.py"
-old = '''    if completed.returncode not in (0, 1):'''
-new = '''    if completed.returncode != 0:'''
+old = '''    if completed is None or completed.returncode not in (0, 1):'''
+new = '''    if completed is None or completed.returncode != 0:'''
 kills = "tests/test_init.py::test_the_gitignore_check_answers_what_git_answers"
 
 [[mutant]]
-name = "git is never asked at all — the fallback becomes the only answer, in a repository"
+name = "git is never asked in the KB's own repository — the scratch repo answers instead, without its parent rules or index"
 file = "src/pinakes/init.py"
-old = '''    protected = _ignored_by_git(root)'''
-new = '''    protected = None'''
+old = '''    verdict = _all_probes_ignored(root, probes := _probe_paths())'''
+new = '''    verdict = None
+    probes = _probe_paths()'''
 kills = "tests/test_init.py::test_protection_that_lives_outside_gitignore_is_still_protection"
 
 [[mutant]]
-name = "THE SHIPPED DEFECT ITSELF — the fallback asks whether the string appears anywhere, so a comment reads as protection"
+name = "outside a repository the scratch repo is skipped, so the text scan reads `!.pinakes/` as protection again"
+file = "src/pinakes/init.py"
+old = '''    with tempfile.TemporaryDirectory() as scratch:'''
+new = '''    if True:
+        return None
+    with tempfile.TemporaryDirectory() as scratch:'''
+kills = "tests/test_init.py::test_outside_a_repository_git_is_asked_in_a_scratch_repository"
+
+[[mutant]]
+name = "the ambient environment is passed through, so `GIT_DIR` lets an unrelated repository answer"
+file = "src/pinakes/init.py"
+old = '''    environment = {k: v for k, v in os.environ.items() if k not in GIT_LOCATION_VARIABLES}'''
+new = '''    environment = dict(os.environ)'''
+kills = "tests/test_init.py::test_an_ambient_git_dir_cannot_answer_for_another_repository"
+
+[[mutant]]
+name = "a timeout stops being caught, so a wedged fsmonitor raises out of `init` after `pinakes.toml` is written"
+file = "src/pinakes/init.py"
+old = '''    except (OSError, subprocess.SubprocessError):'''
+new = '''    except OSError:'''
+kills = "tests/test_init.py::test_a_git_that_never_returns_does_not_hang_init"
+
+[[mutant]]
+name = "the `.gitignore` read becomes strict again, so one latin-1 byte aborts a half-written KB"
+file = "src/pinakes/init.py"
+old = '''        return path.read_text(encoding="utf-8", errors="replace")'''
+new = '''        return path.read_text(encoding="utf-8")'''
+kills = "tests/test_init.py::test_a_gitignore_that_is_not_utf8_does_not_abort_a_half_written_kb"
+
+[[mutant]]
+name = "THE ORIGINAL DEFECT — the last-resort scan asks whether the string appears anywhere, so a comment reads as protection"
 file = "src/pinakes/init.py"
 old = '''    return any(line.strip().rstrip("/") == ".pinakes" for line in text.splitlines())'''
 new = '''    return ".pinakes" in text'''
-kills = "tests/test_init.py::test_outside_a_repository_the_fallback_still_strips_comments"
-
-[[mutant]]
-name = "the fallback demands a bare `.pinakes`, so the trailing slash this file itself writes stops counting"
-file = "src/pinakes/init.py"
-old = '''    return any(line.strip().rstrip("/") == ".pinakes" for line in text.splitlines())'''
-new = '''    return any(line.strip() == ".pinakes" for line in text.splitlines())'''
-kills = "tests/test_init.py::test_outside_a_repository_the_fallback_still_strips_comments"
-
-[[mutant]]
-name = "a missing git is read as protection rather than as no answer, silencing the warning on every machine without git"
-file = "src/pinakes/init.py"
-old = '''    except OSError:'''
-new = '''    except OSError:
-        return True
-    if False:'''
 kills = "tests/test_init.py::test_init_still_stamps_a_kb_when_git_is_not_installed"
