@@ -1,5 +1,6 @@
 """`pnk init`: a directory that is already correct, and an id that is never minted twice."""
 
+import os
 import subprocess
 import time
 from collections.abc import Callable
@@ -136,6 +137,24 @@ def test_an_adopted_gitignore_that_misses_pinakes_is_flagged(tmp_path: Path) -> 
     assert init(other).gitignore_unprotected is False, (
         "a .gitignore that already covers .pinakes/ must not be flagged"
     )
+
+
+@pytest.fixture(autouse=True)
+def _git_config_is_this_repository_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the developer's own git configuration out of every test in this file.
+
+    The check asks git, and git answers from more than the `.gitignore` in front of it: a global
+    `core.excludesFile`, a system config, a `init.templateDir` that seeds `.git/info/exclude`. A
+    developer who has put `.pinakes/` in their personal global ignore file is doing something
+    sensible, and without this fixture it turns three of the tests below red on their machine and
+    makes two others pass for a reason the code had nothing to do with. Measured 20260825: with a
+    global excludes file naming `.pinakes/`, 3 failed and 9 passed.
+
+    **The production code is right to honour those files** — a global ignore really does protect
+    the ledger. It is only the *tests* that must not depend on which machine they run on.
+    """
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", os.devnull)
 
 
 def _git_repo(root: Path, gitignore: str | None = None) -> Path:
