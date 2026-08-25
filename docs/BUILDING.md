@@ -176,6 +176,33 @@ Never batch increments; each is a separate, bisectable landing:
 Which documents an increment touches, and in what order: [`docs/README.md` § Landing a new
 increment](https://github.com/lucagattoni/pinakes/blob/main/docs/README.md#landing-a-new-increment).
 
+## Content mine, keystrokes yours
+
+**Some planner-owned text cannot land in its own commit.** A `docs/VERIFICATION.md` section for a
+gate you are adding, or a counted paragraph in `tools/batteries/README.md` that
+`tests/test_batteries.py` asserts, must change *atomically* with the code — **any split ordering
+leaves `main` red or wrong at some commit**, and a repository whose gates are its memory cannot
+afford either.
+
+**So the planner decides the exact text and says so explicitly, and the implementer pastes it into
+their branch unchanged.**
+
+| | |
+|---|---|
+| **Authorship** | the planner's, entirely. Nothing about the ownership table is suspended |
+| **The keystrokes** | the implementer's, because the commit has to be theirs |
+| **The form** | the planner gives the **verbatim text**, not a description of it |
+
+**This is not a licence to draft and seek approval afterwards.** *"I wrote it, is this alright?"* puts
+the planner in the position of reviewing rather than deciding, which is the thing the ownership rule
+exists to prevent — and a review that says *yes* is indistinguishable from one that was never
+properly read. **Ask; do not draft.**
+
+**Why it is written down at all:** it was re-derived from first principles **four separate times in
+one session** (20260825), and two such edits were authorised into a coder's branch that day with no
+record of why an implementer's commit contained planner-owned text. A future reader had no way to
+learn the difference between this and a broken rule.
+
 ## Hand over before you stop
 
 **Context dies with the session; disk survives.** So the handover is part of the increment, landed
@@ -200,6 +227,17 @@ The planner incorporates them. **An implementer that edits these directly has br
 rule, not satisfied the handover one** — and an implementer that writes nothing has satisfied
 neither. The two rules meet here rather than collide; only the *form* of the handover differs by
 role.
+
+**`RESUME.md` may only ever hold what is also recoverable from `main`.** It is excluded via
+`.git/info/exclude` — a file that is itself never committed — so a cloud run, a scheduled routine,
+another checkout or a fresh worktree sees **no handover at all, and cannot discover that one
+exists**. Neither `CLAUDE.md` nor `docs/README.md` points at it, deliberately: committing it
+would make a file both roles write into a planner-only merge hotspot. **So it is a convenience, never
+a carrier.** Anything that would be lost if it vanished belongs in the five rows above, which are
+committed. The file already claims this about itself and nothing enforces it — that is the whole of
+the rule. This is the *protection-for-me versus visibility-for-everyone* distinction applied to the
+repository's own state, and nobody noticed the asymmetry until it was written into a plan about
+`.gitignore`.
 
 **A pointer nothing links to is not a handover.** Verify by opening what a fresh session opens —
 `CLAUDE.md`, then `docs/`, then the plan — not by trusting that you wrote it down somewhere. A
