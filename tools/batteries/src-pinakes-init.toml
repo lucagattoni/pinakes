@@ -13,7 +13,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 12
+mutants = 14
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · the `.gitignore` check answers what git answers
@@ -134,3 +134,20 @@ file = "src/pinakes/cli.py"
 old = '''        if result.remedy_already_present:'''
 new = '''        if False:'''
 kills = "tests/test_init.py::test_the_warning_never_tells_you_to_add_a_line_you_already_have"
+
+[[mutant]]
+name = "the diagnostic goes back to `check-ignore -v`, which prints nothing in the state it is printed for"
+file = "src/pinakes/cli.py"
+old = '''            print("        grep -n pinakes .gitignore")'''
+new = '''            print("        git check-ignore -v .pinakes/index.db")'''
+kills = "tests/test_init.py::test_the_command_the_warning_suggests_actually_prints_something"
+
+[[mutant]]
+name = "GIT_CEILING_DIRECTORIES goes back into the scrub list, so the check contradicts the user's own git"
+file = "src/pinakes/init.py"
+old = '''    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+)'''
+new = '''    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_CEILING_DIRECTORIES",
+)'''
+kills = "tests/test_init.py::test_a_ceiling_the_user_set_is_honoured_rather_than_scrubbed"
