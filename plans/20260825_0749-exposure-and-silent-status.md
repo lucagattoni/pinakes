@@ -288,8 +288,12 @@ redesign.
 
 **Two things make it more than a move**, both recorded by the previous planner and both confirmed:
 
-1. The E5 item is **partial, not closed** — *"Left open deliberately: widening the body rule"*,
-   *"Neither is taken."* Filing it under *"Closed — recorded so nobody reopens them"* would put an
+1. The item is **partial, not closed** — *"Left open deliberately: widening the body rule"*,
+   *"Neither is taken."* **(Two corrections, 20260825 18:41. First, this is a mis-attribution: that
+   quoted text lives in the `tools/fragments.py` item, not in the gitignore item, which is the one
+   E5 raised — the same numbered list uses "E5" correctly four lines later. Second, "Neither is
+   taken" is now out of date: the widening is DEFERRED behind a written trigger, with the cheap
+   implementation named as the setext-plus-indentation pair.)* Filing it under *"Closed — recorded so nobody reopens them"* would put an
    undecided design question under a heading promising the opposite.
 2. The header's bolded **"None live."** is contradicted by its own `## Live` section 27 lines later,
    and its rule *"if an item reads as a question, that is a defect in this file"* is violated by E5,
@@ -324,8 +328,29 @@ design** — it maps *promises to tests*, and names `test_chunk.py`, `test_ids.p
 `test_pairing.py`, `test_uri.py`, `test_embed.py` as predating the table. A gap of 917 cannot all be
 holes. **A sound argument over an unexamined domain, made by the planner, hours after the lesson.**
 
-**The decision (D-34, deferred to a later pass rather than taken here):** does the table map *every
-test*, or *promises only*? It changes what a 917-row gap means and whether it is work at all.
+**The decision (D-34) — ✅ TAKEN BY THE USER 20260825 18:16: PROMISES ONLY, ratified, plus one
+bounded audit of the residue.** Promises only ratifies the reading `db7d1c1` had already operated on
+since 20260804 and which had never reached `docs/VERIFICATION.md`'s preamble — which is why every
+fresh reader who counted the tree re-derived the question. **A promise is a user-visible guarantee, a
+named invariant, or a gate's own correctness** — not a unit test of an internal primitive, and not a
+per-surface re-assertion of a promise already rowed. The preamble now says so.
+
+**The audit was run rather than deferred, and it found the closing claim was not safe to publish.**
+*"The unrowed population is not debt"* fails at more than n=1: `tests/test_serve.py` carried **14 of
+its 31 tests unrowed**, including the MCP path-refusal boundary (`../../etc/passwd`) and the
+labelling of retrieved text as evidence rather than instruction — **two security boundaries**. The
+cause was structural, not neglect: the server's rows lived under *the links release* and *page
+citations*, and **no section owned the boundary itself**. One does now — *The MCP server boundary
+(I13)* — all 14 are rowed, and the module has none left.
+
+**What D-34 deliberately did not buy is the direction.** The gate walks from the document to the
+tests, so it proves no row is fiction and **cannot** prove no guarantee is unrowed. That
+one-directionality is *"not a defect in the gate, it is the shape of the problem, so the answer is
+procedural"*.
+
+**Re-open trigger:** a second promise-bearing module found substantially unrowed, or any shipped
+guarantee reaching users with no row. Neither would make *every test* correct — each makes the
+bounded audit due again.
 
 **Independent of that decision, one thing is simply wrong and should be fixed either way.** Line 27:
 *"It stopped there: 0.13.0 through 0.16.0 added no rows. The gap is now four releases wide."* The
@@ -536,8 +561,10 @@ plain A at near-zero cost. It stands as written, which is what makes layer 2 wor
 
 ## Build order
 
-**Nothing in Part 1 is buildable until D-31 and D-32 are answered.** X1 is the exception and is
-listed first because it needs no decision. **D-35 was answered 20260825 12:37, so X7 is unblocked** —
+**D-31 and D-32 were ANSWERED 20260825 18:16, so Part 1 is buildable** — `pnk doctor` asks both
+questions, tracked *and* ignored, **unconditionally** (option C, and **not** the `ls-files`-first
+shortcut an earlier pass proposed). X1 was always the exception and is listed first because it needed
+no decision. **D-35 was answered 20260825 12:37, so X7 is unblocked** —
 read its section above for the decided three-layer shape, which is *not* what this plan first proposed.
 
 | # | Item | Blocked on | Owner |
@@ -549,7 +576,7 @@ read its section above for the decided three-layer shape, which is *not* what th
 | 5 | **D-31/D-32** → `doctor` check | the decisions | coder |
 | 6 | **D-33** detail line | D-31 | coder |
 | 7 | ~~**X5a/b/c**, **X6**~~ — **ALL FOUR BUILT.** X5b 12:52 (`docs/RELEASING.md`); **X5a, X5c, X6 at 13:00** — the user chose the slim form for `CLAUDE.md` (a pointer, not the rule inline, since the file is 60% over its own size guideline), so `CLAUDE.md` gained 4 lines and `docs/BUILDING.md` carries the rules: § *Content mine, keystrokes yours* and the `RESUME.md` bound in § *Hand over before you stop* | — | planner |
-| 8 | **D-34** — VERIFICATION.md scope | a decision, not scheduled | planner |
+| 8 | ~~**D-34** — VERIFICATION.md scope~~ — **ANSWERED 20260825 18:16 and BUILT.** Promises only, ratified; the bounded audit run, finding **14 unrowed promises in `tests/test_serve.py`** — two of them security boundaries — now rowed under a new *The MCP server boundary (I13)*; the scope sentence's *62 of the 67* corrected to *63 of 74* | — | planner |
 | 9 | **X7** — line 3's three layers (D-35 **answered** 20260825 12:37) | **nothing — unblocked** | coder |
 | 10 | **X7 doc half** — `docs/RELEASING.md` sweep row (the hold rule and the marker's shape), `docs/VERIFICATION.md:787` | X7's shape being chosen | planner |
 

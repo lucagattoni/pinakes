@@ -153,7 +153,16 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
 **What is live right now** — the full routing table, with what each closed plan still binds, is
 [`docs/README.md`](docs/README.md):
 
-- **🛑 Two plans have scheduled work.**
+- **🛑 Two plans have scheduled work, and it is now all coder work — every decision is taken.**
+  The **eight decisions and fifteen questions** in
+  [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md) were **ANSWERED by
+  the user 20260825 18:16**, and the planner's half of them landed 20260825 18:4x: D-34 closed
+  (*promises only*, plus the audit that rowed 14 unrowed promises in `tests/test_serve.py`), arity
+  requirement 3 closed, the three residues ruled, the `requires_pinakes` clause closed-superseded,
+  `expect_green` declined, and the re-extraction loop and the `fragments.py` widening both deferred
+  behind **written triggers**. **Two things are taken but unscheduled and belong to nobody yet:** the
+  **G5 gate re-run** (its own three-leg gate, ~2.4 h, blocks nothing) and the **coder half** of
+  D-31/32/33, D-36, D-37 and the `_toml.py` unknown-key message.
   [`plans/20260825_0749-exposure-and-silent-status.md`](plans/20260825_0749-exposure-and-silent-status.md)
   — **§ X1 is built and on `main`**; **D-35 was answered 20260825 12:37**, which unblocks **§ X7**
   (three layers, and *not* what that plan first proposed — read the section, not the memory of it);

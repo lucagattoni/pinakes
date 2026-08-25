@@ -110,7 +110,10 @@ precision nobody measured.
 - **🛑 One thing is scheduled, as of 20260825: the exposure plan**
   ([`plans/20260825_0749-exposure-and-silent-status.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260825_0749-exposure-and-silent-status.md)).
   Its § X1 is **built** — the `.pinakes/` ignore check could not see an already-tracked KB, and now
-  a second question asks the index; the rest waits on D-31 to D-34, **proposed and not taken**.
+  a second question asks the index; **D-31 to D-34 were ANSWERED by the user 20260825 18:16**
+  ([`plans/20260825_1803-open-decisions.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260825_1803-open-decisions.md)),
+  so what remains is coder work rather than a stop: `pnk doctor` asks **both** questions — tracked
+  *and* ignored — **unconditionally**. D-34 closed as *promises only*.
   Otherwise every named body of work is shipped or gated:
   the open-corrections list holds one live *decision*, T6 waits on a **trigger** (a queried KB past
   ~50 000 chunks *with* felt latency), the staged graph channels wait on a **corpus**, and
@@ -2229,10 +2232,14 @@ stays as defence, and the assertion moved onto `_index_pathspec`, which the muta
 `None` and `False` collapse into it and an implementation returning `False` outside a repository
 passed every end-to-end test.
 
-**What is still undecided is what it was before**: whether `pnk doctor` carries a recurring version
-of this check, and whether that is a WARN or an OK-with-a-note — D-31 to D-33 in
-[the exposure plan](https://github.com/lucagattoni/pinakes/blob/main/plans/20260825_0749-exposure-and-silent-status.md),
-proposed and not taken.
+**That is no longer undecided.** Whether `pnk doctor` carries a recurring version of this check, and
+whether it is a WARN or an OK-with-a-note, were **D-31 to D-33 — ANSWERED by the user 20260825
+18:16** in
+[the open-decisions record](https://github.com/lucagattoni/pinakes/blob/main/plans/20260825_1803-open-decisions.md):
+**`doctor` asks both questions, tracked *and* ignored, unconditionally.** Not the shortcut variant an
+earlier pass proposed — that one silently downgraded a WARN to OK on exactly the loose-folder KB
+where `pnk init` had just printed the warning, which was its only behavioural effect. The build is
+the coder's and is queued.
 
 # Part 5 · What is not built
 
@@ -2393,9 +2400,14 @@ nothing at all here, by construction.
 2. ✅ **Make the three inert kinds derivable** — `[chunking] headings = "numbered"` gives plain text
    a heading path (0.13.0). It is **opt-in**, so it reaches a corpus only when asked: the published
    RFC corpus's manifest does not set it, while `tools/build_rfc_corpus.py` stamps it for a corpus
-   built fresh. **What remains is re-running the gate against a corpus that has sections**, which
-   nobody has done; the re-entry checklist is
-   [`plans/20260804_1016-graph-remainder-reentry.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260804_1016-graph-remainder-reentry.md).
+   built fresh. **What remains is re-running the gate against a corpus that has sections. That
+   re-run was TAKEN by the user 20260825 18:16** — as **its own three-leg gate**, run later, **not**
+   bundled with the `parent-child` arity question and carrying **no immediate-parent eighth leg**. It
+   blocks nothing, costs ~2.4 h of free CPU, and its expected result is another null; `expand` stays
+   `off` either way. **Do not follow the re-entry checklist for it** —
+   [`plans/20260804_1016-graph-remainder-reentry.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260804_1016-graph-remainder-reentry.md)
+   is **entirely discharged**, all ten of its sections marked *CLOSED 20260805* when G3/G5/G6 shipped
+   in 0.11.0, so it holds nothing for this run.
 3. **A different channel design.** Explicitly *not* a more expensive one — G5's result licenses
    neither PPR nor the `[ner]` extra, and the pre-commitment said so before the number was known.
 
