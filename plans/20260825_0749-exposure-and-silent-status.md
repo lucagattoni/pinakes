@@ -341,6 +341,66 @@ it is the first thing anyone deciding D-34 would read.**
 | **X5b** | **A fragment written after a release commit but before its tag.** `tools/fragments.py --apply` splices after `## [Unreleased]` and has **no notion of an untagged version section**. Answer taken 20260825: the implementer still writes the fragment; the planner splices, moves the entry into the untagged section, and deletes the consumed file in its own commit. Retrospective fragments need no move — `docs/RETROSPECTIVES.md` is chronological. | `docs/RELEASING.md` | The 40-minute untagged window on 0.30.2 is now a *recommended* practice, so this recurs by design |
 | **X5c** | **`README.md` in the ownership table is ambiguous.** It sits among root-level paths, so a coder read `tools/batteries/README.md` as covered by the `tools/` row and edited it. The table's own opening sentence — *"the planner owns every document"* — settles it the other way. Say **`README.md` (repository root)** and add **"any `README.md`"** to the planner row. | `CLAUDE.md` | A document generated a collision rather than recording one, twice in one day |
 
+## X7 — NEW: a hold makes some claims false and leaves others true, and the sweep does not know which
+
+**Found 20260825 08:42, in this repository's own published documentation, by a peer.** The 0.30.3
+release commit landed with the tag deliberately held. The release sweep stamped `docs/STATUS.md`
+line 3 as **"Latest release: 0.30.3"** and ticked its surface row **✅**, while PyPI's
+`info.version` was **0.30.2** and no `v0.30.3` tag existed anywhere.
+
+**`docs/` deploys on every push to `main`, so this was live**: lucagattoni.github.io/pinakes told
+the public that 0.30.3 was the latest release. **The only finding of the day that reached anyone
+outside the repository.**
+
+**It contradicted the file's own rule, printed five lines below the claim**: *"Shipped below means
+**released**; an increment merged to `main` but not yet in a release says so explicitly. Installing
+from a tag and installing from `main` are different answers to 'can I use this yet', and this file
+is where that difference has to be visible."*
+
+**The hold was right. The sweep was the problem.** *Published on PyPI* and *Published versions* were
+correctly held at 0.30.2 — deliberately, because they are facts about the index. Line 3 and the
+row's ✅ are **two further release claims in the same file** that got stamped anyway. **A hold
+partitions a document's claims into ones it falsifies and ones it does not, and nothing in the
+sweep knows the partition.**
+
+**Why no gate could see it.** `tools/release_order_gate.py` reads *sequences* — it is satisfied by
+0.30.3 being present and in order, which it was. `mkdocs build --strict` resolves links. **Neither
+can compare a sentence to PyPI.** Only asking the index can. `0.27.1` and `0.28.3` are two prior
+instances of this same file drifting exactly where no gate reached.
+
+**⚠️ A gate for line 3 already exists, and it enforces the opposite.**
+`tools/status_header_gate.py` requires line 3 to name **`__version__`** — so during a hold it
+requires the line to say `0.30.3`, the very claim PyPI contradicts. Its docstring states the
+premise: *"The invariant holds with **no exception window**. On `main`, `__version__` is the latest
+release… this gate never goes red on a correct tree, and a red run means the tree is wrong, not the
+gate."* **The hold is that exception window, and this repository has now created one deliberately
+twice in a day.** The gate is not wrong about drift; it is reasoning over a release practice that
+changed after it was written — **which is this plan's subject, occurring inside the gate built to
+prevent it.**
+
+**Resolved for now without pre-empting D-35 below**: the gate leaves everything after the closing
+`**` unconstrained, so line 3 names `0.30.3` *and* says plainly that it is untagged, not on PyPI,
+and that `pip install pinakes` still gets `0.30.2`. Gate green, and its negative check still fails
+as it should. The public page stops being false.
+
+**Proposed (a task, once D-35 is answered).** A check that queries
+`https://pypi.org/simple/pinakes/` — the endpoint the rest of this repository already prefers, since
+the `json` one lags an upload by minutes — and reconciles it with what `docs/STATUS.md` claims.
+**Three requirements, each from a failure already on record:**
+
+1. **It must not require the network to pass.** A gate that fails offline is a gate people learn to
+   skip. No answer from the index is *unknown*, never *wrong* — the same discipline `_tracked_by_git`
+   needed for `rc=128`.
+2. **It must fail on the claim, not on the version.** *Latest release* naming an unpublished version
+   is the defect; `CHANGELOG.md` carrying that version's entry is correct and must stay green, or
+   the gate blocks every held release — which is the practice this repository has now used twice to
+   its benefit.
+3. **Its own test must watch it fail.** Point it at a STATUS naming a version the index does not
+   have, and see red. Per X1's constraint #1: a prescribed test is a claim about a *failing* test.
+
+**Owner: the implementer** — it is `tools/`. The coder offered to build it and the offer is
+accepted, once someone takes it off this list.
+
 ## X6 — The handoff is invisible to everything except this machine
 
 `RESUME.md` is excluded via `.git/info/exclude:18` — a file that is itself never committed. A cloud
@@ -360,6 +420,30 @@ roles write. **Proposed instead:** the durable half already belongs in planner-o
 claims about itself and what nothing enforces.**
 
 ---
+
+## D-35 — NEW DECISION: does `__version__` mean *released*, or *landed*?
+
+**The hold forced a contradiction between two rules this repository already holds, and it cannot
+keep both.**
+
+| Rule | Where | Says |
+|---|---|---|
+| `__version__` **is** the latest release, with no exception window | `tools/status_header_gate.py` | line 3 must name `__version__` |
+| *"Shipped means **released**; an increment merged to `main` but not yet in a release says so explicitly"* | `docs/STATUS.md`'s own preamble | line 3 must not claim an unreleased version |
+| Landing and publishing are separate steps, and the gap is valuable | `docs/RELEASING.md`, and 0.30.2's forty minutes | the gap will keep happening |
+
+| | **A. `__version__` means *landed*** | **B. `__version__` means *released*** |
+|---|---|---|
+| **What changes** | Nothing mechanical. The header carries an explicit unreleased qualifier during a hold, as it does now | The version bump moves out of the release commit and into the tag step, or the gate learns a *released-version* source of truth separate from `__version__` |
+| **Pros** | Zero churn; the gate keeps working; `make release-check` keeps reading `__version__` | Line 3 is true on its own, with no qualifier to read; the preamble's rule holds literally |
+| **Cons** | Line 3's first six words are false during a hold, and a reader who stops there is misled — **which is exactly what happened, publicly, on 20260825** | Touches the release procedure and the gate; a bump outside the release commit is a new step to forget, and forgetting it is silent |
+
+> ### ✅ Recommendation: **A, plus the index check from X7.** The qualifier is what makes the line
+> honest, and a gate that reads PyPI is what makes the qualifier *enforced* rather than remembered.
+> **B moves a bump into a step that is taken hours later by a human, which is how the 0.5.0–0.7.1
+> drift happened in the first place.** But A is only safe with X7 built — otherwise the qualifier
+> depends on whoever cuts the release remembering that a hold falsifies it, and that is precisely
+> the memory that failed today.
 
 ## Build order
 
