@@ -60,15 +60,20 @@ reported **protected** while `index.db-wal` stayed tracked, and in WAL mode that
 megabytes of verbatim document text. **The substring test being replaced warned there.** The
 general shape is worth more than the instance: *a check that answers about three filenames cannot
 answer a question about a directory*, and the docstring's careful reasoning that every probe must
-match made the answer sound complete when the probe set was the incomplete part. The probes are now
-opaque random paths only a directory-covering rule can match.
+match made the answer sound complete when the probe set was the incomplete part. **A sound argument over
+an unstated domain** — every clause true, the population unexamined, which is the same skeleton as
+the version framing that opened this session and as the status-word grep that swept `plans/`. Three
+instances in one night, in three unrelated places. The probes are now opaque random paths only a
+directory-covering rule can match.
 
-**MEDIUM — and the reviewer's proposed fix was also wrong, which is why it was measured.** The
+**MEDIUM — a reviewer's fix is a hypothesis exactly like the code it corrects.** The
 suggestion was two opaque probes, flat and nested. Measured against ground truth — `git add -A`
 then `git ls-files --cached`, so the oracle never goes through `check-ignore` — that set still
 reports protected for `.pinakes/*` with `!.pinakes/cache`, which tracks the entire extraction
 cache. Four probes, two of them under `cache/extract/` and `deep/`, is what passes all eleven
-configurations. **A fix proposed by a reviewer is a hypothesis, exactly like the code it corrects.**
+configurations. The review was **right about the defect and wrong about the fix**, and only
+measurement separated those two — a distinction that disappears if a reviewer's remedy is applied
+because the reviewer was right about the problem.
 
 **MEDIUM — a hand-rolled fallback disagreed with the thing it was standing in for.** Outside a
 repository the text scan read `.pinakes/` followed by `!.pinakes/` as protection — silently, on the
@@ -82,8 +87,14 @@ false.** The check was made to run whether the `.gitignore` was adopted or writt
 that an ancestor repository could negate what `init` wrote. It cannot: git resolves ignore rules by
 directory depth, so the file written in the KB wins over any ancestor. What the widening *did*
 reach was a path already in the index, where `check-ignore` reports not-ignored and the warning
-would tell the user to add a line their file already contains. Narrowed back. **Scope creep that
-survives is usually scope creep with a plausible comment attached.**
+would tell the user to add a line their file already contains. Narrowed back, and the message that
+case produces was fixed rather than left: **the printed remedy must never instruct an action that
+would not change the verdict**, which the old text could not violate — under a substring test the
+string's presence *was* the verdict, so a redundant remedy was impossible. Asking git split
+"unprotected" from "the line is missing" into two facts and the message went on assuming they were
+one. **A capability arrives with the failure modes it makes reachable, and they are invisible from
+inside the change that adds it.** **Scope creep that survives is usually scope creep with a
+plausible comment attached.**
 
 **HIGH — two mutation survivors, and both were about the test rather than the code.** The first
 deleted a `startswith("#")` comment-skip and nothing went red: `"#.pinakes/".rstrip("/")` already
