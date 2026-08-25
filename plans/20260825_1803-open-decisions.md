@@ -8,6 +8,50 @@ hunt for a missing option, and attack the recommendation.
 > The repository's rule is that **an undecided question is a stop, not a guess**. This file exists so the
 > stop is *informed*, not so it can be skipped.
 
+## ✅ ALL EIGHT TAKEN BY THE USER, 20260825 18:16 UTC
+
+**The user accepted every recommendation in this file.** The blockquote below it — *"nothing here is
+decided"* — described this file between 18:03 and 18:16 and is left as written, because the analysis was
+produced under it and the record of that matters.
+
+| # | Decision | Taken | Owner |
+|---|---|---|---|
+| 1 | **Tag `0.30.3`** | **Tag now — with D-35 layer 2 gating the marker.** Layer 2 is built **first**, so the hold marker's removal is enforced rather than remembered | planner → coder |
+| 2 | **D-31 / D-32 / D-33** | **Option C — `pnk doctor` asks *both* questions** (tracked *and* ignored), **unconditionally** | planner → coder |
+| 3 | **D-34** | **Promises only, ratified** — plus **one bounded audit** of the residue | planner → coder |
+| 4 | **D-36** | **Option E** — derive the bound from a **generative round-trip corpus**, and set the free `ruamel` options. **This option did not exist before the adversarial pass invented it** | planner → coder |
+| 5 | **D-37** | **Option E** — gate the move hint on the **orphaned sidecar**, not the mint count. **Also invented by the adversarial pass** | planner → coder |
+| 6 | **`requires_pinakes` floor clause** | **E+F** — fold into `docs/KB-UPDATES.md` §8, fix the unknown-key remedy, one line in the sharing section | planner → coder |
+| 7 | **Arity req 3 + the G5 gate re-run** | **Split them.** Close arity requirement 3 **now** — its antecedent is measured **false** on every real corpus. Run the gate re-run as **its own three-leg gate**, later | planner → coder |
+| 8 | **The two ownerless deferrals** | **Close the mutation fields as declined.** **Keep the re-extraction loop deferred** — with its trigger written **in the code that owns the argument**, not in a plan | planner → coder |
+| 9 | **The three residues** | Rule question 1 **without re-enumerating**; **cite `docs/ROADMAP.md`** for question 2 (already ruled there); defer question 3 behind a trigger that **names the cheap implementation** | planner |
+
+### Three things about this record that must not be lost
+
+1. **Two of the taken options were invented by the adversary, not the analyst.** D-36 E and D-37 E did
+   not exist in the first pass. Anyone implementing them must read those sections rather than a memory
+   of the original options — **the originally-recommended D-36 option was overturned.**
+2. **The tag has an ordering constraint, and it is the whole point of the option.** *Tag now* does
+   **not** mean tag next. **D-35 layer 2 is built first**, and only then is the tag pushed. Tagging bare
+   was a distinct option (`Tag 0.30.3 now, bare`) and it was **not** the one taken.
+3. **`git tag` + push is irreversible and outward-facing** — PyPI never accepts a version twice. The
+   decision is taken; **the execution is still confirmed at the moment of pushing**, per this repository's
+   own rule that a release is verified rather than assumed.
+
+### What this unblocks, and in what order
+
+**D-37 was the only decision blocking queued work** — the coder reaches **S6** in the sweep's S5–S9 batch
+and stops. It is now answered, so that batch runs to completion.
+
+The synthesis's ordering (§ *The order to take them in*) still holds and is **not** superseded by this
+banner: the cheap closes (arity req 3, the residues, D-34, the deferrals) are records rather than builds
+and can land in one planner pass; **D-31/32/33 is the largest genuine build in the set**; the G5 gate
+re-run is last and blocks nothing.
+
+**Six of the nine rows above block nothing.** Four high-severity defects — S2, S3, S1, S4 — remain
+decided, unblocked and unbuilt, and are **already live in the 0.30.2 wheel PyPI is serving**. Nothing in
+this table outranks them.
+
 ## What the set looks like
 
 Eight decisions, and six of them block nothing. Only D-37 blocks work already queued and assigned, while the rest compete for sessions against four unblocked, already-decided coder fixes (S2, S3, S1, S4) that are live on PyPI in 0.30.2 right now. Every one of the eight briefs had a load-bearing claim overturned by its adversary, and four of the eight decisions turned out to be partly or wholly answered already on `main` — the dominant failure in this set is not *undecided*, it is *decided where nobody looks*.

@@ -5,7 +5,7 @@ command surfaces with fourteen agents, each finding re-run from a clean director
 prompted to **refute** it. **Five findings were refuted and dropped. One came back with no verdict at
 all and was recovered.** What follows is what survived.
 
-**This file proposes work. Its two decisions are NOT taken.**
+**This file proposes work. Its two decisions — D-36 and D-37 — were TAKEN by the user 20260825 18:16**, both on options the adversarial pass invented rather than the first-pass ones: [`20260825_1803-open-decisions.md`](20260825_1803-open-decisions.md). **Read that file, not the options below, before building either.**
 
 ## Why it exists, and the sentence that produced it
 
@@ -78,7 +78,7 @@ to no content, which is ordinary Unix semantics); `-k 0` silently ignored on bot
 `--source-type` accepts any string unvalidated, so a typo reads as an empty KB; `confidence_reason`
 reports *"nothing matched the filters"* **when no filters were given**.
 
-## Two genuine decisions — NOT taken
+## Two genuine decisions — ✅ **BOTH TAKEN 20260825 18:16**
 
 ### D-36 — `pnk link` detaches a trailing comment from an alias-reference line ✱
 

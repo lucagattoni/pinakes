@@ -156,9 +156,12 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   [`plans/20260825_0749-exposure-and-silent-status.md`](plans/20260825_0749-exposure-and-silent-status.md)
   — **§ X1 is built and on `main`**; **D-35 was answered 20260825 12:37**, which unblocks **§ X7**
   (three layers, and *not* what that plan first proposed — read the section, not the memory of it);
-  **D-31 to D-34 stay proposed and not taken**, so those remain a stop.
+  **D-31 to D-34 were ANSWERED 20260825 18:16** — as were D-36, D-37 and every other open question, in
+  [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md), which is now the file
+  to read first. **Two of the taken options were invented by that pass's adversary and are not in the
+  original plans — read the decision, never a memory of the options.**
   [`plans/20260825_1240-run-pinakes-sweep.md`](plans/20260825_1240-run-pinakes-sweep.md) — **fifteen
-  defects found by running Pinakes, three of them high**; **D-36 and D-37 are not taken**. Every
+  defects found by running Pinakes, three of them high**; **D-36 and D-37 are now answered**. Every
   other file in `plans/` is closed, answered, deferred or proposed-unscheduled — and **an
   empty-looking list still means *the next thing to build has not been planned yet*, never *nothing
   to do***. `docs/ROADMAP.md` Part 5 holds what comes after.
