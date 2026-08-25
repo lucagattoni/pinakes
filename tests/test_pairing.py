@@ -393,3 +393,92 @@ def test_omitting_the_new_parameters_behaves_exactly_as_before() -> None:
     assert describe(result) == {"Skip": 1}
     assert result.paid_extraction_protected == ()
     assert result.paid_extraction_overwritten == ()
+
+
+def test_a_name_swap_never_retires_an_id_the_same_plan_adopts() -> None:
+    """`git mv` two documents past each other, sidecars travelling with them.
+
+    Both rows are moving, so neither is ending. Emitting `SoftDelete` beside the `Adopt` made the
+    result depend on application order: the second `SoftDelete` retired the row the first `Adopt`
+    had just moved, `pnk sync` reported `2 renamed` at exit 0, and the document left `pnk search`
+    with no failure recorded anywhere.
+    """
+    alpha, beta = mint_doc_id(), mint_doc_id()
+    result = pair(
+        IndexSnapshot((indexed(alpha, "docs/a.md", "ha"), indexed(beta, "docs/b.md", "hb"))),
+        WalkSnapshot(
+            (walked("docs/a.md", "hb"), walked("docs/b.md", "ha")),
+            (sidecar("docs/a.md", beta), sidecar("docs/b.md", alpha)),
+        ),
+    )
+    assert describe(result) == {"Adopt": 2}
+    assert not actions_of(result, SoftDelete)
+    assert {(action.doc_id, action.path) for action in actions_of(result, Adopt)} == {
+        (beta, "docs/a.md"),
+        (alpha, "docs/b.md"),
+    }
+
+
+def test_a_rename_chain_keeps_the_id_its_own_sidecar_carries() -> None:
+    """`a.md -> b.md` while `c.md -> a.md`. The id arriving at `a.md` displaces the one leaving it.
+
+    Retiring the displaced id also marked it handled, which is what the adoption loop consults —
+    so `b.md` was never adopted at all and fell through to `Mint`. A document whose sidecar carries
+    a published id would have been re-numbered, and ULID permanence is an invariant.
+    """
+    moved, arriving = mint_doc_id(), mint_doc_id()
+    result = pair(
+        IndexSnapshot((indexed(moved, "docs/a.md", "ha"), indexed(arriving, "docs/c.md", "hc"))),
+        WalkSnapshot(
+            (walked("docs/a.md", "hc"), walked("docs/b.md", "ha")),
+            (sidecar("docs/a.md", arriving), sidecar("docs/b.md", moved)),
+        ),
+    )
+    assert describe(result) == {"Adopt": 2}
+    assert not actions_of(result, Mint), "a published id was re-minted"
+    adopted = {action.doc_id: action.path for action in actions_of(result, Adopt)}
+    assert adopted[moved] == "docs/b.md"
+    assert adopted[arriving] == "docs/a.md"
+
+
+def test_a_three_way_rename_cycle_adopts_every_id_and_retires_none() -> None:
+    first, second, third = mint_doc_id(), mint_doc_id(), mint_doc_id()
+    result = pair(
+        IndexSnapshot(
+            (
+                indexed(first, "docs/a.md", "ha"),
+                indexed(second, "docs/b.md", "hb"),
+                indexed(third, "docs/c.md", "hc"),
+            )
+        ),
+        WalkSnapshot(
+            (walked("docs/a.md", "hc"), walked("docs/b.md", "ha"), walked("docs/c.md", "hb")),
+            (
+                sidecar("docs/a.md", third),
+                sidecar("docs/b.md", first),
+                sidecar("docs/c.md", second),
+            ),
+        ),
+    )
+    assert describe(result) == {"Adopt": 3}
+
+
+def test_an_orphaned_sidecar_does_not_keep_a_replaced_id_alive() -> None:
+    """The displaced id's own sidecar is on disk, but the document beside it is gone.
+
+    Nothing is moving anywhere, so the row is being replaced in place and must still be retired.
+    The lookahead is deliberately restricted to sidecars sitting beside a file this walk *found*:
+    without that restriction a stale sidecar left in the tree would protect a row from deletion
+    forever, and the ordinary in-place id change would stop working.
+    """
+    old, new = mint_doc_id(), mint_doc_id()
+    result = pair(
+        IndexSnapshot((indexed(old, "docs/a.md", "h1"),)),
+        WalkSnapshot(
+            (walked("docs/a.md", "h1"),),
+            (sidecar("docs/a.md", new), sidecar("docs/gone.md", old)),
+        ),
+    )
+    assert describe(result) == {"SoftDelete": 1, "Adopt": 1}
+    assert actions_of(result, SoftDelete)[0].doc_id == old
+    assert actions_of(result, Adopt)[0].doc_id == new

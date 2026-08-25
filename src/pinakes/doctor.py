@@ -461,7 +461,7 @@ def _sidecars(manifest: Manifest) -> tuple[dict[Path, Sidecar], list[Path], list
 def _retired_documents(
     manifest: Manifest, connection: sqlite3.Connection, sidecars: Mapping[Path, Sidecar]
 ) -> Check:
-    """A document the KB still collects, whose index row is retired. It is gone from `pnk search`.
+    """A document this KB still collects, whose id the index has retired. It is gone from search.
 
     `doctor` printed `sidecars: N readable` and `index: M active documents` on adjacent lines for
     twelve releases and compared them to nothing. A sync that died partway left a row at
@@ -469,61 +469,61 @@ def _retired_documents(
     every query, every other check OK, exit 0. A KB could lose half its corpus and the command
     named for finding problems would call it healthy.
 
-    **The discriminator is the retired row, not the sidecar**, and that is the whole design. Asking
-    the other way round — "is there a sidecar whose id is not active?" — cannot tell a document
-    that was *lost* from one that has simply *not been indexed yet*, and the shipped pre-commit
-    hook creates the second case on purpose (`hooks.py` runs `sync --sidecars-only`, which mints a
-    sidecar with no index row by design). That phrasing FAILs on a healthy KB seconds after a
-    commit. A never-indexed document has no row at all, so it cannot reach this check.
+    **The question is asked of the retired id, never of the path**, and the difference is the whole
+    check. The state S2 is named for is reached by a sidecar's id changing *at* a path: the old row
+    is retired holding its own old path, and the document that is actually lost is the one whose
+    sidecar now sits somewhere the index has no active row for. A rule that looked for "a retired
+    row whose own path is still on disk" reports the wrong document and misses the real one — I
+    wrote that rule first and it was the test for a reused path that caught it.
 
-    Three conditions, and each one removes a false positive that was measured rather than guessed:
+    **Asking it the other way round does not work**, and that is why the population is not simply
+    "every sidecar whose id is not active". A document that has never been indexed has no row at
+    all, and the shipped pre-commit hook creates exactly that on every commit (`hooks.py` runs
+    `sync --sidecars-only`, which mints a sidecar with no index row **by design**). Phrased that
+    way the check FAILs on a healthy KB seconds after a commit. Starting from a row that once
+    existed cannot: nothing the hook does retires anything.
 
-    * **the row is retired** — an active row is fine by definition;
-    * **the path is still one this KB collects**, via `walk_document_paths` — otherwise every
-      ordinary deletion reports, and so does a document excluded *in place*, where an added
-      `exclude` pattern retires the row while the file never moves (`sync.walk_sources`: "a locally
-      excluded document is a deleted index row *and* an orphaned sidecar");
-    * **its sidecar still claims that same id** — after an in-place id change the old row is
-      retired at a path the new id now owns, which is correct rather than lost, and the id
-      comparison is what tells the two apart.
+    Two conditions, each removing a false positive that was measured rather than argued:
+
+    * **some collected document's sidecar claims the retired id** — so the document is still here,
+      under that identity, wherever it now sits. An ordinary deletion leaves no such sidecar, and
+      an orphaned one sits beside no collected document;
+    * **that document is one this KB collects**, via `walk_document_paths` — otherwise a document
+      excluded *in place* reports, where an added `exclude` pattern retires the row while the file
+      never moves (`sync.walk_sources`: "a locally excluded document is a deleted index row *and*
+      an orphaned sidecar").
     """
-    retired = [
-        (str(row["id"]), str(row["path"]))
-        for row in connection.execute(
-            "SELECT id, path FROM documents WHERE state = 'deleted' ORDER BY path"
-        )
-    ]
+    retired = {
+        str(row["id"])
+        for row in connection.execute("SELECT id FROM documents WHERE state = 'deleted'")
+    }
     if not retired:
-        # No walk at all on a KB that has never retired a row — the cost of this check is paid only
-        # by a KB with something to check, and it is a `glob` and a `stat`, never a read.
+        # No walk at all on a KB that has never retired a row — this check costs a `glob` and a
+        # `stat`, never a read, and only on a KB with something to check.
         return Check("retired documents", Status.OK, "none")
 
     collected = walk_document_paths(manifest)
-    claimed: dict[str, DocId] = {}
+    lost: list[str] = []
     for sidecar_file, parsed in sidecars.items():
         try:
             document = document_for(sidecar_file).relative_to(manifest.root).as_posix()
         except ValueError:  # pragma: no cover — `_sidecars` only walks under the KB root
             continue
-        claimed[document] = parsed.id
+        if document in collected and str(parsed.id) in retired:
+            lost.append(document)
 
-    lost = [
-        path
-        for doc_id, path in retired
-        if path in collected and str(claimed.get(path, "")) == doc_id
-    ]
     if not lost:
         return Check(
-            "retired documents", Status.OK, f"{len(retired)} retired, none still on disk"
+            "retired documents", Status.OK, f"{len(retired)} retired, none still in the KB"
         )
 
+    lost.sort()
     shown = ", ".join(lost[:3])
     more = f" (+{len(lost) - 3} more)" if len(lost) > 3 else ""
     return Check(
         "retired documents",
         Status.FAIL,
-        f"{len(lost)} document(s) are on disk with their own sidecar but retired in the "
-        f"index: {shown}{more}",
+        f"{len(lost)} document(s) are still in the KB but retired in the index: {shown}{more}",
         "`pnk search` cannot see them. Run `pnk sync` — and if it fails, that failure is the "
         "cause rather than a separate problem: the index is behind its own sources.",
     )

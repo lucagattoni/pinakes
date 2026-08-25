@@ -29,6 +29,12 @@ Two consequences worth stating, because both are ways a KB quietly rots:
   new path and **no delete is emitted for it**, so inbound links survive.
 * **A duplicated id is fatal, not repairable.** Renumbering would break links that were fine, so
   this raises and names both paths (§6.4).
+* **No plan ever retires an id it also adopts.** A `SoftDelete` and an `Adopt` for one id in one
+  list have an outcome that depends on which is applied last, and both orders are wrong: renaming
+  two documents past each other retired the row that had just been adopted, and a rename *chain*
+  hid the id from the adoption loop so the file was re-minted under a fresh one. Whether the id is
+  ending or moving is a question about the *whole* walk — which sidecar claims it — so it is
+  answered here, once, and never at execution time.
 """
 
 from collections.abc import Iterable, Mapping, Sequence
@@ -245,10 +251,10 @@ def pair(
             # Leaving the id unhandled is what lets both loops below do their jobs: adoption claims
             # it at its new path, and if no sidecar claims it anywhere the vanished-path loop still
             # retires it, which is the ordinary in-place id change this branch exists for.
-            moving = (claimed := claimed_by_id.get(document.id)) is not None and (
-                claimed.document_path != path
-            )
-            if not moving:
+            # No `document_path != path` term, deliberately: the sidecar beside `path` is the one
+            # that disagrees, so the sidecar claiming `document.id` is necessarily a different one.
+            # A condition that cannot be false is a condition no test can pin.
+            if document.id not in claimed_by_id:
                 actions.append(SoftDelete(doc_id=document.id, path=path))
                 handled_ids.add(document.id)
             actions.append(

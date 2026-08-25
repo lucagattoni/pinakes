@@ -1,5 +1,6 @@
 """`pnk sync` end to end, against a real index and a fake backend."""
 
+import contextlib
 import shutil
 import sqlite3
 import subprocess
@@ -30,7 +31,13 @@ from pinakes.extract import (
 from pinakes.ids import mint_doc_id
 from pinakes.manifest import Manifest, load
 from pinakes.sidecar import SIDECAR_SUFFIX, Sidecar
-from pinakes.sync import MAX_PROBED_PER_ROOT, SyncOptions, SyncReport, sync
+from pinakes.sync import (
+    MAX_PROBED_PER_ROOT,
+    SyncOptions,
+    SyncReport,
+    sync,
+    walk_document_paths,
+)
 
 DIM = 8
 
@@ -2625,3 +2632,74 @@ def test_a_title_edit_with_injection_off_reports_nothing(kb: Path) -> None:
     assert report.refreshed == 1
     assert report.stale_prefixes == []
     assert not any("title changed" in line for line in report.lines())
+
+
+def test_a_retired_row_no_longer_blocks_a_new_id_at_its_own_path(kb: Path) -> None:
+    """A sidecar whose id no longer matches the row at its path — a merge conflict, a
+    `git checkout <sha> -- <file>.pnk.yaml`, a sidecar copied between KBs.
+
+    `pairing` retires the stale row and adopts the sidecar's id, because the sidecar is committed
+    truth for identity. A retired row keeps its `path` and `documents.path` is UNIQUE, so the
+    adoption collided with the corpse: `sqlite3.IntegrityError` escaped as a raw traceback, the
+    retired row survived it, and every later sync hit the same wall while `pnk doctor` called the
+    KB healthy at exit 0.
+    """
+    write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
+    run(kb)
+    fresh = mint_doc_id()
+    (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").write_text(f"id: {fresh}\n", encoding="utf-8")
+
+    run(kb)
+
+    rows = index(kb)
+    assert [(row["path"], row["state"], str(row["id"])) for row in rows] == [
+        ("docs/a.md", "active", str(fresh))
+    ]
+
+
+def test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row(kb: Path) -> None:
+    """Why the retiring DELETE is scoped to `state = 'deleted'`, with the reachable case named.
+
+    Renaming two documents past each other makes `pairing` emit two `Adopt`s whose paths cross, so
+    at the moment the first is applied an **active** row holds the path it wants. That is a genuine
+    collision and must be reported. Widening the DELETE to retire whatever holds the path lets the
+    first adoption proceed by destroying the live row instead — and every action commits on its
+    own, so when the second half then fails to index (here, a file that is not UTF-8) the row it
+    would have restored is simply gone. Measured with the scope removed: `pnk sync` exits **0**,
+    `docs/b.md` sits on disk with its sidecar and **no row at all**, and because there is no
+    retired row to find, `pnk doctor`'s own check for this cannot see it either.
+
+    **The sync's own outcome is deliberately not asserted.** The collision it raises on belongs to
+    a separate defect with its own fix; what this test pins is that no live document loses its row,
+    which must hold however that defect is settled.
+    """
+    write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
+    write(kb, "b.md", "# Beta\n\nBeta body here.\n")
+    run(kb)
+    docs = kb / "docs"
+    for one, two in (("a.md", "b.md"), (f"a.md{SIDECAR_SUFFIX}", f"b.md{SIDECAR_SUFFIX}")):
+        (docs / one).rename(docs / "_swap")
+        (docs / two).rename(docs / one)
+        (docs / "_swap").rename(docs / two)
+    (docs / "b.md").write_bytes(b"# Alpha\n\n\xff\xfe is not utf-8\n")
+
+    with contextlib.suppress(sqlite3.IntegrityError):
+        run(kb)
+
+    assert {Path(str(row["path"])).name for row in index(kb)} == {"a.md", "b.md"}
+
+
+def test_the_population_walk_never_opens_a_document(kb: Path, monkeypatch: Any) -> None:
+    """`walk_document_paths` answers *which* documents this KB collects, and `pnk doctor` is its
+    only caller — the command you run when the KB is already broken. Hashing every source there
+    would import the walk's own unreadable-file failure into the diagnostic, so nothing in this
+    path may open a document.
+    """
+    write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
+    write(kb, "b.md", "# Beta\n\nBeta body here.\n")
+
+    def explode(path: Path) -> str:
+        raise AssertionError(f"the population walk opened {path}")
+
+    monkeypatch.setattr("pinakes.sync.hash_file", explode)
+    assert walk_document_paths(load(kb)) == {"docs/a.md", "docs/b.md"}
