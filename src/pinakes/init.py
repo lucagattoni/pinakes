@@ -157,6 +157,54 @@ def _ignored_by_git(root: Path, gitignore: Path) -> bool | None:
         return _all_probes_ignored(Path(scratch), probes)
 
 
+def _index_pathspec(root: Path) -> str:
+    """The pathspec `_tracked_by_git` asks git about: **absolute, and literal rather than glob.**
+
+    A separate function because it is the part a test can hold. Whether the pathspec is absolute
+    cannot be observed from the *answer*: `_ask_git` runs git with `cwd=root`, so a bare
+    `.pinakes` resolves against the same directory and returns the identical verdict in every case
+    measured. A behavioural test therefore cannot tell the two apart — it passes against the
+    relative form it is supposed to forbid. So the constraint is pinned on the pathspec itself,
+    where it *can* fail.
+
+    Absolute, because the correctness of the relative form depends entirely on `_ask_git` keeping
+    `cwd=root`, which is a coupling no caller can see. `:(literal)` because a pathspec is
+    glob-matched and a KB root may legally contain `*` or `[`.
+    """
+    return f":(literal){root.resolve() / '.pinakes'}"
+
+
+def _tracked_by_git(root: Path) -> bool | None:
+    """Whether anything under `.pinakes/` is in git's index **right now**, or `None` if unknown.
+
+    **A second question, not a better probe.** `_ignored_by_git` above asks whether a *new* file
+    under `.pinakes/` would be ignored, and it is structurally incapable of asking this one:
+    `check-ignore` consults the index, so it reports a **tracked** path as *not ignored*, and the
+    opaque probes are — by construction, since no pattern targets them — never in the index. The
+    two questions come apart in the case that matters most. A KB committed before its ignore rule
+    existed reads as *protected* from that moment on, while every `git commit -a` keeps
+    republishing the deep transcripts, which are the first thing under `.pinakes/` to hold the
+    user's **verbatim question**.
+
+    **The pathspec is built here, from the resolved root, and that is structural rather than
+    tidy.** `git ls-files -- .pinakes` run from a *subdirectory* exits 0 with no rows against a
+    repository tracking three files — and a genuinely clean repository exits 0 with no rows too.
+    The two are indistinguishable at runtime, so no caller could check its way out of having asked
+    the wrong question. `pnk init` runs from anywhere, so here is the only place the scope can be
+    made correct. `:(literal)` is belt to that brace: a pathspec is glob-matched, and a KB root may
+    legally contain `*` or `[`.
+
+    **Exit 128 is *unknown*, never *clean*.** Outside a repository git exits 128 with `fatal:` on
+    stderr, and reading that as "nothing is tracked" would be the same guess-wearing-an-exit-code
+    that `_all_probes_ignored` refuses two functions above. Unknown is reported as no claim at all,
+    because a false *clean* here is exactly the silence this function exists to end.
+    """
+    completed = _ask_git(["ls-files", "-z", "--", _index_pathspec(root)], root)
+    if completed is None or completed.returncode != 0:
+        return None
+    return any(entry.strip() for entry in completed.stdout.split("\0"))
+
+
 def _read_or_empty(path: Path) -> str:
     """The file's text, or `""` if it cannot be read.
 
@@ -251,6 +299,18 @@ class InitResult:
     That output became reachable when the check stopped being a substring test — under the old one
     the string's presence *was* the verdict, so the remedy could not be redundant.
     """
+    pinakes_tracked: bool = False
+    """Something under `.pinakes/` is **in git's index**, whatever `.gitignore` says.
+
+    Its own state, never folded into `gitignore_unprotected`, because the two are independent and
+    their remedies differ: an ignore rule governs what happens to *new* files, and a tracked file
+    is already past that. A KB can be ignored and tracked at once — that is the state a user
+    reaches by committing first and adding the rule afterwards, and the one the check that
+    preceded this reported as **protected**.
+
+    `False` also means *not proven tracked*: outside a repository, or with no `git` to ask, the
+    question has no answer and nothing is claimed.
+    """
 
 
 def init(
@@ -316,13 +376,17 @@ def init(
     else:
         gitignore.write_text(GITIGNORE, encoding="utf-8")
 
-    # **Only for a `.gitignore` that was already here.** The first draft ran this unconditionally
-    # and justified it with "a repository whose rules negate `.pinakes/` beats the file we wrote" —
-    # which review showed cannot happen: git resolves by directory depth, so the `.gitignore` this
-    # function just wrote in the KB wins over any ancestor. What widening it *did* reach was a path
-    # already in the index, where `check-ignore` reports not-ignored and the warning would tell the
-    # user to add a line their file already has. Narrowed back: this increment fixes the existing
-    # check's correctness, and does not change when it fires.
+    # **The ignore verdict is only for a `.gitignore` that was already here.** Widening it was
+    # tried and reverted: git resolves by directory depth, so the `.gitignore` this function just
+    # wrote in the KB wins over any ancestor, and there is nothing for a wider ignore check to
+    # find.
+    #
+    # **That reasoning once continued into a conclusion this increment removes.** It observed that
+    # widening reached "a path already in the index, where `check-ignore` reports not-ignored", and
+    # treated it as a reason to narrow. It identified the right phenomenon and drew the wrong
+    # conclusion: a path already in the index is not noise in *this* question, it is **a second
+    # question that was never asked** — and the answer to it was `protected` for a repository
+    # actively committing the user's verbatim questions.
     gitignore_unprotected = False
     remedy_already_present = False
     if gitignore in adopted:
@@ -332,6 +396,14 @@ def init(
             protected = names_it
         gitignore_unprotected = not protected
         remedy_already_present = gitignore_unprotected and names_it
+
+    # **Outside that gate, deliberately.** Tracked-ness is a property of the *index*, and the index
+    # does not care who wrote the ignore file. Asked inside the gate it would be skipped in exactly
+    # the state it exists for: a repository already tracking `.pinakes/` and carrying no ignore
+    # rule is, most often, one with no `.gitignore` at all — so `init` writes one, `gitignore in
+    # adopted` is False, and the block never runs. `tests/test_init.py` pins that skip
+    # (`test_a_gitignore_written_by_init_is_not_re_examined`), which is why this sits out here.
+    pinakes_tracked = _tracked_by_git(root) is True
 
     extras, extras_adopted = template.copy_extras(template_name, root, validated=declared)
     adopted.extend(extras_adopted)
@@ -351,6 +423,7 @@ def init(
         adopted=adopted,
         gitignore_unprotected=gitignore_unprotected,
         remedy_already_present=remedy_already_present,
+        pinakes_tracked=pinakes_tracked,
     )
 
 
