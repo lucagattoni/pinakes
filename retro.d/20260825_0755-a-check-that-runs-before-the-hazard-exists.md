@@ -64,6 +64,23 @@ hour.** The entry is therefore restated in its stronger form: *the rule does not
 recognition. The only thing that separates a real exit status from a plausible one is running the
 gate bare and reading `$?`.*
 
+**HIGH — the plan wrote a constraint from a measurement taken in the wrong place.** § X1 required
+the tracked-check's pathspec to be absolute *and* prescribed the test that would prove it: *"run it
+from a subdirectory — the case that fails is invisible from the root."* The property is real. **The
+prescribed test cannot fail**, because `_ask_git` passes `cwd=root` to `subprocess.run`
+(`init.py:94`) and every call site passes `root` — so the process cwd never reaches git and a
+relative `.pinakes` resolves against `root` regardless. The reproduction behind the constraint was a
+*shell* fact, run with `cwd=<subdir>`, a state this code never produces. **It was promoted to a
+claim about a code path without anyone opening that code path's cwd.**
+
+**The domain nobody examined was the instrument.** Every other item here is a claim whose population
+went unstated; this one is a *test* whose ability to observe anything went unstated. The argument for
+the property was sound and stays sound — the absolute form survives as defence. What was wrong was
+the belief that a named test would pin it. **A prescribed test is a claim about a failing test, and
+whoever prescribes it owes the same evidence as whoever writes it.** The increment's own
+retrospective carries the mutation run that settled it, and the finding is recorded there rather
+than here.
+
 **MEDIUM — the planner produced the day's own lesson while writing the plan about it.** I told a
 coder that 36 unrowed `test_fragments.py` tests were a gap to fill. It counted the population
 instead: **2023 tests defined, 1106 named in `docs/VERIFICATION.md`, 917 with no row** — and the

@@ -86,11 +86,30 @@ There is no exit status to lean on, so pathspec correctness cannot be left to th
 
 **Therefore, three binding constraints on the implementation:**
 
-1. **The function takes the already-resolved KB root and builds the absolute pathspec itself.** It
-   must not accept a relative one, and its test must run it **from a subdirectory** — the case that
-   fails is invisible from the root.
+1. **The function takes the already-resolved KB root and builds the pathspec itself** —
+   `:(literal)` + absolute. **⚠️ CORRECTED 20260825 08:30, after the increment measured it: this is
+   defensive, not a bug fix, and the behavioural test prescribed here could not have failed.**
+   `_ask_git` passes `cwd=root` to `subprocess.run` (`init.py:94`) and every call site passes
+   `root`, so the *process* cwd never reaches git and a relative `.pinakes` resolves against `root`
+   anyway. Measured from a subdirectory: relative, absolute and `:(literal)`+absolute all return the
+   same three rows; only running git itself with `cwd=<subdir>` — which this code never does —
+   reproduces the empty result. **With the pathspec mutated to the relative form, 68 of 69 tests in
+   `test_init.py` still pass**, so the "run it from a subdirectory" test this plan asked for would
+   have been green against the exact form it existed to forbid. **The assertion belongs on the
+   pathspec itself** — `:(literal)` prefix, absolute, ending in `.pinakes` — which *is* killed by
+   the relative form. Keep the absolute+literal form for the reasons above; describe it as defence,
+   never as coverage.
+
+   **The correction is the same failure as the plan's own subject, one level up.** The property was
+   real and the argument for it was sound; the *instrument* was never examined. A shell
+   reproduction was promoted to a claim about a code path without checking that path's cwd. **A
+   prescribed test is a claim about a failing test, and nobody had watched this one fail.**
 2. **`rc=128` maps to `None`, not to `False`.** This mirrors `_all_probes_ignored`'s existing
    discipline: an exit code arriving with `fatal:` on stderr is a guess wearing an exit code.
+   **⚠️ And it cannot be asserted through `init`**: the reported field is a `bool`, so `None` and
+   `False` collapse into it and an implementation returning `False` outside a repository passes
+   every end-to-end test. Assert it against the tracked-check function directly. Found by the same
+   mutation pass, 20260825.
 3. **Read git's status bare.** The first sweep of this table reported the outside-a-repo case as
    `rc=0` because it read the status through `... 2>&1 | head -3` — the pipe's status, not git's.
    **This is the repository's own recorded hazard, met again within the hour by someone who had read
