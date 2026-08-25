@@ -46,9 +46,12 @@ they are on record **before** the run.
 > `plans/20260729_0256-links-and-graph.md`; `corpus-probe-run.md` →
 > `plans/20260803_2239-corpus-probe-run.md`.
 
-**Citations re-confirmed at `d06ef7e`, 20260804 09:25.** The only commit since `68084d3` touches
-`docs/STATUS.md`'s PyPI table, which is below every line this file cites; all four `STATUS` line
-numbers here still resolve.
+**⚠️ Citations were re-confirmed at `d06ef7e`, 20260804 09:25 — and have since rotted. Verified
+20260825 13:12: every `docs/STATUS.md` line number in this file is wrong.** *Can the graph release's
+gate be reached?* was cited at `:383`; it is at **`:597`**, and `:383` is now a 0.29.0 release row.
+The sentence that stood here reasoned that the only intervening commit touched the PyPI table *below*
+every cited line — sound at the time, and it decayed the moment anything was inserted above them.
+**Locate every citation in this file by heading text, never by line number.**
 
 **Both gates are downstream of work that has not started.** The graph release's own gate has not
 been reached (`docs/STATUS.md:383` § *Can the graph release's gate be reached?*), so neither channel
@@ -333,8 +336,9 @@ carry cosine scores, which is *"precisely the top-k-only seeding HippoRAG 2 warn
 all-chunk seeding *"must be re-evaluated on that tier, not assumed."*
 
 **So a PPR gate passed on the NumPy tier does not license PPR under the `sqlite-vec` tier.** If the
-template release ships that tier ([`20260804_1016-template-release.md`](20260804_1016-template-release.md) § T6 — a sibling
-scratchpad proposal, not a repository plan), this gate acquires a second leg: the same measurement
+template release ships that tier ([`20260804_1016-template-release.md`](20260804_1016-template-release.md) § T6 — a committed
+repository plan, closed at 0.22.0, where T6 is **deferred behind a written trigger** rather than
+rejected), this gate acquires a second leg: the same measurement
 on the vec tier, or an explicit statement that PPR is NumPy-tier-only and what happens to a KB above
 the threshold. **This is no longer hypothetical**: the RFC corpus is already 2× past the 50 000
 threshold, so the realistic corpus is exactly the population that would land on the vec tier.

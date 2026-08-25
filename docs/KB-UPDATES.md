@@ -64,8 +64,12 @@ Two live cases on `main` today, and one this note got wrong:
    worthless while `notes` declared `version = "1.0"` through eleven releases of changing content.
    `notes` is now `1.1` and §6's gate makes the next bump impossible to forget, so the check
    discriminates. **The comparison is no longer a version string.** 0.18.0 renders both archived
-   versions and reports how many lines separate them; `pnk upgrade` prints the lines themselves.
-   What no command does yet is *adopt* one.
+   versions and reports how many lines separate them; `pnk upgrade` (0.19.0) prints the lines
+   themselves, and **`pnk upgrade --apply` (0.20.0) adopts them** — the hunks that fit, after
+   printing every one of them, refusing the whole run if any conflicts. **What is still missing is
+   a baseline, not adoption**: a KB recording `notes@1.0` has no archived content to compare
+   against, because `1.0` denoted eleven different template contents. A KB stamped from
+   `notes@1.1` onward is compared automatically.
 
 ## 4. Compatibility posture
 
@@ -237,12 +241,16 @@ Deliberately not assigned. The cheapest useful subset, in dependency order:
 | ~~The template-drift CI gate (§6)~~ | small | **Built (0.17.0).** Makes that bump impossible to forget |
 | ~~`doctor` reports *what* changed, not just that something did~~ | small | **Built (0.18.0, and `pnk upgrade` for the lines themselves).** Makes the WARN actionable without writing to anyone's config |
 | ~~`requires_pinakes` + pre-pass read (§4)~~ | small | **Built (G4).** Turns a misleading refusal into an actionable one |
-| `pnk upgrade` + `--apply` + `tomlkit` (§5) | medium | Existing KBs actually adopt new defaults |
+| ~~`pnk upgrade` + `--apply` + `tomlkit` (§5)~~ | medium | **Built (0.19.0 print, 0.20.0 `--apply`) — and without `tomlkit`.** Existing KBs adopt new defaults. The `tomlkit` half was never needed: the rewrite preserves comments because nothing parses them away (§5), so no TOML round-tripper entered core |
 
 **The withdrawn row.** This table used to promise that *"`doctor` reports manifest keys the installed
 template sets that this KB lacks"* would close the PDF-glob gap. It would not: the template never
 sets `**/*.pdf` (§3 case 1), so there is no key for such a check to find. What §3 case 1 actually
 describes is a missing *comment*, which no key-level diff reaches — only a content diff does.
 
-The remaining two would close the live gap in §3. Neither is assigned; both are template-release
-work.
+**Every row in this table is now built**, and the sentence that stood here — *"the remaining two
+would close the live gap in §3, neither is assigned"* — was wrong twice over: one row remained,
+not two, and it shipped in 0.19.0 and 0.20.0. **What §3 still describes is closed by none of
+them.** Case 1's missing PDF *comment* and case 2's budget keys both reach new KBs only, and
+adoption cannot help a KB whose recorded template version has no archived content to adopt
+against. **That is a baseline problem, and it is the one the template release still owns.**
