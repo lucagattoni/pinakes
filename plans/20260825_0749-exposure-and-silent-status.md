@@ -383,23 +383,50 @@ prevent it.**
 and that `pip install pinakes` still gets `0.30.2`. Gate green, and its negative check still fails
 as it should. The public page stops being false.
 
-**Proposed (a task, once D-35 is answered).** A check that queries
-`https://pypi.org/simple/pinakes/` — the endpoint the rest of this repository already prefers, since
-the `json` one lags an upload by minutes — and reconciles it with what `docs/STATUS.md` claims.
-**Three requirements, each from a failure already on record:**
+**DECIDED 20260825 12:37 (D-35). Owner: the implementer.** Three layers, not one. Layers 1-2 are
+offline and are the load-bearing ones; the index query is layer 3 and is additive.
 
-1. **It must not require the network to pass.** A gate that fails offline is a gate people learn to
-   skip. No answer from the index is *unknown*, never *wrong* — the same discipline `_tracked_by_git`
-   needed for `rc=128`.
-2. **It must fail on the claim, not on the version.** *Latest release* naming an unpublished version
-   is the defect; `CHANGELOG.md` carrying that version's entry is correct and must stay green, or
-   the gate blocks every held release — which is the practice this repository has now used twice to
-   its benefit.
-3. **Its own test must watch it fail.** Point it at a STATUS naming a version the index does not
-   have, and see red. Per X1's constraint #1: a prescribed test is a claim about a *failing* test.
+1. **Layer 1, unchanged.** `line3 == pinakes.__version__` — the only *machine-derived* comparison here:
+   Hatch reads that constant to build the wheel (`pyproject.toml:74-76`), it is bumped in the same
+   commit, and both facts are inside the checkout. This is why `check.sh:160` can run it unconditionally
+   in a script whose own comment (57-62) demands it stay offline-capable.
+2. **Layer 2, NEW, offline, hard.** With `R` = the tail of `docs/STATUS.md`'s *Published versions* row,
+   read by importing `SEQUENCES` from `tools/release_order_gate.py` rather than duplicating its `within`
+   anchor: `line3 > R` → the hold marker is **required**; `line3 == R` → the marker is **forbidden**;
+   `line3 < R` → always red; **the row unreadable → hard fail, never skip.** This makes the marker a
+   *parsed shape* rather than free text after the closing `**`, and it catches both recorded incidents
+   at the release commit *and* a stale marker at the verification commit — using a committed file that
+   is present in every shallow CI checkout.
+3. **Layer 3 — the index query, its own CI job, soft.** `https://pypi.org/simple/pinakes/`, the endpoint
+   the rest of this repository already prefers since the `json` one lags an upload by minutes. **No
+   answer is *unknown*, never *wrong*.** It is the only layer that can catch a *premature* row write.
 
-**Owner: the implementer** — it is `tools/`. The coder offered to build it and the offer is
-accepted, once someone takes it off this list.
+**The three requirements below are unchanged and still bind**, and layers 1-2 satisfy 1 by construction
+rather than by careful coding.
+
+**The source sub-choice is settled: the index, never `git tag --list`, and they do not layer.** Two
+independent reasons, both already in this repository's record. **A tag is not evidence of publication**:
+`docs/RETROSPECTIVES.md:3291` — `v0.9.0` *"tagged, built, smoke-tested, and was refused at the upload:
+invalid-publisher"* — and `git tag -l 'v0.9*'` still returns it; `release.yml`'s own header comment makes
+this a *supported* mode, since everything before the `PUBLISH_TO_PYPI` gate runs on every tag, *"so a tag
+is fully validated even when nothing is uploaded"*. **And tags are unreadable where the gate runs**:
+`release_order_gate.py:77-80` already took this decision in writing — every CI checkout here is shallow,
+no workflow sets `fetch-tags`, and `ci.yml:347`'s lone `fetch-depth: 0` belongs to the template-drift
+job. A tag-based check would report every version as unreleased. Publishing is tag-triggered only, so a
+tag is *sound evidence of absence* and unsound evidence of presence — and even the sound direction is
+unavailable in CI. **Use the index for layer 3, the row for layer 2, and tags for nothing.**
+
+**Not blocked on anything, and owed regardless of what was decided:** `status_header_gate.py`'s docstring
+lines 1 and 10-13 are **already literally false on today's tree** — *"The invariant holds with no
+exception window."* There is an exception window, it has been used deliberately three times, and this
+plan is the record of it.
+
+**Two couplings that move together or not at all.** The failure string at `status_header_gate.py:88` is
+grepped verbatim by `ci.yml:292` and that grep is itself pinned as a command by
+`tests/test_check_script.py`; rewording the message without changing `ci.yml` leaves the negative check
+asserting only a non-zero exit, which that job's own comment (`ci.yml:285-288`) says is insufficient.
+And `check.sh:160`'s invocation must stay byte-identical for the regex pin at
+`tests/test_check_script.py:159`.
 
 ## X6 — The handoff is invisible to everything except this machine
 
@@ -421,34 +448,97 @@ claims about itself and what nothing enforces.**
 
 ---
 
-## D-35 — NEW DECISION: does `__version__` mean *released*, or *landed*?
+## D-35 — ANSWERED 20260825 12:37: `__version__` means *landed*, and line 3 gets an offline relation
 
-**The hold forced a contradiction between two rules this repository already holds, and it cannot
-keep both.**
+**Taken by the user 20260825 12:37.** `__version__` means **landed on `main`**. Line 3 keeps naming it,
+and a **new offline relation** enforces the hold marker in *both* directions. `X7` is built on top as a
+third, network layer.
 
-| Rule | Where | Says |
-|---|---|---|
-| `__version__` **is** the latest release, with no exception window | `tools/status_header_gate.py` | line 3 must name `__version__` |
-| *"Shipped means **released**; an increment merged to `main` but not yet in a release says so explicitly"* | `docs/STATUS.md`'s own preamble | line 3 must not claim an unreleased version |
-| Landing and publishing are separate steps, and the gap is valuable | `docs/RELEASING.md`, and 0.30.2's forty minutes | the gap will keep happening |
+| Layer | Reads | Rule | Where |
+|---|---|---|---|
+| **1** — unchanged | `pinakes.__version__` | line 3's version must equal it | `status_header_gate.py`, offline |
+| **2** — NEW | `R` = the *Published versions* row's tail | `line3 > R` → marker **required**; `line3 == R` → marker **forbidden**; `line3 < R` → always red; row unreadable → **hard fail, never skip** | `status_header_gate.py`, offline |
+| **3** — X7 | `https://pypi.org/simple/pinakes/` | reconcile, degrading to *unknown* | its own CI job, network |
 
-| | **A. `__version__` means *landed*** | **B. `__version__` means *released*** |
-|---|---|---|
-| **What changes** | Nothing mechanical. The header carries an explicit unreleased qualifier during a hold, as it does now | The version bump moves out of the release commit and into the tag step, or the gate learns a *released-version* source of truth separate from `__version__` |
-| **Pros** | Zero churn; the gate keeps working; `make release-check` keeps reading `__version__` | Line 3 is true on its own, with no qualifier to read; the preamble's rule holds literally |
-| **Cons** | Line 3's first six words are false during a hold, and a reader who stops there is misled — **which is exactly what happened, publicly, on 20260825** | Touches the release procedure and the gate; a bump outside the release commit is a new step to forget, and forgetting it is silent |
+**The recommendation this section previously carried — "A, plus the index check from X7" — did not
+survive, and the reason is specific.** Its semantics and its anchor were right. Its *enforcement half
+cannot be built inside X7's own constraints*: requirement 2 forces X7's rule to be *unqualified +
+absent from the index → red; qualified → green*, so **a stale marker after a successful publish is
+green by construction, forever** — and green in `status_header_gate.py` too, whose `SHAPE` has no `$`,
+and in `release_order_gate.py`, none of whose seven `Sequence` patterns reads line 3's tail. **X7 can
+enforce writing the marker. It can never enforce removing it.**
 
-> ### ✅ Recommendation: **A, plus the index check from X7.** The qualifier is what makes the line
-> honest, and a gate that reads PyPI is what makes the qualifier *enforced* rather than remembered.
-> **B moves a bump into a step that is taken hours later by a human, which is how the 0.5.0–0.7.1
-> drift happened in the first place.** But A is only safe with X7 built — otherwise the qualifier
-> depends on whoever cuts the release remembering that a hold falsifies it, and that is precisely
-> the memory that failed today.
+### What was measured, not argued
+
+**The marker is 0-for-2, and the first failure was never recorded.**
+`git show f3c6864:docs/STATUS.md | sed -n '3p'` returns
+`**Latest release: 0.30.2** · last reviewed 20260825 00:45` — **unqualified** — for the 14 minutes
+between 0.30.2's release commit (01:49:42) and its tag (02:03:33), with PyPI at 0.30.1 and `docs/`
+deploying on every push. **20260825 08:27 was the second occurrence, not the first.** And
+`grep -in 'hold|untagged|not yet tagged|qualifier|⏸' docs/RELEASING.md` returns one unrelated hit at
+line 181: **the procedure never asks for the marker at all.** A release cut by following it verbatim
+produces the false line.
+
+**Removing the marker lands in a slot that has never done this job.** `git log -L 3,3:docs/STATUS.md`,
+then diffing each non-release commit that touches line 3 (`733374e`, `9096350`, `d3546f6`, `06c2acb`,
+`78c7dd3`, `fb601a3`): **every one left the version byte-identical** and changed only `last reviewed`.
+Plain A therefore invents a new obligation on a commit type that has never carried one — *which is the
+identical property this plan gave as its reason for rejecting B.*
+
+**Two options were falsified by execution. Preserve the experiment so nobody re-litigates it.**
+Copy `CHANGELOG.md` and `docs/` to a scratch root, append `0.30.3` to the *Published versions* row's
+leading bold span, insert a matching `**0.30.3, verified…:**` prose entry, then
+`uv run python tools/release_order_gate.py <scratch-root>`. **Exit 0**, reporting `newest 0.30.3` on
+both index sequences, with nothing on PyPI. Separately, changing one comma to an em dash in the newest
+prose entry drops that sequence 32 → 31 and its max 0.30.2 → 0.30.1, **exit 0** — declared as an
+accepted cost in that module's own docstring.
+
+**So the *Published versions* row is a hand-typed sentence with a documented silent-drop failure mode.
+It may corroborate the headline. It must never be its source.** That is what rejects the two options
+that made it one: an error in it would reach the public headline *with gate certification*, and the
+failure message would name line 3 rather than the row that caused it.
+
+**The record on B is corrected even though B loses.** This plan's con — *"a bump outside the release
+commit is a new step to forget, and forgetting it is silent"* — is **factually wrong**.
+`.github/workflows/release.yml:34-42` refuses a mismatched tag unconditionally, as the first step after
+checkout, ahead of `uv build` (`:44`) and ahead of the `PUBLISH_TO_PYPI`-gated `uv publish` (`:96`).
+B loses on its real costs instead: `manifest.py:437` would print `(this build is 0.30.2)` while running
+0.30.3's code, and B's bump commit touches `docs/STATUS.md`, so `docs.yml` publishes the new headline
+*before any tag-triggered gate runs at all*.
+
+### Residuals, stated rather than discovered later
+
+* **Layer 2 is not immune.** A maintainer who writes the row prematurely **and** strips the marker is
+  green with a false headline. Only layer 3 closes that. Under layer 2 the premature row *alone*
+  produces a red the maintainer must resolve, which is the whole gain.
+* **Layer 3 must not be hard-fail until measured.** `docs/STATUS.md:662ff` records 0.16.0, 0.17.0 and
+  0.18.0 each reading *unsatisfiable* for 25-30 s after genuinely successful uploads. A gate red on a
+  correct tree is one people learn to skip.
+* **The marker's shape is undecided and is the implementer's to choose** — the `⏸` now on `main`, or a
+  bracketed keyword. **Today the qualified form passes only by accident**: `SHAPE` has no `$`, a
+  looseness its docstring says exists for the `last reviewed` date, and *nothing pins that the
+  qualified form is legal*. Anyone tightening that regex would silently outlaw it. The build adds a
+  test asserting it is legal.
+* **No mutation battery exists for `status_header_gate.py`** — six batteries, none for this target — so
+  a new file is correct here, and it forces the counted-paragraph edit in `tools/batteries/README.md`
+  that `tests/test_batteries.py` asserts.
+* **Layer 2 reads `SEQUENCES` from `release_order_gate.py`** rather than duplicating its `within`
+  anchor (precedent: `tools/two_leg_gate.py:60`). If that coupling is judged wrong at build time, the
+  alternative is two copies of one fact, which this repository has been burned by — come back to the
+  planner rather than duplicating.
+
+### The question this did **not** settle
+
+**What line 3 answers** — *"what is the state of this repository"* or *"what can I install right now"* —
+was offered and **not** taken. `docs/STATUS.md:9-11` (*"'Shipped' below means **released**"*) is what
+makes line 3 false during a hold; changing that sentence would have dissolved the contradiction toward
+plain A at near-zero cost. It stands as written, which is what makes layer 2 worth building.
 
 ## Build order
 
 **Nothing in Part 1 is buildable until D-31 and D-32 are answered.** X1 is the exception and is
-listed first because it needs no decision.
+listed first because it needs no decision. **D-35 was answered 20260825 12:37, so X7 is unblocked** —
+read its section above for the decided three-layer shape, which is *not* what this plan first proposed.
 
 | # | Item | Blocked on | Owner |
 |---|---|---|---|
@@ -460,6 +550,8 @@ listed first because it needs no decision.
 | 6 | **D-33** detail line | D-31 | coder |
 | 7 | **X5a/b/c**, **X6** — write the four conventions down | nothing | planner |
 | 8 | **D-34** — VERIFICATION.md scope | a decision, not scheduled | planner |
+| 9 | **X7** — line 3's three layers (D-35 **answered** 20260825 12:37) | **nothing — unblocked** | coder |
+| 10 | **X7 doc half** — `docs/RELEASING.md` sweep row (the hold rule and the marker's shape), `docs/VERIFICATION.md:787` | X7's shape being chosen | planner |
 
 **A note on 1 versus 5.** X1 in `init` is worth building even if D-31 comes back **A**, because
 `init` can still meet a tracked `.pinakes/` — a KB created outside git, then `git init` and

@@ -148,12 +148,16 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
 **What is live right now** — the full routing table, with what each closed plan still binds, is
 [`docs/README.md`](docs/README.md):
 
-- **🛑 One plan has scheduled work:
-  [`plans/20260825_0749-exposure-and-silent-status.md`](plans/20260825_0749-exposure-and-silent-status.md).**
-  **§ X1 is built and on `main`** (`35cdc79`, unreleased at the time of writing). **D-31 to D-34 are
-  proposed and not taken**, so everything remaining there is a stop, not a task. Every other file in `plans/` is closed, answered, deferred or
-  proposed-unscheduled — and **an empty-looking list still means *the next thing to build has not
-  been planned yet*, never *nothing to do***. `docs/ROADMAP.md` Part 5 holds what comes after.
+- **🛑 Two plans have scheduled work.**
+  [`plans/20260825_0749-exposure-and-silent-status.md`](plans/20260825_0749-exposure-and-silent-status.md)
+  — **§ X1 is built and on `main`**; **D-35 was answered 20260825 12:37**, which unblocks **§ X7**
+  (three layers, and *not* what that plan first proposed — read the section, not the memory of it);
+  **D-31 to D-34 stay proposed and not taken**, so those remain a stop.
+  [`plans/20260825_1240-run-pinakes-sweep.md`](plans/20260825_1240-run-pinakes-sweep.md) — **fifteen
+  defects found by running Pinakes, three of them high**; **D-36 and D-37 are not taken**. Every
+  other file in `plans/` is closed, answered, deferred or proposed-unscheduled — and **an
+  empty-looking list still means *the next thing to build has not been planned yet*, never *nothing
+  to do***. `docs/ROADMAP.md` Part 5 holds what comes after.
 - **A `##` heading is a status claim, and nothing gates it.** In
   [`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) an item's
   closure can sit in its **body**, so `grep '^## '` returns *Live* and stops. **This put two
