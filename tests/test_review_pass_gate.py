@@ -258,3 +258,43 @@ def test_a_quiet_fan_out_is_judged_without_the_override(tmp_path: Path) -> None:
     out = run("--journal", str(path))
     assert out.returncode == 1
     assert "1 agent(s) DIED" in out.stdout
+
+
+def test_a_dead_agent_is_not_also_reported_as_empty(tmp_path: Path) -> None:
+    """Found by mutation: making `empty` true for an agent that never returned survived the whole
+    suite. It matters because the two states carry opposite remedies — a dead agent is *resumed*
+    from cache, an empty one must be *re-run* — so double-reporting one agent prints the wrong
+    instruction beside the right one."""
+    path = journal(tmp_path, started("k1", "a1"), started("k2", "a2"), result("k1", "a1", "real"))
+    out = run("--journal", str(path), "--assume-finished")
+    assert out.returncode == 1
+    assert "1 agent(s) DIED" in out.stdout
+    assert "returned EMPTY" not in out.stdout
+    assert "re-run it instead" not in out.stdout
+
+
+def test_a_bare_word_after_a_redirect_is_not_reported_as_a_file(tmp_path: Path) -> None:
+    """Also found by mutation. Run against a real fan-out the redirect scan reported `0`, `c` and
+    `15,}` as recoverable artifacts — picked out of `head -c`, a `2>&1` and a dict literal in a
+    heredoc. The filter that removed them had no test, so it could have been deleted silently, and a
+    list a reader learns to skim is worth less than a shorter true one."""
+    path = journal(tmp_path, started("k1", "a1"), started("k2", "a2"), result("k1", "a1", "x"))
+    (tmp_path / "agent-a2.jsonl").write_text(
+        "\n".join(
+            json.dumps(
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": [
+                            {"type": "tool_use", "name": "Bash", "input": {"command": cmd}}
+                        ],
+                    }
+                }
+            )
+            for cmd in ("head -c 200 big.txt > cutoff", "pytest -q > results.log 2>&1")
+        )
+    )
+    out = run("--journal", str(path), "--transcript-dir", str(tmp_path), "--assume-finished")
+    assert out.returncode == 1
+    assert "results.log" in out.stdout
+    assert "cutoff" not in out.stdout
