@@ -207,12 +207,25 @@ def test_the_gitignore_check_answers_what_git_answers(
 
 
 def test_ignoring_only_part_of_pinakes_is_not_protection(tmp_path: Path) -> None:
-    """`git check-ignore` exits 0 when **any** argument is ignored, so a `.gitignore` naming just
-    the ledger would read as full protection while the index stayed tracked. Every probe has to
-    match, and this is the test that says so."""
-    root = _git_repo(tmp_path / "repo", ".pinakes/ledger.jsonl\n")
+    """Every probe has to match, not merely one — `check-ignore` exits 0 when **any** does.
 
-    assert init(root).gitignore_unprotected is True, (
+    **The input matters, and the first version of this test got it wrong.** It used a `.gitignore`
+    naming only `.pinakes/ledger.jsonl`, which was a real discriminator while the probes were three
+    named files. Against *opaque* probes it stopped being one: no probe matches, so `len(matched)`
+    is 0 and "any" and "all" agree. A mutation pass caught it — `len(matched) > 0` survived here,
+    against a test whose own name claims to pin exactly that.
+
+    `.pinakes/*` with `!.pinakes/cache` is the input that discriminates: three probes are ignored
+    and the one under `cache/extract/` is not, so "any" says protected and "all" says warn. The
+    re-included subtree holds the whole extracted text of every document.
+    """
+    partial = _git_repo(tmp_path / "partial", ".pinakes/*\n!.pinakes/cache\n")
+    assert init(partial).gitignore_unprotected is True, (
+        "three of four probes ignored is not protection — the extraction cache is tracked"
+    )
+
+    ledger_only = _git_repo(tmp_path / "ledger-only", ".pinakes/ledger.jsonl\n")
+    assert init(ledger_only).gitignore_unprotected is True, (
         "the ledger being ignored says nothing about the index or the transcripts"
     )
 
