@@ -338,7 +338,7 @@ it is the first thing anyone deciding D-34 would read.**
 | # | The convention | Where it belongs | Evidence it is needed |
 |---|---|---|---|
 | **X5a** | **Content-mine, keystrokes-yours.** When a planner-owned document must change *atomically* with an implementer's code, any split ordering leaves `main` red or wrong at some commit. The planner decides the content and says so; the implementer pastes it into their branch. | `CLAUDE.md`, beside the ownership table | **Re-derived four times in one session.** Two such edits were authorised into a coder's branch on 20260825 — a `docs/VERIFICATION.md` section and a `tools/batteries/README.md` paragraph — and a future reader has no way to learn why an implementer wrote them |
-| **X5b** | **A fragment written after a release commit but before its tag.** `tools/fragments.py --apply` splices after `## [Unreleased]` and has **no notion of an untagged version section**. Answer taken 20260825: the implementer still writes the fragment; the planner splices, moves the entry into the untagged section, and deletes the consumed file in its own commit. Retrospective fragments need no move — `docs/RETROSPECTIVES.md` is chronological. | `docs/RELEASING.md` | The 40-minute untagged window on 0.30.2 is now a *recommended* practice, so this recurs by design |
+| **X5b** ✅ **BUILT 20260825 12:52** | **A fragment written after a release commit but before its tag.** `tools/fragments.py --apply` splices after `## [Unreleased]` and has **no notion of an untagged version section**. Answer taken 20260825: the implementer still writes the fragment; the planner splices, moves the entry into the untagged section, and deletes the consumed file in its own commit. Retrospective fragments need no move — `docs/RETROSPECTIVES.md` is chronological. | `docs/RELEASING.md` | The 40-minute untagged window on 0.30.2 is now a *recommended* practice, so this recurs by design |
 | **X5c** | **`README.md` in the ownership table is ambiguous.** It sits among root-level paths, so a coder read `tools/batteries/README.md` as covered by the `tools/` row and edited it. The table's own opening sentence — *"the planner owns every document"* — settles it the other way. Say **`README.md` (repository root)** and add **"any `README.md`"** to the planner row. | `CLAUDE.md` | A document generated a collision rather than recording one, twice in one day |
 
 ## X7 — NEW: a hold makes some claims false and leaves others true, and the sweep does not know which
@@ -545,10 +545,10 @@ read its section above for the decided three-layer shape, which is *not* what th
 | 1 | **X1** — the tracked-KB question, its own state and its own remedy, in `init` | nothing | coder |
 | 2 | **X2** — the open-corrections restructure | X3 (read the nine files first) | planner |
 | 3 | **X3** — read the nine unread `plans/` files | nothing | either |
-| 4 | **X4** (stale paragraph only) — fix line 27 | nothing | planner |
+| 4 | ~~**X4** (stale paragraph only)~~ — **BUILT 20260825 12:49.** Rewritten to the measured state; `test_init.py` moved out of the unrepresented list (27 rows), and the release-count claim removed rather than restated | — | planner |
 | 5 | **D-31/D-32** → `doctor` check | the decisions | coder |
 | 6 | **D-33** detail line | D-31 | coder |
-| 7 | **X5a/b/c**, **X6** — write the four conventions down | nothing | planner |
+| 7 | **X5a/b/c**, **X6** — write the four conventions down. **X5b BUILT 20260825 12:52** (`docs/RELEASING.md`, § *A fragment that arrives after the release commit but before the tag*). **X5a, X5c and X6 remain** — X5a and X5c edit `CLAUDE.md`, so they are shown to the user as a diff before landing rather than written unasked | nothing | planner |
 | 8 | **D-34** — VERIFICATION.md scope | a decision, not scheduled | planner |
 | 9 | **X7** — line 3's three layers (D-35 **answered** 20260825 12:37) | **nothing — unblocked** | coder |
 | 10 | **X7 doc half** — `docs/RELEASING.md` sweep row (the hold rule and the marker's shape), `docs/VERIFICATION.md:787` | X7's shape being chosen | planner |

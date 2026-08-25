@@ -67,6 +67,31 @@ extended on 20260823 when it crossed it again. Nothing was dropped in either mov
    `git log -S` confirms it. If a release is missing after a green run now, that is new
    information rather than the old pattern: read the step's log.
 
+### A fragment that arrives after the release commit but before the tag
+
+**This is not an edge case any more. It recurs by design**, because landing and publishing are
+separate steps here and the window between them is deliberately used: 0.30.2's forty untagged minutes
+are what let a defect found in *landed* code be folded into the untagged section instead of becoming a
+release nobody had received.
+
+**`tools/fragments.py --apply` has no notion of an untagged version section.** It splices after
+`## [Unreleased]` — that anchor is the whole mechanism (step 3's warning) — so a fragment written
+during the window lands under *Unreleased*, one heading above where it belongs.
+
+**The split, decided 20260825:**
+
+| Who | Does |
+|---|---|
+| **Implementer** | Still writes the fragment, exactly as normal. Nothing about `changelog.d/` changes, and no implementer edits `CHANGELOG.md` |
+| **Planner** | Runs the splice, **moves the entry down into the untagged `## [x.y.z]` section**, and deletes the consumed fragment — **in its own commit**, separate from the code |
+
+**Retrospective fragments need no move.** `docs/RETROSPECTIVES.md` is chronological rather than
+versioned, so a `retro.d/` fragment spliced during the window is already in the right place.
+
+**Why the entry moves rather than the heading.** Leaving it under `## [Unreleased]` and renaming that
+heading at tag time is the failure step 3 warns about: `## [Unreleased]` is `fragments.py`'s insertion
+anchor, and 0.20.0 destroyed it exactly that way. Move the entry; never move the anchor.
+
 ## Verify it happened — never assume
 
 `git tag -l`, `gh release list`, and `git merge-base --is-ancestor vx.y.z main`, **before** writing
