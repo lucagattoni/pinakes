@@ -1120,6 +1120,17 @@ rather than becoming an 0.30.3 that corrected a release nobody had received. **L
 publishing being separate steps is what made that possible**, and it is the reason
 [`docs/RELEASING.md`](RELEASING.md) puts `make release-check` before the tag and never after.
 
+**And the same forty minutes carried a public defect nobody noticed, which is recorded here because
+the paragraph above would otherwise leave a false lesson.** Line 3 of this file read
+`**Latest release: 0.30.2**` — *unqualified* — from the release commit at 01:49:42 until the tag at
+02:03:33, with PyPI still serving 0.30.1 and `docs/` deploying on every push to `main`. That is the
+identical defect caught and corrected at 08:27 the same morning, six hours earlier and unseen.
+**The hold worked; the document describing it did not.** Verified 20260825 12:37 by
+`git show f3c6864:docs/STATUS.md | sed -n '3p'`. The marker this file now carries during a hold has
+been produced by the release procedure **zero times out of two** — `docs/RELEASING.md` does not ask
+for it — which is why D-35 was answered with an offline gate rather than a convention
+([`plans/20260825_0749-exposure-and-silent-status.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260825_0749-exposure-and-silent-status.md)).
+
 **The manual-release step recurred a sixth time, and on the sixth someone finally read the
 workflow. It was not a failure at all: at that point there was no step that created a release.**
 `.github/workflows/release.yml` validated the tag against `__version__`, built, smoke-tested the
