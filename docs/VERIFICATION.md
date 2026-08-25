@@ -541,6 +541,21 @@ which is the section above; this is what a module that *may* import a client the
 | an unmeasurable document is never reported as one that passed | I8 | `tests/test_doctor.py::test_a_partly_swept_cache_still_names_what_it_could_not_measure` |
 | the health check does not crash on a KB it does not understand | I8 | `tests/test_doctor.py::test_an_unknown_extraction_backend_does_not_crash_the_health_check` |
 
+## `pnk init` keeps `.pinakes/` out of the repository
+
+| What must be true | Increment | Test |
+|---|---|---|
+| the check answers what **git** answers, not what the `.gitignore` text looks like — six files measured against real git, four of which the substring test got wrong in one direction or the other | — | `tests/test_init.py::test_the_gitignore_check_answers_what_git_answers` |
+| **ignoring part of `.pinakes/` is not protection.** `git check-ignore` exits 0 when *any* argument is ignored, so a rule naming only the ledger would otherwise read as full protection while the index stayed tracked | — | `tests/test_init.py::test_ignoring_only_part_of_pinakes_is_not_protection` |
+| protection that lives outside `.gitignore` still counts — `.git/info/exclude`, a global excludes file, a parent repository's rules. **No amount of reading `.gitignore` can see any of them**, so this test fails against any implementation that reads the file rather than asking git | — | `tests/test_init.py::test_protection_that_lives_outside_gitignore_is_still_protection` |
+| **the probes are a cover of the directory, not a list of filenames.** A `.gitignore` carrying `*.db` and `*.json` ignores every named file while leaving `index.db-wal` — megabytes of verbatim document text in WAL mode — tracked; so does `.pinakes/*` with `!.pinakes/cache`. Both are in the matrix, because probing three named files was a **regression** against the substring test, which warned there | — | `tests/test_init.py::test_the_gitignore_check_answers_what_git_answers` |
+| outside a git repository git is still asked, in a scratch one — so `!.pinakes/` warns and `/.pinakes/` does not, neither of which a text scan got right | — | `tests/test_init.py::test_outside_a_repository_git_is_asked_in_a_scratch_repository` |
+| the check fires for an **adopted** `.gitignore` only. Re-examining one `init` wrote itself reaches only the case where a path is already in the index, where the warning's remedy is already satisfied | — | `tests/test_init.py::test_a_gitignore_written_by_init_is_not_re_examined` |
+| an ambient `GIT_DIR`/`GIT_WORK_TREE` cannot answer for a different repository — git honours both over `cwd`, and exports them to every hook it runs | — | `tests/test_init.py::test_an_ambient_git_dir_cannot_answer_for_another_repository` |
+| a `.gitignore` that is not valid UTF-8, and a `git` that never returns, both degrade to an answer rather than a traceback — `pinakes.toml` is already on disk, so raising leaves a KB the next `pnk init` refuses as "already a KB" | — | `tests/test_init.py::test_a_gitignore_that_is_not_utf8_does_not_abort_a_half_written_kb`, `tests/test_init.py::test_a_git_that_never_returns_does_not_hang_init` |
+| **the printed remedy never instructs an action that would not change the verdict.** A `.gitignore` reading `.pinakes/` then `!.pinakes/` is unprotected *with* the line already in it, and *"add this line"* would send the user to do nothing and learn nothing. Only reachable since the check became git's answer rather than a substring test, under which the string's presence **was** the verdict | — | `tests/test_init.py::test_the_remedy_is_only_offered_when_it_would_change_the_verdict`, `tests/test_init.py::test_the_warning_never_tells_you_to_add_a_line_you_already_have` |
+| a machine with no `git` on PATH still stamps a KB — `init` has never required it, and refusing over a missing version-control tool would be a worse failure than the one this fixes | — | `tests/test_init.py::test_init_still_stamps_a_kb_when_git_is_not_installed` |
+
 ## `pnk doctor`, check by check
 
 | What must be true | Increment | Where it is checked |

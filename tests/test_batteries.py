@@ -247,14 +247,23 @@ def test_the_committed_batteries_cover_only_tools_and_the_readme_says_so() -> No
     if this test fails because `src/` finally has one, the sentence there needs updating too.
     """
     primaries = {path.stem for path, _ in _batteries()}
-    assert all(stem.startswith("tools-") for stem in primaries), (
-        f"a battery outside tools/ now exists ({sorted(primaries)}) — update the denominator "
-        "sentence in tools/batteries/README.md, which currently says there are none"
-    )
     # Whitespace-normalised: the sentence wraps, and a substring probe that breaks on a re-wrap
     # would fail for a reason having nothing to do with what it is asserting.
     readme = " ".join((BATTERIES / "README.md").read_text(encoding="utf-8").lower().split())
-    assert "module under `src/` has one" in readme, (
+
+    # `src/` finally has one (20260825, `src-pinakes-init.toml`), which is the event this test's
+    # first form was written to catch. Requiring *all under tools/* would now mean deleting the
+    # assertion to add a battery, so it asks the durable question instead: whatever lies outside
+    # `tools/` has to be named here, and a new area cannot arrive without the sentence moving.
+    unnamed = sorted(
+        stem for stem in primaries if not stem.startswith("tools-") and stem not in readme
+    )
+    assert not unnamed, (
+        f"battery/batteries outside tools/ that the README does not name: {unnamed} — update the "
+        "denominator paragraph in tools/batteries/README.md, or the directory reads as a coverage "
+        "claim with a hidden denominator"
+    )
+    assert "starting point, not a coverage claim" in readme, (
         "tools/batteries/README.md must state what the corpus does NOT cover; without it the "
         "directory reads as a coverage claim with a hidden denominator"
     )

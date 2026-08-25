@@ -1,5 +1,7 @@
 """`pnk init`: a directory that is already correct, and an id that is never minted twice."""
 
+import os
+import subprocess
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -9,6 +11,7 @@ import pytest
 
 from pinakes import template
 from pinakes.ci import WORKFLOW_PATH
+from pinakes.cli import main
 from pinakes.errors import InitError, TemplateError
 from pinakes.ids import parse_kb_id
 from pinakes.init import init
@@ -135,6 +138,294 @@ def test_an_adopted_gitignore_that_misses_pinakes_is_flagged(tmp_path: Path) -> 
     assert init(other).gitignore_unprotected is False, (
         "a .gitignore that already covers .pinakes/ must not be flagged"
     )
+
+
+@pytest.fixture(autouse=True)
+def git_config_is_this_repository_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the developer's own git configuration out of every test in this file.
+
+    The check asks git, and git answers from more than the `.gitignore` in front of it: a global
+    `core.excludesFile`, a system config, a `init.templateDir` that seeds `.git/info/exclude`. A
+    developer who has put `.pinakes/` in their personal global ignore file is doing something
+    sensible, and without this fixture it turns three of the tests below red on their machine and
+    makes two others pass for a reason the code had nothing to do with. Measured 20260825: with a
+    global excludes file naming `.pinakes/`, 3 failed and 9 passed.
+
+    **The production code is right to honour those files** — a global ignore really does protect
+    the ledger. It is only the *tests* that must not depend on which machine they run on.
+    """
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", os.devnull)
+
+
+def _git_repo(root: Path, gitignore: str | None = None) -> Path:
+    """A real git repository, optionally carrying a `.gitignore` before `init` ever runs.
+
+    These tests need a repository because the check asks **git**, and outside one there is no
+    authority to ask. `tmp_path` is not a repository, which is why every test above exercises the
+    fallback instead — both paths are covered, deliberately.
+    """
+    root.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    if gitignore is not None:
+        (root / ".gitignore").write_text(gitignore, encoding="utf-8")
+    return root
+
+
+@pytest.mark.parametrize(
+    ("case", "gitignore", "unprotected"),
+    [
+        # The two false positives. git ignores `.pinakes/` under both of these, and the substring
+        # test `".pinakes/" not in text` warned anyway — training a user to ignore the warning.
+        ("bare directory, no trailing slash", ".pinakes\n", False),
+        ("a glob that covers it", ".pin*\n", False),
+        # The two false negatives, and these are the ones that cost something. git ignores nothing
+        # here, and the substring test stayed **silent**: the string is present, so it read as
+        # protection. A commented-out line is the cheapest way to reach it — comment it out to
+        # debug, re-run `init`, and the ledger and every deep transcript are tracked, in silence.
+        ("negated after being listed", ".pinakes/\n!.pinakes/\n", True),
+        ("commented out", "#.pinakes/\n", True),
+        # **The cover cases, and the first is a regression the review caught.** Probing three named
+        # files reported PROTECTED here while `index.db-wal` — megabytes of verbatim document text
+        # in WAL mode — stayed tracked. The substring test this replaces *warned*. A check that
+        # answers about filenames cannot answer a question about a directory.
+        (
+            "*.db and *.json, which cover the probes but not the directory",
+            "*.db\n*.json\n*.jsonl\n",
+            True,
+        ),
+        (
+            "everything under .pinakes ignored except the extraction cache",
+            ".pinakes/*\n!.pinakes/cache\n",
+            True,
+        ),
+        # Controls. Without these a check that always answered the same way would pass four of six.
+        ("the exact line this file writes", ".pinakes/\n", False),
+        ("nothing to do with pinakes", "node_modules/\n", True),
+    ],
+)
+def test_the_gitignore_check_answers_what_git_answers(
+    tmp_path: Path, case: str, gitignore: str, unprotected: bool
+) -> None:
+    """Six `.gitignore` files, measured against real git on 20260825. Four of them were answered
+    wrongly by the substring test this replaces — two warnings that should not have fired, and two
+    silences that should have been warnings."""
+    root = _git_repo(tmp_path / "repo", gitignore)
+
+    assert init(root).gitignore_unprotected is unprotected, case
+
+
+def test_ignoring_only_part_of_pinakes_is_not_protection(tmp_path: Path) -> None:
+    """Every probe has to match, not merely one — `check-ignore` exits 0 when **any** does.
+
+    **The input matters, and the first version of this test got it wrong.** It used a `.gitignore`
+    naming only `.pinakes/ledger.jsonl`, which was a real discriminator while the probes were three
+    named files. Against *opaque* probes it stopped being one: no probe matches, so `len(matched)`
+    is 0 and "any" and "all" agree. A mutation pass caught it — `len(matched) > 0` survived here,
+    against a test whose own name claims to pin exactly that.
+
+    `.pinakes/*` with `!.pinakes/cache` is the input that discriminates: three probes are ignored
+    and the one under `cache/extract/` is not, so "any" says protected and "all" says warn. The
+    re-included subtree holds the whole extracted text of every document.
+    """
+    partial = _git_repo(tmp_path / "partial", ".pinakes/*\n!.pinakes/cache\n")
+    assert init(partial).gitignore_unprotected is True, (
+        "three of four probes ignored is not protection — the extraction cache is tracked"
+    )
+
+    ledger_only = _git_repo(tmp_path / "ledger-only", ".pinakes/ledger.jsonl\n")
+    assert init(ledger_only).gitignore_unprotected is True, (
+        "the ledger being ignored says nothing about the index or the transcripts"
+    )
+
+
+def test_protection_that_lives_outside_gitignore_is_still_protection(tmp_path: Path) -> None:
+    """`.git/info/exclude` ignores `.pinakes/` just as effectively as `.gitignore` does, and **no
+    amount of reading `.gitignore` can see it**. Nor could a scan see the user's global excludes or
+    a parent repository's rules. This test fails against any implementation that reads the file
+    rather than asking git, which is the whole point of the change."""
+    root = _git_repo(tmp_path / "repo", "node_modules/\n")
+    exclude = root / ".git" / "info" / "exclude"
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    exclude.write_text(".pinakes/\n", encoding="utf-8")
+
+    assert init(root).gitignore_unprotected is False
+
+
+@pytest.mark.parametrize(
+    ("case", "gitignore", "unprotected"),
+    [
+        ("commented out", "#.pinakes/\n", True),
+        ("no trailing slash", ".pinakes\n", False),
+        ("unrelated", "node_modules/\n", True),
+        ("the exact line", ".pinakes/\n", False),
+        # **Both of these were wrong before the scratch repo**, and in opposite directions. The
+        # hand-rolled fallback read `!.pinakes/` as protection — silently, on the same input the
+        # in-repo matrix above asserts must warn — and warned about `/.pinakes/`, the root-anchored
+        # form many editors emit, which git honours perfectly well.
+        ("negated, which the text scan read as protection", ".pinakes/\n!.pinakes/\n", True),
+        ("root-anchored, which the text scan warned about", "/.pinakes/\n", False),
+        ("a doublestar form", "**/.pinakes/\n", False),
+    ],
+)
+def test_outside_a_repository_git_is_asked_in_a_scratch_repository(
+    tmp_path: Path, case: str, gitignore: str, unprotected: bool
+) -> None:
+    """A KB is often stamped before `git init`, and there is still no excuse for guessing.
+
+    The `.gitignore` is copied into a throwaway repository and the identical probes are run, so
+    there is **one** definition of the answer rather than two that can disagree. The text scan is
+    reached only when there is no `git` at all.
+    """
+    root = tmp_path / "plain"
+    root.mkdir()
+    (root / ".gitignore").write_text(gitignore, encoding="utf-8")
+
+    assert init(root).gitignore_unprotected is unprotected, case
+
+
+@pytest.mark.parametrize(
+    ("case", "gitignore", "already_present"),
+    [
+        ("the line is there and then negated", ".pinakes/\n!.pinakes/\n", True),
+        ("the line is simply missing", "node_modules/\n", False),
+        ("the line is present only inside a comment", "#.pinakes/\n", False),
+        (
+            "a narrower rule, so adding the line really would help",
+            ".pinakes/*\n!.pinakes/cache\n",
+            False,
+        ),
+    ],
+)
+def test_the_remedy_is_only_offered_when_it_would_change_the_verdict(
+    tmp_path: Path, case: str, gitignore: str, already_present: bool
+) -> None:
+    """Every one of these is unprotected. They differ in whether *adding the line* fixes it.
+
+    This became reachable when the check stopped being a substring test: under the old one the
+    string's presence **was** the verdict, so a redundant remedy was impossible. Asking git made
+    "unprotected" and "the line is missing" two different facts, and the message still assumed they
+    were one.
+    """
+    root = _git_repo(tmp_path / "repo", gitignore)
+
+    result = init(root)
+
+    assert result.gitignore_unprotected is True, case
+    assert result.remedy_already_present is already_present, case
+
+
+def test_the_warning_never_tells_you_to_add_a_line_you_already_have(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The printed text, not just the flag — a field nothing prints is not a fix."""
+    negated = _git_repo(tmp_path / "negated", ".pinakes/\n!.pinakes/\n")
+    assert main(["init", str(negated)]) == 0
+    said = capsys.readouterr().out
+    assert "even though your .gitignore names it" in said
+    assert "Add this line" not in said, (
+        "the line is already there; adding it again changes nothing and explains nothing"
+    )
+    assert "git check-ignore -v" in said, "say how to see what actually matched"
+
+    missing = _git_repo(tmp_path / "missing", "node_modules/\n")
+    assert main(["init", str(missing)]) == 0
+    said = capsys.readouterr().out
+    assert "Add this line" in said, "here the remedy is real and must still be given"
+
+
+def test_a_gitignore_written_by_init_is_not_re_examined(tmp_path: Path) -> None:
+    """The check fires for an **adopted** `.gitignore` only, which is where it always fired.
+
+    A first draft ran it unconditionally, justified by "an ancestor repository could negate what we
+    wrote". Review showed that cannot happen — git resolves by directory depth, so the file `init`
+    writes in the KB wins over any ancestor. What widening it actually reached was a path already
+    in the index, where `check-ignore` says not-ignored and the warning would tell the user to add a
+    line their file already contains.
+    """
+    root = _git_repo(tmp_path / "repo")
+    (root / ".pinakes").mkdir()
+    (root / ".pinakes" / "index.db").write_text("x", encoding="utf-8")
+    subprocess.run(["git", "add", "-Af", ".pinakes"], cwd=root, check=True, capture_output=True)
+
+    result = init(root)
+
+    assert (root / ".gitignore").read_text(encoding="utf-8").splitlines()[-1] == ".pinakes/"
+    assert result.gitignore_unprotected is False, (
+        "init wrote the .gitignore itself; re-examining it only produces a warning whose remedy "
+        "is already satisfied"
+    )
+
+
+def test_an_ambient_git_dir_cannot_answer_for_another_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """git honours `GIT_DIR`/`GIT_WORK_TREE` over `cwd`, and exports both to every hook it runs.
+
+    Without scrubbing them, `pnk init` run from a hook is answered by whichever repository the
+    environment names — confidently, and about the wrong tree.
+    """
+    elsewhere = _git_repo(tmp_path / "elsewhere", ".pinakes/\n")
+    root = _git_repo(tmp_path / "repo", "node_modules/\n")
+    monkeypatch.setenv("GIT_DIR", str(elsewhere / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(elsewhere))
+
+    assert init(root).gitignore_unprotected is True, (
+        "the KB's own repository protects nothing; another repository's rules are not an answer"
+    )
+
+
+def test_a_gitignore_that_is_not_utf8_does_not_abort_a_half_written_kb(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`pinakes.toml` is already on disk by the time this runs, so raising leaves a KB the next
+    `pnk init` refuses as "already a KB". One latin-1 byte in a comment used to do it."""
+
+    def _no_git(*args: object, **kwargs: object) -> object:
+        raise FileNotFoundError("git")
+
+    monkeypatch.setattr("pinakes.init.subprocess.run", _no_git)
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / ".gitignore").write_bytes(b"# caf\xe9 notes\n")
+
+    assert init(root).gitignore_unprotected is True
+
+
+def test_a_git_that_never_returns_does_not_hang_init(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`check-ignore` refreshes the index, which runs the `core.fsmonitor` hook — a wedged Watchman
+    blocks it forever. A timeout has to degrade to an answer, not to a traceback."""
+
+    def _timeout(*args: object, **kwargs: object) -> object:
+        raise subprocess.TimeoutExpired(cmd="git", timeout=5)
+
+    monkeypatch.setattr("pinakes.init.subprocess.run", _timeout)
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / ".gitignore").write_text("#.pinakes/\n", encoding="utf-8")
+
+    assert init(root).gitignore_unprotected is True
+
+
+def test_init_still_stamps_a_kb_when_git_is_not_installed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`init` has never required git, and refusing to stamp a KB because a version-control tool is
+    missing would be a worse failure than the one this change fixes."""
+
+    def _no_git(*args: object, **kwargs: object) -> object:
+        raise FileNotFoundError("git")
+
+    monkeypatch.setattr("pinakes.init.subprocess.run", _no_git)
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / ".gitignore").write_text("#.pinakes/\n", encoding="utf-8")
+
+    result = init(root)
+
+    assert result.gitignore_unprotected is True, "the fallback still catches the commented-out line"
 
 
 def test_ci_refuses_an_existing_workflow_before_creating_anything(tmp_path: Path) -> None:

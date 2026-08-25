@@ -519,9 +519,10 @@ That empties `.pinakes/deep/` and touches nothing else — and it asks first, be
 extraction, a record of what a particular run was asked cannot be bought back.
 
 **Check `.pinakes/` is gitignored before you rely on that.** `pnk init` writes the line into a
-`.gitignore` it creates; into one that *already existed* it writes nothing and prints the line for
-you to add, because a `.gitignore` is yours. If you skipped that warning, the transcript is the file
-you would least like committed.
+`.gitignore` it creates; into one that *already existed* it writes nothing, because a `.gitignore`
+is yours. It asks **git** whether the directory is really ignored — not whether the text appears —
+and prints the line to add when that is what is missing. If you skipped that warning, the
+transcript is the file you would least like committed.
 
 **What it will not do.** A subproblem it writes is a search query against *your* KB with *your*
 filters — never a path, never another KB — so a document telling the model to go and read

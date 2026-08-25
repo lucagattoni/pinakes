@@ -132,8 +132,19 @@ def run_init(args: argparse.Namespace) -> int:
         listed = ", ".join(str(path.relative_to(result.root)) for path in result.adopted)
         print(f"  left as they were: {listed}")
     if result.gitignore_unprotected:
-        print("\n  ⚠️  your .gitignore does not ignore `.pinakes/`. Add this line:")
-        print("        .pinakes/")
+        # **Two branches, because one of them would otherwise be false.** The remedy is only a
+        # remedy when the line is missing. A `.gitignore` reading `.pinakes/` and then `!.pinakes/`
+        # is unprotected *with* the line present, and telling that user to add it again sends them
+        # to do nothing and learn nothing. Reachable only since the check became git's answer
+        # rather than a substring test, so the branch arrived with the capability that needed it.
+        if result.remedy_already_present:
+            print("\n  ⚠️  git does not ignore `.pinakes/`, even though your .gitignore names it.")
+            print("      Something later overrides it — a `!` re-include, or a narrower rule.")
+            print("      Adding the line again would not change this. To see what matched:")
+            print("        git check-ignore -v .pinakes/index.db")
+        else:
+            print("\n  ⚠️  your .gitignore does not ignore `.pinakes/`. Add this line:")
+            print("        .pinakes/")
         print("      It holds the index and the spend ledger — ignoring it is what keeps them")
         print("      off any remote you push to.")
     print("\nNext:")

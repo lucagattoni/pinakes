@@ -58,10 +58,12 @@ output:
 
     left as they were: .gitignore, README.md
 
-**One consequence is called out rather than fixed.** If the adopted `.gitignore` does not mention
-`.pinakes/`, `init` says so and prints the line to add. It will not append to it: that file is
-yours, and `.pinakes/` holds the index and the spend ledger, so ignoring it is what keeps them off
-any remote you push to.
+**One consequence is called out rather than fixed.** If git would not actually ignore `.pinakes/`
+— asked with `git check-ignore` rather than by looking for the text, so a commented-out or negated
+line counts for nothing — `init` says so. It prints the line to add when that is the fix; when the
+line is already there it says that something later overrides it and points at `git check-ignore -v`
+to show what. It will not append to the file: that file is yours, and `.pinakes/` holds the index
+and the spend ledger, so ignoring it is what keeps them off any remote you push to.
 
 **`--ci` is refused rather than adopted** when a workflow already exists, and refused *before*
 anything is created — `--ci` is an explicit request, and honouring it by silently doing nothing
