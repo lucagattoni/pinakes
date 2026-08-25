@@ -160,8 +160,9 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md), which is now the file
   to read first. **Two of the taken options were invented by that pass's adversary and are not in the
   original plans — read the decision, never a memory of the options.**
-  [`plans/20260825_1240-run-pinakes-sweep.md`](plans/20260825_1240-run-pinakes-sweep.md) — **fifteen
-  defects found by running Pinakes, three of them high**; **D-36 and D-37 are now answered**. Every
+  [`plans/20260825_1240-run-pinakes-sweep.md`](plans/20260825_1240-run-pinakes-sweep.md) — **sixteen
+  defects found by running Pinakes, three of them high** — S16 was found by *reviewing a fix*, and
+  crashes `sync` on an ordinary two-file rename swap while `doctor` reports OK; **D-36 and D-37 are now answered**. Every
   other file in `plans/` is closed, answered, deferred or proposed-unscheduled — and **an
   empty-looking list still means *the next thing to build has not been planned yet*, never *nothing
   to do***. `docs/ROADMAP.md` Part 5 holds what comes after.
