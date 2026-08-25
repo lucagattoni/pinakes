@@ -14,7 +14,11 @@ from pinakes.ci import WORKFLOW_PATH
 from pinakes.cli import main
 from pinakes.errors import InitError, TemplateError
 from pinakes.ids import parse_kb_id
-from pinakes.init import _index_pathspec, _tracked_by_git, init
+from pinakes.init import (
+    _index_pathspec,  # pyright: ignore[reportPrivateUsage]
+    _tracked_by_git,  # pyright: ignore[reportPrivateUsage]
+    init,
+)
 from pinakes.manifest import load
 
 
@@ -1045,9 +1049,18 @@ def test_the_tracked_remedy_says_index_not_disk_and_claims_nothing_about_pushed_
     said = capsys.readouterr().out
 
     assert "already tracking files under `.pinakes/`" in said
-    assert "git rm -r --cached .pinakes" in said
+    assert f'git rm -r --cached "{root / ".pinakes"}"' in said, (
+        "the path must be absolute: measured, a user standing at the root of a repository whose "
+        "KB is a subdirectory gets `fatal: pathspec '.pinakes' did not match any files` from the "
+        "relative form, and the KB stays tracked"
+    )
     assert "not from your disk" in said
     assert "does not change any commit you have already pushed" in said
+    assert "stays in that history" in said
+    assert "which hold the questions you typed" not in said, (
+        "a KB that has never run `pnk ask --deep` has no transcripts, and at init time that is "
+        "the common case — the clause must be conditional, not asserted"
+    )
     assert "Add the line above first" not in said, (
         "the ignore rule is already correct here; naming a line to add would instruct an action "
         "that changes nothing — the rule init.py states and this check must not break"

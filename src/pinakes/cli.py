@@ -155,8 +155,9 @@ def run_init(args: argparse.Namespace) -> int:
         # protected.
         print("\n  ⚠️  git is already tracking files under `.pinakes/`.")
         print("      Ignoring a directory does not untrack what is already in the index, so")
-        print("      these keep being committed — including the deep transcripts, which hold")
-        print("      the questions you typed.")
+        print("      these keep being committed. `.pinakes/` holds your index and spend ledger,")
+        print("      and — if you have run `pnk ask --deep` — transcripts containing the")
+        print("      questions you typed.")
         if result.gitignore_unprotected:
             # **Order is load-bearing and is stated, not implied by layout.** Measured: with no
             # ignore rule in place, `git rm -r --cached` followed by any ordinary `git add -A`
@@ -168,10 +169,16 @@ def run_init(args: argparse.Namespace) -> int:
             )
             print(f"      {first} — otherwise the next `git add` re-adds them.")
         print("      Then:")
-        print("        git rm -r --cached .pinakes")
+        # **The path is absolute, and that is not tidiness.** Measured: with the KB at `repo/kb`,
+        # a user standing at the repository root and running the relative form gets
+        # `fatal: pathspec '.pinakes' did not match any files` and the KB stays tracked. It fails
+        # loudly rather than silently, but it is still a remedy that does not work where the user
+        # is most likely to be standing — and `init` already holds the root, so it can say it.
+        print(f'        git rm -r --cached "{result.root / ".pinakes"}"')
         print('        git commit -m "stop tracking .pinakes/"')
         print("      That removes them from git's index, not from your disk — the files stay")
-        print("      where they are. It does not change any commit you have already pushed.")
+        print("      where they are. It does not change any commit you have already pushed —")
+        print("      anything already published stays in that history.")
     print("\nNext:")
     print(f"  1. put Markdown files in {result.root / 'docs'}")
     print("  2. `pnk sync` to index them, then commit the sidecars it writes")
