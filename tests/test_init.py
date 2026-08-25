@@ -10,8 +10,8 @@ from pathlib import Path
 import pytest
 
 from pinakes import template
-from pinakes.cli import main
 from pinakes.ci import WORKFLOW_PATH
+from pinakes.cli import main
 from pinakes.errors import InitError, TemplateError
 from pinakes.ids import parse_kb_id
 from pinakes.init import init

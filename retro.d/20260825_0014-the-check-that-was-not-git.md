@@ -124,6 +124,16 @@ authoritative *not ignored* when git had in fact printed a warning. `text=True` 
 aborting with a traceback. Each has a test. **The cost of asking an authority is that you inherit
 its whole process model, not just its answer.**
 
+**HIGH — `7/7 killed` is a ratio with an unstated denominator, and it was read as an answer.** The
+battery was green about the code that had been written, not about the code that should have been;
+the regression above sat outside every mutant in it, because the mutants were derived from the same
+understanding that produced the defect. It was reported as *"7/7 killed, fragments written"* and
+read as completeness by both the implementer who wrote it and the planner who received it. Neither
+asked what the battery covered. **A green battery is a claim about the mutants someone thought of.**
+The defence is not that someone should have been more careful — it is that a ratio whose
+denominator is unstated should read as a question rather than as an answer, and this one names the
+same skeleton as everything else here: a sound argument over an unexamined domain.
+
 **This is the first mutation battery under `src/`.** Every other one covers `tools/`, which
 `tools/batteries/README.md` records as a limitation rather than a design — *"no module under
 `src/` has one, and no invariant in INVARIANTS is covered."* The decision that keeps an index, a
