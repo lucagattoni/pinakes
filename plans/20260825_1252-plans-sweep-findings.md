@@ -503,6 +503,35 @@ after checking, and *the most strongly worded one was the wrong one*.
 
 **Why:** Six increment specs read as authoritative for what shipped and are individually wrong: `--offline` is claimed on `doctor` (it is not — `_doctor_arguments` adds only `--kb`/`--prune`); `--created-after/-before` are quoted as CLI flags (the shipped pair is `--modified-*`); `pinakes_search`'s filter set names a nonexistent column and `FastMCP`, removed by mcp 2.0.0; `pair()` is said to return `DuplicateIdError` when it raises `DuplicateIdsError`; `pnk doctor`'s check list omits four shipped checks. Ground rules additionally says `__version__` stays `0.0.0`.
 
+## What X2 applied, and what it left
+
+**X2 is built (20260825 13:20).** The 53 dispositions above became **100 heading edits across 17
+files** — a disposition naming several headings was expanded per real heading line — and every one
+was re-read against its section body before being written.
+
+**Two things the adversarial pass caught that would have damaged the tree, both worth keeping:**
+
+1. **20 of the 100 entries named the wrong file.** Nineteen would have failed loudly at zero
+   occurrences; **`## Live` would have applied *successfully* to the wrong text**, because the file
+   it was misfiled under also has that heading. Resolution was done by searching `plans/` for an
+   exact full-line match rather than by trusting any agent's label.
+2. **Five `old_line` strings are not unique across `plans/`.** `## Ground rules (apply to every
+   increment)` is a target in **both** `20260727_1543-v0.2.md` and `20260725_1317-v0.1.md` **with
+   different replacements**; `## Tests` likewise in the mutation-harness and source-walk plans. **A
+   repo-wide string replace would have silently corrupted them.** The apply keys on `(file, line)`.
+
+**Seven dispositions were overturned for writing a false claim**, and three shared one shape:
+`CLOSED 20260823` dated a docs-audit fix to the pass that *noticed* it rather than the commit that
+made it — sixteen days late, and in one case erasing the very gap the entry had discovered.
+
+**The residual, stated rather than left to be found.** The readers flagged **93** heading/body
+mismatches; the synthesis proposed dispositions for **53**. **The remaining ~40 carry no
+disposition and were not applied** — they were consolidated or judged not to need one, and that
+judgement has not been re-checked. A heading-only sweep of `plans/20260729_0256-links-and-graph.md`
+still returns `## The open track is G3 — and what the parallel run taught`, which reads live and has
+no disposition. **The file's closure banner now covers it** — unblockquoted, so `grep '^## '`
+returns it for the first time — but the section heading itself is unmarked.
+
 ## Corrections owed — factual errors found while reading
 
 **These are not heading dispositions. Each is a claim that is wrong on the tree as it stands.**
