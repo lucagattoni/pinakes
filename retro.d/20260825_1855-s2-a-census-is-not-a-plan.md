@@ -46,3 +46,20 @@ read `claimed is not None and claimed.document_path != path`. The second term ca
 where it is evaluated: the sidecar beside that path is the one that disagrees, so the sidecar
 claiming the row's id is necessarily a different one. It would have shipped as an unkillable mutant
 — a line no test can pin, which reads as care and provides none.
+
+**LOW, but it is the number the previous attempt got wrong — the check is free.** Timed over the same
+2000-document KB with retired rows present, so the walk actually runs: `pnk doctor` median **0.822s
+on `origin/main`, 0.818s with the check** — inside the noise, five runs each. The attempt this
+replaces measured 2.25x (0.746s → 1.682s), and the cost was not the check, it was what the check
+asked for: a SHA-256 over the whole corpus and a second `ruamel` parse of every sidecar
+`_sidecars()` had already parsed thirty lines earlier. This version reuses that parse and asks the
+walk for paths alone. **The general form: a diagnostic's cost is decided by the question it asks,
+not by the number of checks it runs** — and the expensive question and the cheap one had the same
+answer here, which is why the expensive one survived review the first time.
+
+**And the exit code is still not a validity signal, demonstrated while verifying this.** Running the
+real `pnk doctor` against a healthy 2000-document scratch KB exits **1** — for `embedding` and
+`reranker`, because the fake backend is registered inside pytest and not in a plain CLI process.
+Two sessions built measurement harnesses on that exit code in one day; this is a third sighting
+inside an hour of deliberately watching for it. Assert on the named check row, never on the exit
+code.
