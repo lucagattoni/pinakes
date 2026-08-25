@@ -7380,7 +7380,17 @@ each `##` section LIVE / CLOSED / MIXED from its **heading**, and sent only the 
 semantic read. **Nine of twenty files were dropped unread**, and at least one wrongly:
 `plans/20260804_1844-decision-parent-child-arity.md`'s `## The decision` was classified CLOSED while
 holding the file's only outstanding work — a measured ceiling required before G5's gate runs. **A
-section named for a decision is not a section whose decision has been discharged.** The number worth
+section named for a decision is not a section whose decision has been discharged.**
+
+> **Correction, 20260825 13:12 — the lesson holds, the example was wrong.** The full re-read (X3)
+> confirmed `## The decision` does hold live work, so the finding above stands. But it is **not** the
+> ceiling: that was measured the same day and is recorded far earlier in this file, under the
+> `parent-child` arity entry — locate it by that heading, not by a line number — at
+> **53.42 `parent-child` rows per chunk, 94.7% of stored edges, +113.4% index growth**. The live item
+> is **requirement 3** — *if the ceiling is alarming, the immediate-parent variant is the arm to
+> measure* — and no such arm exists (`tools/graph_matrix.py` LEGS has seven legs and none is one).
+> **The sweep that found a heading-level claim was wrong then made a body-level claim that was also
+> wrong, and it survived into a retrospective**, which is the same defect one layer down. The number worth
 carrying forward is therefore **11 of 20 files read**, not the finding count; a report's coverage is
 a property of its filter, and a filter that reads headings inherits every defect that headings have.
 That is the same shape as the item three paragraphs up — one instance found and generalised — one
