@@ -21,6 +21,7 @@ from asking rather than reading. **Reading found none of these.**
 | **†** | Reproduced independently by the planner, by execution, on `c2c69cb` |
 | **‡** | Found and confirmed by the coder's adversarial verifier, re-run from a clean directory |
 | **✱** | Verifier returned **no verdict**; the coder verified it by hand afterwards |
+| **†‡** | Found by the *review of another fix*, then reproduced independently by the planner on `main` |
 
 **A verifier returning nothing is not a refutation.** One finding was classified into the refuted
 bucket by a default branch and would have been buried. It is real. **Whatever consumes a verifier's
@@ -59,6 +60,42 @@ MCP tool calls fail with a SQLite cross-thread error.
 **not** trigger it — 0 failures in 10. The deterministic trigger is **any pause longer than ~10 s
 between calls**, which is the normal shape of an agent session. A repro that fires only under the
 access pattern nobody tests under is why this survived.
+
+### S16 †‡ — swapping two documents' names crashes `sync` and leaves the index describing the wrong file
+
+**Found 20260825 18:24 while reviewing S2's fix; independent of that branch and reproduced with the fix
+removed.** Not from the original seven-surface sweep — it came out of the adversarial review of S2, which
+is itself the point: *the review of a fix found a defect the fix was not about.*
+
+**Reproduced end to end by the planner on `main` at `32442db`**, free path, scratch KB outside the repo:
+
+    pnk init <kb> --backend light        # two documents, a.md and b.md, synced clean
+    # swap both names, sidecars travelling with them, as a `git mv` pair leaves them
+    pnk sync                             # exit 1, sqlite3.IntegrityError:
+                                         #   UNIQUE constraint failed: documents.path
+                                         #   at src/pinakes/sync.py:2331
+
+**Three separate failures, and the third is the worst.**
+
+| | |
+|---|---|
+| `pnk sync` | **exit 1**, raw Python traceback — no remedy, no failure ledger entry |
+| `pnk search` | returns **`docs/b.md — Beta`** while `b.md` on disk contains **Alpha**. The index describes the wrong file and answers queries from it |
+| `pnk doctor` | **exit 0**, `OK` on every row |
+
+**This is the S2 shape reached from a different direction** — the index and the disk disagree, and the
+diagnostic command says the KB is healthy. It is **live in `0.30.2`**, which is what `pip install pinakes`
+serves today.
+
+**Why an ordinary action reaches it**, from the coder's analysis of `pair()`: a swap emits
+`[SoftDelete(X), Adopt(Y@a.md), SoftDelete(Y), Adopt(X@b.md)]`. The `UNIQUE` constraint on
+`documents.path` fires because the first `Adopt` writes a path the second document still holds.
+**`git mv` of two files past each other is not an exotic input** — renaming a pair of notes is.
+
+**Not to be folded into S2 without care.** S2's first fix made this *worse*, not better: a scoped DELETE
+turned this crash into a **green sync that silently loses a document**. The coder's rework moves the fix
+into `pairing` — do not emit `SoftDelete(id)` when the same plan `Adopt`s that id — which is a pure
+function and testable exhaustively. **Read S2's status before touching this.**
 
 ## Medium — six
 
