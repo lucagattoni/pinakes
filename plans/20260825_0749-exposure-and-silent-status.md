@@ -543,8 +543,8 @@ read its section above for the decided three-layer shape, which is *not* what th
 | # | Item | Blocked on | Owner |
 |---|---|---|---|
 | 1 | **X1** — the tracked-KB question, its own state and its own remedy, in `init` | nothing | coder |
-| 2 | **X2** — the open-corrections restructure | X3 (read the nine files first) | planner |
-| 3 | **X3** — read the nine unread `plans/` files | nothing | either |
+| 2 | **X2** — the open-corrections restructure | **unblocked — X3 is built**; its 53 proposed heading dispositions are the input | planner |
+| 3 | ~~**X3** — read the nine unread `plans/` files~~ — **BUILT 20260825 12:52.** All **twenty** read, not nine: the dropped nine could not be identified after the fact. **317 sections classified by body, 93 heading/body mismatches.** Findings: [`20260825_1252-plans-sweep-findings.md`](20260825_1252-plans-sweep-findings.md) | — | planner |
 | 4 | ~~**X4** (stale paragraph only)~~ — **BUILT 20260825 12:49.** Rewritten to the measured state; `test_init.py` moved out of the unrepresented list (27 rows), and the release-count claim removed rather than restated | — | planner |
 | 5 | **D-31/D-32** → `doctor` check | the decisions | coder |
 | 6 | **D-33** detail line | D-31 | coder |
