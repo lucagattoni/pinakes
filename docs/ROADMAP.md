@@ -17,11 +17,11 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260823 15:05 UTC
+## Where things stand right now — 20260824 23:55 UTC
 
-- **54 releases in 29 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.30.0`](#0300--the-markdown-the-docs-site-never-sees-now-gated--20260823-1505)
-  on 20260823.
+- **55 releases in 30 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+  [`0.30.1`](#0301--the-assembled-document-nobody-read--20260824-2355)
+  on 20260824.
 - **Latest on PyPI: `0.30.0`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
@@ -107,7 +107,7 @@ precision nobody measured.
   under adversarial review, one was **created** by the increment that closed another, and one came
   from **generalising a fix** — asking where else the defect just repaired still lives.
 - **🛑 Nothing is scheduled — for the first time.** Every named body of work is shipped or gated:
-  the open-corrections list holds one live *decision* and one live *fix*, T6 waits on a **trigger** (a queried KB past
+  the open-corrections list holds one live *decision*, T6 waits on a **trigger** (a queried KB past
   ~50 000 chunks *with* felt latency), the staged graph channels wait on a **corpus**, and
   **[the deep release](#the-deep-release--the-loop-shipped-in-0240) closed at
   [`0.26.0`](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** —
@@ -184,7 +184,8 @@ number belongs to a release only when it is cut
 | **[0.29.0](#0290--the-batteries-were-kept-and-one-caught-what-four-green-gates-missed--20260823-1250)** | 20260823 12:50 | the batteries were kept, and one caught what four green gates missed | • **91 mutants committed** under `tools/batteries/`, one file per target, all 91 killed<br>• **The docstring that decided this was an assumption**: measured, 78 of 81 anchors still resolved a day to a week later, and all three failures were *refusals*<br>• **`--check-anchors`** resolves anchors against the working tree in milliseconds; `tests/test_batteries.py` gates anchors, selectors, double claims and a declared count<br>• **A resolvability gate, not a regression gate** — nothing runs a battery automatically<br>• **Two of its own mutants were killed about nothing**, one of them a `SyntaxError` reading KILLED in a batch reporting `0 errored`; a compile refusal now precedes the first write<br>• **A battery caught what four green gates and two review passes missed**<br>• A cleared context settles its own role, and its peers', before it writes<br>• no code path changed |
 | **[0.29.1](#0291--the-instruction-file-extracted-to-its-own-guideline--20260823-1359)** | 20260823 13:59 | the instruction file, extracted to its own guideline | • **274 → 220 lines**, five sections moved to the page that owns them, **nothing lost** — 112 removed lines traced to a home<br>• The plan-status bullets were **duplicates**, deleted rather than moved: the routing table already had them<br>• **Every defect the review found was about the neighbourhood, not the content** — a per-file agent cannot audit what lies outside its file<br>• A duplicated rule had **already drifted**: README named the deep release as live, three releases late<br>• Four dead links written while creating pointers — `CLAUDE.md` is not in the built site, so `mkdocs --strict` cannot see them<br>• **Stops at 220, not 150**, and says so<br>• no code path changed |
 | **[0.29.2](#0292--the-links-no-gate-reads--20260823-1443)** | 20260823 14:43 | the links no gate reads | • **11 broken links** on the surface `mkdocs --strict` never sees — `CHANGELOG.md`, `plans/**`, the fragment READMEs<br>• 3 pointed `../docs/…`, **above the repository root**<br>• 1 anchor **rotted when a re-measurement renamed its heading**<br>• 6 were quotations, now code-spanned — repointing a quoted path would falsify the quotation<br>• **A backslash does not escape a backtick inside a code span**: a published page rendered as broken `<code>` for weeks, `--strict` green throughout<br>• **Render, don't regex** — two regex scanners, seven false positives, one wrong edit<br>• no code path changed |
-| **[0.30.0](#0300--the-markdown-the-docs-site-never-sees-now-gated--20260823-1505)** | 20260823 15:05 | the Markdown the docs site never sees, now gated | • `tools/markdown_link_gate.py` — every relative link and anchor in the Markdown `--strict` never sees<br>• **stdlib-only, 0.25s**, licensed by measuring the extractor against a real renderer over 894 links<br>• **A quoted link is left alone** — quoting a document never requires corrupting the quotation<br>• Caught a dead link in **this release's own fragment**: right in `changelog.d/`, wrong once spliced<br>• **§ *Landing beside a peer*** — the overlap tool compares to `origin/main`, never to a sibling branch<br>• A landing **order can be forced**, and running the peer's gate is what finds it<br>• `fragments.py --check` never reads the document it writes<br>• no code path changed |
+| **[0.30.0](#0300--the-markdown-the-docs-site-never-sees-now-gated--20260823-1505)** | 20260823 15:05 | the Markdown the docs site never sees, now gated | • `tools/markdown_link_gate.py` — every relative link and anchor in the Markdown `--strict` never sees<br>• **stdlib-only, 0.25s**, licensed by measuring the extractor against a real renderer over 894 links<br>• **A quoted link is left alone** — quoting a document never requires corrupting the quotation<br>• Caught a dead link in **this release's own fragment**: right in `changelog.d/`, wrong once spliced<br>• **§ *Landing beside a peer*** — the overlap tool compares to `origin/main`, never to a sibling branch<br>• A landing **order can be forced**, and running the peer's gate is what finds it<br>• `fragments.py --check` never reads the document it writes — **closed in 0.30.1**<br>• no code path changed |
+| **[0.30.1](#0301--the-assembled-document-nobody-read--20260824-2355)** | 20260824 23:55 | the assembled document nobody read | • `fragments.py --check` now validates **the assembly `--apply` would write**, not only the fragments going in<br>• **One definition of the splice** — `--check` calls the same `prospective()`, pinned by a byte-comparison test<br>• Replayed: exits 1 **at the commit that added the fragment**, at 0.6.0 and 0.28.3<br>• The bullet rule is **changelog-only by construction** — the retro stream has no category vocabulary to reach it<br>• `--apply` spliced entries **inside fenced code blocks**, and would have taken a quoted `## [Unreleased]` as its anchor<br>• `--apply` **was not atomic across streams** — wrote one, deleted its fragments, then printed *"Nothing written"*<br>• **Five front-matter residues rendered as setext `<h2>`**, two on the published site, `--strict` green throughout<br>• Four documents told an implementer to write **planner-only files** — no rule added, four sentences corrected<br>• no code path changed |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -2055,8 +2056,62 @@ the gate where it passed. **The failing configuration is the one you never run.*
 **Also fixed: a changelog nothing has ever read.** `## [0.28.3]` carried `### Fixed` twice
 consecutively, and its body — like one `### Changed` body further down — was a bare paragraph rather
 than the required bullet. `python3 tools/fragments.py --check` exits `0` on both, because **it
-validates pending fragments and never the document it splices them into**. Prose unchanged; the
+validates pending fragments and never the document it splices them into** *(closed in 0.30.1)*. Prose unchanged; the
 duplicate heading is gone and both bodies are bulleted.
+
+**No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
+
+## 0.30.1 — the assembled document nobody read · 20260824 23:55
+
+**Every gate in this repository read something other than the document a release actually writes.**
+`tools/fragments.py --check` parsed each pending fragment — category, slug, emptiness, a leading
+`---` fence — and asserted nothing about the result of `--apply`. So a splice could leave
+`CHANGELOG.md` malformed with every check green, and had: `## [0.28.3]` carried `### Fixed` twice
+consecutively with a bare paragraph for a body, and it went **twenty-two days** unnoticed — found
+by reading a release precedent, not by any instrument.
+
+**The widening is to the assembly, not to the file on disk.** Reading the file answers whether the
+*last* splice went well, while the fragment that will break the *next* one sits in the tree unread.
+`--check` now validates the document the pending fragments would produce, and does so through the
+same `prospective()` that `--apply` calls — one definition of the splice rather than two that must
+agree forever, with a byte-comparison test pinning them. Replayed against the trees as they stood
+at 0.6.0 and 0.28.3, it exits 1 **at the commit that added the offending fragment**: seven minutes
+before one defect was hand-repaired after release, and twenty-two days before the other was noticed.
+
+**Two rules, and the narrower one is scoped by construction.** A stream heading never repeats
+consecutively, and a changelog entry opens with a `- ` list item. The second applies to the
+changelog alone — enforced by the retrospectives stream carrying no category vocabulary at all, so
+a future stream of free-form prose inherits the correct behaviour without anyone remembering to
+exempt it. A rule scoped by a name test would need that memory; this one does not.
+
+**Adding a gate that claims `--apply` cannot leave the document malformed is what turned the
+splicer's own blindness into a false claim.** Three defects around the rules, each reproduced end
+to end — written, fragments deleted, exit 0, and a follow-up `--check` green on the wreckage —
+before it was touched. `_merge_into_section` and `splice` scanned for headings without skipping
+fenced blocks, so a column-zero fence containing `### Added` was a heading to the splicer and not
+to the checker: an entry landed *inside* the code block, rendering as sample code and invisible to
+the check that exists to catch it. The same disagreement one function up would have taken a
+**quoted** `## [Unreleased]` as the insertion point for every future release. And `--apply` was not
+atomic across streams — refusing on the second wrote the first and deleted its fragments, then
+exited 1 printing *"Nothing written, no fragment deleted"*, false about a half-applied release in
+the direction that destroys the evidence. Every stream is now spliced and validated before any
+stream is written.
+
+**Also fixed: five blocks of front-matter residue that were rendering as headings, two of them on
+the published site.** A splice long ago left `---` / `category: <x>` / `---` in the assembled
+documents. That is not inert text: `---` after a *blank* line is a thematic break, but after a
+*text* line it underlines that line into a **setext H2** — so each block rendered as a rule
+followed by a heading titled `category: added`. `lucagattoni.github.io/pinakes` was serving two of
+them with real permalink anchors, and `mkdocs build --strict` was green throughout, because
+**`--strict` resolves links and never asks whether a span renders as intended**. The three
+changelog entries the residue had been separating are restored as `- ` items, prose unchanged.
+
+**And four documents told an implementer to write files the ownership table forbids it.** No rule
+was added — the restriction already existed at `CLAUDE.md`'s planner-only row and was already
+obeyed, measured across eight release commits (five to seven planner-only documents each) and six
+implementer commits (none). The four sentences that denied it were corrected instead, and the
+handover rule is not weakened: it still lands in the increment's own branch, as proposals rather
+than edits.
 
 **No code path changed** — no `schema_version`, no rebuild, and nothing about any existing KB.
 
