@@ -24,8 +24,16 @@ mutants = 7
 # `.pinakes` and `.pin*`, which git ignores, and stayed silent for `!.pinakes/` and a commented-out
 # `#.pinakes/`, which git does not. The silent half left the ledger and every transcript tracked.
 #
-# Two of the rows below are that defect, re-expressed: row 5 is the comment blindness and row 6 is
-# the missing-trailing-slash blindness, both in the fallback where no git can be asked.
+# Two of the rows below are that defect, re-expressed: the substring row and the trailing-slash
+# row, both in the fallback where no git can be asked.
+#
+# **One of these rows replaced a survivor, and the survivor was the useful part of the run.** The
+# first draft mutated an explicit `stripped.startswith("#")` comment-skip out of the fallback and
+# every test stayed green — because `"#.pinakes/".rstrip("/")` already fails a whole-line equality
+# test, so the skip never decided anything. The code claimed a care it did not exercise. The skip
+# is gone, the loop is one `any(...)`, and the row below now mutates the property that is really
+# load-bearing: whole-line equality rather than "the string appears somewhere", which *is* the
+# shipped defect.
 
 [[mutant]]
 name = "the probe becomes the bare directory, so the canonical `.pinakes/` pattern reads as unprotected"
@@ -60,10 +68,10 @@ new = '''    protected = None'''
 kills = "tests/test_init.py::test_protection_that_lives_outside_gitignore_is_still_protection"
 
 [[mutant]]
-name = "THE SHIPPED DEFECT, half one — the fallback stops stripping comments, so `#.pinakes/` reads as protection"
+name = "THE SHIPPED DEFECT ITSELF — the fallback asks whether the string appears anywhere, so a comment reads as protection"
 file = "src/pinakes/init.py"
-old = '''        if not stripped or stripped.startswith("#"):'''
-new = '''        if not stripped:'''
+old = '''    return any(line.strip().rstrip("/") == ".pinakes" for line in text.splitlines())'''
+new = '''    return ".pinakes" in text'''
 kills = "tests/test_init.py::test_outside_a_repository_the_fallback_still_strips_comments"
 
 [[mutant]]

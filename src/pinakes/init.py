@@ -78,18 +78,20 @@ def _ignored_by_git(root: Path) -> bool | None:
 def _gitignore_names_pinakes(text: str) -> bool:
     """Best effort for a directory that is not a git repository, where git cannot be asked.
 
-    Deliberately small. It strips comments — the failure that let `#.pinakes/` read as protection
-    — and accepts the directory with or without its trailing slash. It does **not** interpret
-    globs, negations or precedence: a text scan that pretends to be git is precisely how the
-    original defect happened, and outside a repository there is nothing yet to protect against.
+    Deliberately small, and the smallness is the mechanism. It asks whether a **whole line** names
+    the directory, with or without its trailing slash — so `#.pinakes/` cannot match, not because
+    comments are stripped but because a commented line is not that line. That is the failure the
+    substring test had: `".pinakes/" in text` asks whether the string appears *anywhere*, which a
+    comment satisfies. A mutation pass on 20260825 proved the point by deleting an explicit
+    comment-skip from this loop and finding every test still green — the skip was never what
+    excluded a comment, and stating it as though it were made the code read as more careful than
+    it was.
+
+    It does **not** interpret globs, negations or precedence: a text scan that pretends to be git
+    is precisely how the original defect happened, and outside a repository there is nothing yet
+    to protect against.
     """
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if stripped.rstrip("/") == ".pinakes":
-            return True
-    return False
+    return any(line.strip().rstrip("/") == ".pinakes" for line in text.splitlines())
 
 
 DEFAULT_EMBEDDING = ("sentence-transformers", "BAAI/bge-small-en-v1.5", 384)
