@@ -541,6 +541,16 @@ which is the section above; this is what a module that *may* import a client the
 | an unmeasurable document is never reported as one that passed | I8 | `tests/test_doctor.py::test_a_partly_swept_cache_still_names_what_it_could_not_measure` |
 | the health check does not crash on a KB it does not understand | I8 | `tests/test_doctor.py::test_an_unknown_extraction_backend_does_not_crash_the_health_check` |
 
+## `pnk init` keeps `.pinakes/` out of the repository
+
+| What must be true | Increment | Test |
+|---|---|---|
+| the check answers what **git** answers, not what the `.gitignore` text looks like — six files measured against real git, four of which the substring test got wrong in one direction or the other | — | `tests/test_init.py::test_the_gitignore_check_answers_what_git_answers` |
+| **ignoring part of `.pinakes/` is not protection.** `git check-ignore` exits 0 when *any* argument is ignored, so a rule naming only the ledger would otherwise read as full protection while the index stayed tracked | — | `tests/test_init.py::test_ignoring_only_part_of_pinakes_is_not_protection` |
+| protection that lives outside `.gitignore` still counts — `.git/info/exclude`, a global excludes file, a parent repository's rules. **No amount of reading `.gitignore` can see any of them**, so this test fails against any implementation that reads the file rather than asking git | — | `tests/test_init.py::test_protection_that_lives_outside_gitignore_is_still_protection` |
+| outside a git repository there is nothing to ask, and the fallback still refuses to read a commented-out line as protection | — | `tests/test_init.py::test_outside_a_repository_the_fallback_still_strips_comments` |
+| a machine with no `git` on PATH still stamps a KB — `init` has never required it, and refusing over a missing version-control tool would be a worse failure than the one this fixes | — | `tests/test_init.py::test_init_still_stamps_a_kb_when_git_is_not_installed` |
+
 ## `pnk doctor`, check by check
 
 | What must be true | Increment | Where it is checked |
