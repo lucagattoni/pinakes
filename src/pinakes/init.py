@@ -6,6 +6,7 @@ last one matters more than it looks — publishing a KB publishes every sidecar,
 ledger must never leave the machine (docs/DESIGN.md §4.7).
 """
 
+import subprocess
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -21,6 +22,75 @@ GITIGNORE = """\
 # Keeping this ignored is what stops an index or a ledger ever leaving your machine.
 .pinakes/
 """
+
+#: What the warning is actually about: the index, the spend ledger, and a deep transcript — the
+#: first file under `.pinakes/` to hold the user's **verbatim question** (docs/DESIGN.md §4.7).
+#: They are pathnames to ask git about, never files to look for; none of them exists at `init`
+#: time, and `check-ignore` answers about a path whether or not anything is there.
+GITIGNORE_PROBES = (
+    ".pinakes/index.db",
+    ".pinakes/ledger.jsonl",
+    ".pinakes/deep/transcript.json",
+)
+
+
+def _ignored_by_git(root: Path) -> bool | None:
+    """Whether git ignores every path in `GITIGNORE_PROBES`, or `None` when git cannot answer.
+
+    **Asked of git rather than read out of `.gitignore`.** The text scan this replaces —
+    `".pinakes/" not in gitignore.read_text()` — was wrong in both directions, measured 20260825:
+    it warned about `.pinakes` and `.pin*`, which git *does* ignore, and stayed **silent** for
+    `!.pinakes/` and a commented-out `#.pinakes/`, which git does *not*. The silent half is the
+    one that matters: a commented-out line left the ledger and every deep transcript tracked, and
+    said nothing. A scan also cannot see `.git/info/exclude`, the user's global excludes, or a
+    parent repository's rules — git can, so git is asked.
+
+    **The probes are descendants, never the bare directory.** `git check-ignore .pinakes` reports
+    *not ignored* for the canonical `.pinakes/` pattern whenever the directory is absent from disk:
+    a trailing slash only matches a path git can already see is a directory. At `init` time
+    `.pinakes/` has never been created, so the bare query would answer "unprotected" for the very
+    pattern this file writes. A path *inside* it carries the directory in its own name and answers
+    correctly either way.
+
+    **Every path must match, not merely one.** `check-ignore` exits 0 when *any* argument is
+    ignored, so a `.gitignore` naming only `.pinakes/ledger.jsonl` would otherwise read as full
+    protection while the index stayed tracked. Counting the matched paths is what distinguishes
+    the two.
+    """
+    try:
+        completed = subprocess.run(
+            ["git", "check-ignore", *GITIGNORE_PROBES],
+            cwd=root,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        # git is not on PATH. `init` has never required it, and refusing to stamp a KB because a
+        # version-control tool is missing would be a far worse failure than the one being fixed.
+        return None
+    if completed.returncode not in (0, 1):
+        # 128 — not a git repository. There is no authority to consult, so there is no answer.
+        return None
+    matched = {line.strip() for line in completed.stdout.splitlines() if line.strip()}
+    return len(matched) == len(GITIGNORE_PROBES)
+
+
+def _gitignore_names_pinakes(text: str) -> bool:
+    """Best effort for a directory that is not a git repository, where git cannot be asked.
+
+    Deliberately small. It strips comments — the failure that let `#.pinakes/` read as protection
+    — and accepts the directory with or without its trailing slash. It does **not** interpret
+    globs, negations or precedence: a text scan that pretends to be git is precisely how the
+    original defect happened, and outside a repository there is nothing yet to protect against.
+    """
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.rstrip("/") == ".pinakes":
+            return True
+    return False
+
 
 DEFAULT_EMBEDDING = ("sentence-transformers", "BAAI/bge-small-en-v1.5", 384)
 DEFAULT_RERANK = ("sentence-transformers", "BAAI/bge-reranker-base")
@@ -132,12 +202,18 @@ def init(
 
     adopted: list[Path] = []
     gitignore = root / ".gitignore"
-    gitignore_unprotected = False
     if gitignore.exists():
         adopted.append(gitignore)
-        gitignore_unprotected = ".pinakes/" not in gitignore.read_text(encoding="utf-8")
     else:
         gitignore.write_text(GITIGNORE, encoding="utf-8")
+
+    # Asked after the file is on disk, whether it was adopted or just written, so git reads the
+    # state the user will actually have. A KB stamped inside a repository whose rules negate
+    # `.pinakes/` is unprotected however good the file this function wrote is.
+    protected = _ignored_by_git(root)
+    if protected is None:
+        protected = _gitignore_names_pinakes(gitignore.read_text(encoding="utf-8"))
+    gitignore_unprotected = not protected
 
     extras, extras_adopted = template.copy_extras(template_name, root, validated=declared)
     adopted.extend(extras_adopted)
