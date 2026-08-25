@@ -19,9 +19,10 @@ precision nobody measured.
 
 ## Where things stand right now — 20260825 08:27 UTC
 
-- **57 releases in 31 days.** [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+- **56 releases in 31 days**, and a fifty-seventh landed but **not yet tagged**.
+  [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
   [`0.30.3`](#0303--the-question-the-probes-could-not-ask--20260825-0827)
-  on 20260825.
+  is on `main` as of 20260825 and **is not on PyPI**.
 - **Latest on PyPI: `0.30.2`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
