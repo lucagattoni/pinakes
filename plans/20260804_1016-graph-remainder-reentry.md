@@ -44,7 +44,7 @@ anticipated failing, and **five releases have landed since** (0.5.0, 0.6.0, 0.7.
 `docs/STATUS.md`'s PyPI table, which is below every line this file cites; all four `STATUS` line
 numbers here still resolve.
 
-## The one precondition, restated so it cannot be skipped
+## The one precondition, restated so it cannot be skipped · **CLOSED 20260805, entirely discharged — G3/G5/G6 shipped in 0.11.0**
 
 G3 does not start until the headroom precondition is **measured and passed on a corpus that can
 discriminate**. The first measurement failed on 20260801 12:14 (1 of 18 against ≥ 7 —
@@ -68,14 +68,14 @@ edges), and must pass in **both** runs
 
 ---
 
-## Part 1 — What must be re-verified, and how
+## Part 1 — What must be re-verified, and how · **CLOSED 20260805, entirely discharged — G3/G5/G6 shipped in 0.11.0**
 
 **Tables A–C are mechanical**: each row is a command to run or a file to read, and the answer goes
 in the branch's first commit message. **Table D is arithmetic and measurement you must redo, table E
 is a set of decisions you must take and record, and table F is a set of readings you must commit to
 *before* the probe runs.** Run A–C first; do not treat D–F as ticked because A–C were.
 
-### A. The baseline itself
+### A. The baseline itself · **CLOSED 20260805, entirely discharged — G3/G5/G6 shipped in 0.11.0**
 
 | # | Check | Run this | Why it may have moved |
 |---|---|---|---|
@@ -85,7 +85,7 @@ is a set of decisions you must take and record, and table F is a set of readings
 | A4 | Unspliced findings exist that `docs/RETROSPECTIVES.md` does not carry | `ls retro.d/` | The newest findings live there until a release splices them |
 | A5 | **Read the standalone-work queue; it is not empty, and it is now long.** At `68084d3` it carries **eleven live items** (`plans/20260731_1202-open-corrections.md`, header dated 20260804 08:30), ten of them raised by *using* Pinakes on the RFC corpus. Decide, item by item, which must land before G3 | `cat plans/20260731_1202-open-corrections.md` | Item 3 (`strategy = "structural"` recognises no RFC heading) **changes what the probe can measure** — see E8. Item 2 (the sync lock's UTC timestamp) and item 5 (`pnk init` refuses a non-empty directory) bite anyone re-syncing that corpus. This row said "still empty" in the 20260803 draft and was wrong by eleven |
 
-### B. `schema_version` — the number G3 hardcodes
+### B. `schema_version` — the number G3 hardcodes · **CLOSED 20260805, entirely discharged — G3/G5/G6 shipped in 0.11.0**
 
 | # | Check | Run this |
 |---|---|---|
@@ -94,7 +94,7 @@ is a set of decisions you must take and record, and table F is a set of readings
 | B3 | The tripwire fires for whoever is second | `tests/test_store.py:93::test_schema_version_is_2_for_i5s_page_and_backend_columns` hardcodes `2` and will fail. That is correct — update it, and keep the assertion exact rather than making it version-agnostic |
 | B4 | Stale prose about earlier versions | `grep -rn 'schema_version 1\|pre-I5' src/ docs/` — one hit at `sync.py:1524` |
 
-### C. The code G3 and G5 were specified against
+### C. The code G3 and G5 were specified against · **CLOSED 20260805, entirely discharged — G3/G5/G6 shipped in 0.11.0**
 
 Read each of these as it is **now**. The specification was written before five releases landed and
 cites behaviour that has since been replaced.
@@ -116,7 +116,7 @@ cites behaviour that has since been replaced.
 > fact is how a reader learns to trust neither. It is the planner's to fix, in the document that
 > owns it.
 
-### D. The measurements the gate rests on
+### D. The measurements the gate rests on · **CLOSED 20260805, entirely discharged — G3/G5/G6 shipped in 0.11.0**
 
 | # | Check | How | Why |
 |---|---|---|---|
@@ -129,7 +129,7 @@ cites behaviour that has since been replaced.
 | D5 | **Which rows of G5's sign-test table are reachable at the class size you actually have** | `plans/20260729_0256-links-and-graph.md:690-702` | The `r`/`i` table is a property of the exact sign test and does not move. What moves is which rows are *available*: a row needs `i + r` discordant questions, so `r=5 / i=13` needs **18** — the demo KB's entire `multi-hop` class (verified: 18). **State the class size and enumerate the rows `i + r ≤ class size` admits, before running.** The p-values re-derive correctly: r=0/i=5 → 0.03125, r=1/i=7 → 0.0352, r=2/i=9 → 0.0327, r=3/i=10 → 0.0461, r=4/i=12 → 0.0384, r=5/i=13 → 0.0481 |
 | D6 | The frozen-question provenance | `plans/20260803_2239-corpus-probe-run.md` rules 1–7 | The freezing sha is recorded, the conversion diff was reviewed by the planner, and both files stay committed |
 
-### E. Couplings the specification does not carry
+### E. Couplings the specification does not carry · **CLOSED 20260805, entirely discharged — G3/G5/G6 shipped in 0.11.0**
 
 These are not corrections to G3/G5/G6; they are facts that arrived after them.
 
@@ -249,7 +249,7 @@ is applied **once per retrieval source** — `search.py:333` (lexical) and `:340
 `candidates_per_source`. The RFC corpus clears this by three orders of magnitude. **The wrong figure
 in `docs/STATUS.md` is the planner's to correct, independently of this file.**
 
-### F. What would refuse re-entry even after a passing probe
+### F. What would refuse re-entry even after a passing probe · **CLOSED 20260805, entirely discharged — G3/G5/G6 shipped in 0.11.0**
 
 **State these before the probe runs, not after.** Each row carries a number so that "high" and
 "dominates" are not decided by whoever reads the output. The numbers are proposals to be confirmed
@@ -267,7 +267,7 @@ way.
 
 ---
 
-## Part 2 — Re-entry order
+## Part 2 — Re-entry order · **CLOSED 20260805, entirely discharged — G3/G5/G6 shipped in 0.11.0**
 
 1. Run every check in Part 1 A–D. Record the answers in the branch's first commit message.
 2. Run `plans/20260803_2239-corpus-probe-run.md`. **It has three outcomes, not two:**
@@ -293,7 +293,7 @@ way.
    re-decided before G3 is built rather than discovered by a gate that passes."*
 6. Then, and only then, build G3 as specified.
 
-## Part 3 — What this checklist does not do
+## Part 3 — What this checklist does not do · **CLOSED 20260805, entirely discharged — G3/G5/G6 shipped in 0.11.0**
 
 It does not re-specify G3, G5 or G6, does not change their gates, and does not relax their
 preconditions. Where it disagrees with `plans/20260729_0256-links-and-graph.md` about *what to

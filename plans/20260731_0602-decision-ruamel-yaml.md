@@ -6,7 +6,7 @@ measurement and two adversarial passes corrected it; this file states the curren
 **Built by L5b and L5c** — split 20260731 07:52 (decision 28) after three passes returned 8, 8 and 7
 HIGH on one section. **L5b** is the swap and everything needed to keep behaviour
 equivalent — decision 26 included, because without it L5b alone turns a clean `SidecarError` on an
-unknown tag into a traceback. **L5c** is decision 19 alone. L5b takes the interim cut.
+unknown tag into a traceback. **L5c** is decision 19 alone. L5b takes the interim cut. **L5c closed unbuilt 20260731 11:47** — decision 19 shipped inside L5b in 0.5.0 as a side effect of decision 26's union check (`2ca1d69`); the Decisions table below already says so.
 
 ## The decision
 
@@ -110,7 +110,7 @@ failure class that produced the 0.4.1 data-loss fix), and shelling out to `yq` (
 **Residual risk:** single-maintainer project. Mitigated by MIT, pure Python, zero-dependency and
 115 KiB — vendorable or forkable.
 
-## Two lessons, for `retro.d/` when L5b lands
+## Two lessons, for `retro.d/` when L5b lands · **CLOSED 20260731 11:27, first lesson only — L5b landed and the stub lesson is spliced into `docs/RETROSPECTIVES.md` § L5b (`:2165`); the second was never filed**
 
 **A stub overrides the real package, so pyright validates the stub's fiction.** Declaring
 `DuplicateKeyError` in `ruamel.yaml` gave 0 errors and an `ImportError`; correcting it to

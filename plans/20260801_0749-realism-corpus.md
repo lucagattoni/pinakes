@@ -34,9 +34,9 @@ and the only KBs in it are the synthetic corpora under `tests/`.
 
 ---
 
-## Measured — the licence and the structure (20260801 14:02)
+## Measured — the licence and the structure (20260801 14:02) · **CLOSED 20260804 — the corpus was built 08:00 to these rules; the result is `docs/STATUS.md:506`**
 
-**Steps 1 and 2 were run. Nothing has been fetched beyond the index, and no repo has been created.**
+**Steps 1 and 2 were run. Nothing has been fetched beyond the index, and no repo has been created** — as written on 20260801 14:02. **Superseded 20260804: the corpus repo was created and built at 08:00** (`docs/STATUS.md:506`).
 Three findings, one of which is about `pinakes` rather than about the corpus.
 
 ### 1 · Licence — cleared, under both regimes, and the condition is structural
@@ -155,7 +155,7 @@ stop *synthetic* corpora being made unrealistically dense.
 
 ---
 
-## Precondition — settle the licence before fetching anything
+## Precondition — settle the licence before fetching anything · **CLOSED 20260801 14:02, licence cleared under both regimes**
 
 **Do not commit a single RFC until this is written down.** RFCs are published under the IETF Trust's
 Legal Provisions (BCP 78 / RFC 5378), which permit unlimited reproduction of the RFC text; that is
@@ -236,7 +236,7 @@ A target outside the selected set is **dropped, not authored** — a link to a d
 contain is a dangling link, and `pnk doctor` would rightly report it. Record how many were dropped:
 that number is itself a finding about closure.
 
-## The measurement — and a prediction to make before running it
+## The measurement — and a prediction to make before running it · **CLOSED 20260804 — the corpus was built 08:00 and the filled table is at `docs/STATUS.md:513-520`**
 
 Produce a written comparison in the corpus repo, and a summary in `pinakes`' own
 `docs/STATUS.md` § *Measured numbers* (planner incorporates it):

@@ -90,7 +90,7 @@ section reports, which is the same self-concealing failure the four controls abo
 
 ---
 
-## 1 · Facts established, with evidence — do not re-derive these
+## 1 · Facts established, with evidence — do not re-derive these · **stale 20260825 — most `file:line` pointers have moved a third time; locate by symbol, never by line**
 
 Each was verified against the code, not inferred. File references are `main` at `3a4fa9e`.
 
@@ -133,7 +133,7 @@ continuation chunks.
 **This is the strongest form of the claim and it is mechanistic, not aesthetic.** It is also the
 only part that could make metadata "fundamental for retrieval" true rather than aspirational.
 
-### The experiment
+### The experiment · **CLOSED 20260807 — only 2d's vector-only screen ran; the lexical channel and `schema_version` 4 were never taken (§0)**
 
 1. **Prepend** `title > heading_path` (exact form is the implementer's, recorded in the increment)
    to the text that is **embedded** and **indexed**, leaving `chunks.text` — what the user is shown,
@@ -425,7 +425,7 @@ with a different injection format.
 
 ---
 
-## 3 · The agreed order of work
+## 3 · The agreed order of work · **CLOSED 20260807, the screen returned no-go — 2e and 2f cancelled**
 
 Decided by the user 20260805 after options with trade-offs. **Do not reorder without a reason
 recorded here.**
@@ -453,7 +453,7 @@ separate, bisectable landing:
 | **2e** | ❌ **Cancelled.** The new `chunks` column, rewritten FTS5 triggers and `schema_version` 4 | Conditional on 2d saying go. It said no, and the whole point of inserting a screen was to make that decision cheaply. **The bump is irreversible; not taking it is the one part of this plan that cannot be regretted later** |
 | **2f** | ❌ **Cancelled** with 2e, which it measured | — |
 
-#### 2d's pre-registration — written 20260806 05:30, **before the screen has been run**
+#### 2d's pre-registration — written 20260806 05:30, **before the screen has been run** · **CLOSED 20260807 — the screen ran: 6 improved, 6 regressed, 84 unchanged, no-go**
 
 **DECIDED 20260806 05:30 by the user.** The plan's own method is that *"the expensive work dies
 cheaply, which is the point of running this first"* — argued in §2 for steps 5 and 6, and not, until
@@ -488,7 +488,7 @@ only irreversible part of this plan**, and 2d is what puts evidence in front of 
   bump is not taken. Say what was and was not measured — the dilution objection that disqualified
   vector-only as a **gate** applies in full to a null here.
 
-#### What 2d builds — written 20260806 20:41, with 2a, 2b and 2c on `main`
+#### What 2d builds — written 20260806 20:41, with 2a, 2b and 2c on `main` · **CLOSED 20260807, built in 0.16.0**
 
 **Everything 2d needs already exists.** The prefix (`chunk.metadata_prefix`), the text it produces
 (`chunk.embedding_text`), the refusal (`chunk.assert_prefix_fits`), the corpus settings
@@ -578,7 +578,7 @@ as evidence in either direction and appear in the gate's report only as a note t
 run. An artifact sitting in `tools/rfc_corpus/` beside the gate's own `before` leg would be read as
 one. Report the go/no-go and its improved/regressed counts in the commit message, and nowhere else.
 
-#### The identity gap 2f must close — recorded 20260806 20:41
+#### The identity gap 2f must close — recorded 20260806 20:41 · **CLOSED 20260807 with 2f — the gap closed anyway, in 0.16.0 and 0.21.1**
 
 `5993521` added `max_tokens`, `overlap` and `headings` to `eval.header`, so an artifact now
 **records** what it was chunked at. Nothing **compares** it: `graph_gate.check_identity` checks only
@@ -729,7 +729,7 @@ currencies — permanent maintenance surface and paid-path trust — on an unpro
 
 ---
 
-## 4 · Decisions already taken — settled, not to be relitigated
+## 4 · Decisions already taken — settled, not to be relitigated · **overtaken 20260807 — the 2d screen returned no-go: `schema_version` 4 was not taken and the 2f gate never ran (§0)**
 
 Full records: [`20260805_1313-decisions-init-titles-and-grammar.md`](20260805_1313-decisions-init-titles-and-grammar.md).
 
@@ -932,7 +932,7 @@ for `markdown` only"* — so a reader is not sent to edit documents that are not
 
 ---
 
-## 7 · Work in flight — **none. Everything here has landed and shipped in 0.12.0**
+## 7 · Work in flight — **none. Everything here has landed and shipped in 0.12.0** · **stale 20260825 — the measurement below is 0.14.0's, and `open-corrections.md` is not empty**
 
 Both branches this section used to track were reviewed, corrected and landed 20260805 17:31–17:36,
 and 0.12.0 published them. What the review changed is worth carrying forward, because in both cases
@@ -947,7 +947,7 @@ the *code* was fine and the *test* was not:
 (corrected 20260806 03:55 — this said the measurement was still outstanding, and named an open
 correction that has since closed): the first sync is **not** single-core, at peak 5.0 and mean 4.8
 of 10 cores under `fastembed`, so the document loop stays serial. `plans/20260731_1202-open-corrections.md`
-has been empty since 20260805 22:18.
+was empty at 20260805 22:18 and is not today — under its `## Live` heading it carries one live item and one closed in place (checked 20260825).
 
 ---
 

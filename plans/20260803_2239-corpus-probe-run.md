@@ -13,7 +13,7 @@ commit sha in its report. You measure; you do not author. If at any point the ho
 be "improve a question", stop — that is the circularity decision 14 removed, and it is
 undetectable after the fact.
 
-## The gap this file closes
+## The gap this file closes · **CLOSED 20260804 — the probe ran; results in plans/20260804_1442-decision-g3-go.md and docs/STATUS.md**
 
 The frozen questions live in the corpus repo as **plain data** —
 `eval/multihop-questions.yaml`: `id`, `question`, `evidence` (2+ document filenames), `why` — by
@@ -57,7 +57,7 @@ Someone must convert, and conversion touches frozen material. These are the rule
 7. **The planner reviews the conversion diff before the probe runs** — frozen file beside
    converted file, rule by rule. The probe does not run until that review is on record.
 
-## The run
+## The run · **CLOSED 20260804 — the probe ran; results in plans/20260804_1442-decision-g3-go.md and docs/STATUS.md**
 
 Preconditions: the corpus repo cloned clean at its frozen sha; `pinakes` at the current release
 from PyPI, `[light]`; the corpus synced (`pnk sync`) at the current `schema_version`. Then, from
@@ -69,7 +69,7 @@ uv run python3 tools/reachable_ceiling_probe.py --kb <corpus-path> --drop co-loc
 uv run python3 tools/reachable_ceiling_probe.py --kb <corpus-path> --drop shared-tag
 ```
 
-## Before the numbers mean anything: which edge kinds actually exist here
+## Before the numbers mean anything: which edge kinds actually exist here · **CLOSED 20260804 — the probe ran; results in plans/20260804_1442-decision-g3-go.md and docs/STATUS.md**
 
 **Measured on the built corpus, 20260804:** 106 806 chunks, **every one with an empty
 `heading_path`**. The cause is not a grammar that failed to match RFC section numbering — **no
@@ -110,7 +110,7 @@ probe is measuring something other than this corpus's edge set and the main numb
 The RFC corpus has real directories and real tags, so **both** drops must move the count (demo-kb
 could only exercise `co-located`).
 
-## What is reported — all of it, whichever way it points
+## What is reported — all of it, whichever way it points · **CLOSED 20260804 — the probe ran; results in plans/20260804_1442-decision-g3-go.md and docs/STATUS.md**
 
 The same table shape as
 [the first measurement](../docs/STATUS.md#can-the-graph-releases-gate-be-reached--yes-measured-20260804):
@@ -133,7 +133,7 @@ to the user. Precondition failed on a corpus with real structure, real links and
 honest reading is that the expansion channel is not worth a `schema_version` bump, and the graph
 release closes with that finding. Failing twice is a result, not a failure of the measurement.
 
-## What this run must not do
+## What this run must not do · **CLOSED 20260804 — the probe ran; results in plans/20260804_1442-decision-g3-go.md and docs/STATUS.md**
 
 - Edit, drop or add questions after seeing any probe output — rules 1–6 all end at the freeze.
 - Tune the corpus (buckets, tags, links) toward a number. The corpus repo is frozen for the run.

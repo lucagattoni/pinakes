@@ -64,7 +64,7 @@ default *on a corpus where three of the seven edge kinds derived zero edges*.
 
 ---
 
-## Live
+## Live · **one item live, one CLOSED 20260824 — read each body**
 
 **It emptied at 0.22.0 (20260811) and refilled the next day, from E5** — the third time in its
 life, and again within days. **An empty list means nobody has run Pinakes lately, never that it is
@@ -99,7 +99,7 @@ carry it, and whether it is a WARN or an OK-with-a-note, is exactly the shape of
 says an implementer may not take — the heading-coverage item below records what an un-actionable
 permanent WARN costs. **Decide before building.**
 
-### `tools/fragments.py` validates the fragments it reads and never the document it writes
+### `tools/fragments.py` validates the fragments it reads and never the document it writes · **CLOSED 20260824 00:35, built in 0.30.1 — one widening question left open in the body**
 
 **What is true.** `--check` parses each pending fragment in `changelog.d/` and `retro.d/` and passes
 when every one is well-formed. It asserts nothing about the result of `--apply`. So a splice can

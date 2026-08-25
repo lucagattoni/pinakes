@@ -31,7 +31,7 @@ and it should not wait behind an unmerged branch. Land it whenever the tree is f
 Written 20260731 21:25, after L6 review 10 fixed the *partner* side of this and recorded the local
 side for the planner. Everything below is measured on `main` at `900aae7`, live in 0.5.0.
 
-## The rule that is only half implemented
+## The rule that is only half implemented · **CLOSED 20260801, built in 0.7.1**
 
 `manifest.py`'s `_sources` rejects an absolute or `..`-bearing entry in `[sources] roots`:
 
@@ -46,7 +46,7 @@ found in `linkscan.sidecars_under`: `docs/../../outside/x.md` **is** relative to
 string, so it returns that path rather than raising. Two spellings of one rule; one of them does not
 implement it.
 
-## Three measured defects
+## Three measured defects · **CLOSED 20260801, built in 0.7.1**
 
 **1 — `..` in `include` walks out of the KB and writes files outside it.**
 
@@ -95,7 +95,7 @@ Measured too, and worth knowing: the **default** `include = ["**/*.md", "**/*.tx
 escape this way, because `pathlib`'s recursive `**` skips symlinked directories. That is luck about
 the standard library, not a guard — a user who writes any non-recursive pattern loses it.
 
-## Why "it is the user's own configuration" does not make this deferrable
+## Why "it is the user's own configuration" does not make this deferrable · **CLOSED 20260801, built in 0.7.1**
 
 That framing is what made it look like a foot-gun rather than a defect, and it does not hold:
 `pinakes.toml` is **committed and shared**. Clone a KB from someone else, run `pnk sync`, and
@@ -105,7 +105,7 @@ untrusted-input argument the partner-side fix rests on — one repository hop fu
 It also writes where CLAUDE.md says Pinakes may not: a sidecar minted outside the KB is a file
 created in a directory the tool was never pointed at.
 
-## What to build
+## What to build · **CLOSED 20260801, built in 0.7.1**
 
 **Copy `linkscan.sidecars_under`, do not re-derive it.** Revised 20260801 00:58: this section
 originally specified review 10's shape, and L6 reviews **11, 12 and 13** each found a defect in it.
@@ -177,7 +177,7 @@ be a load-time error (nothing is resolvable until the walk runs), so it stays a 
 problem. `exclude` is **not** validated: an `..` there can only fail to match, never widen the walk
 — say so in a comment so the asymmetry is not read as an oversight.
 
-## Tests
+## Tests · **CLOSED 20260801, built in 0.7.1**
 
 In `tests/test_sync.py` unless a better home exists — check before writing:
 
@@ -200,7 +200,7 @@ break the guard it names and confirm the failure is on the assertion that **enco
 on an earlier one. A test that fails proves the mutation is caught, never that it is caught for the
 stated reason.
 
-## Docs and release
+## Docs and release · **CLOSED 20260801, built in 0.7.1**
 
 - `docs/MANIFEST.md` — the `[sources]` table: `include` now carries the same constraint as `roots`,
   and `exclude` does not. State why.

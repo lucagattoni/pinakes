@@ -22,7 +22,7 @@ allowance. Both are decisions, not omissions.
 pass — **25 mutants against its own guards, 25 killed** — and `docs/VERIFICATION.md` carries ten
 rows in § *Release machinery*.
 
-## Why this exists
+## Why this exists · **CLOSED 20260822, built and released in 0.27.0**
 
 The mutation step ([`docs/BUILDING.md`](../docs/BUILDING.md) § 4) is the procedure's one
 silently-failing step with no executable guard: a broken harness reports SURVIVED and
@@ -33,7 +33,7 @@ and E5's own words are *"knowing the trap was not enough to avoid it"*. The prec
 `tools/land.py`: when prose has failed repeatedly against a class that fails silently, the rule
 gets a tool.
 
-## What it is
+## What it is · **CLOSED 20260822, built and released in 0.27.0 — its "per-increment battery" framing was reversed in 0.29.0; batteries are committed in `tools/batteries/`**
 
 A runner for the per-increment mutation battery. Input: a list of mutants — `(file, old, new)`
 plus the test selector expected to kill each. For each mutant it:
@@ -54,7 +54,7 @@ broken-harness result, not a clean bill (`--allow-zero-kills` for the rare delib
 backstop documented as unpinned). A syntactically invalid mutant — pytest `ERROR`, not `FAILED` —
 is its own outcome, never counted as killed or as survived; T4 measured both misreadings.
 
-## Tests
+## Tests · **CLOSED 20260822, built and released in 0.27.0**
 
 Drive the real script as a subprocess (the `tools/paid_path_gate.py` / `tools/fragments.py
 --repo` precedent), against a scratch repo:
@@ -68,13 +68,13 @@ Drive the real script as a subprocess (the `tools/paid_path_gate.py` / `tools/fr
   overrides it;
 - an invalid-syntax mutant reports its own outcome, distinct from KILLED and SURVIVED.
 
-## What it does not do
+## What it does not do · **CLOSED 20260822, built and released in 0.27.0**
 
 Cross-file mutants, generated mutation operators, and mutating test files themselves stay manual —
 the tool refuses loudly rather than approximating. `docs/BUILDING.md` § 4 points here once the
 tool lands; until then its written rules are the procedure.
 
-## Exit criteria
+## Exit criteria · **CLOSED 20260822, built and released in 0.27.0**
 
 The six tests above; the tool used for its own increment's mutation pass; a
 `docs/VERIFICATION.md` row per refusal.
