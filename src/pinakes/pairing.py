@@ -209,13 +209,14 @@ def pair(
     before_by_path = {document.path: document for document in before.documents}
     before_by_id = {document.id: document for document in before.documents}
     after_by_path = {file.path: file for file in after.files}
-    # Which id each *surviving* document's sidecar claims, keyed by the id. Only sidecars sitting
-    # beside a file this walk actually found count: an orphaned sidecar claims an id for a document
-    # that is no longer there, and treating that as "still ours" would keep a genuinely deleted
-    # document out of `SoftDelete` forever. `_reject_duplicate_ids` above makes the key unique.
-    claimed_by_id = {
-        sidecar.id: sidecar for sidecar in after.sidecars if sidecar.document_path in after_by_path
-    }
+    # Every id some *surviving* document's sidecar claims. A set, not a mapping: both readers below
+    # ask only whether an id is in it, and a dict would promise a claiming sidecar nobody fetches.
+    # Only sidecars sitting beside a file this walk actually found count — an orphaned sidecar
+    # claims an id for a document that is no longer there, and treating that as "still ours" would
+    # keep a genuinely deleted document out of `SoftDelete` forever.
+    claimed_by_id = frozenset(
+        sidecar.id for sidecar in after.sidecars if sidecar.document_path in after_by_path
+    )
 
     effective_is_paid = effective_backend is not None and effective_backend in paid_backend_names
 
@@ -268,6 +269,28 @@ def pair(
             )
             handled_ids.add(sidecar.id)
             handled_paths.add(path)
+            continue
+
+        if sidecar is None and document.id in claimed_by_id:
+            # **This row's identity has moved off this path, and nothing here claims it back.**
+            # The file has no sidecar of its own, while the id the index records for it has turned
+            # up beside a *different* file in this same walk — someone moved the sidecar. The
+            # sidecar is committed truth for identity, so the id belongs at its new home and this
+            # path is now a document with no id at all.
+            #
+            # Emitting anything for it here is what made the plan self-inconsistent: `Skip`,
+            # `RefreshMetadata` or `Reembed` all assert that this path still *is* that id, while
+            # the adoption loop below simultaneously carries the same id somewhere else. One id,
+            # two paths, one plan. Applied in order that silently moved the row to the other path
+            # and left this file with no row at all — indexed yesterday, unfindable today, `pnk
+            # sync` exiting 0 with nothing recorded. `documents.path` being UNIQUE is the only
+            # reason the older, unguarded code noticed at all, and it noticed by crashing.
+            #
+            # Emitting nothing is what makes both loops correct: adoption claims the id at its new
+            # path, and this path falls through to `Mint` as the sidecar-less document it has
+            # become. That mints a fresh id for a file that had one, which is a real cost — but the
+            # sidecar carrying the old id is gone from beside it, and inventing an identity the
+            # committed state no longer records is what this module refuses to do.
             continue
 
         handled_ids.add(document.id)

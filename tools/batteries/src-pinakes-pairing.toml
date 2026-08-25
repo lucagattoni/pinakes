@@ -17,7 +17,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 7
+mutants = 8
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -35,8 +35,9 @@ mutants = 7
 # Neither mutant changes *which* actions a plan contains — when the same-path branch stops emitting
 # the `SoftDelete`, the vanished-path loop re-emits one further down the list. The census is
 # identical; only the ORDER moves, from `[SoftDelete, Adopt]` to `[Adopt, Adopt-collides]`. Every
-# assertion pointed at `describe()` therefore passed, and row 3 survived the whole suite of 267
-# tests. `documents.path` is UNIQUE, so the order is the entire behaviour: an `Adopt` applied while
+# assertion pointed at `describe()` therefore passed, and row 3 survived **the entire suite —
+# 2165 passed, 0 failed**, measured with the mutant applied at the commit where it was observed
+# rather than inferred from the three files that cover this code. `documents.path` is UNIQUE, so the order is the entire behaviour: an `Adopt` applied while
 # the row it replaces is still active raises `IntegrityError`. Both now name a test that asserts
 # the order rather than the counts.
 
@@ -60,10 +61,10 @@ kills = "tests/test_pairing.py::test_a_replaced_row_is_always_retired_before_its
 [[mutant]]
 name = "an orphaned sidecar counts as a claim, so the row is retired AFTER its replacement is adopted"
 file = "src/pinakes/pairing.py"
-old = '''    claimed_by_id = {
-        sidecar.id: sidecar for sidecar in after.sidecars if sidecar.document_path in after_by_path
-    }'''
-new = "    claimed_by_id = {sidecar.id: sidecar for sidecar in after.sidecars}"
+old = '''    claimed_by_id = frozenset(
+        sidecar.id for sidecar in after.sidecars if sidecar.document_path in after_by_path
+    )'''
+new = "    claimed_by_id = frozenset(sidecar.id for sidecar in after.sidecars)"
 kills = "tests/test_pairing.py::test_a_replaced_row_is_always_retired_before_its_replacement_is_adopted"
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -144,3 +145,25 @@ old = '''    _retire_row_holding(connection, path=path, doc_id=doc_id)
 new = '''    connection.execute(
         "UPDATE documents SET path = ?, content_hash = ?, sidecar_hash = ?, mtime = ?, "'''
 kills = "tests/test_sync.py::test_a_paid_document_renamed_onto_a_retired_path_is_indexed"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260826 · one id, two paths — the regression the adversarial pass caught
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# The first version of this increment guarded the disagreement branch and left the ordinary one
+# alone, so a sidecar MOVED from one document onto another produced `RefreshMetadata(X, a.md)`
+# beside `Adopt(X, b.md)`. The same-path loop trusted the index row because nothing beside `a.md`
+# contradicted it; the adoption loop followed the sidecar that had walked away.
+#
+# **This is the row that would have shipped a regression.** `origin/main` raises `IntegrityError`
+# on that input and keeps both rows. The branch exited **0**, moved the row to `b.md`, and left
+# `a.md` on disk with no row at all — a loud failure turned into a silent one, which is precisely
+# what condemned the previous attempt at this fix. It was found by an adversarial pass and not by
+# the suite, and both tests below exist because of it.
+
+[[mutant]]
+name = "THE REGRESSION — a moved sidecar puts one id at two paths and the document loses its row"
+file = "src/pinakes/pairing.py"
+old = """        if sidecar is None and document.id in claimed_by_id:"""
+new = """        if False:"""
+kills = "tests/test_pairing.py::test_a_sidecar_moved_onto_another_document_takes_its_id_with_it"

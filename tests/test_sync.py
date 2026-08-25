@@ -2686,7 +2686,11 @@ def test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row(kb: Path) -
     with contextlib.suppress(sqlite3.IntegrityError):
         run(kb)
 
-    assert {Path(str(row["path"])).name for row in index(kb)} == {"a.md", "b.md"}
+    # `index()` returns every row whatever its state, so asserting membership alone would be
+    # satisfied by a soft-deleted row — a document that has left `pnk search`, which is the loss
+    # this whole increment is about. The state is the assertion.
+    surviving = {Path(str(row["path"])).name for row in index(kb) if row["state"] == "active"}
+    assert surviving == {"a.md", "b.md"}
 
 
 def test_the_population_walk_never_opens_a_document(kb: Path, monkeypatch: Any) -> None:
@@ -2736,3 +2740,26 @@ def test_a_paid_document_renamed_onto_a_retired_path_is_indexed(kb: Path, fake_p
 
     rows = [(row["path"], row["state"]) for row in index(kb)]
     assert rows == [("docs/b.pdf", "active")]
+
+
+def test_a_moved_sidecar_never_leaves_a_document_without_a_row(kb: Path) -> None:
+    """End to end, because this one exited 0 while losing a document and only a real sync shows it.
+
+    `a.md`'s sidecar is moved onto `b.md`. `pair()` used to emit `RefreshMetadata` for that id at
+    `a.md` and `Adopt` for the same id at `b.md`; applying both moved the row to `b.md` and left
+    `a.md` on disk with no row — no failure recorded, exit 0, gone from `pnk search`. `origin/main`
+    raised `IntegrityError` on the same input instead, so this was a loud failure turned silent,
+    which is the exact regression that condemned the previous attempt at this fix.
+    """
+    write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
+    write(kb, "b.md", "# Beta\n\nBeta body here.\n")
+    run(kb)
+    travelling = (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").read_text(encoding="utf-8")
+    (kb / "docs" / f"b.md{SIDECAR_SUFFIX}").unlink()
+    (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").unlink()
+    (kb / "docs" / f"b.md{SIDECAR_SUFFIX}").write_text(travelling, encoding="utf-8")
+
+    run(kb)
+
+    active = {Path(str(row["path"])).name for row in index(kb) if row["state"] == "active"}
+    assert active == {"a.md", "b.md"}, "a document on disk lost its row"

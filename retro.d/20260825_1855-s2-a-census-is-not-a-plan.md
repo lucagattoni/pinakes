@@ -63,3 +63,38 @@ real `pnk doctor` against a healthy 2000-document scratch KB exits **1** — for
 Two sessions built measurement harnesses on that exit code in one day; this is a third sighting
 inside an hour of deliberately watching for it. Assert on the named check row, never on the exit
 code.
+
+**HIGH — the fix introduced the exact shape it was removing, and only an adversarial pass saw it.**
+Guarding the branch where a sidecar *disagrees* with the row left the ordinary branch alone, so a
+sidecar **moved** from one document onto another produced `RefreshMetadata(X, a.md)` beside
+`Adopt(X, b.md)`: the same-path loop trusted the index row because nothing beside `a.md`
+contradicted it, and the adoption loop followed the sidecar that had walked away. One id, two
+paths, one plan. Measured on both sides: `origin/main` raises `IntegrityError` and keeps both rows;
+this branch **exited 0**, moved the row to `b.md`, and left `a.md` on disk with no row at all —
+indexed yesterday, unfindable today, nothing recorded. **A loud failure turned into a silent one is
+the precise regression that condemned the previous attempt at this fix**, and this increment
+reproduced it while carrying a commit message about not doing so. Two things made it findable: an
+independent reviewer that ran `origin/main` as a control rather than reasoning about it, and a
+`UNIQUE` constraint that had been the only thing noticing — by crashing. The lesson is not "guard
+the other branch". It is that **a guard written for the case you are thinking about is not a
+property**; the repair is `places_each_id_once()`, asserted over every shape the file exercises,
+because a helper asserted case by case is a helper nobody runs on the case they did not think of.
+
+**MEDIUM — a property helper that did not implement its own docstring.** `retires_before_adopting()`
+was written to assert "no `Adopt` may land on a path this plan retires *later*", and built its
+index of retirements with `reversed(list(enumerate(...)))` — so for a path retired twice it kept the
+**earliest** position, and a plan that retires a path, adopts onto it, then retires it again passed.
+It was doing real work (it is the only thing that kills two of the battery's mutants) and it was
+still wrong about the sentence above it. **A named property is worth more than an inline assertion
+and is also a second place to be wrong**; the reviewer read the implementation rather than the name,
+which is the only way that class is ever caught.
+
+**MEDIUM — the count I published was scoped and I called it complete.** This file said a mutant
+"survived the entire suite" and the battery said "the whole suite of 267 tests". 267 was
+`pytest tests/test_pairing.py tests/test_sync.py tests/test_doctor.py` — the three files covering
+the code — while the suite is 2167. Caught when a planner asked to publish the number in a document
+whose whole subject is not publishing counts nobody has run. Re-measured properly, at the exact
+commit where the survival was observed, with the mutant applied and the full suite run: **2165
+passed, 0 failed.** The claim was true and the denominator was invented, which is the same defect
+one level up from the one the paragraph was describing. **State the population, not just the
+number** — and when a scoped run is what you have, name the scope.
