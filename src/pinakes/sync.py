@@ -528,8 +528,27 @@ class UnmatchedFiles:
     truncated: bool = False
 
 
+def walk_document_paths(manifest: Manifest) -> frozenset[str]:
+    """Which documents this KB collects, without reading a byte of any of them.
+
+    `pnk doctor` needs the *population* and never the content: it asks whether a path the index has
+    retired is still a document this KB would index. Delegating to `walk_sources` rather than
+    re-deriving the rule keeps **one** definition of what belongs in the index — the include
+    patterns, the exclude patterns, the sidecar exemption and containment are decided in exactly
+    one place. The alternative was matching the include globs a second time inside `doctor`, and
+    this module's own history says what that costs: "a rule spelled in three places and enforced in
+    one is how this defect existed at all".
+
+    **Skipping the hash is not only an optimisation.** `hash_file` opens every document, so a
+    corpus with one unreadable file would take `pnk doctor` down with a raw traceback — the command
+    you run when things are already broken. Nothing here opens a document or parses a sidecar.
+    """
+    files, _sidecars, _unmatched, _escaping = walk_sources(manifest, _documents_only=True)
+    return frozenset(file.path for file in files)
+
+
 def walk_sources(
-    manifest: Manifest,
+    manifest: Manifest, *, _documents_only: bool = False
 ) -> tuple[list[WalkedFile], list[WalkedSidecar], UnmatchedFiles, tuple[str, ...]]:
     """Collect source files, sidecars, files no `include` matched, and patterns that left the KB.
 
@@ -640,8 +659,16 @@ def walk_sources(
                     continue
                 if is_sidecar(candidate):
                     continue
-                files[relative] = WalkedFile(path=relative, content_hash=hash_file(candidate))
+                # `_documents_only` callers get the population and must never get a snapshot: an
+                # empty hash would read as "this file is empty" to `pair()`, so the only wrapper
+                # that sets the flag (`walk_document_paths`) returns paths alone.
+                files[relative] = WalkedFile(
+                    path=relative,
+                    content_hash="" if _documents_only else hash_file(candidate),
+                )
 
+        if _documents_only:
+            continue
         for candidate in sorted(root.rglob(f"*{SIDECAR_SUFFIX}")):
             # `rglob`'s `**` skips symlinked directories, so this is defence rather than the fix —
             # but `relative_to` here carries the identical lexical shape at two more sites, and a
@@ -669,12 +696,17 @@ def walk_sources(
     # later roots had not contributed to yet, reporting an indexed document as unmatched and making
     # the output depend on the order roots happen to be listed in.
     truncated = False
-    for root_name in manifest.sources.roots:
-        root = (manifest.root / root_name).resolve()
-        if root.is_dir():
-            found, hit_cap = _unmatched_under(root, manifest, matched=files)
-            unmatched.update(found)
-            truncated = truncated or hit_cap
+    # Skipped for a population-only caller, and not merely to save time: `_unmatched_under` opens up
+    # to `MAX_PROBED_PER_ROOT` files per root to decide whether each is text worth advising about.
+    # `walk_document_paths` never reads the answer, and it runs inside `pnk doctor` — the command
+    # you reach for when the KB is already broken, which is the worst place to start opening files.
+    if not _documents_only:
+        for root_name in manifest.sources.roots:
+            root = (manifest.root / root_name).resolve()
+            if root.is_dir():
+                found, hit_cap = _unmatched_under(root, manifest, matched=files)
+                unmatched.update(found)
+                truncated = truncated or hit_cap
 
     return (
         sorted(files.values(), key=lambda f: f.path),
@@ -2328,6 +2360,33 @@ def _index_document(
             model_max_tokens=backend.info().max_seq_length,
         )
 
+    # A retired row keeps its `path`, and `documents.path` is UNIQUE — so a document arriving at
+    # that path under a *different* id collides with the corpse instead of replacing it. The
+    # `ON CONFLICT (id)` clause below anticipates the **id** colliding and is structurally unable
+    # to see this one, because the conflict is on the path.
+    #
+    # `pairing` reaches here deliberately: when a sidecar's id disagrees with the index row at the
+    # same path it retires the stale row and adopts the sidecar's id, since "the sidecar is
+    # committed truth for identity; the index row is derived". Without this the pair of actions it
+    # emits cannot both be applied — `sqlite3.IntegrityError: UNIQUE constraint failed:
+    # documents.path` escaped as a raw traceback, and because the retired row survived that failure
+    # every later `pnk sync` hit the same wall, `pnk search` could not see the document, and
+    # `pnk doctor` reported the KB healthy at exit 0.
+    #
+    # A retired row exists only so a file returning at that path can be resurrected under its own
+    # id (`pairing`'s `state == DELETED` check). Once a different id owns the path it never can be,
+    # so it is retired for real rather than left to block.
+    #
+    # **Scoped to `state = 'deleted'` deliberately, and that scope is load-bearing.** An *active*
+    # row holding this path under another id is a genuine breach — reachable today by renaming two
+    # documents past each other, where `pairing` legitimately emits two `Adopt`s whose paths cross.
+    # Deleting the live row would let the second `Adopt` succeed by destroying the first document's
+    # row instead of reporting the collision, which is the silent-loss shape this whole change
+    # exists to remove. It must still raise here.
+    connection.execute(
+        "DELETE FROM documents WHERE path = ? AND id != ? AND state = 'deleted'",
+        (path, doc_id),
+    )
     connection.execute(
         "INSERT INTO documents (id, path, content_hash, sidecar_hash, mtime, source_type, title, "
         "metadata, state, extraction_backend, extraction_fingerprint) "

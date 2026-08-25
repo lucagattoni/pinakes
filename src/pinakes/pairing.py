@@ -203,6 +203,13 @@ def pair(
     before_by_path = {document.path: document for document in before.documents}
     before_by_id = {document.id: document for document in before.documents}
     after_by_path = {file.path: file for file in after.files}
+    # Which id each *surviving* document's sidecar claims, keyed by the id. Only sidecars sitting
+    # beside a file this walk actually found count: an orphaned sidecar claims an id for a document
+    # that is no longer there, and treating that as "still ours" would keep a genuinely deleted
+    # document out of `SoftDelete` forever. `_reject_duplicate_ids` above makes the key unique.
+    claimed_by_id = {
+        sidecar.id: sidecar for sidecar in after.sidecars if sidecar.document_path in after_by_path
+    }
 
     effective_is_paid = effective_backend is not None and effective_backend in paid_backend_names
 
@@ -225,7 +232,25 @@ def pair(
         # The sidecar is committed truth for identity; the index row is derived. If they disagree,
         # the sidecar wins, and the stale row is retired rather than silently kept.
         if sidecar is not None and sidecar.id != document.id:
-            actions.append(SoftDelete(doc_id=document.id, path=path))
+            # **The displaced id is not automatically dead.** When its own sidecar has turned up
+            # beside a *different* file in this same walk, the row is moving, not ending — and the
+            # adoption loop below is what carries it there. Retiring it here would put a
+            # `SoftDelete` and an `Adopt` for one id into a single plan, whose outcome then depends
+            # on which is applied last. On a two-file name swap (`git mv a b` past each other) that
+            # is exactly what happened: the later `SoftDelete` retired the row the earlier `Adopt`
+            # had just moved, and the document left search silently. On a rename *chain* the same
+            # bookkeeping stopped the adoption loop from ever seeing the id, and the file's sidecar
+            # was re-minted under a fresh one — an id a KB has published and other KBs link to.
+            #
+            # Leaving the id unhandled is what lets both loops below do their jobs: adoption claims
+            # it at its new path, and if no sidecar claims it anywhere the vanished-path loop still
+            # retires it, which is the ordinary in-place id change this branch exists for.
+            moving = (claimed := claimed_by_id.get(document.id)) is not None and (
+                claimed.document_path != path
+            )
+            if not moving:
+                actions.append(SoftDelete(doc_id=document.id, path=path))
+                handled_ids.add(document.id)
             actions.append(
                 Adopt(
                     doc_id=sidecar.id,
@@ -235,7 +260,7 @@ def pair(
                     old_path=before_by_id[sidecar.id].path if sidecar.id in before_by_id else None,
                 )
             )
-            handled_ids.update({document.id, sidecar.id})
+            handled_ids.add(sidecar.id)
             handled_paths.add(path)
             continue
 
