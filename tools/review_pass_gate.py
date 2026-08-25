@@ -449,7 +449,6 @@ def main(argv: list[str] | None = None) -> int:
                 f"but it was written to {quiet:.0f}s ago, so it is probably STILL RUNNING.\n"
                 "Cannot judge this pass yet. Re-run when it is quiet, or pass "
                 "--assume-finished if you know it has ended.",
-                "know it has ended.",
                 file=sys.stderr,
             )
             return 2

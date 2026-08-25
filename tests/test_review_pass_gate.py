@@ -246,6 +246,14 @@ def test_a_running_fan_out_is_not_reported_as_dead(tmp_path: Path) -> None:
     assert out.returncode == 2
     assert "STILL RUNNING" in out.stderr
     assert "DIED" not in out.stdout
+    # The whole sentence, not a substring of it. Rewrapping this message once left an orphaned
+    # continuation line behind — "…if you know it has ended. know it has ended." — and ruff,
+    # pyright and sixteen green tests all passed over it, because every assertion here matched a
+    # fragment. An adjacent-duplicate check is what a fragment assertion cannot do.
+    assert out.stderr.rstrip().endswith(
+        "Cannot judge this pass yet. Re-run when it is quiet, or pass --assume-finished if you "
+        "know it has ended."
+    ), out.stderr
 
 
 def test_a_quiet_fan_out_is_judged_without_the_override(tmp_path: Path) -> None:
