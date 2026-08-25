@@ -18,6 +18,31 @@ genuine assertion-kill as `0 killed`.
 `expect_green` (T4's *"control that had to stay green"* column) and a per-mutant zero-kill
 allowance. Both are decisions, not omissions.
 
+> ### ❌ DECLINED 20260825 18:16 by the user — `expect_green` and the per-mutant zero-kill allowance
+>
+> **Measured, not argued.** `expect_green` exists in exactly **two commits** in the whole history and
+> in **no** source, test, doc or CHANGELOG entry. Across **136 mutants in six committed batteries,
+> zero** ask for a green control. `load_battery` validates presence only and rejects no unknown key,
+> so an `expect_green = …` written today would be **parsed, ignored, and reported to nobody**.
+>
+> **The recorded practice is better than the field would be.** A misbehaving mutant is re-aimed,
+> replaced, or not written — three times over in the committed batteries, each with its reason in
+> place (*"The survivor was the battery working"*). Three batteries carry *"Mutant 1 is the control"*
+> and one carries an explicit *"No control here"* with its reason. **A committed convention already
+> answers the batch-level need.**
+>
+> **And the demand is thinner than it looked.** Of the five filled entries in T4's table, one is
+> about *which assertion fired* and one records tests that *fail* to catch — **neither is expressible
+> as a green control** at all.
+>
+> **Decisively: it is not the guard for the hole that is actually open.** `tools/batteries/README.md`
+> names one thing nothing catches — *an anchor that still matches while the code around it moved* —
+> and its stated remedy is a human reading the diff the mutant produces. `expect_green` does not
+> reach that, and adding it would look like it did.
+>
+> **What would re-open this:** a battery whose author can state a control they cannot express by
+> re-aiming a mutant. None of the six can.
+
 **Exit criteria, met:** the six tests are 52; the tool was used for its own increment's mutation
 pass — **25 mutants against its own guards, 25 killed** — and `docs/VERIFICATION.md` carries ten
 rows in § *Release machinery*.
