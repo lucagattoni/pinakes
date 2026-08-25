@@ -2703,3 +2703,36 @@ def test_the_population_walk_never_opens_a_document(kb: Path, monkeypatch: Any) 
 
     monkeypatch.setattr("pinakes.sync.hash_file", explode)
     assert walk_document_paths(load(kb)) == {"docs/a.md", "docs/b.md"}
+
+
+def test_a_paid_document_renamed_onto_a_retired_path_is_indexed(kb: Path, fake_paid: str) -> None:
+    """The same collision on the *other* writer, which the first version of this fix missed.
+
+    A paid-extracted, content-unchanged PDF that moves is not re-extracted: its chunks and vectors
+    are already correct, so `_reindex_paid_document_in_place` moves the row's bookkeeping and
+    nothing else. That writer sets `documents.path` too, and it had no retiring DELETE of its own —
+    so renaming a paid document onto a path a retired row still held raised
+    `sqlite3.IntegrityError` exactly as the free path used to, on a KB whose only distinguishing
+    feature was that someone had paid for the extraction.
+
+    Found by an adversarial probe that wrote the free case as its own control: the control passed
+    and this did not, which is what made it a finding rather than a guess.
+    """
+    _add_pdf_support(kb)
+    (kb / "docs" / "a.pdf").write_bytes(b"alpha bytes")
+    (kb / "docs" / "b.pdf").write_bytes(b"beta bytes")
+    assert run(kb, extract=fake_paid).embedded == 2
+
+    # b.pdf goes away, so its row is retired while still holding `docs/b.pdf`.
+    (kb / "docs" / "b.pdf").unlink()
+    (kb / "docs" / f"b.pdf{SIDECAR_SUFFIX}").unlink()
+    run(kb)
+
+    # a.pdf is renamed onto that very path, its sidecar travelling with it.
+    (kb / "docs" / "a.pdf").rename(kb / "docs" / "b.pdf")
+    (kb / "docs" / f"a.pdf{SIDECAR_SUFFIX}").rename(kb / "docs" / f"b.pdf{SIDECAR_SUFFIX}")
+
+    run(kb)  # free effective backend, so the paid in-place writer is what runs
+
+    rows = [(row["path"], row["state"]) for row in index(kb)]
+    assert rows == [("docs/b.pdf", "active")]

@@ -1776,6 +1776,48 @@ def _paid_survivor_in_current_index(
     return str(backend)
 
 
+def _retire_row_holding(connection: sqlite3.Connection, *, path: str, doc_id: DocId) -> None:
+    """Free `path` of a **soft-deleted** row belonging to a different document, before writing it.
+
+    A retired row keeps its `path`, and `documents.path` is UNIQUE — so a document arriving at that
+    path under a different id collides with the corpse instead of replacing it. Every writer's
+    `ON CONFLICT (id)` clause anticipates the **id** colliding and is structurally unable to see
+    this one, because the conflict is on the path.
+
+    `pairing` reaches this deliberately: when a sidecar's id disagrees with the index row at the
+    same path it retires the stale row and adopts the sidecar's id, since "the sidecar is committed
+    truth for identity; the index row is derived". Without this the pair of actions it emits cannot
+    both be applied — `sqlite3.IntegrityError: UNIQUE constraint failed: documents.path` escaped as
+    a raw traceback, and because the retired row survived that failure every later `pnk sync` hit
+    the same wall while `pnk doctor` called the KB healthy at exit 0.
+
+    A retired row exists only so a file returning at that path can be resurrected under its own id
+    (`pairing`'s `state == DELETED` check). Once a different id owns the path it never can be, so it
+    is retired for real rather than left to block.
+
+    **Scoped to `state = 'deleted'`, and the scope is load-bearing.** An *active* row holding this
+    path under another id is a genuine breach — reachable by renaming two documents past each other,
+    where `pairing` legitimately emits two `Adopt`s whose paths cross. Deleting the live row would
+    let the second write succeed by destroying the first document's row instead of reporting the
+    collision, and since every action commits on its own, a failure in the second half then leaves
+    the first document with no row at all. That is the silent-loss shape this exists to remove, so
+    it must still raise.
+
+    **A function rather than a statement copied per writer.** Three sites write `documents.path`:
+    `_index_document`, `_reindex_paid_document_in_place` and `_write_protected_document`. The first
+    version of this fix guarded only `_index_document`, so the identical crash survived on the paid
+    in-place path — a rename of a paid, content-unchanged PDF onto a retired path still raised, and
+    an adversarial probe found it with the free case as its own control. The third writer runs only
+    under `--rebuild`, against an empty database, and says at its own call site why it needs no
+    guard. This module's walk says why the copied form keeps failing: "a rule spelled in three
+    places and enforced in one is how this defect existed at all".
+    """
+    connection.execute(
+        "DELETE FROM documents WHERE path = ? AND id != ? AND state = 'deleted'",
+        (path, doc_id),
+    )
+
+
 def _reindex_paid_document_in_place(
     manifest: Manifest,
     connection: sqlite3.Connection,
@@ -1792,6 +1834,7 @@ def _reindex_paid_document_in_place(
     and no sidecar rewrite (the provenance it already carries is still accurate)."""
     source = manifest.root / path
     parsed = _read_sidecar_for(manifest, path)
+    _retire_row_holding(connection, path=path, doc_id=doc_id)
     connection.execute(
         "UPDATE documents SET path = ?, content_hash = ?, sidecar_hash = ?, mtime = ?, "
         "title = ?, metadata = ?, state = 'active' WHERE id = ?",
@@ -2081,6 +2124,10 @@ def _write_protected_document(
             model_max_tokens=backend.info().max_seq_length,
         )
 
+    # **No `_retire_row_holding` here, and that is a decision rather than an omission.** This writer
+    # runs only under `--rebuild`, which builds `index.db.new` from empty — no row of any state
+    # exists to hold this path, so the guard could never fire and nothing could ever pin it. If a
+    # rebuild is ever changed to write in place, this is the third site that needs it.
     connection.execute(
         "INSERT INTO documents (id, path, content_hash, sidecar_hash, mtime, source_type, "
         "title, metadata, state, extraction_backend, extraction_fingerprint) "
@@ -2360,33 +2407,7 @@ def _index_document(
             model_max_tokens=backend.info().max_seq_length,
         )
 
-    # A retired row keeps its `path`, and `documents.path` is UNIQUE — so a document arriving at
-    # that path under a *different* id collides with the corpse instead of replacing it. The
-    # `ON CONFLICT (id)` clause below anticipates the **id** colliding and is structurally unable
-    # to see this one, because the conflict is on the path.
-    #
-    # `pairing` reaches here deliberately: when a sidecar's id disagrees with the index row at the
-    # same path it retires the stale row and adopts the sidecar's id, since "the sidecar is
-    # committed truth for identity; the index row is derived". Without this the pair of actions it
-    # emits cannot both be applied — `sqlite3.IntegrityError: UNIQUE constraint failed:
-    # documents.path` escaped as a raw traceback, and because the retired row survived that failure
-    # every later `pnk sync` hit the same wall, `pnk search` could not see the document, and
-    # `pnk doctor` reported the KB healthy at exit 0.
-    #
-    # A retired row exists only so a file returning at that path can be resurrected under its own
-    # id (`pairing`'s `state == DELETED` check). Once a different id owns the path it never can be,
-    # so it is retired for real rather than left to block.
-    #
-    # **Scoped to `state = 'deleted'` deliberately, and that scope is load-bearing.** An *active*
-    # row holding this path under another id is a genuine breach — reachable today by renaming two
-    # documents past each other, where `pairing` legitimately emits two `Adopt`s whose paths cross.
-    # Deleting the live row would let the second `Adopt` succeed by destroying the first document's
-    # row instead of reporting the collision, which is the silent-loss shape this whole change
-    # exists to remove. It must still raise here.
-    connection.execute(
-        "DELETE FROM documents WHERE path = ? AND id != ? AND state = 'deleted'",
-        (path, doc_id),
-    )
+    _retire_row_holding(connection, path=path, doc_id=doc_id)
     connection.execute(
         "INSERT INTO documents (id, path, content_hash, sidecar_hash, mtime, source_type, title, "
         "metadata, state, extraction_backend, extraction_fingerprint) "

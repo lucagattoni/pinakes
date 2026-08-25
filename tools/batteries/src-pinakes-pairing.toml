@@ -17,7 +17,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 6
+mutants = 7
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -85,10 +85,7 @@ kills = "tests/test_pairing.py::test_a_replaced_row_is_always_retired_before_its
 [[mutant]]
 name = "the retiring DELETE is gone, so a changed sidecar id collides with the corpse of the row it replaces"
 file = "src/pinakes/sync.py"
-old = '''    connection.execute(
-        "DELETE FROM documents WHERE path = ? AND id != ? AND state = 'deleted'",
-        (path, doc_id),
-    )
+old = '''    _retire_row_holding(connection, path=path, doc_id=doc_id)
     connection.execute(
         "INSERT INTO documents (id, path, content_hash, sidecar_hash, mtime, source_type, title, "'''
 new = '''    connection.execute(
@@ -124,3 +121,26 @@ new = '''                files[relative] = WalkedFile(
                     content_hash=hash_file(candidate),
                 )'''
 kills = "tests/test_sync.py::test_the_population_walk_never_opens_a_document"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260825 · the second writer, found by the adversarial pass
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# The first version of this fix guarded `_index_document` alone, and the identical crash survived on
+# the paid in-place writer: a paid-extracted, content-unchanged PDF renamed onto a retired path
+# still raised `IntegrityError`. The probe that found it wrote the **free** case as its own control,
+# which is what separated "a defect" from "a guess" — the control passed and this did not.
+#
+# This is the row that argues for the guard being a function. Two writers, one rule; the mutant
+# removes it from one of them and only a test that pays for a paid extraction can see the
+# difference.
+
+[[mutant]]
+name = "the paid in-place writer loses the guard, so a paid rename onto a retired path raises again"
+file = "src/pinakes/sync.py"
+old = '''    _retire_row_holding(connection, path=path, doc_id=doc_id)
+    connection.execute(
+        "UPDATE documents SET path = ?, content_hash = ?, sidecar_hash = ?, mtime = ?, "'''
+new = '''    connection.execute(
+        "UPDATE documents SET path = ?, content_hash = ?, sidecar_hash = ?, mtime = ?, "'''
+kills = "tests/test_sync.py::test_a_paid_document_renamed_onto_a_retired_path_is_indexed"
