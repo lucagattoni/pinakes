@@ -85,6 +85,14 @@ the transcript exists at all.
 is new; the document content is not. So this is a *strengthening* of an existing warning, not a hole
 E5 opened.
 
+**➡️ The decisions are now proposed in
+[`20260825_0749-exposure-and-silent-status.md`](20260825_0749-exposure-and-silent-status.md) as D-31
+to D-33 — read them there.** That file also adds the item this one did not consider, and it is the
+one that bites: **a correct `.gitignore` does not untrack a `.pinakes/` that is already committed**,
+and the 0.30.2 detector reports such a repository as *protected* while every `git commit -a`
+publishes the user's verbatim questions. Measured 20260825. **The paragraph below calling this a
+strengthening rather than a hole predates that measurement and is wrong on that point.**
+
 **Required text — undecided, and that is the item.** The obvious home is a `pnk doctor` check
 (`.pinakes/` reachable by git), which would fire on every run rather than once. Whether doctor should
 carry it, and whether it is a WARN or an OK-with-a-note, is exactly the shape of judgement this file
