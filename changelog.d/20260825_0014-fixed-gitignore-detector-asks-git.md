@@ -7,12 +7,16 @@
   protection, and `.pinakes/` — the index, the spend ledger and every deep transcript, which is
   the first thing under `.pinakes/` to hold your **verbatim question** — was left tracked with no
   warning at all. Commenting a line out to debug something and re-running `init` is enough to
-  reach it. `git check-ignore` is now asked about the three paths the warning is actually about,
-  and every one of them must be ignored: `check-ignore` exits 0 when *any* argument matches, so a
-  rule naming only the ledger would otherwise read as full protection while the index stayed
-  tracked. The probes are paths *inside* the directory rather than the bare `.pinakes`, because
-  `git check-ignore .pinakes` reports *not ignored* for the canonical `.pinakes/` pattern whenever
-  the directory is absent from disk — and at `init` time it always is. Outside a repository, where
-  there is nothing to ask, a deliberately small fallback asks whether a **whole line** names the
-  directory, with or without its trailing slash. Whether `pnk doctor` should re-check this on
-  every run, and whether that is a warning or a note, is untouched and still undecided.
+  reach it. The question is now put to `git check-ignore`, and it is asked as *is an **arbitrary**
+  path under `.pinakes/` ignored* rather than *are these files ignored*: the probes are opaque
+  random paths that only a rule covering the directory itself can match, with two more under
+  `cache/extract/` and `deep/`. Asking about named files instead would have been its own defect —
+  an ordinary `.gitignore` carrying `*.db` and `*.json` ignores every file the first draft probed
+  while leaving `index.db-wal` tracked, and in WAL mode that holds megabytes of verbatim document
+  text. Outside a git repository the same probes run against a throwaway repository holding your
+  `.gitignore`, so there is one definition of the answer rather than two that can disagree; only a
+  machine with no `git` at all falls back to reading the file, and it then asks whether a whole
+  line names the directory rather than whether the string appears somewhere in it. The check still
+  fires only for a `.gitignore` that was already there, as it always did. Whether `pnk doctor`
+  should re-check this on every run, and whether that is a warning or a note, is untouched and
+  still undecided.
