@@ -103,3 +103,44 @@ signal is only evidence about the thing it actually measures*, and here the thin
 index rather than the working tree. Nothing was wrong with the fragment; the gate simply had not
 been shown it. **`git add` before the last gate run, not after** — which is also the only ordering
 under which the gate's answer describes the commit about to be made.
+
+**HIGH — a sweep for one direction of error is blind to its mirror, and the mirror is where the
+confident mistakes live.** A peer session swept `plans/` for *work filed as done that is not*. Its
+single strongest-worded finding was the opposite kind and it was wrong: `sidecar.py:125-127` really
+does accept a uniformly non-string-keyed mapping and silently coerce it, and Decision 19 really is
+marked *shipped in 0.5.0* — but the decision's own sentence reads *"**Top level only**"*, so a
+nested mapping is outside its scope by construction, and the behaviour is separately recorded at
+`plans/20260731_1202-open-corrections.md:205` under **`## Not to be fixed — recorded so nobody
+tries`**. Behaviour filed as *never-to-be-done* was read as *undone*.
+
+**`## Not to be fixed` is exactly as load-bearing as `## Closed`, and strictly easier to miss**: a
+sweep hunting false closure has no reason to open it, and a vocabulary grep has no token for it. The
+confidence came from having read the *code*, which was accurate; what decided the question was the
+decision's own sentence, which had not been read. Withdrawn by its author on being shown both lines.
+
+**HIGH — the filter that decides what gets examined is itself unexamined.** That sweep classified
+each `##` section LIVE / CLOSED / MIXED from its **heading**, and sent only the first two for a
+semantic read. **Nine of twenty files were dropped unread**, and at least one wrongly:
+`plans/20260804_1844-decision-parent-child-arity.md`'s `## The decision` was classified CLOSED while
+holding the file's only outstanding work — a measured ceiling required before G5's gate runs. **A
+section named for a decision is not a section whose decision has been discharged.** The number worth
+carrying forward is therefore **11 of 20 files read**, not the finding count; a report's coverage is
+a property of its filter, and a filter that reads headings inherits every defect that headings have.
+That is the same shape as the item three paragraphs up — one instance found and generalised — one
+level higher: the classifier looked at eleven files and silently declined nine.
+
+**MEDIUM — the stale-section-under-a-current-banner defect has a second, larger instance.**
+`plans/20260729_0256-links-and-graph.md`'s entire `## Baseline` asserts a world that ended at
+0.11.0, while **the file's own banner at line 8 already says so**. A reader going top-down meets
+*"G3 is the next increment to build"* (`:69`), *"Do not start any of them"* (`:82`), *"One cut
+remains … it is **blocked**, not pending"* (`:103`) and *"G3 is the increment to pick up"* (`:124`)
+before reaching the correction. Verified against the tree rather than against the plan:
+`store.py:28` reads `SCHEMA_VERSION: Final = 3` and the schema carries both `nodes` and `edges`, so
+G3, G5 and G6 all shipped. **None of it matches any status vocabulary; a grep finds nothing here.**
+
+**And the fourth class is now demonstrated rather than hypothesised — work silently overtaken.**
+`:642` states *"Its exit criterion is not discharged by any test."* It is:
+`tests/test_manifest_compat.py::test_a_manifest_requiring_a_newer_pinakes_names_the_version` exists
+and asserts exactly it. Something closed the requirement and never came back to say so, which no
+search for a *status word* can reach — the sentence is a claim about the test suite, and only the
+test suite can refute it.
