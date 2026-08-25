@@ -12,6 +12,21 @@ command helps.** The replacement extracts the suggested line out of the printed 
 and asserts both that it produces output and that the output contains the negation the user has to
 remove. **A test that reads a string can only ever verify the string.**
 
+**MEDIUM — and the sentence describing the *replacement* overclaimed in turn, which is the fourth
+instance today.** The proposed docs line said the command shows *"the `!` that defeats the rule"*.
+It shows the lines that **name** `.pinakes` — so when the defeating pattern is spelled some other
+way (`!.pin*`, `!.pi?akes/`, a broader `!*`, all of which reach the same branch and were verified
+to) the line that actually causes the problem is not printed. Caught by a reviewer running a case
+the author had not chosen, which is what caught the three before it. **The typical case described
+as though it were the only case** — the same shape as the probe set, the version framing and the
+status-word grep, in four unrelated places in one night.
+
+**Left deliberately, and named here so it is not rediscovered as a defect.** A diagnostic that
+*always* shows the conflicting rule is a larger design question — `cat -n .gitignore`? a
+`check-ignore -v` against a path git does match? — and it belongs with the rest of the reserved
+gitignore work rather than in a release being held. The shipped command prints something real in
+every case the branch fires, which is the improvement; it is not guaranteed to print the *cause*.
+
 **MEDIUM — a review is a measurement with a timestamp.** The adversarial pass took long enough that
 the branch moved five times under it, and reviewers measured different commits: several findings
 labelled critical were already fixed when they were written, and the adjudicator had to re-run two
