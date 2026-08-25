@@ -75,10 +75,10 @@ new = '''    return ".pinakes" in text'''
 kills = "tests/test_init.py::test_outside_a_repository_the_fallback_still_strips_comments"
 
 [[mutant]]
-name = "THE SHIPPED DEFECT, half two — the fallback demands an exact `.pinakes`, so a trailing slash stops counting"
+name = "the fallback demands a bare `.pinakes`, so the trailing slash this file itself writes stops counting"
 file = "src/pinakes/init.py"
-old = '''        if stripped.rstrip("/") == ".pinakes":'''
-new = '''        if stripped == ".pinakes":'''
+old = '''    return any(line.strip().rstrip("/") == ".pinakes" for line in text.splitlines())'''
+new = '''    return any(line.strip() == ".pinakes" for line in text.splitlines())'''
 kills = "tests/test_init.py::test_outside_a_repository_the_fallback_still_strips_comments"
 
 [[mutant]]
