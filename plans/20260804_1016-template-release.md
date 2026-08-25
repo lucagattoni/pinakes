@@ -240,7 +240,7 @@ manifest** against a **freshly rendered current template**. That operation canno
 template changed"* from *"the user changed it"*, and reporting the second as the first is the failure
 this project refuses everywhere else. **Decision D-2** resolves it.
 
-### F5 — `vector_tier = "sqlite-vec"` is accepted today and silently does nothing
+### F5 — `vector_tier = "sqlite-vec"` is accepted today and silently does nothing · **CLOSED 20260808, fixed in 0.20.1**
 
 `manifest.py:698` validates it against `VECTOR_TIERS`; `sync.py:1083` then writes the literal
 `"numpy"` into `meta` regardless; `search.py` never reads the field (M6). A user who sets
@@ -431,7 +431,7 @@ makes it unreachable from `notes`.
 **Recommendation: A**, and say so in `template.toml`'s own comment so the next author does not
 re-litigate it.
 
-### D-4 — What happens to `vector_tier = "sqlite-vec"` before the tier exists? (F5)
+### D-4 — What happens to `vector_tier = "sqlite-vec"` before the tier exists? (F5) ✅ **TAKEN 20260808 — option A, shipped as T5**
 
 | Option | Pros | Cons |
 |---|---|---|
@@ -474,7 +474,7 @@ second increment refuses; the warning increment is also a PATCH, being a fix). *
 T5 splits into two increments, and the refusing one must be written into a plan when the warning
 ships** or it is F1's shape again. Nothing else in this plan depends on which is chosen.
 
-### D-5 — Where does the pre-`--apply` manifest go? (D-1 = B, settled by implication — so this is live)
+### D-5 — Where does the pre-`--apply` manifest go? (D-1 = B, settled by implication — so this is live) · **CLOSED 20260808 — the parenthetical is stale; both halves, A and C, built in 0.20.0**
 
 | Option | Pros | Cons |
 |---|---|---|
@@ -723,7 +723,7 @@ should not have to cross-reference to know what binds them.
 Three tracks. **A** (T1–T4) and **B** (T5–T6) are independent of each other and may run in parallel
 by different agents; **C** (T7–T8) depends on A. T5 depends on nothing.
 
-### T1 — The version archive and the template-drift gate
+### T1 — The version archive and the template-drift gate · **CLOSED 20260807, built in 0.17.0**
 
 **Why first.** Nothing else in track A can be correct without it: T2, T3 and T4 all need the recorded
 version's content to exist at runtime (F4), and all three are meaningless while no version ever bumps
@@ -1233,7 +1233,7 @@ because that implementation is the one a reader of `init.py:75,111` would write.
 
 ---
 
-### T3 — `pnk upgrade`, print only
+### T3 — `pnk upgrade`, print only · **CLOSED 20260808, built in 0.19.0**
 
 **Depends on T1, T2.**
 
@@ -1496,7 +1496,7 @@ Open the manifest for writing and confirm `::test_nothing_under_the_kb_is_writte
 
 ---
 
-### T4 — `pnk upgrade --apply`
+### T4 — `pnk upgrade --apply` · **CLOSED 20260808, built in 0.20.0**
 
 **Depends on T3.** D-1 is settled as B by implication of D-10 and D-11 (both taken 20260804), so
 this increment is in scope. If the planner overrules D-1 and stops at T3, T4 does not exist and the
@@ -2005,7 +2005,7 @@ assertion usually turns out to be measuring something else:
 
 ---
 
-### T5 — `vector_tier = "sqlite-vec"` stops lying
+### T5 — `vector_tier = "sqlite-vec"` stops lying · **CLOSED 20260808, built in 0.20.1**
 
 **Depends on nothing.** Standalone; ship it whenever the tree is free.
 
@@ -2253,7 +2253,7 @@ the staged PPR channel's gate acquires a second leg — see `20260804_1016-stage
 
 ---
 
-### T7 — `pnk templates`, and a template declares its own files
+### T7 — `pnk templates`, and a template declares its own files · **CLOSED 20260808, built in 0.21.0**
 
 **Depends on T1.** Independent of T3/T4.
 

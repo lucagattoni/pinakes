@@ -111,7 +111,7 @@ written; re-derive it before applying.
 | `docs/VERIFICATION.md:27` | medium | `docs/VERIFICATION.md:25-29` ⚠ |
 | `docs/graph/README.md:54` | low | `docs/graph/README.md:54` |
 
-## Where they are
+## Where they are · **counts as of 20260807 — 6 have closed since and 34 remain; `docs/STATUS.md`'s row is now zero (§ Re-verified 20260823)**
 
 | File | Open | Medium | Low |
 |---|---|---|---|
@@ -131,7 +131,7 @@ written; re-derive it before applying.
 ---
 
 
-# Medium — 13 findings
+# Medium — 13 findings · **the 20260807 count — 4 are fixed and 9 remain; five findings filed under `# Low` are rated medium today (§ Re-verified 20260823)**
 
 ## `docs/CLI.md:26` — false · MISSED-BY-FINDER
 
@@ -173,7 +173,7 @@ written; re-derive it before applying.
 
 **Fix.** Rewrite the axis-4 sentence to say detection exists and only adoption is missing — e.g. "a template's drift is *detected* (`pnk doctor` compares the recorded version against the installed one) but not *remedied*: the fix touches a file the user owns, so it cannot borrow axes 1-3's free-rebuild shape." Drop "the only one with no mechanism" and "drift *silently*".
 
-## `docs/DESIGN.md:715` — false · CONFIRMED
+## `docs/DESIGN.md:715` — false · CONFIRMED · **CLOSED 20260807 23:58, fixed in `f44af32` — confirmed by § Re-verified 20260823**
 
 **Claims.** §6.1: "`[KB-UPDATES.md](KB-UPDATES.md)` works the problem through and records what has been decided; none of it is built."
 
@@ -183,7 +183,7 @@ written; re-derive it before applying.
 
 **Fix.** Replace with what is actually built and what is not, e.g.: "`[KB-UPDATES.md](KB-UPDATES.md)` works the problem through. `[kb] requires_pinakes` (§2.1) and the template-version archive plus its drift gate are built; `pnk upgrade` is not — it belongs to the template release." Keep an explicit statement that `pnk upgrade` does not exist yet, since line 707 describes it in the present tense.
 
-## `docs/GUIDE.md:3` — stale · CONFIRMED
+## `docs/GUIDE.md:3` — stale · CONFIRMED · **CLOSED 20260823, fixed — see § Re-verified 20260823**
 
 **Claims.** "Every command here was run against 0.2.0 (20260728 16:40); the output shown is real."
 
@@ -193,7 +193,7 @@ written; re-derive it before applying.
 
 **Fix.** Re-run the walkthrough and restamp the line with the version and UTC timestamp actually used, e.g. "Every command here was run against 0.16.0 (YYYYMMDD HH:MM, UTC); the output shown is real." — and re-verify each fence at the same time.
 
-## `docs/GUIDE.md:93` — false · CONFIRMED
+## `docs/GUIDE.md:93` — false · CONFIRMED · **CLOSED 20260823, fixed — see § Re-verified 20260823**
 
 **Claims.** The "You get:" tree after `pnk init` lists exactly three entries: `pinakes.toml`, `docs/`, `.gitignore`.
 
@@ -220,7 +220,7 @@ Template source: src/pinakes/templates/notes/{README.md,eval/questions.yaml,pina
 
 **Fix.** Replace "with its age" with "naming the holder (pid, host) and the time it was taken", matching line 457.
 
-## `docs/KB-UPDATES.md:24` — false · MISSED-BY-FINDER
+## `docs/KB-UPDATES.md:24` — false · MISSED-BY-FINDER · **CLOSED 20260808 03:19, fixed in `17f7c2a` — confirmed by § Re-verified 20260823**
 
 **Claims.** "For the second there is one deferred command (`pnk upgrade`, the template release) and no detection at all — while v0.2 is actively changing what the template ships."
 
@@ -270,7 +270,7 @@ Template source: src/pinakes/templates/notes/{README.md,eval/questions.yaml,pina
 
 **Fix.** Extend the banner to point at the plan's "APPROACH amendments" table as the authority for §3, §5 and §9 as well as §10 — e.g. replace "wins wherever it and §10 disagree about what is built when. The reasoning here is untouched and still governs *what* to build" with "wins wherever it and this document disagree; its **APPROACH amendments** table lists the nine departures taken since, four of them in §5. The reasoning here is left as written." Do not edit §3/§5/§9 themselves — "left as written" is the convention.
 
-# Low — 27 findings
+# Low — 27 findings · **the 20260807 count — 2 are fixed and 25 remain; five of the 25 are rated medium today (§ Re-verified 20260823)**
 
 ## `README.md:97` — false · ADJUSTED
 
@@ -494,7 +494,7 @@ inbound links: museum 6
 
 **Fix.** Put `sentence-transformers` in the Default cell for `[rerank] provider`.
 
-## `docs/MEASUREMENT-RUN.md:168` — stale · ADJUSTED
+## `docs/MEASUREMENT-RUN.md:168` — stale · ADJUSTED · **CLOSED 20260807 21:47, fixed in `b60b8a0` — confirmed by § Re-verified 20260823**
 
 **Claims.** The "## Afterwards" checklist is written as pending work — "`prices.toml` **gains** the measured per-page constant…", "DESIGN §9 **gains** the scanned-quality numbers", "STATUS.md **drops** 'output quality is not yet measured', and the release **can be cut** saying what it measured".
 
@@ -524,7 +524,7 @@ inbound links: museum 6
 
 **Fix.** Add a row after BUILDING.md, e.g. `| [**RELEASING.md**](RELEASING.md) | *How do I cut a release?* Fragments, version bump, tag, verification, and the three documents a release stales |`.
 
-## `docs/STATUS.md:303` — inconsistent · MISSED-BY-FINDER
+## `docs/STATUS.md:303` — inconsistent · MISSED-BY-FINDER · **CLOSED 20260811 13:27, fixed in 0.22.2 — see the FIXED banner in this section**
 
 **Claims.** The release roadmap table lists `**0.15.1** ✅` after `**0.16.0** ✅`.
 

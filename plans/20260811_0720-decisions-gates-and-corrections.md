@@ -77,7 +77,7 @@ taken instead**: *"a divergence that turns out to be a missing default in `notes
 action is to change `notes`, not fork it."* Both KBs stamped from `notes` immediately edited the
 same two provider keys. That is D-20.
 
-### D-15 — open correction: `--rebuild` and protected paid documents → **re-chunk from the cache when warm; record inhomogeneity when cold**
+### D-15 — open correction: `--rebuild` and protected paid documents → **re-chunk from the cache when warm; record inhomogeneity when cold** · **CLOSED 20260811, decided and built in 0.22.0**
 
 **The item's binary was false, per M2.** The extracted text is already on disk in
 `.pinakes/cache/extract/` and survives the rebuild, so `cache.peek(cache_dir,
@@ -90,7 +90,7 @@ content_hash=…, fingerprint=…)` returns it for free in the common case.
   violates the §5 consent model, and `--rebuild` is the remedy `pnk doctor` prints — a remedy that
   can cost money is not a remedy.
 
-### D-16 — open correction: `--apply` on the `same manifest` outcome → **restamp `[kb] template`, and say so**
+### D-16 — open correction: `--apply` on the `same manifest` outcome → **restamp `[kb] template`, and say so** · **CLOSED 20260811, decided and built in 0.22.0**
 
 `--apply` restamps `[kb] template` when the rendered manifest is byte-identical, and **the printed
 report states that it wrote the reference with no hunks to show.**
@@ -104,7 +104,7 @@ is a dead end the user cannot leave.
 and must be replaced, not deleted quietly.** Its replacement asserts the new property, and the
 commit says which behaviour changed and why.
 
-### D-17 — open correction: the eval header's `vector_tier` → **record both**
+### D-17 — open correction: the eval header's `vector_tier` → **record both** · **CLOSED 20260811, decided and built in 0.22.0**
 
 `vector_tier` keeps its current meaning (**what the manifest asked for**) and the resolver's return
 is recorded beside it. Same change in `src/pinakes/eval.py` and
@@ -116,7 +116,7 @@ so re-running a committed artifact shows no movement where no measurement moved
 tier is defensible and simpler — nothing consumes the field (M4) — but a measurement artifact that
 appears to move when nothing did is a cost this project has paid before.
 
-### D-18 — open correction: is `pnk init` transactional? → **yes: hoist the full validation before any write**
+### D-18 — open correction: is `pnk init` transactional? → **yes: hoist the full validation before any write** · **CLOSED 20260811, decided and built in 0.22.0**
 
 **The item rejected this as unavailable and M1 says it is available.** Declaration shape, the
 `_versions` rule, target containment *and* template-source containment all run before `mkdir`.
@@ -133,7 +133,7 @@ appears to move when nothing did is a cost this project has paid before.
 * Split `copy_extras` into a validate half and a copy half rather than validating twice — two
   callers of one rule is how the two drift apart.
 
-### D-19 — proposal: **automate the GitHub release step**
+### D-19 — proposal: **automate the GitHub release step** · **CLOSED 20260811, decided and built in 0.22.0**
 
 Add a release-creating step to `.github/workflows/release.yml`, with `contents: write`, **after
 `uv publish`** so a failure there can never block publishing.
@@ -148,7 +148,7 @@ re-investigation. What remains is toil performed 25 times. The cost is honest: t
 broadens beyond `id-token: write`, and there is one more thing whose success must be **verified on
 the next real tag rather than assumed** — which is this repository's standing rule anyway.
 
-### D-20 — proposal: `pnk init --backend`, and a false sentence in the GUIDE
+### D-20 — proposal: `pnk init --backend`, and a false sentence in the GUIDE · **CLOSED 20260811, decided and built in 0.22.0**
 
 **Two things, and only the second is a decision.**
 
@@ -167,7 +167,7 @@ other extra. An explicit flag records a *choice*; sniffing records an *accident*
 
 ---
 
-## Build order
+## Build order · **CLOSED 20260811, fully built out at 0.22.0**
 
 Each is its own increment, its own branch, its own landing —
 [`docs/BUILDING.md`](../docs/BUILDING.md), never batched.

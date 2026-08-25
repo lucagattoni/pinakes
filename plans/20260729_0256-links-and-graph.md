@@ -3,7 +3,8 @@
 **Status:** revised after adversarial passes 1 (22 HIGH), 2 (26 HIGH), 3 (24 HIGH), 4 (13 HIGH),
 5 (3 HIGH), 6 (2 HIGH) and 7 (6 HIGH) on L1–L8 and G1–G6; then **seven passes on L5b alone**
 (8, 8, 7, 6, 7, 7, 7 HIGH) plus an adversarial code review of the implementation (5 HIGH).
-> ## ✅ CLOSED 20260805 — both releases shipped. Nothing here is live.
+
+## ✅ CLOSED 20260805 — both releases shipped. Nothing here is live.
 >
 > **The links release** shipped L1–L5b in 0.5.0 and L6–L8 in 0.6.0 (20260801); L5c closed unbuilt
 > because its one refusal shipped with L5b. **The graph release** shipped G1 and G4 in 0.6.0, G2 in
@@ -16,7 +17,7 @@
 > the `[ner]` extra ([`20260804_1016-staged-channel-gates.md`](20260804_1016-staged-channel-gates.md)).
 >
 > **Read this file as a record of what was decided, never as instructions.** The live plan is
-> [`20260804_1016-template-release.md`](20260804_1016-template-release.md).
+> whichever plan [`docs/README.md`](../docs/README.md)'s routing table names — not `20260804_1016-template-release.md`, which closed at 0.22.0.
 
 **G2's headroom measurement came back negative on `tests/demo-kb` and positive on the RFC realism
 corpus** — 12 multi-hop questions failing and 9 reachable without authored edges, against a
@@ -62,7 +63,7 @@ adversarial passes) and `docs/RETROSPECTIVES.md` **together with any unspliced f
 [`retro.d/`](../retro.d/)** — the newest findings live there until a release splices them, so
 reading only the document systematically misses them.
 
-## Baseline — `main` at `d56bb35`, 20260803 22:18
+## Baseline — `main` at `d56bb35`, 20260803 22:18 · **CLOSED 20260805, superseded — G3/G5/G6 shipped in 0.11.0**
 
 **The G-track is open again.** L1–L8 shipped (0.5.0, 0.6.0); G1 and G4 shipped in 0.6.0; G2
 shipped in 0.7.0. G2's measurement stopped the rest for three days and **passed on the RFC realism
@@ -90,7 +91,7 @@ answer is reported whichever way it comes back.
 Re-verify this baseline before starting anything: `git log --oneline -1`,
 `gh run list --branch main --limit 1`, `python3 tools/shared_file_overlap.py --fetch --strict`.
 
-## Two releases, three cuts
+## Two releases, three cuts · **CLOSED 20260805, the graph release cut as 0.11.0**
 
 | Release | What it is | Rebuild? | Needs the golden set? |
 |---|---|---|---|
@@ -354,7 +355,7 @@ in git history.
 
 ---
 
-### G2 — Per-question outcomes, the grown golden set, one re-baseline ✅ landed 20260801 12:14
+### G2 — Per-question outcomes, the grown golden set, one re-baseline ✅ landed 20260801 12:14 · **CLOSED 20260804, its stop lifted by the RFC corpus measurement**
 
 **Outcome: the precondition failed.** 18 multi-hop questions, **1 failing** against the 7 required;
 reachable-without-authored 1 against the 7 required. G3 does not start. The golden set grew 41 → 74
@@ -501,7 +502,7 @@ fragment.
 
 ---
 
-### G3 — The node model and the edge set (`schema_version` 3)
+### G3 — The node model and the edge set (`schema_version` 3) · **CLOSED 20260805, built in 0.11.0**
 
 **Precondition: G2's headroom measurement passed.** It failed on `tests/demo-kb` (20260801 12:14 —
 1 of 18 multi-hop questions failing, 7 required) and **passed on the RFC realism corpus** (20260804 —
@@ -646,7 +647,7 @@ rows in [`docs/VERIFICATION.md`](../docs/VERIFICATION.md).
 
 ---
 
-### G5 — The expansion channel, default off, and its gate ✅ built; **gate run 20260804 22:52, did not pass**
+### G5 — The expansion channel, default off, and its gate ✅ built; **gate run 20260804 22:52, did not pass** · **CLOSED 20260805, built in 0.11.0 — the `parent-child` ceiling it requires *was* measured before the gate ran (20260804 21:05) and came back *not* alarming: 4.95 rows/chunk, +12.9% index. Only the tail is alarming, and only on a purpose-built worst-shape corpus (20260804 22:39: 53.42 rows/chunk, +113.4%), which `docs/RETROSPECTIVES.md` calls not evidence that real corpora do this. Arity requirements 1 and 2 are discharged; the immediate-parent arm is requirement 3 of [`20260804_1844-decision-parent-child-arity.md`](20260804_1844-decision-parent-child-arity.md)**
 
 **Its deliverable is a measurement, and the measurement is negative.** `expand` ships `off`;
 licensing p = 1.0000; nothing lifted and three questions regressed
@@ -846,7 +847,7 @@ empty-edge degradation path; the third-channel RRF contribution; the false-absta
 
 ---
 
-### G6 — Edge-hub reporting, verification, and the graph release cut
+### G6 — Edge-hub reporting, verification, and the graph release cut · **CLOSED 20260805, built in 0.11.0**
 
 **Follows G3 and G5.** It reports hubs in the edge table G3 builds, and cuts the release G5's gate
 licenses. **Its verification steps are

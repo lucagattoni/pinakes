@@ -4,7 +4,7 @@
 raised by G3's implementer as a spec defect rather than worked around — which is what the go
 decision asked for.
 
-## The question
+## The question · **CLOSED 20260804, answered by § The decision and by `graph/edges.py::_hierarchy_edges` — and the cost it calls unmeasured was measured 20260804 21:05**
 
 `parent-child` derives from a `heading_path` prefix relation within one document. Its **arity was
 never specified.** G3 built it transitively: every ancestor path joined to every descendant path, so
@@ -14,7 +14,7 @@ plausible document shapes, that is **5.8×–53.5× the chunk count**.
 It did not bite on the RFC realism corpus — but only because every chunk there has an empty
 `heading_path`, so `parent-child` derived **zero edges**. The cost is real and unmeasured.
 
-## The decision
+## The decision · **requirements 1 and 2 CLOSED (ceiling measured 20260804 21:05; the `--drop parent-child` arm shipped in 0.11.0); requirement 3 LIVE — alarming only on a purpose-built worst-shape corpus (53.42 rows/chunk, +113.4% index, 20260804 22:39), and no immediate-parent arm exists**
 
 **Keep it transitive, as built.** Three additions, none of them code today:
 
@@ -47,7 +47,7 @@ refused to let a reachability ceiling choose the kind set, and sent that questio
 same reasoning applies here, for the same reason: a ceiling gauge cannot rank, and an argument
 cannot measure.
 
-## Why not the alternatives
+## Why not the alternatives · **the *Immediate parent only* row is not a rejection — its conditional fired 20260804 22:39, on a purpose-built worst-shape corpus**
 
 | Option | Why not |
 |---|---|
@@ -66,7 +66,7 @@ cannot measure.
 * **The per-kind census reports it**, so an explosion is a number in the report rather than a
   surprise in the index size.
 
-## The standing risk this leaves
+## The standing risk this leaves · **no longer a guess — measured 20260804 22:39 at 53.42 `parent-child` rows/chunk and +113.4% index growth on a worst-shape corpus; requirement 1 is discharged**
 
 **A corpus with deep heading nesting and large sections could make `parent-child` the dominant
 kind**, on a `pnk sync` that already runs from three git hooks. That is stated rather than mitigated,
