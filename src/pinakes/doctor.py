@@ -482,8 +482,16 @@ def _retired_documents(
     "every sidecar whose id is not active". A document that has never been indexed has no row at
     all, and the shipped pre-commit hook creates exactly that on every commit (`hooks.py` runs
     `sync --sidecars-only`, which mints a sidecar with no index row **by design**). Phrased that
-    way the check FAILs on a healthy KB seconds after a commit. Starting from a row that once
-    existed cannot: nothing the hook does retires anything.
+    way the check FAILs on a healthy KB seconds after every commit, at every path.
+
+    Starting from a row narrows that to almost nothing, but **not to nothing, and the docstring
+    said otherwise until a reviewer measured it.** A new document at a path some earlier document
+    once held reaches rule (2) after `--sidecars-only`: its own id has no row, and the row that
+    held its path is retired. The report is *true* there — the document genuinely has no row and
+    `pnk search` cannot see it — and the shipped hook pair never leaves that state, because
+    post-commit runs `sync --index-only` inside the same `git commit`. It is reachable by
+    installing pre-commit without post-commit. What the row narrows is the *population*: one
+    reused path rather than every path in the commit.
 
     Two conditions, each removing a false positive that was measured rather than argued:
 

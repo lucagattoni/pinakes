@@ -2822,3 +2822,31 @@ def test_no_pure_rename_ever_leaves_the_index_half_written(kb: Path) -> None:
 
         after = {str(r["path"]): (str(r["id"]), str(r["state"])) for r in index(kb)}
         assert after == before, f"{permutation}: the index was written before the sync failed"
+
+
+def test_a_rename_that_frees_a_path_a_new_document_then_takes(kb: Path) -> None:
+    """`git mv b.md c.md` with the sidecar, and an unrelated new `b.md` arrives at the freed name.
+
+    Before this increment `pnk sync` recorded `SidecarError: c.md.pnk.yaml appeared after the walk
+    had already read this directory`, told the user to *"run `pnk sync` again"*, and never indexed
+    `c.md` — on that run or any later one. The document was on disk carrying a published id and
+    unreachable from every query, and only `--rebuild` recovered it.
+
+    It is the same shape as a moved sidecar, which is why the pairing guard fixes it: the index
+    still called `b.md` that id while the sidecar had walked to `c.md`, so the plan asserted one id
+    at two paths. Pinned here rather than left as a line in a plan, because a claim that something
+    is fixed goes stale in silence and a test does not.
+    """
+    write(kb, "b.md", "# Beta\n\nBeta body here.\n")
+    write(kb, "keep.md", "# Keep\n\nKeep body here.\n")
+    run(kb)
+    docs = kb / "docs"
+    (docs / "b.md").rename(docs / "c.md")
+    (docs / f"b.md{SIDECAR_SUFFIX}").rename(docs / f"c.md{SIDECAR_SUFFIX}")
+    write(kb, "b.md", "# Brand new\n\nNothing to do with Beta at all.\n")
+
+    report = run(kb)
+
+    assert not report.failures, f"the walk recorded a failure: {report.failures}"
+    active = {Path(str(row["path"])).name for row in index(kb) if row["state"] == "active"}
+    assert active == {"b.md", "c.md", "keep.md"}
