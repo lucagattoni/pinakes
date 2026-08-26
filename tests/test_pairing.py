@@ -566,7 +566,8 @@ def test_a_sidecar_moved_onto_another_document_takes_its_id_with_it() -> None:
 
     Before this was guarded the same-path loop kept asserting that `a.md` was still that id, because
     nothing beside `a.md` said otherwise, while the disagreement branch adopted the very same id at
-    `b.md`. One id, two paths, one plan; applied in order it moved the row and left `a.md` with none.
+    `b.md`. One id, two paths, one plan; applied in order it moved the row and left `a.md` with
+    no row at all.
     """
     alpha, beta = mint_doc_id(), mint_doc_id()
     result = pair(

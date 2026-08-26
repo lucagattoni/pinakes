@@ -2695,17 +2695,31 @@ def test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row(kb: Path) -
 
 def test_the_population_walk_never_opens_a_document(kb: Path, monkeypatch: Any) -> None:
     """`walk_document_paths` answers *which* documents this KB collects, and `pnk doctor` is its
-    only caller — the command you run when the KB is already broken. Hashing every source there
-    would import the walk's own unreadable-file failure into the diagnostic, so nothing in this
-    path may open a document.
+    only caller — the command you run when the KB is already broken. Opening files there would
+    import the walk's own unreadable-file failure into the diagnostic.
+
+    **All three of the skips are asserted, because two of them were not.** `_documents_only` skips
+    the document hash, the sidecar pass and the unmatched-file probe, and the first version of this
+    test could only see the first: its KB had never been synced, so there were no sidecars for the
+    second pass to read, and no unmatched file for the third to open. Two clauses could be deleted
+    with the whole suite green. The KB is synced here so sidecars exist, and it carries a file no
+    `include` pattern matches so the probe has something to reach for.
     """
     write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
     write(kb, "b.md", "# Beta\n\nBeta body here.\n")
+    run(kb)
+    (kb / "docs" / "notes.rst").write_text("Not matched by any include pattern.\n", encoding="utf-8")
+    assert list((kb / "docs").glob(f"*{SIDECAR_SUFFIX}")), "the sidecar pass needs something to read"
 
-    def explode(path: Path) -> str:
-        raise AssertionError(f"the population walk opened {path}")
+    def hashed(path: Path) -> str:
+        raise AssertionError(f"the population walk hashed {path}")
 
-    monkeypatch.setattr("pinakes.sync.hash_file", explode)
+    def probed(path: Path) -> bool:
+        raise AssertionError(f"the population walk probed {path}")
+
+    monkeypatch.setattr("pinakes.sync.hash_file", hashed)
+    monkeypatch.setattr("pinakes.sync._indexable", probed)
+
     assert walk_document_paths(load(kb)) == {"docs/a.md", "docs/b.md"}
 
 

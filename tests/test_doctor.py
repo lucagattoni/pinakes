@@ -2550,3 +2550,37 @@ def test_a_document_whose_retired_id_sits_under_its_old_path_is_still_found(kb: 
     status, detail = checks(kb)["retired documents"]
     assert status is Status.FAIL
     assert "docs/a.md" in detail, "the document is named where it now sits, not where it was"
+
+
+def test_a_half_finished_id_change_is_reported_even_though_the_ids_differ(kb: Path) -> None:
+    """A sidecar's id changes and the re-index of that document then fails.
+
+    `pairing` retires the old id and adopts the new one as two actions that commit separately, so a
+    failure in between leaves the old id retired at that path and the new id with **no row at all**.
+    The document is on disk, collected, carrying its identity, and unreachable from `pnk search`.
+
+    Asking only "is a retired id claimed by a collected document's sidecar?" cannot see it — the
+    retired id and the sidecar's id are different ones — and the check answered `OK, 1 retired, none
+    still in the KB` over a document that was gone. That sentence was affirmatively false, and this
+    is the state its own docstring named as the reason the check exists.
+
+    Reached with no hand edit of the index: only a sidecar rewritten and a file made undecodable,
+    which is `pnk sync`'s own failure path.
+    """
+    (kb / "docs" / "b.md").write_text("# B\n\nMore text.\n", encoding="utf-8")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:31")
+
+    sidecar = kb / "docs" / f"a.md{SIDECAR_SUFFIX}"
+    fresh = mint_doc_id()
+    sidecar.write_text(
+        re.sub(r"^id:.*$", f"id: {fresh}", sidecar.read_text(encoding="utf-8"), flags=re.MULTILINE),
+        encoding="utf-8",
+    )
+    (kb / "docs" / "a.md").write_bytes(b"# A\n\n\xff\xfe not utf-8 at all\n")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:32")
+    (kb / "docs" / "a.md").write_text("# A\n\nRepaired text.\n", encoding="utf-8")
+
+    assert str(fresh) not in _document_ids(kb, "1 = 1"), "the new id must have no row"
+    status, detail = checks(kb)["retired documents"]
+    assert status is Status.FAIL
+    assert "docs/a.md" in detail

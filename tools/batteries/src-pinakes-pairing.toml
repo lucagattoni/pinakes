@@ -17,7 +17,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 8
+mutants = 10
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -167,3 +167,45 @@ file = "src/pinakes/pairing.py"
 old = """        if sidecar is None and document.id in claimed_by_id:"""
 new = """        if False:"""
 kills = "tests/test_pairing.py::test_a_sidecar_moved_onto_another_document_takes_its_id_with_it"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260826 · the other two `_documents_only` clauses
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# `_documents_only` skips three things, and the first version of the test could only see one of
+# them: its KB had never been synced, so no sidecar existed for the second pass to read, and it
+# carried no unmatched file for the third to probe. Two clauses could be deleted with the whole
+# suite green — found by a reviewer reading the test rather than running it.
+#
+# Both mutants below are silent by construction: they change nothing about `walk_document_paths`'s
+# **output**, only what it opens on the way. Only a test watching for the `open()` can see either,
+# which is why the test monkeypatches `hash_file` *and* `_indexable` rather than asserting a result.
+
+[[mutant]]
+name = "the sidecar pass runs for a population-only walk, so `pnk doctor` re-reads every sidecar"
+file = "src/pinakes/sync.py"
+old = """        if _documents_only:
+            continue
+"""
+new = ""
+kills = "tests/test_sync.py::test_the_population_walk_never_opens_a_document"
+
+[[mutant]]
+name = "the unmatched-file probe runs, so `pnk doctor` opens up to 500 files per root"
+file = "src/pinakes/sync.py"
+old = """    if not _documents_only:
+        for root_name in manifest.sources.roots:
+            root = (manifest.root / root_name).resolve()
+            if root.is_dir():
+                found, hit_cap = _unmatched_under(root, manifest, matched=files)
+                unmatched.update(found)
+                truncated = truncated or hit_cap
+"""
+new = """    for root_name in manifest.sources.roots:
+        root = (manifest.root / root_name).resolve()
+        if root.is_dir():
+            found, hit_cap = _unmatched_under(root, manifest, matched=files)
+            unmatched.update(found)
+            truncated = truncated or hit_cap
+"""
+kills = "tests/test_sync.py::test_the_population_walk_never_opens_a_document"

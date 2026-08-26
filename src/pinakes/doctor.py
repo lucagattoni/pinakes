@@ -81,6 +81,8 @@ from pinakes.sidecar import read as read_sidecar
 from pinakes.sync import hash_file, walk_document_paths
 
 LARGE_CORPUS_CHUNKS = 50_000
+#: `documents.state` for a soft-deleted row. Spelled once here rather than as a literal per query.
+DELETED_STATE = "deleted"
 HOOK_MARKER = "pinakes"
 
 
@@ -493,10 +495,13 @@ def _retired_documents(
       never moves (`sync.walk_sources`: "a locally excluded document is a deleted index row *and*
       an orphaned sidecar").
     """
-    retired = {
-        str(row["id"])
-        for row in connection.execute("SELECT id FROM documents WHERE state = 'deleted'")
-    }
+    rows = [
+        (str(row["id"]), str(row["path"]), str(row["state"]))
+        for row in connection.execute("SELECT id, path, state FROM documents")
+    ]
+    retired = {doc_id for doc_id, _path, state in rows if state == DELETED_STATE}
+    known = {doc_id for doc_id, _path, _state in rows}
+    retired_at_path = {path: doc_id for doc_id, path, state in rows if state == DELETED_STATE}
     if not retired:
         # No walk at all on a KB that has never retired a row — this check costs a `glob` and a
         # `stat`, never a read, and only on a KB with something to check.
@@ -509,7 +514,27 @@ def _retired_documents(
             document = document_for(sidecar_file).relative_to(manifest.root).as_posix()
         except ValueError:  # pragma: no cover — `_sidecars` only walks under the KB root
             continue
-        if document in collected and str(parsed.id) in retired:
+        if document not in collected:
+            continue
+        claimed_id = str(parsed.id)
+        # (1) the id this document carries has been retired — it is here, under that identity, and
+        # the index has put it beyond `pnk search`.
+        if claimed_id in retired:
+            lost.append(document)
+            continue
+        # (2) the id it carries has **no row at all**, while the row that used to hold its path is
+        # retired. That is a replacement that got halfway: `pairing` retires the old id and adopts
+        # the new one as two actions which commit separately, so an `Adopt` that fails — undecodable
+        # content, an embedding backend raising, a budget cap refusing a paid extraction — leaves
+        # exactly this. Rule (1) cannot see it, because the retired id and the sidecar's id are
+        # different ones, and the check said "none still in the KB" over a document that was gone.
+        #
+        # **Both halves of the condition are load-bearing.** Requiring the path's row to be RETIRED
+        # is what keeps an ordinary pending edit out: a sidecar whose id was changed but not yet
+        # synced still has an ACTIVE row at that path and is perfectly findable. And requiring a row
+        # at that path at all is what keeps the pre-commit hook out: the sidecar `sync
+        # --sidecars-only` mints has no row anywhere, its own path included.
+        if claimed_id not in known and retired_at_path.get(document) not in (None, claimed_id):
             lost.append(document)
 
     if not lost:
