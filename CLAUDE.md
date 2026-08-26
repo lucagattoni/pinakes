@@ -183,7 +183,7 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   it had been cured.
   **S17 is ✅ FIXED** (it printed a remedy that never worked and left the document unindexed): the
   moved-sidecar guard from S2's second review fixed it as a side effect, **verified with a control**.
-  **S2 is ✅ BUILT** (landed `3876b57`, 20260826 04:06 UTC). **S18 and S19 are open.** **D-36 and D-37 are now answered**. Every
+  **S2 is ✅ BUILT** (landed `3876b57`, 20260826 04:06 UTC). **S18 is open. S19 is open and now *measured*** — its non-cyclic half reproduces, run independently by both sessions 20260826 07:19 UTC, so S16's scope is settled: ordering the applicable plans fixes the whole chain class, **cycles are a separate mechanism**, and the pinning case is a chain of three rather than a two-file swap. **D-36 and D-37 are now answered**. Every
   other file in `plans/` is closed, answered, deferred or proposed-unscheduled — and **an
   empty-looking list still means *the next thing to build has not been planned yet*, never *nothing
   to do***. `docs/ROADMAP.md` Part 5 holds what comes after.
