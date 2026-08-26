@@ -369,7 +369,13 @@ is new:**
 | `pnk search`, second hit | **`[2] docs/a.md — Alpha`, and `a.md` does not exist on disk at all.** The index answers from a path that is **gone**. The other three say the index describes the *wrong* file; this one says it describes a file that is not there |
 
 **The plan itself, driven directly — measured twice, independently.** The coder drove `pair()` and
-the planner re-ran it from a separately written probe. **Three rows matched exactly:**
+the planner re-ran it from a separately written probe. **Three rows matched exactly.**
+
+**🛑 THIS TABLE IS THE *BEFORE* STATE, at the `src/` tree named above.** It is a measurement, not a
+description of `pair()` today, and it stays true as that. **The ordering fix changes the two
+non-cycle rows** — the chain comes out *strictly reverse*, which is the applicable order — and the
+**cycle row is unchanged, deliberately.** The after column is added when the fix lands and its
+values are measured, not before.
 
 | Walk | `pair()` emits | Applicable? |
 |---|---|---|
@@ -388,6 +394,37 @@ fix.
 surviving path in walk order (sorted by path), and the adoption loop emits the rest afterwards.
 **Neither loop knows that a target path is still held by a row this same plan is about to move.**
 `documents.path` being `UNIQUE` is the only reason anything notices — and it notices by crashing.
+
+### The cycle's price — found by building it and backing it out (20260826 07:30 UTC)
+
+**Recorded because no plan had it, and because a build-order row reading *"make cycles work"* would
+under-scope the cycle exactly as *"make swaps work"* under-scoped the chain.**
+
+The obvious remedy for the cycle class is a clean refusal — `pair()` raising before anything is
+applied, rather than emitting a plan that crashes halfway. **The coder built it, it worked, and it
+was backed out**, because it breaks **five committed tests**, three of which are guards that exist
+*only while a cycle still produces a plan*:
+
+| Guard | What it can only observe by watching a plan be applied and fail |
+|---|---|
+| `tests/test_pairing.py:447 test_a_name_swap_never_retires_an_id_the_same_plan_adopts` | the plan does not retire an id it also adopts |
+| `tests/test_pairing.py:493 test_a_three_way_rename_cycle_adopts_every_id_and_retires_none` | every id survives a three-way cycle |
+| `tests/test_sync.py:2661 test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row` | **the silent-loss shape S2 exists to prevent** — no live document loses its row when the second half fails |
+
+**So refusing the cycle cleanly is a decision about behaviour, not an implementation detail**, and
+its price is denominated in **S2's coverage**. It is not taken here, and it was correctly not taken
+inside an ordering fix. Whoever settles the cycle starts from this cost rather than rediscovering
+it; the reasoning is also in `src/pinakes/pairing.py`'s docstring, where the person reaching for it
+will look.
+
+**And one of those three guards contradicts itself, which will block exactly that person.**
+`test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row`'s docstring says **"The sync's
+own outcome is deliberately not asserted… what this test pins is that no live document loses its
+row, which must hold *however that defect is settled*."** Its body implements that with
+`contextlib.suppress(sqlite3.IntegrityError)` at `tests/test_sync.py:2687` — which **pins the
+exception type**. A cycle settled by raising anything else fails a test whose docstring promises it
+would not. **Intent portable, code not.** Verified 20260826 07:30. Owner: **coder**, unscheduled — it blocks
+nobody until the cycle is settled, and it blocks that person completely.
 
 **So the two classes are now measured, not argued, and they need different fixes:** ordering the
 applicable plans fixes the **entire chain class**; **cycles remain** and need a temporary path. When
