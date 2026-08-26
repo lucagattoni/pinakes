@@ -455,3 +455,25 @@ def test_the_share_is_measured_against_the_total_the_brief_prints(tmp_path: Path
     numbers = json.loads(out.stdout)
     assert numbers["repeat_share_pct"] == 21.7, numbers
     assert numbers["raw_tokens_measured"] == 2770.0, numbers
+
+
+def test_a_pass_killed_in_its_first_turns_is_still_counted(tmp_path: Path) -> None:
+    """The five-turn floor drops runs that did nothing. A death is not nothing.
+
+    A pass killed in its third turn is exactly the population the incomplete section reports, and
+    hiding it shrinks the numerator and the denominator together — so a fan-out that died early
+    reads as a smaller failure than one that died late. A filter must not be able to improve the
+    statistic it feeds.
+    """
+    plain_pass(tmp_path, "a1", "2026-01-01T00:00:00Z", ["uv run pytest -q"])
+    plain_pass(
+        tmp_path,
+        "a2",
+        "2026-01-01T01:00:00Z",
+        ["uv run pytest -q"],
+        contexts=[100, 200],
+        killed=True,
+    )
+    out = run("20260101_0000-x", "--projects", str(tmp_path))
+    assert out.returncode == 1, out.stdout + out.stderr
+    assert "1 of 2 pass(es) did NOT finish" in out.stdout, out.stdout

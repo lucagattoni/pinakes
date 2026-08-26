@@ -15,7 +15,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 9
+mutants = 10
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260826 · the carried-forward review ledger
@@ -117,3 +117,12 @@ file = "tools/review_ledger.py"
 old = '''        raw = float(self.tokens)'''
 new = '''        raw = float(sum(self.context))'''
 kills = "tests/test_review_ledger.py::test_the_share_is_measured_against_the_total_the_brief_prints"
+
+[[mutant]]
+name = "the turn floor also drops killed runs, so an early death is hidden from the death count"
+file = "tools/review_ledger.py"
+# The filter improving the statistic it feeds: a fan-out that died early reports a smaller failure
+# than one that died late, because both numerator and denominator shrink together.
+old = '''    return result if result.turns >= 5 or result.killed else None'''
+new = '''    return result if result.turns >= 5 else None'''
+kills = "tests/test_review_ledger.py::test_a_pass_killed_in_its_first_turns_is_still_counted"

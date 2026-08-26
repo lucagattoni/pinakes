@@ -585,7 +585,11 @@ def read_pass(transcript: Path, tracked: frozenset[str] = frozenset()) -> Pass |
         if identifier in pending:
             result.probes.append(Probe(pending[identifier], "", 0))
 
-    return result if result.turns >= 5 else None
+    # **A killed run is kept however short it is.** The five-turn floor exists to drop runs that
+    # did nothing — but a pass that died in its third turn *is* the population the incomplete
+    # section reports, and dropping it makes "13 of 24 did not finish" read as a smaller number
+    # against a smaller denominator. The filter must not be able to improve the statistic it feeds.
+    return result if result.turns >= 5 or result.killed else None
 
 
 def increment_of(brief: str) -> str:
