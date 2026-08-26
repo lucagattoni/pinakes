@@ -1,6 +1,7 @@
 """`pnk sync` end to end, against a real index and a fake backend."""
 
 import contextlib
+import itertools
 import shutil
 import sqlite3
 import subprocess
@@ -2708,8 +2709,12 @@ def test_the_population_walk_never_opens_a_document(kb: Path, monkeypatch: Any) 
     write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
     write(kb, "b.md", "# Beta\n\nBeta body here.\n")
     run(kb)
-    (kb / "docs" / "notes.rst").write_text("Not matched by any include pattern.\n", encoding="utf-8")
-    assert list((kb / "docs").glob(f"*{SIDECAR_SUFFIX}")), "the sidecar pass needs something to read"
+    (kb / "docs" / "notes.rst").write_text(
+        "Not matched by any include pattern.\n", encoding="utf-8"
+    )
+    assert list((kb / "docs").glob(f"*{SIDECAR_SUFFIX}")), (
+        "the sidecar pass needs something to read"
+    )
 
     def hashed(path: Path) -> str:
         raise AssertionError(f"the population walk hashed {path}")
@@ -2777,3 +2782,43 @@ def test_a_moved_sidecar_never_leaves_a_document_without_a_row(kb: Path) -> None
 
     active = {Path(str(row["path"])).name for row in index(kb) if row["state"] == "active"}
     assert active == {"a.md", "b.md"}, "a document on disk lost its row"
+
+
+def test_no_pure_rename_ever_leaves_the_index_half_written(kb: Path) -> None:
+    """Every way three documents' names can be permuted, end to end.
+
+    Five of the six permutations still raise — `documents.path` is UNIQUE and the adoptions cross,
+    which is the collision this increment leaves to its own fix. What it does guarantee is that the
+    raise costs nothing: the plan is no longer self-contradictory, so nothing has been applied by
+    the time it fails. On `origin/main` the same swap commits a `SoftDelete` first and leaves a
+    document retired, which is a KB that has silently lost something to a command that crashed.
+
+    Scoped to a **pure** rename deliberately — no document added or deleted in the same sync. Mix a
+    deletion in and its `SoftDelete` commits before the collision is reached, on both sides.
+    """
+    names = ("a.md", "b.md", "c.md")
+    bodies = {name: f"# {name}\n\nBody of {name} with enough words.\n" for name in names}
+    for permutation in itertools.permutations(names):
+        if permutation == names:
+            continue
+        for name in names:
+            write(kb, name, bodies[name])
+        run(kb, rebuild=True)
+        before = {str(r["path"]): (str(r["id"]), str(r["state"])) for r in index(kb)}
+
+        docs = kb / "docs"
+        staging = docs / "_perm"
+        staging.mkdir()
+        for name in names:
+            (docs / name).rename(staging / name)
+            (docs / f"{name}{SIDECAR_SUFFIX}").rename(staging / f"{name}{SIDECAR_SUFFIX}")
+        for source, target in zip(names, permutation, strict=True):
+            (staging / source).rename(docs / target)
+            (staging / f"{source}{SIDECAR_SUFFIX}").rename(docs / f"{target}{SIDECAR_SUFFIX}")
+        staging.rmdir()
+
+        with contextlib.suppress(sqlite3.IntegrityError):
+            run(kb)
+
+        after = {str(r["path"]): (str(r["id"]), str(r["state"])) for r in index(kb)}
+        assert after == before, f"{permutation}: the index was written before the sync failed"
