@@ -25,13 +25,19 @@ finding… It is not a harness failure, so this exits 0 — read the rows."* So 
 carry a coverage regression, and anything CI-shaped built on top of this needs its own check on the
 survivor count. `tests/test_batteries.py` is a **resolvability gate**, not a regression gate.
 
-**And the denominator.** Six batteries, six primary targets. Five are under `tools/`; **exactly one
-module under `src/` has one** — `src-pinakes-init.toml`, over the check that decides whether a KB's
-`.pinakes/` can reach a remote. No invariant in [`docs/INVARIANTS.md`](../../docs/INVARIANTS.md) has
-a battery of its own. The covered files change 3–11 times a month; `src/pinakes/cli.py` changes 58
-times and `sync.py` 40. This is a starting point, not a coverage claim, and a reader who greps a
-battery and finds every anchor resolving has learned nothing about the code that has no battery at
-all.
+**And the denominator.** Seven batteries, seven primary targets. Five are under `tools/`; **two
+modules under `src/` have one** — `src-pinakes-init.toml`, over the check that decides whether a
+KB's `.pinakes/` can reach a remote, and `src-pinakes-pairing.toml`, which spans **two** files,
+`src/pinakes/pairing.py` and `src/pinakes/sync.py`, because the guarantee it mutates spans both. No
+invariant in [`docs/INVARIANTS.md`](../../docs/INVARIANTS.md) has a battery of its own. The covered
+files change 1–13 times in 30 days — **except `sync.py` at 39, which was this paragraph's own example
+of high-churn code with no battery until 20260825**, and is named here so that change is visible
+rather than quietly dropped. **The two highest-churn modules in the repository still have none:
+`src/pinakes/cli.py` at 52 and `src/pinakes/doctor.py` at 36** (measured 20260825 by
+`git log --since="30 days ago" --follow`, over a repository whose first commit is 2026-07-25 — so
+these are close to lifetime counts, not a steady-state rate). This is a
+starting point, not a coverage claim, and a reader who greps a battery and finds every anchor
+resolving has learned nothing about the code that has no battery at all.
 
 **This paragraph is asserted, because it went stale in silence.** It read *"Four batteries, four
 primary targets"* while five were on disk — the fifth arrived and nobody re-counted, which is the
@@ -165,3 +171,23 @@ Neither it nor `tests/test_batteries.py` can see:
 - **whether the mutants still die.** Only running the battery says that.
 
 A green check is not a green run. Run the battery.
+
+## Reading a SURVIVED row
+
+**A `SURVIVED` row is a claim about a *pair* — the mutant and the selector named in its `kills` —
+and it does not say which half failed.** Before believing that a survivor means the behaviour is
+untested, **run the mutant against the whole suite**. If something else kills it, the battery was
+right about the risk and wrong about the witness: the row names the wrong test, and the fix is the
+selector, not a new test. If nothing kills it, the gap is real. One command separates two diagnoses
+that look identical in the report, and the wrong one costs a test nobody needed.
+
+**And be suspicious of a target whose every assertion goes through one summarising helper.** If the
+tests for a function all compare its output through something that reduces a sequence to a
+count-by-kind — a census, a set, a sorted list — then **mutants that change the *order* of that
+sequence and not its contents will survive every one of them**, because the helper deletes exactly
+the property the mutant changed. Measured on `src/pinakes/pairing.py` at `cd9f009`, 20260825: its
+actions are a list, `documents.path` is `UNIQUE`, so the order *is* the behaviour — and a mutant that
+moved a `SoftDelete` past an `Adopt` produced an identical census and **was killed by nothing in the
+repository: 2 165 tests, of which the 267 in the three modules covering that code are the ones that
+were supposed to.** The remedy is a named property asserting the ordering directly
+(`retires_before_adopting()`), not another assertion routed through the same helper.

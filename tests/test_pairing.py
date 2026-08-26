@@ -12,6 +12,7 @@ from pinakes.pairing import (
     IndexSnapshot,
     Mint,
     PaidExtractionRequired,
+    PairingResult,
     Reembed,
     RefreshMetadata,
     Rename,
@@ -42,6 +43,53 @@ def indexed(
         state=state,
         extraction_backend=extraction_backend,
     )
+
+
+def retires_before_adopting(result: PairingResult) -> bool:
+    """No `Adopt` may land on a path whose current row this same plan retires *later*.
+
+    `describe()` cannot see this and two mutants survived because of it. When the same-path branch
+    skips a `SoftDelete`, the vanished-path loop re-emits one further down the list, so a plan with
+    the two in the wrong order has an **identical census** — same actions, same counts, different
+    meaning. Order is what execution depends on: `documents.path` is UNIQUE, so an `Adopt` applied
+    while the row it replaces is still active raises `IntegrityError` instead of replacing it.
+    """
+    # Forward, so a path retired more than once keeps its **latest** position. Built `reversed`
+    # first, which kept the earliest — and a plan that retires a path, adopts onto it, then retires
+    # it again satisfied the comparison while doing exactly what the sentence above forbids.
+    retired_at = {
+        action.path: position
+        for position, action in enumerate(result.actions)
+        if isinstance(action, SoftDelete)
+    }
+    return all(
+        retired_at[action.path] < position
+        for position, action in enumerate(result.actions)
+        if isinstance(action, Adopt) and action.path in retired_at
+    )
+
+
+def places_each_id_once(result: PairingResult) -> bool:
+    """No plan may assert that one id lives at two different paths.
+
+    A `Skip`, `RefreshMetadata`, `Reembed`, `Rename` or `Adopt` all say "this id is *here*". Two of
+    them naming one id and two paths is not a plan, it is a contradiction, and which of the two
+    wins depends only on which is applied last. `SoftDelete` is excluded deliberately: it names
+    where a row *was*, not where it is going.
+
+    Found the hard way. Moving a sidecar from one document onto another produced
+    `RefreshMetadata(X, a.md)` beside `Adopt(X, b.md)` — the same-path loop trusted the index row
+    because no sidecar contradicted it, while the adoption loop followed the sidecar that had
+    walked away. `pnk sync` exited 0 having moved the row to `b.md` and left `a.md` on disk with no
+    row at all, indexed yesterday and unfindable today.
+    """
+    placed: dict[DocId, str] = {}
+    for action in result.actions:
+        if isinstance(action, SoftDelete | PaidExtractionRequired | Mint):
+            continue
+        if placed.setdefault(action.doc_id, action.path) != action.path:
+            return False
+    return True
 
 
 def walked(path: str, content_hash: str = "h1") -> WalkedFile:
@@ -261,6 +309,7 @@ def test_a_sidecar_disagreeing_with_the_index_wins() -> None:
     assert describe(result) == {"SoftDelete": 1, "Adopt": 1}
     assert actions_of(result, SoftDelete)[0].doc_id == old
     assert actions_of(result, Adopt)[0].doc_id == new
+    assert retires_before_adopting(result)
 
 
 def test_a_whole_mixed_sync() -> None:
@@ -393,3 +442,190 @@ def test_omitting_the_new_parameters_behaves_exactly_as_before() -> None:
     assert describe(result) == {"Skip": 1}
     assert result.paid_extraction_protected == ()
     assert result.paid_extraction_overwritten == ()
+
+
+def test_a_name_swap_never_retires_an_id_the_same_plan_adopts() -> None:
+    """`git mv` two documents past each other, sidecars travelling with them.
+
+    Both rows are moving, so neither is ending. Emitting `SoftDelete` beside the `Adopt` made the
+    result depend on application order: the second `SoftDelete` retired the row the first `Adopt`
+    had just moved, `pnk sync` reported `2 renamed` at exit 0, and the document left `pnk search`
+    with no failure recorded anywhere.
+    """
+    alpha, beta = mint_doc_id(), mint_doc_id()
+    result = pair(
+        IndexSnapshot((indexed(alpha, "docs/a.md", "ha"), indexed(beta, "docs/b.md", "hb"))),
+        WalkSnapshot(
+            (walked("docs/a.md", "hb"), walked("docs/b.md", "ha")),
+            (sidecar("docs/a.md", beta), sidecar("docs/b.md", alpha)),
+        ),
+    )
+    assert describe(result) == {"Adopt": 2}
+    assert not actions_of(result, SoftDelete)
+    assert {(action.doc_id, action.path) for action in actions_of(result, Adopt)} == {
+        (beta, "docs/a.md"),
+        (alpha, "docs/b.md"),
+    }
+
+
+def test_a_rename_chain_keeps_the_id_its_own_sidecar_carries() -> None:
+    """`a.md -> b.md` while `c.md -> a.md`. The id arriving at `a.md` displaces the one leaving it.
+
+    Retiring the displaced id also marked it handled, which is what the adoption loop consults —
+    so `b.md` was never adopted at all and fell through to `Mint`. A document whose sidecar carries
+    a published id would have been re-numbered, and ULID permanence is an invariant.
+    """
+    moved, arriving = mint_doc_id(), mint_doc_id()
+    result = pair(
+        IndexSnapshot((indexed(moved, "docs/a.md", "ha"), indexed(arriving, "docs/c.md", "hc"))),
+        WalkSnapshot(
+            (walked("docs/a.md", "hc"), walked("docs/b.md", "ha")),
+            (sidecar("docs/a.md", arriving), sidecar("docs/b.md", moved)),
+        ),
+    )
+    assert describe(result) == {"Adopt": 2}
+    assert not actions_of(result, Mint), "a published id was re-minted"
+    adopted = {action.doc_id: action.path for action in actions_of(result, Adopt)}
+    assert adopted[moved] == "docs/b.md"
+    assert adopted[arriving] == "docs/a.md"
+
+
+def test_a_three_way_rename_cycle_adopts_every_id_and_retires_none() -> None:
+    first, second, third = mint_doc_id(), mint_doc_id(), mint_doc_id()
+    result = pair(
+        IndexSnapshot(
+            (
+                indexed(first, "docs/a.md", "ha"),
+                indexed(second, "docs/b.md", "hb"),
+                indexed(third, "docs/c.md", "hc"),
+            )
+        ),
+        WalkSnapshot(
+            (walked("docs/a.md", "hc"), walked("docs/b.md", "ha"), walked("docs/c.md", "hb")),
+            (
+                sidecar("docs/a.md", third),
+                sidecar("docs/b.md", first),
+                sidecar("docs/c.md", second),
+            ),
+        ),
+    )
+    assert describe(result) == {"Adopt": 3}
+
+
+def test_an_orphaned_sidecar_does_not_keep_a_replaced_id_alive() -> None:
+    """The displaced id's own sidecar is on disk, but the document beside it is gone.
+
+    Nothing is moving anywhere, so the row is being replaced in place and must still be retired.
+    The lookahead is deliberately restricted to sidecars sitting beside a file this walk *found*:
+    without that restriction a stale sidecar left in the tree would protect a row from deletion
+    forever, and the ordinary in-place id change would stop working.
+    """
+    old, new = mint_doc_id(), mint_doc_id()
+    result = pair(
+        IndexSnapshot((indexed(old, "docs/a.md", "h1"),)),
+        WalkSnapshot(
+            (walked("docs/a.md", "h1"),),
+            (sidecar("docs/a.md", new), sidecar("docs/gone.md", old)),
+        ),
+    )
+    assert describe(result) == {"SoftDelete": 1, "Adopt": 1}
+    assert actions_of(result, SoftDelete)[0].doc_id == old
+    assert actions_of(result, Adopt)[0].doc_id == new
+    assert retires_before_adopting(result), "the row must be retired before its replacement lands"
+
+
+def test_a_replaced_row_is_always_retired_before_its_replacement_is_adopted() -> None:
+    """The half a census cannot assert, and the half execution actually depends on.
+
+    Both of these plans retire one id and adopt another **at the same path**. Whether the retirement
+    is emitted by the same-path branch or picked up by the vanished-path loop further down, the
+    counts are identical — so `describe()` reports the same thing for a plan that works and a plan
+    that raises `sqlite3.IntegrityError` on the first action. Two mutants survived a suite of 267
+    tests on exactly that blindness before this test existed.
+    """
+    for label, sidecars in (
+        ("nothing else claims the displaced id", None),
+        ("its own sidecar is orphaned elsewhere", "docs/gone.md"),
+    ):
+        old, new = mint_doc_id(), mint_doc_id()
+        walked_sidecars = [sidecar("docs/a.md", new)]
+        if sidecars is not None:
+            walked_sidecars.append(sidecar(sidecars, old))
+        result = pair(
+            IndexSnapshot((indexed(old, "docs/a.md", "h1"),)),
+            WalkSnapshot((walked("docs/a.md", "h1"),), tuple(walked_sidecars)),
+        )
+        kinds = [type(action).__name__ for action in result.actions]
+        assert kinds == ["SoftDelete", "Adopt"], f"{label}: {kinds}"
+        assert retires_before_adopting(result), label
+
+
+def test_a_sidecar_moved_onto_another_document_takes_its_id_with_it() -> None:
+    """Someone moves `a.md`'s sidecar onto `b.md`. The sidecar is committed truth for identity, so
+    the id belongs to `b.md` now — and `a.md`, which no longer has one, is a new document.
+
+    Before this was guarded the same-path loop kept asserting that `a.md` was still that id, because
+    nothing beside `a.md` said otherwise, while the disagreement branch adopted the very same id at
+    `b.md`. One id, two paths, one plan; applied in order it moved the row and left `a.md` with
+    no row at all.
+    """
+    alpha, beta = mint_doc_id(), mint_doc_id()
+    result = pair(
+        IndexSnapshot((indexed(alpha, "docs/a.md", "ha"), indexed(beta, "docs/b.md", "hb"))),
+        WalkSnapshot(
+            (walked("docs/a.md", "ha"), walked("docs/b.md", "hb")),
+            (sidecar("docs/b.md", alpha),),
+        ),
+    )
+    assert places_each_id_once(result), "one id was placed at two paths"
+    assert retires_before_adopting(result)
+    assert describe(result) == {"SoftDelete": 1, "Adopt": 1, "Mint": 1}
+    assert actions_of(result, Adopt)[0] == Adopt(
+        doc_id=alpha, path="docs/b.md", content_hash="hb", sidecar_hash="s1", old_path="docs/a.md"
+    )
+    assert actions_of(result, SoftDelete)[0].doc_id == beta
+    assert actions_of(result, Mint)[0].path == "docs/a.md"
+
+
+def test_no_plan_in_this_file_ever_places_one_id_at_two_paths() -> None:
+    """The property over every shape this file exercises, not only the one that broke it.
+
+    A helper asserted case by case is a helper nobody runs on the case they did not think of.
+    """
+    first, second, third = mint_doc_id(), mint_doc_id(), mint_doc_id()
+    worlds = (
+        # a sidecar moved off one document onto another
+        (
+            ((first, "docs/a.md", "ha"), (second, "docs/b.md", "hb")),
+            (("docs/a.md", "ha"), ("docs/b.md", "hb")),
+            (("docs/b.md", first),),
+        ),
+        # two documents renamed past each other
+        (
+            ((first, "docs/a.md", "ha"), (second, "docs/b.md", "hb")),
+            (("docs/a.md", "hb"), ("docs/b.md", "ha")),
+            (("docs/a.md", second), ("docs/b.md", first)),
+        ),
+        # a rename chain
+        (
+            ((first, "docs/a.md", "ha"), (third, "docs/c.md", "hc")),
+            (("docs/a.md", "hc"), ("docs/b.md", "ha")),
+            (("docs/a.md", third), ("docs/b.md", first)),
+        ),
+        # an in-place id change with the old id orphaned elsewhere
+        (
+            ((first, "docs/a.md", "ha"),),
+            (("docs/a.md", "ha"),),
+            (("docs/a.md", second), ("docs/gone.md", first)),
+        ),
+    )
+    for number, (rows, files, sidecars) in enumerate(worlds, start=1):
+        result = pair(
+            IndexSnapshot(tuple(indexed(i, p, h) for i, p, h in rows)),
+            WalkSnapshot(
+                tuple(walked(p, h) for p, h in files),
+                tuple(sidecar(p, i) for p, i in sidecars),
+            ),
+        )
+        assert places_each_id_once(result), f"world {number}: one id at two paths"
+        assert retires_before_adopting(result), f"world {number}: adopted before retiring"

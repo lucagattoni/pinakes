@@ -11,6 +11,7 @@ reachable path would report green over a feature nobody had run.
 import difflib
 import re
 import shutil
+import sqlite3
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from types import ModuleType
@@ -2453,3 +2454,133 @@ def test_the_cannot_compare_remedy_promises_nothing_a_later_release_cannot_keep(
         "the promise is scoped to a KB stamped from an archived version"
     )
     assert "onward the comparison is automatic" not in remedy
+
+
+def _retire(root: Path, path: str) -> None:
+    """The state a sync that died partway leaves behind: the row retired, the file untouched."""
+    connection = sqlite3.connect(root / ".pinakes" / "index.db")
+    try:
+        connection.execute("UPDATE documents SET state = 'deleted' WHERE path = ?", (path,))
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def test_a_document_on_disk_with_its_own_sidecar_and_a_retired_row_is_a_failure(kb: Path) -> None:
+    """The silent loss S2 is named for: `pnk search` cannot see the document, and every other
+    check reported OK at exit 0. `doctor` printed `sidecars: N readable` and `index: M active
+    documents` on adjacent lines and compared them to nothing.
+
+    FAIL rather than WARN because `run_doctor` exits 1 on a FAIL only — a warning here would leave
+    the exit code saying the KB is fine, which is the whole defect.
+    """
+    (kb / "docs" / "b.md").write_text("# B\n\nMore text.\n", encoding="utf-8")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:31")
+    _retire(kb, "docs/a.md")
+
+    status, detail = checks(kb)["retired documents"]
+    assert status is Status.FAIL
+    assert "docs/a.md" in detail, "a count alone names nothing the reader can act on"
+    assert "docs/b.md" not in detail
+    assert "pnk sync" in _remedy(kb, "retired documents")
+
+
+def test_a_document_excluded_in_place_is_not_reported_as_lost(kb: Path) -> None:
+    """The false positive this check is most likely to produce, and it is measured rather than
+    assumed. An `exclude` pattern added to the manifest retires the row while the file never moves,
+    so the document and its sidecar both sit on disk exactly as a lost one would —
+    `sync.walk_sources` says it in as many words: "a locally excluded document is a deleted index
+    row *and* an orphaned sidecar". The walked document set is what tells the two apart.
+    """
+    (kb / "docs" / "b.md").write_text("# B\n\nMore text.\n", encoding="utf-8")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:31")
+    manifest_path = kb / "pinakes.toml"
+    manifest_path.write_text(
+        manifest_path.read_text(encoding="utf-8").replace(
+            'exclude = ["**/drafts/**"]', 'exclude = ["**/a.md"]'
+        ),
+        encoding="utf-8",
+    )
+    sync(load(kb), options=SyncOptions(), now="20260725 17:32")
+
+    assert (kb / "docs" / "a.md").is_file()
+    assert _document_ids(kb, "state = 'deleted'"), "the fixture is meant to retire a row"
+    status, _detail = checks(kb)["retired documents"]
+    assert status is Status.OK
+
+
+def test_a_sidecar_minted_without_an_index_row_is_not_reported(kb: Path) -> None:
+    """The shipped pre-commit hook runs `sync --sidecars-only`, which mints a sidecar with no index
+    row **by design**. Asking "is there a sidecar whose id is not active?" FAILs on a healthy KB
+    seconds after every commit; asking about retired rows cannot, because a document that has
+    never been indexed has no row to retire.
+    """
+    (kb / "docs" / "b.md").write_text("# B\n\nMore text.\n", encoding="utf-8")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:31")
+    (kb / "docs" / "b.md").unlink()
+    (kb / "docs" / f"b.md{SIDECAR_SUFFIX}").unlink()
+    sync(load(kb), options=SyncOptions(), now="20260725 17:32")
+    (kb / "docs" / "fresh.md").write_text("# Fresh\n\nUnindexed text.\n", encoding="utf-8")
+    sync(load(kb), options=SyncOptions(sidecars_only=True), now="20260725 17:33")
+
+    assert (kb / "docs" / f"fresh.md{SIDECAR_SUFFIX}").is_file()
+    assert _document_ids(kb, "state = 'deleted'"), "the walk must actually run for this to bite"
+    status, _detail = checks(kb)["retired documents"]
+    assert status is Status.OK
+
+
+def test_a_document_whose_retired_id_sits_under_its_old_path_is_still_found(kb: Path) -> None:
+    """The state S2 is actually named for, and the one a path-based rule misses.
+
+    A sidecar's id changes at a path — a merge conflict, a `git checkout` of one sidecar, a sidecar
+    copied between KBs. The row that is retired keeps its **own old path**, while the document that
+    has become unfindable is the one whose sidecar now claims that id somewhere else. Asking "is a
+    retired row's own path still on disk?" reports the wrong document and misses this one entirely;
+    asking about the retired **id** finds it wherever it sits.
+    """
+    (kb / "docs" / "b.md").write_text("# B\n\nMore text.\n", encoding="utf-8")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:31")
+    travelling = (kb / "docs" / f"b.md{SIDECAR_SUFFIX}").read_text(encoding="utf-8")
+    (kb / "docs" / "b.md").unlink()
+    (kb / "docs" / f"b.md{SIDECAR_SUFFIX}").unlink()
+    (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").write_text(travelling, encoding="utf-8")
+    _retire(kb, "docs/b.md")
+
+    assert not (kb / "docs" / "b.md").exists(), "the retired row's own path is gone"
+    status, detail = checks(kb)["retired documents"]
+    assert status is Status.FAIL
+    assert "docs/a.md" in detail, "the document is named where it now sits, not where it was"
+
+
+def test_a_half_finished_id_change_is_reported_even_though_the_ids_differ(kb: Path) -> None:
+    """A sidecar's id changes and the re-index of that document then fails.
+
+    `pairing` retires the old id and adopts the new one as two actions that commit separately, so a
+    failure in between leaves the old id retired at that path and the new id with **no row at all**.
+    The document is on disk, collected, carrying its identity, and unreachable from `pnk search`.
+
+    Asking only "is a retired id claimed by a collected document's sidecar?" cannot see it — the
+    retired id and the sidecar's id are different ones — and the check answered `OK, 1 retired, none
+    still in the KB` over a document that was gone. That sentence was affirmatively false, and this
+    is the state its own docstring named as the reason the check exists.
+
+    Reached with no hand edit of the index: only a sidecar rewritten and a file made undecodable,
+    which is `pnk sync`'s own failure path.
+    """
+    (kb / "docs" / "b.md").write_text("# B\n\nMore text.\n", encoding="utf-8")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:31")
+
+    sidecar = kb / "docs" / f"a.md{SIDECAR_SUFFIX}"
+    fresh = mint_doc_id()
+    sidecar.write_text(
+        re.sub(r"^id:.*$", f"id: {fresh}", sidecar.read_text(encoding="utf-8"), flags=re.MULTILINE),
+        encoding="utf-8",
+    )
+    (kb / "docs" / "a.md").write_bytes(b"# A\n\n\xff\xfe not utf-8 at all\n")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:32")
+    (kb / "docs" / "a.md").write_text("# A\n\nRepaired text.\n", encoding="utf-8")
+
+    assert str(fresh) not in _document_ids(kb, "1 = 1"), "the new id must have no row"
+    status, detail = checks(kb)["retired documents"]
+    assert status is Status.FAIL
+    assert "docs/a.md" in detail
