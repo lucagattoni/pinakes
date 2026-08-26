@@ -1,0 +1,91 @@
+# Mutation battery — `tools/review_ledger.py`.
+#
+#     python3 tools/mutate.py tools/batteries/tools-review_ledger.toml
+#
+# Every row is a way this tool could be wrong while printing a plausible brief and exiting 0 — and
+# that is the whole risk here, because **this tool's output is read by a later review pass as
+# established ground**. A gate that fails wrongly is noticed within the hour. A carried-forward map
+# that is quietly wrong is inherited, and the pass that inherits it is the one that was supposed to
+# be checking.
+#
+# Four of the seven rows below are defects that were **actually in this file** when it first ran
+# against the real corpus, with `ruff`, `pyright` and every existing test green. They are mutants
+# because they were bugs, not because they were imagined.
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 7
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260826 · the carried-forward review ledger
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Mutant 1 is the control: a known-catchable change run first, because a battery with no kills is a
+# broken harness rather than a clean bill.
+
+[[mutant]]
+name = "CONTROL — an incomplete pass stops being incomplete, and the brief always exits 0"
+file = "tools/review_ledger.py"
+old = '''        if self.killed:'''
+new = '''        if False:'''
+kills = "tests/test_review_ledger.py::test_a_killed_pass_is_not_a_pass_that_reported"
+
+[[mutant]]
+name = "WAS A BUG — normalisation anchors on the package directory, so src/pinakes/x.py becomes x.py"
+file = "tools/review_ledger.py"
+# The shipped defect, restored: taking the *first* path component after any marker rather than
+# anchoring on a top-level directory. Every `src/pinakes/*.py` then collides with every same-named
+# file in a reviewer's scratch tree, and the overlap this tool exists to measure reads high.
+old = '''    if best > 0:
+        return path[best + 1 :]'''
+new = '''    if best > 0:
+        return path.rsplit("/", 1)[-1]'''
+kills = "tests/test_review_ledger.py::test_a_package_path_keeps_its_directories"
+
+[[mutant]]
+name = "WAS A BUG — the first top-level directory wins, so a branch name joins the file's identity"
+file = "tools/review_ledger.py"
+# `rfind` -> `find`. One file read from two branches becomes two files, and the repeat share falls
+# for a reason that has nothing to do with what any pass did.
+old = '''        for candidate in (path.rfind("/" + marker), 0 if path.startswith(marker) else -1):'''
+new = '''        for candidate in (path.find("/" + marker), 0 if path.startswith(marker) else -1):'''
+kills = "tests/test_review_ledger.py::test_a_branch_named_directory_does_not_leak_into_the_path"
+
+[[mutant]]
+name = "WAS A BUG — probes are compared raw, so each pass's scratch directory makes every one unique"
+file = "tools/review_ledger.py"
+# Deduplication becomes a no-op. Nothing errors, the section still renders, and the ranking silently
+# stops being a ranking — the exact failure that made a real brief useless while looking correct.
+old = '''    return SCRATCH.sub("<dir>", command).strip()'''
+new = '''    return command.strip()'''
+kills = "tests/test_review_ledger.py::test_one_probe_run_in_two_scratch_directories_is_one_probe"
+
+[[mutant]]
+name = "WAS A BUG — verbs are matched against the paths too, so reading a file counts as running it"
+file = "tools/review_ledger.py"
+# `pinakes` is the package directory as well as the command. With paths left in, 586 of 762 probes
+# on one real increment classified as executing, and the reading the ranking exists to demote came
+# out on top of it.
+old = '''    return bool(RUNS.search(PATHISH.sub(" ", command)) or SCRIPTS.search(command))'''
+new = '''    return bool(RUNS.search(command) or SCRIPTS.search(command))'''
+kills = "tests/test_review_ledger.py::test_reading_a_package_file_is_not_executing_the_project"
+
+[[mutant]]
+name = "an implementer counts as a review pass, the trap this repository sets for itself"
+file = "tools/review_ledger.py"
+# `CLAUDE.md` tells every implementer to adversarially review its own work, so dropping the
+# subtraction relabels the most expensive runs in the corpus as reviewers. This is the defect that
+# broke the measurement preceding this tool, reproduced in one clause.
+old = '''    if not opening or IMPLEMENTER.search(opening) or not REVIEWER.search(opening):'''
+new = '''    if not opening or not REVIEWER.search(opening):'''
+kills = "tests/test_review_ledger.py::test_an_implementer_is_not_a_review_pass"
+
+[[mutant]]
+name = "a re-read's cost is its own turn only, dropping the re-transmission that is the whole finding"
+file = "tools/review_ledger.py"
+# The claim under measurement is that a re-read early in a long pass is paid for by every turn
+# after it. Weighting each turn by 1 instead reports a much smaller share from the same corpus —
+# still a number, still plausible, and no longer about anything.
+old = '''            weight = float(growth * (self.turns - index - 1))'''
+new = '''            weight = float(growth)'''
+kills = "tests/test_review_ledger.py::test_the_repeat_share_is_the_arithmetic_it_claims"
