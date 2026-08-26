@@ -22,15 +22,32 @@ test, or write **none** and say why in the same commit.
   make it obvious — and the I9 review still found one row mapped from a name alone, which was
   wrong (the completeness audit's). Treat a row as a strong pointer, not a proof.
 * **The scope began as `plans/20260727_1543-v0.2.md`'s promises**, which is what the table this
-  replaces covered, and has grown with the work since. **Measured 20260826 07:04 UTC on `bb17c6c`,
-  the tree this branch merges, with the gate's own `REFERENCE` regex: 1 158 references over 920
-  rows, naming 64 of the 76 test modules in `tests/`, with 35 table headers the gate skips and 12
-  modules carrying no row.** **Every one of those figures moves on its own, and nothing turns red
-  when one does** — `tests/test_verification.py` fails on a name that does not resolve, never on a
-  module that is absent — so the module denominator went 74 → 75 → 76 in silence as
-  `test_review_pass_gate.py` and `test_release_tag_gate.py` landed. **Re-measure with the regex; do
-  not restate, and do not search this file for a filename** — the unnamed modules are spelled out in
-  the bullet below, so a substring test scores them as covered and reports 76 of 76.
+  replaces covered, and has grown with the work since. **No count of references, rows, headers or
+  modules is stated here, deliberately** — every one that ever was went stale in silence, three of
+  them on 20260826 alone, and two of *those* corrections were dictated wrongly by a planner who had
+  measured a different tree. **Count them instead**, with the gate's own filter:
+
+      python3 - <<'EOF'
+      import re, pathlib
+      REF = re.compile(r"`(tests/[\w/]+\.py)::(\w+)`")   # tests/test_verification.py:22
+      text = pathlib.Path("docs/VERIFICATION.md").read_text()
+      lines = text.split("\n")
+      refs = REF.findall(text)
+      named = {r[0].split("/")[-1] for r in refs}
+      modules = {p.name for p in pathlib.Path("tests").glob("test_*.py")}
+      headers = sum(1 for i, l in enumerate(lines)
+                    if l.startswith("|") and i + 1 < len(lines) and lines[i + 1].startswith("|---"))
+      print("references", len(refs), "headers", headers,
+            "rows", sum(1 for l in lines if l.startswith("|")) - 2 * headers)
+      print("modules", len(modules), "named", len(named & modules), "no row", len(modules - named))
+      EOF
+
+  **A header is any line starting `|` whose successor starts `|---`** — not one matching the
+  canonical header wording, which undercounts by eight. **Nothing turns red when any of these
+  move** — `tests/test_verification.py` fails on a name that does not resolve, never on a module
+  that is absent — so the module denominator has climbed in silence every time a test file landed.
+  **And do not search this file for a filename**: the modules with no row are spelled out by name in
+  the bullet below, so a substring test scores them as covered and reports every module as named.
 
   **The increment-id count is removed rather than restated.** It read *45 distinct increment ids*;
   on 20260826 two parties independently failed to reproduce it with any filter either trusted, so it
@@ -43,8 +60,8 @@ test, or write **none** and say why in the same commit.
   true when written, false for a long time after. It said **923 rows**, counting the table headers
   the gate skips (33 then, **35** now). It said **62 of the 67** modules, wrong on both halves. Each
   correction was found by counting, never by reading. **Do not restate a release count here at all.**
-* **Two gaps remain, and they are different in kind.** **Six modules carry zero rows** —
-  `test_chunk.py`, `test_ids.py`, `test_lock.py`, `test_pairing.py`, `test_uri.py`, `test_embed.py`.
+* **Two gaps remain, and they are different in kind.** **Five modules carry zero rows** —
+  `test_chunk.py`, `test_ids.py`, `test_lock.py`, `test_uri.py`, `test_embed.py`.
   They predate the table and are not unowned. **Six more are named by no row at all** —
   `test_build_rfc_corpus.py`, `test_deep_reservation.py`, `test_measure_sync_cpu.py`,
   `test_rfc_golden_set.py`, `test_two_leg_gate.py`, and **`test_review_pass_gate.py`, which landed in
@@ -841,6 +858,35 @@ which is the section above; this is what a module that *may* import a client the
 | a degree tie between two **different** hub kinds breaks on `kind` before `key` — `nodes` is `UNIQUE (kind, key)`, so `key` alone is not a total order | G6 | `tests/test_doctor.py::test_a_cross_kind_tie_breaks_on_kind_before_key` |
 | a degree tie breaks on `(kind, key)`, and the hubs it pushes out of the sample are still counted | G6 | `tests/test_doctor.py::test_a_degree_tie_breaks_deterministically_and_the_rest_are_counted` |
 | a hub is named for a human — a document path, never a bare `nodes.id` | G6 | `tests/test_doctor.py::test_an_edge_hub_report_names_a_document_path_never_a_bare_node_id` |
+
+## Renaming documents, and the order a plan is applied in (S16/S19)
+
+An ordinary `git mv` of several notes is a **rename walk**, and `pair()` emits the actions for one.
+Until 20260826 it emitted them in path order, so a move onto a path another document still held hit
+`documents.path`'s `UNIQUE` constraint: `pnk sync` exited 1 with a raw traceback, the index was left
+describing the **wrong file**, `search` answered from it — and from a path that no longer existed at
+all — while `doctor` exited **0** with *failures: none recorded*. Reproduced independently by both
+sessions on `main` before the fix.
+
+**What is claimed here is narrow, and the narrowness is the point.** A walk for which an applicable
+order exists is emitted in one; **a walk for which none exists is unchanged and still fails.** A
+swap is a cycle and needs a temporary path `pair()` cannot create, so it is deferred — and pinned
+*as* deferred, so that *the chain class is fixed* cannot quietly become *renames are fixed*.
+`every_write_lands_on_a_free_path` is a **model** of SQLite's rule written from `sync.py`'s
+behaviour rather than from `pairing`'s, deliberately, so a bug shared by both cannot make it agree
+with itself — it is a model, not the database.
+
+| What must be true | Increment | Where it is checked |
+|---|---|---|
+| a rename chain lands every move on a free path — for `a→b`, `b→c`, `c→d` the adoptions are emitted **strictly reverse** of path order, the only applicable one | fix | `tests/test_pairing.py::test_a_rename_chain_of_three_is_ordered_so_every_move_lands_on_a_free_path` |
+| a two-file shift is ordered too — the freeing move first | fix | `tests/test_pairing.py::test_a_two_file_rename_shift_is_ordered_too` |
+| **a plan needing no constraint comes out unchanged** — the ordering pass is stable, not a re-sort | fix | `tests/test_pairing.py::test_a_move_onto_a_name_nobody_holds_is_not_reordered` |
+| **a swap is left in its original order and is still inapplicable** — the deferred half pinned *as* deferred, with S2's guarantees still holding on a plan that cannot be applied | fix | `tests/test_pairing.py::test_a_name_swap_is_left_in_its_original_order_because_no_order_works` |
+| a retire and an adopt at one path keep their order | fix | `tests/test_pairing.py::test_a_retire_and_an_adopt_at_one_path_keep_their_order` |
+| every plan in that module is applicable **except** the cycle, which is listed as expected-`False` rather than omitted | fix | `tests/test_pairing.py::test_every_plan_in_this_file_is_applicable_except_the_cycle` |
+| **end to end, a rename chain keeps every id** — `renamed == 3`, `minted == 0`, `deleted == 0`, and the id at each new path is the id that was at the old one. **The ids are the assertion**: a plan that dropped the rows and re-minted them would sync just as cleanly and would break every inbound `pnk://` link | fix | `tests/test_sync.py::test_a_rename_chain_syncs_and_every_document_keeps_its_id` |
+| **an orphaned sidecar never costs a live document its id** — a file with no sidecar of its own, whose index id is claimed elsewhere, is *not* read as an identity that has moved; letting an orphan count re-mints an untouched document under a new id, retires the old one, and breaks every inbound `pnk://` link (`docs/INVARIANTS.md`, ULID permanence) | fix | `tests/test_pairing.py::test_an_orphaned_sidecar_does_not_cost_a_live_document_its_id` |
+| the ordering pass is stable **where stability can be observed** — inside a plan that does reach the sort, not one that returns early before it | fix | `tests/test_pairing.py::test_actions_under_no_constraint_keep_their_order_inside_a_plan_that_has_one` |
 
 ## Release machinery
 

@@ -970,9 +970,17 @@ def test_an_orphaned_sidecar_does_not_cost_a_live_document_its_id() -> None:
             (sidecar("docs/gone.md", live), sidecar("docs/also-gone.md", orphan_claim)),
         ),
     )
-    assert [(type(action).__name__, action.doc_id) for action in result.actions] == [
-        ("Skip", live)
-    ], "an untouched document was re-identified because a stale sidecar elsewhere named its id"
+    # The action *kind* is the assertion, and it is read without touching `doc_id` on the union:
+    # `Mint` carries none, and the mutant's own outcome is a `Mint` in some walks. Asking for an
+    # attribute one member does not have would make this test unable to run on the very output it
+    # exists to reject.
+    assert [type(action).__name__ for action in result.actions] == ["Skip"], (
+        "an untouched document was re-identified because a stale sidecar elsewhere named its id"
+    )
+    skipped = actions_of(result, Skip)
+    assert [action.doc_id for action in skipped] == [live], (
+        "the surviving row is not the one that was there — the id did not survive the walk"
+    )
     assert result.orphaned_sidecars == ("docs/also-gone.md.pnk.yaml", "docs/gone.md.pnk.yaml"), (
         "the orphans must still be reported — they are the evidence for the user, and reporting "
         "them is what makes ignoring them for identity safe"
