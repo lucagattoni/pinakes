@@ -9,8 +9,8 @@
   already applies to a mutation run with no kills. It also refuses an agent that returned *empty*,
   which resuming cannot fix because the empty result is what replays from cache, and it lists a dead
   agent's files as **evidence, never findings** — split by whether `land.py --cleanup` will destroy
-  them. Measured over 613 review agents here: 87% leave some artifact, but 58% of 6,015 redirect
-  targets are relative paths inside the worktree the procedure then removes, so losing them is the
-  median case rather than bad luck. Exit `0` only when every agent returned content; `2` when the
+  them. Measured over 533 review-classified subagent runs: only 41% leave any artifact at all, and
+  of the targets that are real files, roughly half land where the worktree cleanup destroys them —
+  which argues for enforcing a probe convention rather than exploiting one. Exit `0` only when every agent returned content; `2` when the
   run is still being written to, because a gate that calls a live run dead is one people learn to
   ignore.
