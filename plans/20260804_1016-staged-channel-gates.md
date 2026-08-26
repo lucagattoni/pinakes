@@ -23,7 +23,7 @@
 **Audience: whoever is deciding whether to start either of these. Goal: executor — of a
 *measurement*, not of an implementation.**
 
-`docs/STATUS.md:260` lists *"PPR graph channel, the `[ner]` extra — each eval-gated, not
+`docs/STATUS.md` § *Release roadmap* lists *"PPR graph channel, the `[ner]` extra — each eval-gated, not
 scheduled"*. This file specifies the gates. **It deliberately contains no implementation plan for
 either.** A detailed plan for work that may never ship is waste, and worse, it creates pressure to
 build it: a written plan looks like a commitment, and the whole point of "eval-gated rather than
@@ -54,7 +54,7 @@ every cited line — sound at the time, and it decayed the moment anything was i
 **Locate every citation in this file by heading text, never by line number.**
 
 **Both gates are downstream of work that has not started.** The graph release's own gate has not
-been reached (`docs/STATUS.md:383` § *Can the graph release's gate be reached?*), so neither channel
+been reached (`docs/STATUS.md` § *Can the graph release's gate be reached?*), so neither channel
 below is measurable today. That is not a reason to plan them; it is a reason to write down what
 would have to be true.
 
@@ -105,7 +105,7 @@ veto — it has evaluated something weaker that happens to agree on one corpus.
 hit but drops from rank 1 to rank 4 is not a regression under `hit`, and if that matters it is a
 different, separately committed clause. And it does not license re-running until the diff comes out
 clean: the artifact is captured once per configuration, and G1 already pins that a question does not
-change its answer for reasons that are not retrieval (`docs/STATUS.md:312` § *Is the evaluation
+change its answer for reasons that are not retrieval (`docs/STATUS.md` § *Is the evaluation
 reproducible?*).
 
 ---
@@ -191,7 +191,7 @@ if all of:
    The `≥ 5 points` half is APPROACH §9's; it occurs exactly once in the repository
    (`PINAKES_APPROACH.md:403`) with no derivation anywhere, and this file does not invent one — it
    adds a resolution floor so the clause cannot be carried by one question. The floor is deliberately
-   **below** the graph release's own `≥ 7` precondition (`docs/STATUS.md:383`) only because that one
+   **below** the graph release's own `≥ 7` precondition (`docs/STATUS.md` § *Can the graph release's gate be reached?*) only because that one
    gates a `schema_version` bump and a forced rebuild for every KB in existence, and this one gates
    writing a prototype. **Say that when you record it**, or the next reader reads the looser number
    as a loosening. **This clause and P2 together impose a floor on the corpus itself** — see *A
@@ -242,20 +242,20 @@ committed before the run."*
 ### The corpus the measurement needs
 
 **The RFC corpus now exists** — `pinakes-corpus-rfc`, 300 documents, built 20260804 08:00,
-`docs/STATUS.md:342`. What follows is no longer a specification for a corpus somebody might build;
+`docs/STATUS.md` § *The realism corpus exists, and it falsified a design premise*. What follows is no longer a specification for a corpus somebody might build;
 it is a checklist against a corpus you can measure — **and it does not currently pass all of it.**
 
 `tests/demo-kb` cannot produce any of the quantities meaningfully, for three reasons:
 
 * **no tags and one flat directory**, so exactly one derived edge kind crosses a document boundary
-  — every reachability number there is a claim about one directory (`docs/STATUS.md:383`);
+  — every reachability number there is a claim about one directory (`docs/STATUS.md` § *Can the graph release's gate be reached?*);
 * **`candidates_per_source = 30` is applied *per source*** — `src/pinakes/search.py:333` (lexical)
   and `:340` (vector) — against a **60-chunk** index (`sqlite3 tests/demo-kb/.pinakes/index.db
   'select count(*) from chunks'` → 60, over 30 active documents). So up to 30 + 30 = 60 of 60 chunks
   reach fusion: the funnel already returns every document and the at-seed count swamps the ceiling.
   **The rule for sizing a replacement corpus is `chunks ≫ sources × candidates_per_source`, not
   `≫ candidates_per_source`** — a factor of the number of retrieval sources, which is the sort of
-  error that sizes a corpus half as large as it needed to be. (`docs/STATUS.md:383` states this as
+  error that sizes a corpus half as large as it needed to be. (`docs/STATUS.md` § *Can the graph release's gate be reached?* states this as
   *"30 against ~30 chunks"*; the figure is wrong and the conclusion is right. It is the planner's to
   correct, independently of this file);
 * **17 of 18 multi-hop questions already pass** (`docs/STATUS.md`), so there is nothing for either
@@ -466,20 +466,48 @@ corpus **before** the extra is built, not after.
 
 ## What "not scheduled" means operationally
 
-1. **Neither gets a build plan, an increment, or a numbered item.** **Two entries exist and are
-   deliberate:** `docs/STATUS.md:260`'s roadmap row (*"each eval-gated, not scheduled"*) and
-   `docs/graph/PINAKES_APPROACH.md:418`'s §10 row, which maps research findings to releases rather
-   than scheduling them (§10's own preamble, `:413`: *"Extends GRAPH_RAG.md's R-table into a build
-   order"*). Nothing else is written until a gate passes. **If a third entry appears, that is the
-   drift this rule exists to catch** — the rule was previously stated as if already satisfied, which
-   is how a rule stops being checked.
+1. **Neither gets a build plan, an increment, a numbered item, or a version number.** That is the
+   class this clause forbids, and it is the whole of it. **Index, routing, survey and naming entries
+   are permitted and are not counted.** A roadmap row, a research-to-release map, a design survey row
+   or a naming-list row records that the work is *unscheduled* — which is the opposite of scheduling
+   it. What the clause catches is a `plans/` file specifying how to build either channel, a numbered
+   increment, or a version number attached to either.
+
+   **This clause used to count instead, and the count was false when it was written.** It said *"two
+   entries exist and are deliberate"* and named a third as drift. `docs/DESIGN.md` had carried a
+   third entry of the same shape since **20260729**, five days before this file was written, and
+   there are more now — `docs/STATUS.md`, `docs/DESIGN.md`, `docs/ROADMAP.md`,
+   `docs/graph/PINAKES_APPROACH.md`, `docs/README.md` and `CLAUDE.md` all carry one.
+
+   **This clause states no count, and that is the repair rather than a smaller version of the
+   defect.** A first attempt at fixing it wrote *"there are five today"* — accurate against
+   `origin/main` at the moment of writing, and **falsified by the same commit**, which added three
+   more naming entries including the `CLAUDE.md` row the ruling below mandates. **A rule that counts
+   instances rots; that is the whole finding, and a repaired count is still a count.** Find them with
+   `grep -rn 'graph release, staged\|graph release (staged)' docs/ CLAUDE.md`. **A tripwire whose condition was already
+   met on the day it was armed reports drift that is not drift**, and it cost two separate readers a
+   full pass before anyone opened the file it accused. **Locate every entry by heading text, never by
+   line number**, per the ⚠️ in the header — the line numbers this clause originally carried have
+   since rotted, which is the second reason not to re-count.
+
+   > **Ruling, 20260825 18:40 UTC — planner.** *The graph release, staged* **belongs in `CLAUDE.md`'s
+   > unbuilt-work table, and was missing from it.** The entries above are obedient: every one
+   > uses the *name*, and naming is what the rule asks for. **(This sentence said *"the five entries"*
+   > until 20260826 — the count moved down here when it was removed from the clause, which is what a
+   > partial repair looks like.)** The defect was the list, not the
+   > documents. It earns its line by the behaviour test — without a sanctioned name in the list, an
+   > agent writing about the PPR channel has nothing to call it and reaches for a version number,
+   > which is exactly what the rule forbids. **It is not the same name as *the graph release***,
+   > which left the list at its final cut, 0.11.0, and stays gone: this one names the two channels
+   > that cut *never covered*.
 2. **Neither gets a version number**, by `CLAUDE.md`'s naming rule: they are *the graph release,
    staged*, and the name stays until the final cut. `schema_version` numbers are schema numbers and
    are not covered by that rule.
 3. **The gate outcome is recorded whichever way it goes**, dated `YYYYMMDD HH:MM`, in
    `docs/STATUS.md`, with the counts **and the per-kind edge census**. A refusal is a result and is
    worth as much as a pass — the graph release's own negative measurement is the precedent
-   (`docs/STATUS.md:383`), and it is there with its numbers.
+   (`docs/STATUS.md` § *Can the graph release's gate be reached?*), and it is there with its
+   numbers.
 4. **A plan is written after the gate passes, never before.** The measurement decides whether there
    is work; the plan then decides how. For PPR, that plan carries the default-on gate this file
    deliberately does not specify.

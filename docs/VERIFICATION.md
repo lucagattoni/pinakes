@@ -22,14 +22,24 @@ test, or write **none** and say why in the same commit.
   make it obvious — and the I9 review still found one row mapped from a name alone, which was
   wrong (the completeness audit's). Treat a row as a strong pointer, not a proof.
 * **The scope began as `plans/20260727_1543-v0.2.md`'s promises**, which is what the table this
-  replaces covered, and has grown with the work since. **Measured 20260825 12:49 UTC on `c23359f`:
-  890 rows, 44 distinct increment ids** (I1–I11, L1–L8, G1–G6, T1–T7, E1–E7, D-16 and a large `fix`
-  class), **naming 62 of the 67 test modules in `tests/`.** An earlier version of this paragraph said
+  replaces covered, and has grown with the work since. **Re-measured 20260825 18:38 UTC, on the tree this commit
+  creates: 904 rows, 45 distinct increment ids** — **not enumerated here on purpose.** A range
+  like *I1–I11* reads as a claim that every id in it has a row, and four do not (I10, T6, E2 and E6
+  have none; T6 is the deferred `sqlite-vec` tier, so it *cannot*), while `L5b` is real and no range
+  contains it. **Count them with the gate's filter rather than trusting a range**, **naming 63 of the 74 test modules in `tests/`.** The parent
+  `03e6f86` measured 890 and 44; **this change is what moved them**, by adding the fourteen
+  server-boundary rows below — stated because a count restated from the parent commit would have been
+  falsified by the very edit that restated it. An earlier version of this paragraph said
   the table *"stopped"* at 0.12.0 and that the gap was *"four releases wide"*; both were true when
   written and neither has been true for a long time. **Do not restate a release count here** — it
   goes stale silently, which is what happened. State what was measured and when — **and count the rows
-  the way the gate does**: an earlier version of this paragraph said 923, which counted the 33 table
-  headers `tests/test_verification.py` skips.
+  the way the gate does**: an earlier version of this paragraph said 923, which counted the table
+  headers `tests/test_verification.py` skips — 33 of them at the time, **35** now — the MCP section added one and the
+  markdown-link table's missing header added another, which is the same moving-denominator trap one layer down. **The module figure had rotted the same way and worse**
+  — it said *62 of the 67*, wrong on both halves; there are 74 modules and 63 carry a row. Count them
+  with the gate's own `REFERENCE` regex, not by searching the file for a filename: the eleven unnamed
+  module names are spelled out in the bullet directly below, so a substring test over this file scores
+  them as covered and reports 74 of 74, finding nothing.
 * **Two gaps remain, and they are different in kind.** **Six modules carry zero rows** —
   `test_chunk.py`, `test_ids.py`, `test_lock.py`, `test_pairing.py`, `test_uri.py`, `test_embed.py`.
   They predate the table and are not unowned. **Five more are named by no row at all** —
@@ -38,12 +48,28 @@ test, or write **none** and say why in the same commit.
   carries 27 rows**, and `test_eval.py` carries 32 throughout *The golden set, per question (G2)* —
   both were once listed here as absent, in error, and each correction was found by counting rather
   than by reading.
-* **Whether either gap is *work* is undecided, and this paragraph must not be read as saying it is.**
-  `tests/` holds 2 032 test functions against these 890 rows. Whether the table maps *every test* or
-  *promises only* is **D-34**, open and unscheduled in
-  [`plans/20260825_0749-exposure-and-silent-status.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260825_0749-exposure-and-silent-status.md).
-  Until it is answered, a large unrowed population is **not** evidence of a hole — that inference was
-  made once here, by a planner, hours after the lesson that named it.
+* **D-34 is answered: this table maps *promises*, not every test.** Taken by the user
+  **20260825 18:16 UTC** ([`plans/20260825_1803-open-decisions.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260825_1803-open-decisions.md)),
+  ratifying the reading `db7d1c1` had already operated on since 20260804. **A promise is a
+  user-visible guarantee, a named invariant, or a gate's own correctness.** It is *not* a unit test
+  of an internal primitive, and it is *not* a per-surface re-assertion of a promise already rowed
+  elsewhere. `tests/` holds **2 051** test functions against these 904 rows, and **that ratio is not by
+  itself evidence of a hole** — a sample of the residue found those two categories dominate it. That
+  inference was drawn here once anyway, by a planner, hours after the lesson that named it.
+* **But "not systematically debt" is not "no debt", and the difference was measured rather than
+  argued.** The pass that took D-34 sampled the residue and found a genuine unrowed promise; **an
+  audit of `tests/test_serve.py` then found it was not alone — 14 of that module's 31 tests carried
+  no row, including the MCP server's path-refusal boundary and the labelling of retrieved text as
+  evidence rather than instruction.** The cause was structural: the server's rows lived under
+  *the links release* and *page citations*, and **no section owned the server boundary itself**. One
+  now does, below. **Do not read this as a backlog to burn down** — the point is that the residue is
+  mixed, so a promise-shaped test in it gets rowed when found, and a unit test does not.
+* **What still has no gate is the direction.** `tests/test_verification.py` walks from this document
+  to the tests, so it proves no row is fiction; it **cannot** prove no guarantee is unrowed, and
+  D-34 deliberately did not buy that. The one-directionality is *"not a defect in the gate, it is the
+  shape of the problem, so the answer is procedural"* (`db7d1c1`, 20260804) — recorded here because
+  it was previously reachable only from a commit message, which is why every fresh reader who counted
+  the tree re-derived the question.
 
 ## Packaging and the extractor registry
 
@@ -286,6 +312,28 @@ caller cannot check for itself, on both the CLI and the MCP surface.
 | ...and an unresolvable path is never walked from the working directory | L6 review 8 | `tests/test_sync_links.py::test_an_unresolvable_path_is_never_walked_from_the_working_directory` |
 | ...nor resolved through it into a permanent link | L6 review 8 | `tests/test_cli_link.py::test_an_unresolvable_linked_kb_path_is_never_resolved_through_the_working_directory` |
 | an embedded NUL in a path is refused, not a `ValueError` traceback | L6 review 7 | `tests/test_cli_link.py::test_a_path_with_an_embedded_nul_is_refused_rather_than_crashing` |
+
+## The MCP server boundary (I13)
+
+`pnk serve` is the surface where the reader is an **LLM reading text it did not write**, and where
+every argument arrives from outside. Its rows lived under *the links release* and *page citations*
+until 20260825, so the boundary itself — what a tool argument may be, and what the payload says
+about the text it carries — was held by tests that **no section owned**. Found by the bounded audit
+D-34 licensed, not by a failure. Two of these are security boundaries and are marked as such.
+
+| What must be true | Increment | Where it is checked |
+|---|---|---|
+| **a tool argument is never a path.** `pinakes_get` refuses `../../etc/passwd`, a repo-relative path, and a well-formed but unknown ULID alike, each with a remedy naming `pinakes_search` | I13 | `tests/test_serve.py::test_get_refuses_anything_that_is_not_a_known_id` |
+| **retrieved text is labelled evidence, never instruction**, on the search payload *and* the get payload — the caller is an LLM reading text it did not write (DESIGN §4.7) | I13 | `tests/test_serve.py::test_retrieved_text_is_labelled_as_evidence_not_instruction` |
+| only the KBs `pnk serve` was given are reachable; an unserved KB is refused, and the remedy says a KB is named and never addressed by path | I13 | `tests/test_serve.py::test_only_configured_kbs_are_reachable` |
+| two served KBs sharing a name are refused **at startup**, rather than one silently shadowing the other | I13 | `tests/test_serve.py::test_two_kbs_with_the_same_name_are_refused_at_startup` |
+| serving no KB at all is refused, with a remedy naming `pnk serve` | I13 | `tests/test_serve.py::test_serving_nothing_is_refused` |
+| a document deleted since the server started is no longer fetchable | I13 | `tests/test_serve.py::test_a_deleted_document_cannot_be_fetched` |
+| an index rebuilt underneath a running server is picked up — a replaced inode must not leave an open handle answering from the old one (DESIGN §6.5) | I13 | `tests/test_serve.py::test_an_index_swapped_underneath_is_picked_up` |
+| a search answer carries a citation and a suggested next step | I13 | `tests/test_serve.py::test_search_returns_cited_evidence_and_a_next_step` |
+| a ULID resolves through the index to its document | I13 | `tests/test_serve.py::test_get_resolves_a_ulid_through_the_index` |
+| a KB is selectable by name or by ULID, and the first configured KB is the default | I13 | `tests/test_serve.py::test_a_kb_can_be_selected_by_name_or_ulid` |
+| `pinakes_list_kbs` reports each KB's name, id and document count | I13 | `tests/test_serve.py::test_list_kbs_reports_document_counts` |
 
 ## The sidecar round-trip (L5b)
 
@@ -549,6 +597,9 @@ which is the section above; this is what a module that *may* import a client the
 | a non-paged source keeps the citation it always had | I8 | `tests/test_search.py::test_a_non_paged_source_still_cites_character_offsets`, `tests/test_cli_search.py::test_a_non_paged_source_reports_null_pages_and_the_offset_citation` |
 | a PDF is served as extracted text, not as its bytes | I8 | `tests/test_serve.py::test_a_pdf_is_served_as_its_extracted_text_rather_than_its_bytes` |
 | a swept extraction cache is an error, never a silent re-extraction | I8 | `tests/test_serve.py::test_a_swept_extraction_cache_is_an_error_rather_than_a_silent_re_extraction` |
+| a non-paged source carries `page_start: null` rather than omitting the field — an agent must not have to tell *no pages* from *field missing* | I8 | `tests/test_serve.py::test_a_non_paged_source_carries_null_pages_on_the_mcp_surface` |
+| a page range outside the document is refused against its own bounds, saying how many pages it has and that they are 1-indexed | I8 | `tests/test_serve.py::test_a_page_range_outside_the_document_is_refused_by_its_own_bounds` |
+| a page range asked of a source that has no pages is refused as such | I8 | `tests/test_serve.py::test_a_page_range_on_a_source_that_has_none_is_refused` |
 | a low-yield **page** is flagged inside a healthy document | I8 | `tests/test_doctor.py::test_text_yield_flags_pages_not_documents` |
 | the yield floor separates empty from non-empty, and nothing finer | I8 | `tests/test_extract_pageyield.py::test_a_page_exactly_on_the_floor_is_not_below_it`, `tests/test_extract_pageyield.py::test_the_decision_is_per_document_even_though_the_floor_is_per_page` |
 | an unmeasurable document is never reported as one that passed | I8 | `tests/test_doctor.py::test_a_partly_swept_cache_still_names_what_it_could_not_measure` |
@@ -844,6 +895,8 @@ which is the section above; this is what a module that *may* import a client the
 | one file belongs to one battery, and a run takes one battery — a second battery's kills counted into the first's would let `--allow-zero-kills` excuse a batch that never needed it | — | `tests/test_mutate.py::test_check_anchors_refuses_a_file_claimed_by_two_batteries`, `tests/test_mutate.py::test_two_batteries_claiming_different_files_are_accepted`, `tests/test_mutate.py::test_running_more_than_one_battery_at_a_time_is_refused` |
 | a stale anchor, a deleted target, a renamed test and a second battery claiming a file each turn `./check.sh` red — the committed batteries are read by something, which is the only thing that stops `tools/batteries/` becoming a directory of files nobody resolves. With the non-empty control, since every one of those iterates a glob | — | `tests/test_batteries.py::test_every_anchor_still_resolves_exactly_once_in_the_file_it_names`, `tests/test_batteries.py::test_every_kills_selector_resolves_to_a_test_that_exists`, `tests/test_batteries.py::test_no_file_is_claimed_by_two_batteries`, `tests/test_batteries.py::test_every_battery_is_named_for_a_file_it_actually_mutates`, `tests/test_batteries.py::test_the_directory_is_not_empty_and_every_battery_carries_mutants`, `tests/test_batteries.py::test_every_mutant_names_the_four_keys_mutate_needs`, `tests/test_batteries.py::test_a_committed_battery_omits_pytest_and_takes_the_default` |
 
+| What must be true | Increment | Where it is checked |
+|---|---|---|
 | every relative link and heading anchor resolves in the Markdown `mkdocs build --strict` never sees — `CLAUDE.md`, the root `README.md`, `CHANGELOG.md`, `plans/`, the fragment READMEs and `docs/README.md`, which held eleven broken links before the gate | fix | `tests/test_markdown_link_gate.py::test_a_link_to_a_file_that_does_not_exist_is_reported`, `tests/test_markdown_link_gate.py::test_a_link_to_a_heading_that_does_not_exist_is_reported`, `tests/test_markdown_link_gate.py::test_a_link_that_resolves_above_the_repository_root_is_reported` |
 | a **quoted** link — inside a code span or a fenced block — is never resolved, so a document quoting another document's links is never asked to corrupt the quotation to satisfy the gate | fix | `tests/test_markdown_link_gate.py::test_a_quoted_link_inside_a_code_span_is_not_resolved`, `tests/test_markdown_link_gate.py::test_a_link_inside_a_fenced_block_is_not_resolved` |
 | the gate and the published site slugify **every heading in the repository** identically, so the duplicated GitHub algorithm cannot drift from `mkdocs_hooks.py` | fix | `tests/test_markdown_link_gate.py::test_the_gate_and_the_site_slugify_every_heading_in_the_repository_identically`, `tests/test_markdown_link_gate.py::test_the_em_dash_rule_that_the_site_hook_exists_for_is_honoured` |

@@ -33,3 +33,21 @@ The entry body only — no `### Added` heading, which the assembler writes from 
 it exactly as it should read in the changelog, starting with `- **The short claim.**`.
 
 The rule that has not changed: **the fragment lands in the same commit as the code it describes.**
+
+## Links: absolute, or wrong in one of the two places
+
+A fragment is written in `changelog.d/` and read from `CHANGELOG.md` at the repo root, and **a
+relative link cannot be correct in both.** `tools/markdown_link_gate.py` resolves a fragment's
+`docs/GUIDE.md` as `changelog.d/docs/GUIDE.md` and fails the branch; writing `../docs/GUIDE.md` to
+satisfy it breaks the link at splice time instead, because the spliced text lands at the root.
+
+**Use an absolute `https://github.com/lucagattoni/pinakes/blob/main/…` URL** — the one form correct
+in both places. (`CHANGELOG.md` uses both styles today: 6 absolute blob URLs and 9 working relative
+links outside `docs/`. The relative ones resolve because they were written *into* the assembled file,
+not into a fragment — which is exactly the difference this section is about.) Found
+20260825 by the gate, on a fragment whose links were right for where the text was going and wrong
+for where it was sitting.
+
+**And never link to another fragment by filename**, for the reason
+[`retro.d/README.md`](../retro.d/README.md) gives: splicing puts every fragment into one document,
+where a sibling's filename no longer resolves. Link to the *heading* instead.

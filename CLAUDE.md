@@ -105,6 +105,7 @@ a code comment. Increment IDs (`I7b`, `I8`) stay: they name work inside a plan, 
 | Name | What it is |
 |---|---|
 | **the template release** | Template ecosystem, `pnk upgrade`, the `sqlite-vec` tier |
+| **the graph release, staged** | The PPR graph channel and the `[ner]` extra. **Eval-gated, never scheduled** — neither gets a plan, an increment or a number until its gate passes ([`plans/20260804_1016-staged-channel-gates.md`](plans/20260804_1016-staged-channel-gates.md)). **Not the same name as *the graph release***, which left this table at its final cut, 0.11.0 |
 
 A release that cuts more than once **keeps its name in that table until the final cut** — dropping
 it at an interim cut deletes a name the later increments still need. The rule's origin, and which
@@ -152,7 +153,19 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
 **What is live right now** — the full routing table, with what each closed plan still binds, is
 [`docs/README.md`](docs/README.md):
 
-- **🛑 Two plans have scheduled work.**
+- **🛑 Two plans have scheduled work, and it is now all coder work — every decision is taken.**
+  The **eight decisions and fifteen questions** in
+  [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md) were **ANSWERED by
+  the user 20260825 18:16**, and the planner's half of them landed **20260825 18:39–18:56 UTC**, with later records and corrections through 20260826: D-34 closed
+  (*promises only*, plus the audit that rowed 14 unrowed promises in `tests/test_serve.py`), arity
+  requirement 3 closed, the three residues ruled, the `requires_pinakes` clause closed-superseded,
+  `expect_green` declined, and the re-extraction loop and the `fragments.py` widening both deferred
+  behind **written triggers**. **D-31/32/33 and D-37 have build-order rows owned by `coder`.** **D-36's build is
+  decided but unscheduled** — its row says so itself; it carries no blocker and no schedule. **The `_toml.py` unknown-key message
+  has an owner** (the 20260805 plan assigns it to the coder) **but no row**. **The G5 gate re-run has an owner and no row** — the decisions
+  table gives it `planner → coder` and splits the halves (coder drives the rebuild and the legs,
+  planner writes it up), but **no build order anywhere carries it**, which is the gap that matters. Unowned work is how it aged 21 days, so it is named here
+  rather than left to a sweep.
   [`plans/20260825_0749-exposure-and-silent-status.md`](plans/20260825_0749-exposure-and-silent-status.md)
   — **§ X1 is built and on `main`**; **D-35 was answered 20260825 12:37**, which unblocks **§ X7**
   (three layers, and *not* what that plan first proposed — read the section, not the memory of it);
@@ -160,9 +173,14 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md), which is now the file
   to read first. **Two of the taken options were invented by that pass's adversary and are not in the
   original plans — read the decision, never a memory of the options.**
-  [`plans/20260825_1240-run-pinakes-sweep.md`](plans/20260825_1240-run-pinakes-sweep.md) — **sixteen
-  defects found by running Pinakes, three of them high** — S16 was found by *reviewing a fix*, and
-  crashes `sync` on an ordinary two-file rename swap while `doctor` reports OK; **D-36 and D-37 are now answered**. Every
+  [`plans/20260825_1240-run-pinakes-sweep.md`](plans/20260825_1240-run-pinakes-sweep.md) — **defects found by running
+  Pinakes** (thirteen numbered — S1–S9 and S16–S19 — plus unnumbered Low classes; **that file states
+  no total and neither should you**) — **S16 and S17 were both found by *reviewing
+  a fix*, which is the sweep's own lesson turned on itself.** S16 crashes `sync` on an ordinary
+  two-file rename swap while `doctor` reports OK — **still live, reproduced on `main` 20260826**.
+  **S17 is ✅ FIXED** (it printed a remedy that never worked and left the document unindexed): the
+  moved-sidecar guard from S2's second review fixed it as a side effect, **verified with a control**.
+  **S18 and S19 are open.** **D-36 and D-37 are now answered**. Every
   other file in `plans/` is closed, answered, deferred or proposed-unscheduled — and **an
   empty-looking list still means *the next thing to build has not been planned yet*, never *nothing
   to do***. `docs/ROADMAP.md` Part 5 holds what comes after.

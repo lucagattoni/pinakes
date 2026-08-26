@@ -778,6 +778,13 @@ remote.
 `provenance.source` URLs included. Those routinely carry more signal than people expect. The engine
 cannot enforce anything here; check before you push.
 
+**If you hand-set a manifest key, say so with a floor.** Pinakes treats an unknown key as a hard
+error, so a KB using a key your reader's build predates is simply unreadable to them — and the
+refusal can only report the symptom, not the cause, unless the manifest declares one. Set
+`[kb] requires_pinakes` yourself and their build says *"this KB requires pinakes >=X"* instead.
+**Nothing sets it for you**: `pnk init` does not stamp it and `pnk upgrade --apply` does not write
+it, both by design ([MANIFEST](MANIFEST.md#requires_pinakes--the-compatibility-floor)).
+
 Links between KBs use `pnk://<kb-ulid>/<doc-ulid>` — ULIDs, never aliases — so they survive renames,
 moves, and being shared with someone whose local alias for your KB is different. `pnk link` authors
 them and `pnk links` traverses them: see [Following links between two KBs](#following-links-between-two-kbs).

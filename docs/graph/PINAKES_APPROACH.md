@@ -417,8 +417,10 @@ Extends GRAPH_RAG.md's R-table into a build order; v0.1/v0.2 are untouched by al
 | the graph release | `pnk link` · `pinakes_links` (typed, capped, score+frontier+confidence) · `pinakes_search` `entities`/`concepts` params · structural edge derivation · expansion channel (`graph_channel`, default off) · in-degree salience + link-distance rerank in the eval matrix · golden-set multi-hop + simple-lookup sections · link-coverage + edge-hub reporting in `pnk doctor` · hand-adopted ClaudeKB corpus as second KB | R2 R3 R6 R7 · §3 §4A §5 §8 |
 | the graph release (staged) | PPR stage, only if the §9 gate says so (HippoRAG 2 recipe) · `[ner]` extra with `mentions` edges, default off, eval-gated | §4B · §3 |
 | the deep release | `--deep` warm-up loop (LogicRAG skeleton + cycle check, calibrated round-0 gate) · ask transcript · per-template seed schemas · `--write-suggestions` sidecar write-back (`origin: deep`) · budget machinery (same release, per DESIGN §5) · DESIGN §9 wording update (§6) | R5 · §6 |
-| the template release | `pnk adopt` (automated ClaudeKB fleet onboarding) · template-schema ecosystem maturation | §8 |
+| the template release ⚠️ | `pnk adopt` (automated ClaudeKB fleet onboarding) · template-schema ecosystem maturation | §8 |
 | never | LLM extraction in `pnk sync` (SLM boundary case requires an explicit R1 amendment, §3) · traversal policy in-engine · graph query language · graph DB · migrations | R1 R6 · §7 |
+
+> ⚠️ **This row is a research-to-release map, and one entry in it did not happen.** `pnk adopt` **does not exist** — it is in no `pnk --help` output and no `plans/` file specifies it — and **the template release closed at 0.22.0 without it** (T1 in 0.17.0, T2 0.18.0, T3 0.19.0, T4 0.20.0, T5 0.20.1, T7 0.21.0; T8 a no-go, T6 deferred behind a written trigger). So this row says a command lands in a release that has already cut. Noted 20260825 18:44 rather than repaired, because **which release should own `pnk adopt` is not a question this table gets to answer** — `docs/README.md` records the honest state, that everything in §8 beyond what shipped is still a **proposal**. The release *name* remains in `CLAUDE.md`'s unbuilt-work table only because T6 is deferred, which is not a commitment to `pnk adopt`.
 
 ---
 

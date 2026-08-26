@@ -229,7 +229,20 @@ full clone, and **says so when it has been skipped** — a skip is not a pass.
   `pnk upgrade`. It reported only a version string until 0.18.0, and `pnk upgrade` now prints the diff itself.
 - **Multi-template ecosystem** (the template release) multiplies all of this by the number of templates.
 - Small follow-up: the unknown-key remedy still points at `docs/DESIGN.md §2.1`, whose field tables
-  moved to [MANIFEST.md](MANIFEST.md) in 0.2.1.
+  moved to [MANIFEST.md](MANIFEST.md) in 0.2.1. **It should also offer the second hypothesis** — that
+  the manifest may have been written by a newer Pinakes — because today it only ever suggests a typo.
+- **The one-key instance of the first question. Decided by the user 20260825 18:16; folded in here 18:46.** A 20260805 decision
+  proposed that shipping a new `[chunking]` value must set a `requires_pinakes` floor. **It is
+  superseded rather than withdrawn**, and it belongs under this heading because the general question
+  above is older than it and still open. Its premise failed: **nothing writes the floor.** **D-11**
+  (taken 20260804) settled that `pnk upgrade --apply` never writes it, and `pnk init` does not stamp
+  it either — that half resting on **D-6, a standing recommendation rather than a taken decision**,
+  a distinction kept because the practical bar and the decision status are not the same thing. Either
+  way the clause specified a floor with no writer — and D-11's accepted-cost paragraph had
+  already put exactly this harm to the user, who accepted it. The user-facing remedy is not missing:
+  [GUIDE.md](GUIDE.md) § *Troubleshooting* answers the collaborator case directly. **All four now sit
+  in one place — this bullet, the question above it, D-6 and D-11** — which is what folding it here
+  was for.
 
 ## 9. Scope — undecided
 

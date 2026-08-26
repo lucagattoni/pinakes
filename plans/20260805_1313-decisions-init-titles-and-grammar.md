@@ -100,7 +100,38 @@ is a small increment on top of a grammar already proven on text.
 > That is a spec defect, not a task. An increment that "cleans up" PDF handling on the way past has
 > misread this decision.
 
-### Compatibility: it sets a `requires_pinakes` floor, explicitly
+### Compatibility: it sets a `requires_pinakes` floor, explicitly · **CLOSED-SUPERSEDED 20260825 18:16 by the user — not withdrawn. The clause's premise did not survive; the general question it is an instance of is now folded into [`docs/KB-UPDATES.md` § 8](../docs/KB-UPDATES.md), which has held it since 20260728**
+
+> ### ⚠️ Read this before acting on the clause below
+>
+> **The clause is superseded, and *superseded* is deliberately not *withdrawn*.** Striking it would
+> delete the only place this question was ever argued concretely while leaving the general question
+> open in a published document — a worse state than today.
+>
+> **The premise that failed: nothing writes the floor.** The clause requires that *"a KB whose
+> manifest carries the new value declares a floor"*, and no surface does that. **D-11** (✅ **TAKEN**
+> 20260804) settled that `pnk upgrade --apply` never writes it, and `pnk init` does not stamp it
+> either — though that half rests on **D-6, which is a standing *recommendation*, not a taken
+> decision** (`⭐ A — open (it is today's behaviour)`, filed in the O-5 group the plan describes as
+> *"Recommendations only"*). **The two do not have the same status and an earlier draft of this note
+> said they did.** The practical bar is unaffected, because D-11's own rationale absorbs D-6's
+> reasoning — *"whatever writes `requires_pinakes` inherits B's cost"*. So the mechanism the clause
+> depends on is absent on both sides of it, and the clause was left specifying a floor with no
+> writer.
+>
+> **The harm it was written to prevent already has its remedy, and it is in the place a user looks.**
+> `docs/GUIDE.md` § *Troubleshooting* carries the row *"unknown key(s) in a KB you did not edit —
+> the same cause, on a KB that declares no floor, so the refusal can only report the symptom"* with
+> the remedy *"Upgrade Pinakes."* That is exactly the collaborator case, correctly answered. An
+> earlier pass asserted this row *"misses this case exactly"*; it does not — the row was opened and
+> read.
+>
+> **And the user already accepted this cost, a day before the clause was written.** D-11's
+> accepted-cost paragraph (20260804) states that a KB which has adopted a newer key still fails on an
+> older build with *"unknown key"*. Reversing that needs a better reason than a clause whose stated
+> mechanism never shipped.
+>
+> **What is left is one string, and it is the coder's** — see § *What this does not decide* below.
 
 **Decided: shipping the new `[chunking] strategy` value sets a floor.**
 
@@ -123,6 +154,20 @@ sends the user to fix a spelling mistake they did not make.
 * The grammar's predicate. `1.` at line start is also an ordered list, and **the rule must be
   written before it is fitted to the RFC corpus**, never derived from it.
 * The new value's name.
-* Whether to re-run the graph gate afterwards — a separate decision, costing ~2 h of CPU embedding
-  plus a `schema_version` 3 rebuild, and carrying the anti-circularity discipline in full if it
-  happens.
+* ~~Whether to re-run the graph gate afterwards~~ — **TAKEN 20260825 18:16 by the user: run it,
+  later, as its own three-leg gate.** It is *not* bundled with the arity question (that split is what
+  let arity requirement 3 close for free) and it carries **no immediate-parent eighth leg**. Cost is
+  **~2.4 h**, not the ~2 h this bullet estimated — extrapolated from `docs/RETROSPECTIVES.md`'s
+  measured 55 RFCs / 16 557 chunks in 1 497.7 s at a mean 4.8 of 10 cores. **It blocks nothing and is
+  unscheduled**, and its expected result is another null. **This bullet is where the 21-day ownership
+  seam started**: it excluded the re-run from the grammar decision and filed it nowhere else, so no
+  planner document picked it up. It is now tracked in
+  [`20260825_1252-plans-sweep-findings.md`](20260825_1252-plans-sweep-findings.md).
+
+**Still owed here, and it is the coder's, not the planner's** (taken 20260825 18:16, option E):
+`src/pinakes/_toml.py`'s unknown-key remedy offers only the typo hypothesis. It must offer the second
+one — *if you did not mistype it, this manifest may have been written by a newer Pinakes: upgrade, or
+ask its author to declare `[kb] requires_pinakes`* — and its pointer must move from `docs/DESIGN.md
+§2.1`, which delegated its field tables to `docs/MANIFEST.md` in 0.2.1, to `docs/MANIFEST.md`. Pin the
+new sentence with a test. **This is forward-only and that is its honest cost**: it changes the
+*reading* build, so no window already open is helped by it.
