@@ -1,6 +1,6 @@
 # Status — what ships today
 
-**Latest release: 0.30.3** — ⏸ **landed on `main`, NOT tagged and NOT on PyPI; `pip install pinakes` still gets 0.30.2.** · last reviewed 20260825 08:47
+**Latest release: 0.30.3** — ⏸ **landed on `main`; `pip install pinakes` still gets 0.30.2.** · last reviewed 20260825 08:47
 
 > **This file is the only place in the repo that says what is built.** Every other doc describes
 > *how* something works or *why* it was designed that way, and links here for whether you can use it
