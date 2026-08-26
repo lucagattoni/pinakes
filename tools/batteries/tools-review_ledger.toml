@@ -46,9 +46,10 @@ kills = "tests/test_review_ledger.py::test_a_package_path_keeps_its_directories"
 name = "WAS A BUG — the last top-level name wins, and the committed corpora leave the map entirely"
 file = "tools/review_ledger.py"
 # The original `rfind`, restored. `tests/demo-kb/docs/x.md` becomes `docs/x.md`, which is not a
-# tracked file, so the screen below drops it — 102 paths, silently. This row exists because the
-# battery's first run left it SURVIVED against a test that asserted the wrong property, and
-# answering the survivor is what found the defect.
+# tracked file, so the screen below drops it — 102 tracked paths are shaped that way, and 28 of the
+# corpus's 49,000 read targets actually hit it. This row exists because the battery's first run
+# left it SURVIVED against a test asserting the wrong property, and answering the survivor is what
+# found the defect.
 old = '''        found = path.find("/" + marker)
         if found != -1 and (best == -1 or found < best):'''
 new = '''        found = path.rfind("/" + marker)

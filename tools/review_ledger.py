@@ -355,11 +355,16 @@ def _normalise(path: str) -> str:
     was that a branch directory could contain `docs`, so the later match must be the real one. It
     cannot: a branch is `20260807_2143-docs-audit-findings`, where `docs` is bounded by hyphens and
     never by slashes, so the marker `/docs/` does not match it at all. What last-wins *did* match
-    was the committed corpus — `tests/demo-kb/docs/access-restrictions.md` reduced to
+    was the committed corpora — `tests/demo-kb/docs/access-restrictions.md` reduced to
     `docs/access-restrictions.md`, which is not a file, and the `docs/` screen below then discarded
-    it. **102 tracked paths nest a top-level name that way**, and every review pass that ever read
-    the demo KB vanished from the map. No test failed, no gate went red, and the mutant that
-    survived is what asked the question.
+    it. **102 tracked paths nest a top-level name that way.**
+
+    Measured rather than asserted, because the two are not the same size: over the 49,000 read
+    targets in this corpus, **28 normalise differently and 27 of those are recovered** — the shares
+    `--measure` prints do not move at all. The defect was silent, real, and small. It is written up
+    at this length because the *class* is neither: a path rule that quietly discards a file
+    produces a map that is wrong only about what nobody looked at, which is the one thing a later
+    pass reads this tool to learn.
     """
     path = path.strip().strip("'\"`,;()[]")
     if not path:

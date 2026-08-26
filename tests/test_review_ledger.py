@@ -30,7 +30,9 @@ from pathlib import Path
 
 TOOL = Path(__file__).parent.parent / "tools" / "review_ledger.py"
 
-REVIEW_BRIEF = "You are adversarially reviewing increment 20260101_0000-x in the Pinakes repository."
+REVIEW_BRIEF = (
+    "You are adversarially reviewing increment 20260101_0000-x in the Pinakes repository."
+)
 BUILD_BRIEF = (
     "You are the implementing coder on Pinakes. Build increment 20260101_0000-x. "
     "Adversarially review your own work before landing it."
@@ -219,8 +221,8 @@ def test_a_corpus_path_that_nests_a_top_level_name_keeps_all_of_it(tmp_path: Pat
     102 tracked paths in this repository nest a top-level directory name inside another — the
     committed demo and partner corpora are `tests/*/docs/*.md`. Anchoring on the *last* marker
     reduced every one of them to a `docs/` path that does not exist, which the tracked-file screen
-    then discarded, so every review pass that read the demo KB disappeared from the map. Nothing
-    went red; a surviving mutant asked the question.
+    then discarded. Measured over the corpus, 28 of 49,000 read targets hit it and 27 are recovered
+    by the fix: real, silent, and small. Nothing went red; a surviving mutant asked the question.
     """
     plain_pass(
         tmp_path,
@@ -240,12 +242,8 @@ def test_one_probe_run_in_two_scratch_directories_is_one_probe(tmp_path: Path) -
     strings made deduplication a no-op: 891 probes, 880 of them "distinct", and the ranking that
     was meant to surface the most-repeated work degenerated into insertion order.
     """
-    plain_pass(
-        tmp_path, "a1", "2026-01-01T00:00:00Z", ["cd /tmp/p2-quokka && uv run pytest -q"]
-    )
-    plain_pass(
-        tmp_path, "a2", "2026-01-01T02:00:00Z", ["cd /tmp/p2-marlin && uv run pytest -q"]
-    )
+    plain_pass(tmp_path, "a1", "2026-01-01T00:00:00Z", ["cd /tmp/p2-quokka && uv run pytest -q"])
+    plain_pass(tmp_path, "a2", "2026-01-01T02:00:00Z", ["cd /tmp/p2-marlin && uv run pytest -q"])
     out = run("20260101_0000-x", "--projects", str(tmp_path))
     assert out.returncode == 0, out.stdout + out.stderr
     assert "cd <dir> && uv run pytest -q [2 passes]" in out.stdout
@@ -258,11 +256,9 @@ def test_reading_a_package_file_is_not_executing_the_project(tmp_path: Path) -> 
     it 586 of 762 probes on one increment, which put the file reading at the top of the section
     whose whole purpose is to rank running above reading.
     """
-    plain_pass(
-        tmp_path, "a1", "2026-01-01T00:00:00Z", ["sed -n '1,10p' src/pinakes/pairing.py"]
-    )
+    plain_pass(tmp_path, "a1", "2026-01-01T00:00:00Z", ["sed -n '1,10p' src/pinakes/pairing.py"])
     out = run("20260101_0000-x", "--projects", str(tmp_path))
-    assert "0" == out.stdout.split("distinct, ")[1].split()[0], out.stdout
+    assert out.stdout.split("distinct, ")[1].split()[0] == "0", out.stdout
 
 
 def test_a_workflow_fanouts_agents_are_found(tmp_path: Path) -> None:
