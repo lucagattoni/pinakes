@@ -14,7 +14,7 @@ import difflib
 import os
 import sqlite3
 import tomllib
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -78,9 +78,11 @@ from pinakes.sidecar import (
     minted_title,
 )
 from pinakes.sidecar import read as read_sidecar
-from pinakes.sync import hash_file
+from pinakes.sync import hash_file, walk_document_paths
 
 LARGE_CORPUS_CHUNKS = 50_000
+#: `documents.state` for a soft-deleted row. Spelled once here rather than as a literal per query.
+DELETED_STATE = "deleted"
 HOOK_MARKER = "pinakes"
 
 
@@ -157,9 +159,9 @@ def diagnose(manifest: Manifest) -> Report:
     checks.extend(_backends(manifest))
     checks.append(_extraction(manifest))
 
-    orphans, sidecar_checks = _sidecars(manifest)
+    sidecars, orphans, sidecar_checks = _sidecars(manifest)
     checks.extend(sidecar_checks)
-    checks.extend(_index(manifest))
+    checks.extend(_index(manifest, sidecars))
     checks.append(_lock(manifest))
     checks.append(_hooks(manifest))
     checks.append(_machine_driven_split(manifest))
@@ -395,7 +397,11 @@ def _extraction(manifest: Manifest) -> Check:
     return Check("pdf extractor", Status.OK, f"{backend} importable")
 
 
-def _sidecars(manifest: Manifest) -> tuple[list[Path], list[Check]]:
+def _sidecars(manifest: Manifest) -> tuple[dict[Path, Sidecar], list[Path], list[Check]]:
+    """The parsed sidecars are returned, not only counted: `_retired_documents` needs the id each
+    one claims, and re-reading the whole KB through `ruamel` to learn it again is the single most
+    expensive thing `pnk doctor` could do — measured at 0.6s over 2000 documents when an earlier
+    draft of that check did exactly this."""
     sidecars: dict[Path, Sidecar] = {}
     orphans: list[Path] = []
     broken: list[str] = []
@@ -451,7 +457,101 @@ def _sidecars(manifest: Manifest) -> tuple[list[Path], list[Check]]:
             "`pnk doctor --prune`, which prints every path first.",
         )
     )
-    return orphans, checks
+    return sidecars, orphans, checks
+
+
+def _retired_documents(
+    manifest: Manifest, connection: sqlite3.Connection, sidecars: Mapping[Path, Sidecar]
+) -> Check:
+    """A document this KB still collects, whose id the index has retired. It is gone from search.
+
+    `doctor` printed `sidecars: N readable` and `index: M active documents` on adjacent lines for
+    twelve releases and compared them to nothing. A sync that died partway left a row at
+    `state='deleted'` while the source file and its sidecar sat intact on disk: unreachable from
+    every query, every other check OK, exit 0. A KB could lose half its corpus and the command
+    named for finding problems would call it healthy.
+
+    **The question is asked of the retired id, never of the path**, and the difference is the whole
+    check. The state S2 is named for is reached by a sidecar's id changing *at* a path: the old row
+    is retired holding its own old path, and the document that is actually lost is the one whose
+    sidecar now sits somewhere the index has no active row for. A rule that looked for "a retired
+    row whose own path is still on disk" reports the wrong document and misses the real one — I
+    wrote that rule first and it was the test for a reused path that caught it.
+
+    **Asking it the other way round does not work**, and that is why the population is not simply
+    "every sidecar whose id is not active". A document that has never been indexed has no row at
+    all, and the shipped pre-commit hook creates exactly that on every commit (`hooks.py` runs
+    `sync --sidecars-only`, which mints a sidecar with no index row **by design**). Phrased that
+    way the check FAILs on a healthy KB seconds after a commit. Starting from a row that once
+    existed cannot: nothing the hook does retires anything.
+
+    Two conditions, each removing a false positive that was measured rather than argued:
+
+    * **some collected document's sidecar claims the retired id** — so the document is still here,
+      under that identity, wherever it now sits. An ordinary deletion leaves no such sidecar, and
+      an orphaned one sits beside no collected document;
+    * **that document is one this KB collects**, via `walk_document_paths` — otherwise a document
+      excluded *in place* reports, where an added `exclude` pattern retires the row while the file
+      never moves (`sync.walk_sources`: "a locally excluded document is a deleted index row *and*
+      an orphaned sidecar").
+    """
+    rows = [
+        (str(row["id"]), str(row["path"]), str(row["state"]))
+        for row in connection.execute("SELECT id, path, state FROM documents")
+    ]
+    retired = {doc_id for doc_id, _path, state in rows if state == DELETED_STATE}
+    known = {doc_id for doc_id, _path, _state in rows}
+    retired_at_path = {path: doc_id for doc_id, path, state in rows if state == DELETED_STATE}
+    if not retired:
+        # No walk at all on a KB that has never retired a row — this check costs a `glob` and a
+        # `stat`, never a read, and only on a KB with something to check.
+        return Check("retired documents", Status.OK, "none")
+
+    collected = walk_document_paths(manifest)
+    lost: list[str] = []
+    for sidecar_file, parsed in sidecars.items():
+        try:
+            document = document_for(sidecar_file).relative_to(manifest.root).as_posix()
+        except ValueError:  # pragma: no cover — `_sidecars` only walks under the KB root
+            continue
+        if document not in collected:
+            continue
+        claimed_id = str(parsed.id)
+        # (1) the id this document carries has been retired — it is here, under that identity, and
+        # the index has put it beyond `pnk search`.
+        if claimed_id in retired:
+            lost.append(document)
+            continue
+        # (2) the id it carries has **no row at all**, while the row that used to hold its path is
+        # retired. That is a replacement that got halfway: `pairing` retires the old id and adopts
+        # the new one as two actions which commit separately, so an `Adopt` that fails — undecodable
+        # content, an embedding backend raising, a budget cap refusing a paid extraction — leaves
+        # exactly this. Rule (1) cannot see it, because the retired id and the sidecar's id are
+        # different ones, and the check said "none still in the KB" over a document that was gone.
+        #
+        # **Both halves of the condition are load-bearing.** Requiring the path's row to be RETIRED
+        # is what keeps an ordinary pending edit out: a sidecar whose id was changed but not yet
+        # synced still has an ACTIVE row at that path and is perfectly findable. And requiring a row
+        # at that path at all is what keeps the pre-commit hook out: the sidecar `sync
+        # --sidecars-only` mints has no row anywhere, its own path included.
+        if claimed_id not in known and retired_at_path.get(document) not in (None, claimed_id):
+            lost.append(document)
+
+    if not lost:
+        return Check(
+            "retired documents", Status.OK, f"{len(retired)} retired, none still in the KB"
+        )
+
+    lost.sort()
+    shown = ", ".join(lost[:3])
+    more = f" (+{len(lost) - 3} more)" if len(lost) > 3 else ""
+    return Check(
+        "retired documents",
+        Status.FAIL,
+        f"{len(lost)} document(s) are still in the KB but retired in the index: {shown}{more}",
+        "`pnk search` cannot see them. Run `pnk sync` — and if it fails, that failure is the "
+        "cause rather than a separate problem: the index is behind its own sources.",
+    )
 
 
 def _extraction_cache(manifest: Manifest, connection: sqlite3.Connection) -> Check:
@@ -544,7 +644,7 @@ def _drift_check(name: str, paths: list[str], situation: str, remedy: str) -> Ch
     return Check(name, Status.WARN, detail, remedy)
 
 
-def _index(manifest: Manifest) -> Iterator[Check]:
+def _index(manifest: Manifest, sidecars: Mapping[Path, Sidecar]) -> Iterator[Check]:
     if not manifest.index_path.exists():
         # **Naming what is missing, not only that something is.** Every check below is yielded from
         # inside this function, so an absent index silently removes them — including `links`, which
@@ -581,6 +681,7 @@ def _index(manifest: Manifest) -> Iterator[Check]:
             Status.OK,
             f"{active} active documents, {counts['chunks']} chunks",
         )
+        yield _retired_documents(manifest, connection, sidecars)
         yield _extraction_cache(manifest, connection)
         yield from _extraction_backend_drift(manifest, connection)
 

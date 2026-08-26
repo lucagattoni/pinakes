@@ -241,10 +241,17 @@ def test_every_battery_declares_how_many_mutants_it_carries() -> None:
 def test_the_committed_batteries_cover_only_tools_and_the_readme_says_so() -> None:
     """A coverage index with a hidden denominator is the thing this repository keeps catching.
 
-    Four batteries over four primary targets, every one under `tools/`. **No module under `src/`
-    has a committed battery**, and neither does any invariant in `docs/INVARIANTS.md`. That is a
-    starting point rather than a coverage claim, and the README has to say the number out loud —
-    if this test fails because `src/` finally has one, the sentence there needs updating too.
+    Seven batteries over seven primary targets. Five are under `tools/`; **two modules under `src/`
+    have one** — `src-pinakes-init.toml` since 20260825, and `src-pinakes-pairing.toml` the same
+    day, which is also the first battery to span two files. No invariant in `docs/INVARIANTS.md`
+    has one. That is a starting point rather than a coverage claim, and the README has to say the
+    number out loud — if this test fails because a new area arrived, the sentence there needs
+    updating too.
+
+    **This docstring is itself the thing the test guards against**, and it had gone stale: it read
+    *"Four batteries over four primary targets, every one under `tools/`"* while five were on disk
+    and one of them was under `src/`. The assertion below moved on; the sentence explaining it did
+    not.
     """
     primaries = {path.stem for path, _ in _batteries()}
     # Whitespace-normalised: the sentence wraps, and a substring probe that breaks on a re-wrap

@@ -1,5 +1,7 @@
 """`pnk sync` end to end, against a real index and a fake backend."""
 
+import contextlib
+import itertools
 import shutil
 import sqlite3
 import subprocess
@@ -30,7 +32,13 @@ from pinakes.extract import (
 from pinakes.ids import mint_doc_id
 from pinakes.manifest import Manifest, load
 from pinakes.sidecar import SIDECAR_SUFFIX, Sidecar
-from pinakes.sync import MAX_PROBED_PER_ROOT, SyncOptions, SyncReport, sync
+from pinakes.sync import (
+    MAX_PROBED_PER_ROOT,
+    SyncOptions,
+    SyncReport,
+    sync,
+    walk_document_paths,
+)
 
 DIM = 8
 
@@ -2625,3 +2633,192 @@ def test_a_title_edit_with_injection_off_reports_nothing(kb: Path) -> None:
     assert report.refreshed == 1
     assert report.stale_prefixes == []
     assert not any("title changed" in line for line in report.lines())
+
+
+def test_a_retired_row_no_longer_blocks_a_new_id_at_its_own_path(kb: Path) -> None:
+    """A sidecar whose id no longer matches the row at its path — a merge conflict, a
+    `git checkout <sha> -- <file>.pnk.yaml`, a sidecar copied between KBs.
+
+    `pairing` retires the stale row and adopts the sidecar's id, because the sidecar is committed
+    truth for identity. A retired row keeps its `path` and `documents.path` is UNIQUE, so the
+    adoption collided with the corpse: `sqlite3.IntegrityError` escaped as a raw traceback, the
+    retired row survived it, and every later sync hit the same wall while `pnk doctor` called the
+    KB healthy at exit 0.
+    """
+    write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
+    run(kb)
+    fresh = mint_doc_id()
+    (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").write_text(f"id: {fresh}\n", encoding="utf-8")
+
+    run(kb)
+
+    rows = index(kb)
+    assert [(row["path"], row["state"], str(row["id"])) for row in rows] == [
+        ("docs/a.md", "active", str(fresh))
+    ]
+
+
+def test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row(kb: Path) -> None:
+    """Why the retiring DELETE is scoped to `state = 'deleted'`, with the reachable case named.
+
+    Renaming two documents past each other makes `pairing` emit two `Adopt`s whose paths cross, so
+    at the moment the first is applied an **active** row holds the path it wants. That is a genuine
+    collision and must be reported. Widening the DELETE to retire whatever holds the path lets the
+    first adoption proceed by destroying the live row instead — and every action commits on its
+    own, so when the second half then fails to index (here, a file that is not UTF-8) the row it
+    would have restored is simply gone. Measured with the scope removed: `pnk sync` exits **0**,
+    `docs/b.md` sits on disk with its sidecar and **no row at all**, and because there is no
+    retired row to find, `pnk doctor`'s own check for this cannot see it either.
+
+    **The sync's own outcome is deliberately not asserted.** The collision it raises on belongs to
+    a separate defect with its own fix; what this test pins is that no live document loses its row,
+    which must hold however that defect is settled.
+    """
+    write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
+    write(kb, "b.md", "# Beta\n\nBeta body here.\n")
+    run(kb)
+    docs = kb / "docs"
+    for one, two in (("a.md", "b.md"), (f"a.md{SIDECAR_SUFFIX}", f"b.md{SIDECAR_SUFFIX}")):
+        (docs / one).rename(docs / "_swap")
+        (docs / two).rename(docs / one)
+        (docs / "_swap").rename(docs / two)
+    (docs / "b.md").write_bytes(b"# Alpha\n\n\xff\xfe is not utf-8\n")
+
+    with contextlib.suppress(sqlite3.IntegrityError):
+        run(kb)
+
+    # `index()` returns every row whatever its state, so asserting membership alone would be
+    # satisfied by a soft-deleted row — a document that has left `pnk search`, which is the loss
+    # this whole increment is about. The state is the assertion.
+    surviving = {Path(str(row["path"])).name for row in index(kb) if row["state"] == "active"}
+    assert surviving == {"a.md", "b.md"}
+
+
+def test_the_population_walk_never_opens_a_document(kb: Path, monkeypatch: Any) -> None:
+    """`walk_document_paths` answers *which* documents this KB collects, and `pnk doctor` is its
+    only caller — the command you run when the KB is already broken. Opening files there would
+    import the walk's own unreadable-file failure into the diagnostic.
+
+    **All three of the skips are asserted, because two of them were not.** `_documents_only` skips
+    the document hash, the sidecar pass and the unmatched-file probe, and the first version of this
+    test could only see the first: its KB had never been synced, so there were no sidecars for the
+    second pass to read, and no unmatched file for the third to open. Two clauses could be deleted
+    with the whole suite green. The KB is synced here so sidecars exist, and it carries a file no
+    `include` pattern matches so the probe has something to reach for.
+    """
+    write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
+    write(kb, "b.md", "# Beta\n\nBeta body here.\n")
+    run(kb)
+    (kb / "docs" / "notes.rst").write_text(
+        "Not matched by any include pattern.\n", encoding="utf-8"
+    )
+    assert list((kb / "docs").glob(f"*{SIDECAR_SUFFIX}")), (
+        "the sidecar pass needs something to read"
+    )
+
+    def hashed(path: Path) -> str:
+        raise AssertionError(f"the population walk hashed {path}")
+
+    def probed(path: Path) -> bool:
+        raise AssertionError(f"the population walk probed {path}")
+
+    monkeypatch.setattr("pinakes.sync.hash_file", hashed)
+    monkeypatch.setattr("pinakes.sync._indexable", probed)
+
+    assert walk_document_paths(load(kb)) == {"docs/a.md", "docs/b.md"}
+
+
+def test_a_paid_document_renamed_onto_a_retired_path_is_indexed(kb: Path, fake_paid: str) -> None:
+    """The same collision on the *other* writer, which the first version of this fix missed.
+
+    A paid-extracted, content-unchanged PDF that moves is not re-extracted: its chunks and vectors
+    are already correct, so `_reindex_paid_document_in_place` moves the row's bookkeeping and
+    nothing else. That writer sets `documents.path` too, and it had no retiring DELETE of its own —
+    so renaming a paid document onto a path a retired row still held raised
+    `sqlite3.IntegrityError` exactly as the free path used to, on a KB whose only distinguishing
+    feature was that someone had paid for the extraction.
+
+    Found by an adversarial probe that wrote the free case as its own control: the control passed
+    and this did not, which is what made it a finding rather than a guess.
+    """
+    _add_pdf_support(kb)
+    (kb / "docs" / "a.pdf").write_bytes(b"alpha bytes")
+    (kb / "docs" / "b.pdf").write_bytes(b"beta bytes")
+    assert run(kb, extract=fake_paid).embedded == 2
+
+    # b.pdf goes away, so its row is retired while still holding `docs/b.pdf`.
+    (kb / "docs" / "b.pdf").unlink()
+    (kb / "docs" / f"b.pdf{SIDECAR_SUFFIX}").unlink()
+    run(kb)
+
+    # a.pdf is renamed onto that very path, its sidecar travelling with it.
+    (kb / "docs" / "a.pdf").rename(kb / "docs" / "b.pdf")
+    (kb / "docs" / f"a.pdf{SIDECAR_SUFFIX}").rename(kb / "docs" / f"b.pdf{SIDECAR_SUFFIX}")
+
+    run(kb)  # free effective backend, so the paid in-place writer is what runs
+
+    rows = [(row["path"], row["state"]) for row in index(kb)]
+    assert rows == [("docs/b.pdf", "active")]
+
+
+def test_a_moved_sidecar_never_leaves_a_document_without_a_row(kb: Path) -> None:
+    """End to end, because this one exited 0 while losing a document and only a real sync shows it.
+
+    `a.md`'s sidecar is moved onto `b.md`. `pair()` used to emit `RefreshMetadata` for that id at
+    `a.md` and `Adopt` for the same id at `b.md`; applying both moved the row to `b.md` and left
+    `a.md` on disk with no row — no failure recorded, exit 0, gone from `pnk search`. `origin/main`
+    raised `IntegrityError` on the same input instead, so this was a loud failure turned silent,
+    which is the exact regression that condemned the previous attempt at this fix.
+    """
+    write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
+    write(kb, "b.md", "# Beta\n\nBeta body here.\n")
+    run(kb)
+    travelling = (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").read_text(encoding="utf-8")
+    (kb / "docs" / f"b.md{SIDECAR_SUFFIX}").unlink()
+    (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").unlink()
+    (kb / "docs" / f"b.md{SIDECAR_SUFFIX}").write_text(travelling, encoding="utf-8")
+
+    run(kb)
+
+    active = {Path(str(row["path"])).name for row in index(kb) if row["state"] == "active"}
+    assert active == {"a.md", "b.md"}, "a document on disk lost its row"
+
+
+def test_no_pure_rename_ever_leaves_the_index_half_written(kb: Path) -> None:
+    """Every way three documents' names can be permuted, end to end.
+
+    Five of the six permutations still raise — `documents.path` is UNIQUE and the adoptions cross,
+    which is the collision this increment leaves to its own fix. What it does guarantee is that the
+    raise costs nothing: the plan is no longer self-contradictory, so nothing has been applied by
+    the time it fails. On `origin/main` the same swap commits a `SoftDelete` first and leaves a
+    document retired, which is a KB that has silently lost something to a command that crashed.
+
+    Scoped to a **pure** rename deliberately — no document added or deleted in the same sync. Mix a
+    deletion in and its `SoftDelete` commits before the collision is reached, on both sides.
+    """
+    names = ("a.md", "b.md", "c.md")
+    bodies = {name: f"# {name}\n\nBody of {name} with enough words.\n" for name in names}
+    for permutation in itertools.permutations(names):
+        if permutation == names:
+            continue
+        for name in names:
+            write(kb, name, bodies[name])
+        run(kb, rebuild=True)
+        before = {str(r["path"]): (str(r["id"]), str(r["state"])) for r in index(kb)}
+
+        docs = kb / "docs"
+        staging = docs / "_perm"
+        staging.mkdir()
+        for name in names:
+            (docs / name).rename(staging / name)
+            (docs / f"{name}{SIDECAR_SUFFIX}").rename(staging / f"{name}{SIDECAR_SUFFIX}")
+        for source, target in zip(names, permutation, strict=True):
+            (staging / source).rename(docs / target)
+            (staging / f"{source}{SIDECAR_SUFFIX}").rename(docs / f"{target}{SIDECAR_SUFFIX}")
+        staging.rmdir()
+
+        with contextlib.suppress(sqlite3.IntegrityError):
+            run(kb)
+
+        after = {str(r["path"]): (str(r["id"]), str(r["state"])) for r in index(kb)}
+        assert after == before, f"{permutation}: the index was written before the sync failed"
