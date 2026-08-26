@@ -26,7 +26,11 @@ test, or write **none** and say why in the same commit.
   creates: 904 rows, 45 distinct increment ids** — **not enumerated here on purpose.** A range
   like *I1–I11* reads as a claim that every id in it has a row, and four do not (I10, T6, E2 and E6
   have none; T6 is the deferred `sqlite-vec` tier, so it *cannot*), while `L5b` is real and no range
-  contains it. **Count them with the gate's filter rather than trusting a range**, **naming 63 of the 74 test modules in `tests/`.** The parent
+  contains it. **Count them with the gate's filter rather than trusting a range**, **naming 63 of the 75 test
+  modules in `tests/`** (re-measured 20260826 06:32 UTC at `a36f0e6`; the denominator was 74 until
+  `tests/test_review_pass_gate.py` landed **carrying no row**, and **nothing goes red when a test
+  module arrives without one** — `tests/test_verification.py` fails on a name that does not
+  resolve, never on a module that is absent). The parent
   `03e6f86` measured 890 and 44; **this change is what moved them**, by adding the fourteen
   server-boundary rows below — stated because a count restated from the parent commit would have been
   falsified by the very edit that restated it. An earlier version of this paragraph said

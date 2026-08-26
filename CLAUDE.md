@@ -190,8 +190,8 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   again 20260825**; both times a peer caught it and no gate did. **On 20260826 it recurred one level
   in**: [`plans/20260825_1252-plans-sweep-findings.md`](plans/20260825_1252-plans-sweep-findings.md)
   holds **two registers of the same facts**, the pass that answered eight decisions updated the
-  bullets and not the 27-row table — **eleven rows wrong for twelve hours**, and row 1 reading
-  *S2 · LIVE · blocked on nothing* from S2's landing until a planner happened to look. **So: where a
+  bullets and not the 27-row table — **twelve of its 27 rows stopped describing the tree**, and row
+  1 read *S2 · LIVE · blocked on nothing* from S2's landing until a planner happened to look. **So: where a
   dated snapshot and a `## Build order` disagree,
   the build order wins.** **Read an item's body before building it**, and read an empty list as
   *nobody has run Pinakes lately*. **An item that reads as a decision may only be an unchecked

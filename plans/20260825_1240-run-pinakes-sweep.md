@@ -389,9 +389,10 @@ landed while this pass was being written and changed no file in `plans/` or `doc
 re-derived by command rather than carried forward, and the rows for S16, S18 and D-36's schedule did
 not exist before that pass. **Where this table and the *Actionable* table in
 [`20260825_1252-plans-sweep-findings.md`](20260825_1252-plans-sweep-findings.md) disagree, this one
-wins.** That one is a dated snapshot, not a queue: eleven of its rows had been wrong since the
-decisions were taken at **20260825 18:16** — twelve hours — and it said *S2 · LIVE · blocked on
-nothing* from S2's landing at **04:06** until this pass at **06:19**.
+wins.** That one is a dated snapshot, not a queue: eleven of its rows — eight reading *LIVE*, three
+*UNCLEAR* — were falsified by dispositions stamped between **20260825 12:52 and 20260826 04:35**,
+and none of them reached it. It said *S2 · LIVE · blocked on nothing* from S2's landing at **04:06**
+until this pass at **06:19**.
 
 | # | Item | Blocked on | Owner |
 |---|---|---|---|
@@ -441,6 +442,7 @@ decision's content.**
 |---|---|---|---|
 | **`_toml.py`'s unknown-key remedy** — offer the second hypothesis (*this manifest may have been written by a newer Pinakes: upgrade, or ask its author to declare `[kb] requires_pinakes`*) and repoint from `docs/DESIGN.md §2.1` — which delegated its field tables to `docs/MANIFEST.md` in 0.2.1 — to `docs/MANIFEST.md`. **Pin the new sentence with a test.** Forward-only, and that is its honest cost: it changes the *reading* build, so no window already open is helped | [`20260805_1313-decisions-init-titles-and-grammar.md`](20260805_1313-decisions-init-titles-and-grammar.md) | nothing — answered 20260825 18:16 (E+F) | coder |
 | **The re-extraction loop's deferral trigger** — ⏸ DEFERRED 20260825 18:16 **with a trigger**, and the trigger's home is `src/pinakes/extract/audit.py`'s **docstring**, read by whoever would build it, rather than a roadmap row read by a sweeper. **The text is dictated by the planner and pasted unchanged** (§ *Content mine, keystrokes yours*). **Verified 20260826: the docstring does not carry it yet** | [`20260727_1543-v0.2.md`](20260727_1543-v0.2.md) decision 12 / I7c | nothing — the planner owes the text, then the coder pastes it | planner → coder |
+| **`docs/VERIFICATION.md` rows for `tests/test_review_pass_gate.py`** — it landed in `a36f0e6` **carrying no row**, and under D-34 *a gate's own correctness is a promise*, so it owes them. **No gate catches this**: `tests/test_verification.py` fails on a name that does not resolve, never on a module that is absent, so the denominator moved from 74 to 75 in silence. Not the coder's narrow exception — that covers only the row a test **you wrote** requires, and the session that wrote this one has ended | this file (§ *Decided work…*), raised 20260826 | nothing | planner |
 | **The G5 gate re-run** — its own three-leg gate, **no immediate-parent eighth leg**, ~2.4 h unattended CPU. **Split into halves that are separately ownable**: the coder clones the corpus, adds `headings = "numbered"`, runs `pnk sync --rebuild`, then `tools/graph_matrix.py`'s seven legs and `tools/graph_gate.py`'s three-leg gate; **the planner writes the verdict into `docs/STATUS.md` and `docs/ROADMAP.md`**. Expected result is another null, and `expand` stays `off` either way — it is worth running because a **shipped default** rests on an index where three of seven edge kinds derived zero. **Last: it blocks nothing.** If session time rather than CPU is the binding constraint, declining it is a legitimate outcome and the decision brief says so | [`20260825_1803-open-decisions.md`](20260825_1803-open-decisions.md) decision 7 | nothing | coder, then planner |
 
 ## The corpus rule does not apply

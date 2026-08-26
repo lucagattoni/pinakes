@@ -43,10 +43,11 @@ Ranked as the sweep ranked it, after both adversaries. **`user-decision` means a
 > ## 🛑 This table is a dated snapshot. **A `## Build order` is the queue.**
 >
 > **Reconciled 20260826 06:19 UTC against `main` at `c1125ef`, and twelve of these 27 rows no longer
-> described the tree.** Eleven claimed *LIVE* or *user-decision* for work that was **built, answered,
-> declined, deferred or ruled** on 20260825 between 18:16 and 18:41 — **wrong for twelve hours** by
-> the time this pass ran. A twelfth (row 14) still names an open question, but not the one that is
-> actually open. **Row 1 read `S2 · LIVE · blocked on nothing`** from S2's landing at **20260826
+> described the tree.** Eleven stated *LIVE* (eight) or *UNCLEAR* (three) for work that was **built, answered,
+> declined, deferred or ruled**. **The dispositions that falsified them are stamped between 20260825
+> 12:52 and 20260826 04:35** — that is, from the hour this file was written onward — and nothing
+> propagated any of them here. A twelfth (row 14) still names an open question, but not the one that
+> is actually open. **Row 1 read `S2 · LIVE · blocked on nothing`** from S2's landing at **20260826
 > 04:06** until **06:19** — two hours, and the number is small only because someone happened to
 > look. A freshly-cleared coder session reading it in that window rebuilds a landed increment, which
 > is not hypothetical here: it has nearly happened twice.
@@ -57,9 +58,19 @@ Ranked as the sweep ranked it, after both adversaries. **`user-decision` means a
 > them disagree. It is this file's own finding one level in: a heading is a status claim that nothing
 > gates, and **so is a table cell**.
 >
-> **Where this table and a build order disagree, the build order wins.** Rows here carry a
-> disposition and a pointer, never a queue position. When an item gains a build-order row, **that row
-> becomes its home** and this one stops being maintained.
+> **Where this table and a build order disagree, the build order wins.** When an item has a
+> build-order row, that row is its home, this row carries only a disposition and a pointer, and this
+> one stops being maintained.
+>
+> **But eight rows have no build-order row anywhere, and for those this table is still the
+> register** — **12, 13, 14, 17, 22, 24, 26, 27**. Verified 20260826: none of their owning plans
+> (`20260807_2143-docs-audit-findings.md`, `20260804_1016-template-release.md`,
+> `20260803_2239-corpus-probe-run.md`, `20260801_0749-realism-corpus.md`,
+> `20260804_1016-staged-channel-gates.md`) carries a `## Build order` at all. **Four of them — 12,
+> 13, 14 and 22 — are planner work blocked on nothing**, which is the same *owner without a queue
+> position* this pass exists to close, one register further out. **It is named here rather than
+> closed**: rowing 34 documentation findings into a queue would make the queue useless, and deciding
+> how to schedule them is a planner pass of its own that has not happened.
 
 | # | Where | What | Status | Blocked on | Owner |
 |---|---|---|---|---|---|

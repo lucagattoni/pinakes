@@ -7,9 +7,9 @@ the smaller half.
 `plans/20260825_1252-plans-sweep-findings.md` carries a 27-row *Actionable* table with **Status,
 Blocked-on and Owner** columns, and a § *Open questions* list of thirteen bullets. They describe the
 same decisions. The 20260825 18:16–18:41 pass updated the bullets, inline, carefully — and never
-touched the table. **Twelve of the 27 rows stopped describing the tree**, eleven of them claiming
-*LIVE* or *user-decision* for work that was built, answered, declined, deferred or ruled that
-evening. This is the repository's own recorded failure — *a `##` heading is a status claim and
+touched the table. **Twelve of the 27 rows stopped describing the tree** — eleven of them stating
+*LIVE* (eight) or *UNCLEAR* (three) for work that was built, answered, declined, deferred or ruled
+that evening. This is the repository's own recorded failure — *a `##` heading is a status claim and
 nothing gates it* — moved one level in, **into a table cell**, where reading the item's body does not
 help because the body is the cell. **The fix is not to maintain both.** It is to say which one wins:
 a dated snapshot carries a disposition, a `## Build order` carries the queue, and where they
