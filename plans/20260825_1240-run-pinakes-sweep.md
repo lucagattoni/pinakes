@@ -1,8 +1,17 @@
 # Running Pinakes found defects that reading it did not
 
-**This title deliberately carries no count.** It said *fifteen*, then S16 arrived and falsified it in
-both entry points, then S17 arrived and falsified it again — twice inside two days. **The live tally
-is the section headings below** (High, Medium, Low), and as of 20260825 23:06 it is **seventeen**.
+**This title deliberately carries no count, and neither do the section headings — because the counts
+in this file have never reconciled.** The title said *fifteen*; S16 falsified it in both entry points,
+S17 falsified it again, and checking the arithmetic on 20260826 03:55 found the section headings were
+already wrong independently of that: *High — three* stood over **four** entries (S16 was filed there
+without updating it), and *Low — five* is a prose sentence naming **four** classes.
+
+**What is countable, and is therefore all this file asserts: thirteen numbered findings — S1–S9,
+S16, S17, S18, S19.** There is no S10–S15; the Low section describes its findings in prose rather
+than numbering them, which is why no total in this file has ever been reproducible. **Do not quote a
+total from here, and do not add one** — count the numbered findings, or say "the Low section's
+classes" and leave them uncounted. Fixing the taxonomy properly means deciding whether an unnumbered
+prose class is one defect or several, and **that is a decision nobody has taken.**
 
 **Written 20260825 12:40 UTC against `main` at `c2c69cb`.** Produced by a coder session sweeping seven
 command surfaces with fourteen agents, each finding re-run from a clean directory by a verifier
@@ -32,7 +41,7 @@ bucket by a default branch and would have been buried. It is real. **Whatever co
 output must distinguish *refuted* from *unverified*** — that is a defect in the harness, not in the
 finding, and it is written down here so the next sweep does not repeat it.
 
-## High — three
+## High
 
 ### S1 ‡† `pnk sync` aborts the entire index on one unreadable file
 
@@ -101,7 +110,7 @@ turned this crash into a **green sync that silently loses a document**. The code
 into `pairing` — do not emit `SoftDelete(id)` when the same plan `Adopt`s that id — which is a pure
 function and testable exhaustively. **Read S2's status before touching this.**
 
-## Medium — seven
+## Medium
 
 | # | Surface | Finding |
 |---|---|---|
@@ -160,7 +169,54 @@ only wrong because the behaviour it promises does not exist. Fixing only the str
 S16 and needs its own increment. Each failed sync appends another identical failure row (4 after four
 runs), so the ledger grows without bound while the state never changes.
 
-## Low — five
+### S18 † — a restored paid document is refused forever, and the reason it prints is false
+
+**Found by the coder 20260826 while adversarially reviewing S2. Pre-existing on `origin/main`;
+neither term is touched by any branch in flight.** Severity **MEDIUM**.
+
+**Provenance, stated because this file's own § *Provenance* says the markers are not uniform.** The
+planner **verified the code claim directly on `origin/main`** and did *not* reproduce it end to end —
+that requires a paid-extracted document and a paid backend. **The end-to-end behaviour is the coder's
+reproduction, not the planner's.** Weigh it accordingly.
+
+`src/pinakes/pairing.py:244` reads
+
+    hash_changed = document.content_hash != file.content_hash or document.state == DELETED
+
+**The second disjunct forces `hash_changed` True for any retired row, including one whose file is
+byte-identical to what was indexed.** If that row's `extraction_backend` is paid and the run is free,
+`:249-256` then emits `PaidExtractionRequired` — so **a paid document deleted and restored unchanged
+is never resurrected**, and `src/pinakes/sync.py:1331` tells the user it was extracted with the paid
+backend *"but its content changed."* **It did not.** The remedy the tool prints asks them to spend
+money re-extracting a file that has not moved a byte.
+
+**Why the disjunct is there matters for the fix**: the comment at `:250-251` states the intent —
+*"never silently keep indexing text a changed file no longer matches"* — which is about a **changed**
+file. A retired row is being treated as a changed file to reuse one branch. The fix must keep the
+paid-protection clause and stop conflating *retired* with *changed*, so this is not a one-token edit.
+
+### S19 † — `pair()` produces an inapplicable order for renames that are NOT cycles
+
+**Found by the coder 20260826, reproduced by them on `origin/main`. Pre-existing.** Severity
+**MEDIUM**, and **it changes the scope of S16 rather than sitting beside it.**
+
+**S16's known-deferred case is a *cycle*** — a swap, where no ordering works without a temporary
+path. **This is different and worse-scoped: the same `IntegrityError` fires on rename walks that are
+not cyclic and for which a valid order does exist. `pair()` simply does not compute one.** The
+same-path loop emits its `Adopt` at each surviving path in walk order (sorted by path) while the
+adoption loop emits the moves afterwards, so **an `Adopt` onto a freed name can be emitted before the
+`Adopt` that frees it** — an ordering the database rejects and a correct implementation would have
+avoided.
+
+**🛑 CONSEQUENCE FOR THE S16 INCREMENT, and this is why it is filed here rather than later: fixing
+cycles alone does not fix this class.** A build-order row reading *"make swaps work"* **under-scopes
+it**. S16's fix must **order the applicable plans**, not only detect and break the inapplicable ones.
+
+**Provenance:** the planner has **not** independently reproduced S19; the ordering argument was read
+against `pairing.py` and is consistent with the S16 and S17 reproductions the planner did run, but
+**the claim that it fires on non-cyclic walks is the coder's measurement.**
+
+## Low
 
 Symlink loop invisible to both `sync` and `doctor` (**verifier downgraded high → low**: a loop resolves
 to no content, which is ordinary Unix semantics); `-k 0` silently ignored on both `search` and `ask`;
