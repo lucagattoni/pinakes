@@ -121,6 +121,46 @@ function and testable exhaustively. **Read S2's status before touching this.**
 | **S8** ‡ | `search` | Negative `-k` is passed through as a **raw Python negative-slice bound**: `-k -1` returns 19 passages, `-k -100` prints `no passages matched.` at **exit 0** |
 | **S9** ‡ | `ask` | `pnk ask -k -1` raises an **unhandled traceback** from `deep/estimate.py:456`. Held at medium because it is loud and immediate rather than silent |
 
+### S2's abandoned first attempt — what it established, preserved before the branch is deleted
+
+**`origin/20260825_1243-s2-silent-index-loss` was superseded: none of its code landed, and the S2
+fix on `main` was written from scratch.** Its tip `508c61d` is a DO-NOT-LAND note carrying nine
+review findings. **Code that never landed leaves no trace in the tree, so this is transcribed here
+20260826 04:12 rather than lost when the branch is removed.** The defects it lists are fixed or
+irrelevant; what is kept below is only what a future session would otherwise **re-derive**.
+
+**Why the branch was condemned, in one line:** its fix turned a loud crash into **silent index
+loss** on an ordinary `git mv` swap — `sync` exited 0 reporting *"2 renamed, 2 removed"* while
+`docs/a.md` ended `state='deleted'` with zero chunks. **`check.sh` was green.** That is the whole
+argument for the note: a fresh session reading a green gate would have landed a regression.
+
+**🔁 WHAT SURVIVED ADVERSARIAL ATTACK — do not re-derive these.** All still true of the landed fix:
+
+- **The scoped `DELETE` destroys nothing irreplaceable.** `links` has no FK to `documents`; the
+  dangling-link check and the coverage ratio already join `state='active'`, so a soft-deleted row
+  and an absent row are **indistinguishable to them**. The `chunks` CASCADE is a no-op — a
+  soft-deleted row has no chunks. The extraction cache is content-hash keyed and untouched, and the
+  ledger is append-only.
+- **Paid-extraction provenance lives in the SIDECAR**, not the row, and survived every sequence
+  tried.
+- **Resurrection is intact:** delete-then-return keeps the same id, **because the sidecar is the
+  identity and the row is not.**
+- **No false positive** on: a never-synced KB, nested or multiple `[sources]` roots, an excluded
+  `drafts/`, an orphaned sidecar before re-sync, or a broken-symlink document.
+
+**⚠️ Two methodological findings worth more than the defects, both now landed as practice:**
+
+1. **A test can pass with the entire fix removed.** `test_an_active_row_holding_the_path_under_another_id_still_conflicts`
+   never called `_index_document` — it hand-inserted a row and asserted a raw SQL `UPDATE` raised.
+   **That tests SQLite, not Pinakes**, and it was green against the mutant it existed to kill.
+2. **A published timing number failed re-measurement twice.** The first attempt was measured at
+   **2.25×** slower; the replacement was reported as *free* (0.822 s → 0.818 s) and, on re-running
+   with the two builds **alternated against one KB** instead of once each in separate worktrees,
+   is **+12.1% and +16.8%**. **Sequential runs across two worktrees drift by more than the effect.**
+
+**Not preserved here:** the four `doctor` defects and the rework plan, all of which landed and are
+therefore readable in `main`'s history and in `retro.d/`'s S2 fragment.
+
 ### S17 † — `pnk sync` prints a remedy that never works, and the document stays out of the index
 
 **Found 20260825 by the coder while adversarially reviewing S2; a dead agent's probe file recovered it.
