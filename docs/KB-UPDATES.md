@@ -231,7 +231,7 @@ full clone, and **says so when it has been skipped** — a skip is not a pass.
 - Small follow-up: the unknown-key remedy still points at `docs/DESIGN.md §2.1`, whose field tables
   moved to [MANIFEST.md](MANIFEST.md) in 0.2.1. **It should also offer the second hypothesis** — that
   the manifest may have been written by a newer Pinakes — because today it only ever suggests a typo.
-- **The one-key instance of the first question, folded in here 20260825 18:16.** A 20260805 decision
+- **The one-key instance of the first question. Decided by the user 20260825 18:16; folded in here 18:46.** A 20260805 decision
   proposed that shipping a new `[chunking]` value must set a `requires_pinakes` floor. **It is
   superseded rather than withdrawn**, and it belongs under this heading because the general question
   above is older than it and still open. Its premise failed: **nothing writes the floor.** **D-11**

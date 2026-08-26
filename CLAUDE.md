@@ -156,15 +156,16 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
 - **🛑 Two plans have scheduled work, and it is now all coder work — every decision is taken.**
   The **eight decisions and fifteen questions** in
   [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md) were **ANSWERED by
-  the user 20260825 18:16**, and the planner's half of them landed between **20260825 18:39 and 23:21 UTC**: D-34 closed
+  the user 20260825 18:16**, and the planner's half of them landed **20260825 18:39–18:56 UTC**, with later records and corrections through 20260826: D-34 closed
   (*promises only*, plus the audit that rowed 14 unrowed promises in `tests/test_serve.py`), arity
   requirement 3 closed, the three residues ruled, the `requires_pinakes` clause closed-superseded,
   `expect_green` declined, and the re-extraction loop and the `fragments.py` widening both deferred
-  behind **written triggers**. **The coder half of D-31/32/33, D-36 and D-37 *is* scheduled** — those
-  are build-order rows in the two plans above, owner `coder`. **What has no row and no owner anywhere
-  is the G5 gate re-run** (its own three-leg gate, ~2.4 h, blocks nothing) and the `_toml.py`
-  unknown-key message. Unowned work is how the gate re-run aged 21 days, so it is named here rather
-  than left to a sweep.
+  behind **written triggers**. **D-31/32/33 and D-37 have build-order rows owned by `coder`.** **D-36
+  does not** — its row still reads *"user, then split"* and names the pre-decision options that
+  option E replaced, so its build is decided but **unscheduled**. **The `_toml.py` unknown-key message
+  has an owner** (the 20260805 plan assigns it to the coder) **but no row**. **The G5 gate re-run has
+  neither** — no row, no owner, anywhere. Unowned work is how it aged 21 days, so it is named here
+  rather than left to a sweep.
   [`plans/20260825_0749-exposure-and-silent-status.md`](plans/20260825_0749-exposure-and-silent-status.md)
   — **§ X1 is built and on `main`**; **D-35 was answered 20260825 12:37**, which unblocks **§ X7**
   (three layers, and *not* what that plan first proposed — read the section, not the memory of it);

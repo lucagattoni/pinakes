@@ -23,16 +23,19 @@ test, or write **none** and say why in the same commit.
   wrong (the completeness audit's). Treat a row as a strong pointer, not a proof.
 * **The scope began as `plans/20260727_1543-v0.2.md`'s promises**, which is what the table this
   replaces covered, and has grown with the work since. **Re-measured 20260825 18:38 UTC, on the tree this commit
-  creates: 904 rows, 45 distinct increment ids** (I1–I11, I13, L1–L8, G1–G6, T1–T7, E1–E7, D-16,
-  `0.7.1` and a large `fix` class), **naming 63 of the 74 test modules in `tests/`.** The parent
+  creates: 904 rows, 45 distinct increment ids** — **not enumerated here on purpose.** A range
+  like *I1–I11* reads as a claim that every id in it has a row, and four do not (I10, T6, E2 and E6
+  have none; T6 is the deferred `sqlite-vec` tier, so it *cannot*), while `L5b` is real and no range
+  contains it. **Count them with the gate's filter rather than trusting a range**, **naming 63 of the 74 test modules in `tests/`.** The parent
   `03e6f86` measured 890 and 44; **this change is what moved them**, by adding the fourteen
   server-boundary rows below — stated because a count restated from the parent commit would have been
   falsified by the very edit that restated it. An earlier version of this paragraph said
   the table *"stopped"* at 0.12.0 and that the gap was *"four releases wide"*; both were true when
   written and neither has been true for a long time. **Do not restate a release count here** — it
   goes stale silently, which is what happened. State what was measured and when — **and count the rows
-  the way the gate does**: an earlier version of this paragraph said 923, which counted the 33 table
-  headers `tests/test_verification.py` skips. **The module figure had rotted the same way and worse**
+  the way the gate does**: an earlier version of this paragraph said 923, which counted the table
+  headers `tests/test_verification.py` skips — 33 of them at the time, 34 now that the section below
+  added one, which is the same moving-denominator trap one layer down. **The module figure had rotted the same way and worse**
   — it said *62 of the 67*, wrong on both halves; there are 74 modules and 63 carry a row. Count them
   with the gate's own `REFERENCE` regex, not by searching the file for a filename: the eleven unnamed
   module names are spelled out in the bullet directly below, so a substring test over this file scores
