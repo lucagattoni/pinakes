@@ -894,3 +894,86 @@ def test_every_plan_in_this_file_is_applicable_except_the_cycle() -> None:
         )
         assert places_each_id_once(result), f"{name}: one id at two paths"
         assert retires_before_adopting(result), f"{name}: adopted before retiring"
+
+
+def test_actions_under_no_constraint_keep_their_order_inside_a_plan_that_has_one() -> None:
+    """Stability **where it can actually be observed** — and this test exists because the one above
+    it could not observe it.
+
+    `test_a_move_onto_a_name_nobody_holds_is_not_reordered` uses a plan with no constraints at all,
+    and a plan with no constraints never reaches the topological sort: the pass returns the list
+    untouched before it starts. So a mutant that made the sort emit ready actions in arbitrary
+    order **survived that test, and survived the entire suite** — 2 221 tests — while changing the
+    output of every plan that does have a constraint. Found by running the battery, not by reading.
+
+    Here a rename shift (`b → c`, `a → b`, which must be reordered) shares a plan with two
+    untouched documents (which must not be). The whole sequence is asserted, because the property
+    is about the actions the constraint does **not** name: they are the ones a re-sort silently
+    moves, and the ones whose relative order a reader of a future diff will assume is preserved.
+    """
+    a, b, d, e = mint_doc_id(), mint_doc_id(), mint_doc_id(), mint_doc_id()
+    before = IndexSnapshot(
+        (
+            indexed(a, "docs/a.md", "ha"),
+            indexed(b, "docs/b.md", "hb"),
+            indexed(d, "docs/d.md", "hd"),
+            indexed(e, "docs/e.md", "he"),
+        )
+    )
+    result = pair(
+        before,
+        WalkSnapshot(
+            (
+                walked("docs/b.md", "ha"),
+                walked("docs/c.md", "hb"),
+                walked("docs/d.md", "hd"),
+                walked("docs/e.md", "he"),
+            ),
+            (sidecar("docs/b.md", a), sidecar("docs/c.md", b)),
+        ),
+    )
+    assert [(type(action).__name__, action.path) for action in result.actions] == [
+        ("Skip", "docs/d.md"),
+        ("Skip", "docs/e.md"),
+        ("Adopt", "docs/c.md"),
+        ("Adopt", "docs/b.md"),
+    ], "the two untouched documents changed places, so the pass is re-sorting rather than ordering"
+    assert every_write_lands_on_a_free_path(result, before)
+
+
+def test_an_orphaned_sidecar_does_not_cost_a_live_document_its_id() -> None:
+    """A sidecar whose document is gone claims an id for nothing, and must not be read as a claim.
+
+    **Found by the battery, and only because an unrelated fix took its old witness away.** The
+    mutant that widens `claimed_by_id` to include orphans used to die to an *ordering* assertion:
+    it moved a `SoftDelete` after the `Adopt` it belongs before. S16's ordering pass now repairs
+    that order globally, so the mutant became invisible — **and running it against all 2 212 tests
+    found nothing else that saw it.** A fix that enforces a property globally silently unpins every
+    test that asserted that property locally, and this is what was underneath.
+
+    What is underneath is worse than the ordering it was hiding behind. `claimed_by_id` has a
+    second reader: a file with **no sidecar of its own** whose index id turns up claimed elsewhere
+    is read as *"this row's identity has moved"*, so the path is left to be minted fresh. Let an
+    orphan count as a claim and that fires on an ordinary document sitting untouched beside a
+    stale `.pnk.yaml` — the document is re-minted under a new id while its old one is retired.
+    **That is `docs/INVARIANTS.md`'s ULID permanence**, broken by a leftover file, and every
+    inbound `pnk://` link to it dies.
+
+    So the assertion is the action *kind*, not the order: an untouched document is `Skip`ped.
+    """
+    live, orphan_claim = mint_doc_id(), mint_doc_id()
+    result = pair(
+        IndexSnapshot((indexed(live, "docs/a.md", "ha"),)),
+        WalkSnapshot(
+            (walked("docs/a.md", "ha"),),
+            # The sidecar names a document this walk did not find, and it claims the live id.
+            (sidecar("docs/gone.md", live), sidecar("docs/also-gone.md", orphan_claim)),
+        ),
+    )
+    assert [(type(action).__name__, action.doc_id) for action in result.actions] == [
+        ("Skip", live)
+    ], "an untouched document was re-identified because a stale sidecar elsewhere named its id"
+    assert result.orphaned_sidecars == ("docs/also-gone.md.pnk.yaml", "docs/gone.md.pnk.yaml"), (
+        "the orphans must still be reported — they are the evidence for the user, and reporting "
+        "them is what makes ignoring them for identity safe"
+    )
