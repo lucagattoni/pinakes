@@ -195,9 +195,16 @@ def test_the_defaults_are_this_repository_and_this_version() -> None:
     assert f"v{__version__}" in result.stdout + result.stderr, (
         "the no-flag run does not read pinakes.__version__ — the default is wired to something else"
     )
-    assert str(ROOT) in result.stdout + result.stderr or result.returncode == 0, (
-        "the no-flag run does not read this repository"
+    # **Not `... or result.returncode == 0`.** The first draft wrote it that way, and on the green
+    # branch the `or` made the whole assertion unfailable — the exact shape of check this gate
+    # replaced. A crash is what the default `--repo` actually risks (a path that resolves to no
+    # repository), and a traceback is distinguishable from a refusal in a way an exit code is not:
+    # the tool exits 1 for both.
+    assert "Traceback" not in result.stderr, (
+        f"the no-flag run crashed rather than reporting — the default --repo is wired to "
+        f"something that is not a git repository:\n{result.stderr}"
     )
+    assert result.returncode in (0, 1), f"unexpected exit {result.returncode}: {result.stderr}"
 
 
 def _recipe(target: str) -> str:
@@ -234,11 +241,16 @@ def test_make_release_check_runs_the_gate_rather_than_describing_it() -> None:
     )
 
 
-def test_the_release_check_help_string_no_longer_promises_more_than_it_does() -> None:
+def test_the_release_check_help_string_and_its_recipe_are_pinned_together() -> None:
     """`make help` prints the `##` string, and that string is what a release operator reads. It
     said *"Verify the git tag you are about to push matches pinakes.__version__"* over three
-    `echo`s for the life of the target. The claim is only allowed to survive because the recipe
-    above now makes it true, so the two are pinned together."""
+    `echo`s for the life of the target.
+
+    **No test can check that a help string does not over-promise** — that is a claim about English.
+    What it can check is the pair: the string still exists (delete it and `make help` stops listing
+    the target at all), and the recipe beside it still runs the gate. Held together in one test so
+    neither can move without the other being read. An earlier name for this test asserted the
+    unpromising part, which is the kind of claim this repository keeps finding in its own gates."""
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     match = re.search(r"^release-check:.*?##\s*(?P<help>.+)$", makefile, re.MULTILINE)
     assert match is not None, (

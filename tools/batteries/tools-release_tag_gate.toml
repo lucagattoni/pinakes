@@ -21,7 +21,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 10
+mutants = 12
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260826 · `make release-check` made real
@@ -144,3 +144,27 @@ file = "tools/release_tag_gate.py"
 old = '''    print(f"release-tag: nothing else stands before the publish. Next: git push {remote} {tag}")'''
 new = '''    print("release-tag: nothing else stands before the publish.")'''
 kills = "tests/test_release_tag_gate.py::test_a_matching_annotated_unpushed_tag_passes"
+
+# The last two arrived from this increment's own adversarial review, and they exist because the
+# review found the test they kill had an escape hatch: it read
+# `assert str(ROOT) in output or result.returncode == 0`, and the `or` made it unfailable on the
+# green branch — the exact shape of check this whole increment replaced. These pin the **default
+# arguments**, which every other test in the file supplies and therefore leaves unreached.
+
+[[mutant]]
+name = "the default --repo stops being this repository, and every fixture-driven test stays green"
+file = "tools/release_tag_gate.py"
+old = '''REPO = Path(__file__).resolve().parent.parent'''
+new = '''REPO = Path("/nonexistent-release-tag-gate-probe")'''
+kills = "tests/test_release_tag_gate.py::test_the_defaults_are_this_repository_and_this_version"
+
+[[mutant]]
+name = "the default expected version is hard-coded rather than read from the package"
+file = "tools/release_tag_gate.py"
+# The seam's own failure mode: nine tests pass `--expect-version`, so a default wired to a literal
+# is invisible to all of them and the gate would compare every future release against 0.0.0.
+old = '''        default=__version__,
+        help="the version the tag must name (default: pinakes.__version__)",'''
+new = '''        default="0.0.0",
+        help="the version the tag must name (default: pinakes.__version__)",'''
+kills = "tests/test_release_tag_gate.py::test_the_defaults_are_this_repository_and_this_version"

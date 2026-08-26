@@ -34,6 +34,16 @@ tag is pushed is red, by construction, and says why.
 would be red on every commit in the repository. Its correctness is held by
 `tests/test_release_tag_gate.py`, which `check.sh` runs through `pytest` like any other test.
 
+**What it does NOT check, named so nobody reads the silence as coverage.** It never asks whether
+`HEAD` is on the remote's default branch. A tag on an unpushed commit passes every leg here, and
+pushing that tag hands the publishing workflow bytes that are on no branch — the tag carries its
+own objects. The check was considered and left out on purpose: every offline form of it is wrong
+(a remote-tracking ref is as stale as the last fetch, and the remote's tip may legitimately be an
+object this clone does not have), and the version that is correct has to fetch, which makes a
+release gate mutate local state and go red for *being behind* — a state that is not a publish
+hazard. The procedure covers it instead: `docs/RELEASING.md` steps 4 and 5 land and push before
+step 6 creates the tag, and `tools/land.py` is what pushes.
+
 `--repo`, `--expect-version` and `--remote` exist for those tests, which build a real repository
 with a real (local, bare) remote rather than faking git. With no flags it reads this repository
 and `pinakes.__version__`, which is the run `make release-check` performs.
