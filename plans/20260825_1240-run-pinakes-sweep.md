@@ -88,6 +88,27 @@ is itself the point: *the review of a fix found a defect the fix was not about.*
                                          #   UNIQUE constraint failed: documents.path
                                          #   raised by _index_document's INSERT (line moved twice; grep it)
 
+**RE-REPRODUCED 20260826 06:49 UTC by the planner, and this second run is the one that matters.** The
+reproduction above ran on `main` at `32442db` — **20260825 18:18, which is *before* S2's fix landed**
+(`3876b57`, 20260826 04:06). That mattered because **S2's fix cured S17 as a side effect**, so
+whether it also cured S16 was an open question that nobody had asked and no record answered.
+`CLAUDE.md` meanwhile claimed *"reproduced on `main` 20260826"*, which **nothing in this file
+supported**.
+
+It is still live. Re-run against a `src/` tree **byte-identical to `origin/main` at `a4a754a`**
+(`git rev-parse HEAD:src` equal on both), free path, `light` backend, scratch KB outside the repo,
+all three failures intact:
+
+- `pnk sync` — **exit 1**, raw traceback, `sqlite3.IntegrityError: UNIQUE constraint failed:
+  documents.path`, raised at `src/pinakes/sync.py:2411` in `_index_document`
+- `pnk search "Beta gadgets"` — **exit 0**, first hit `docs/b.md — Beta` quoting *"Beta content about
+  gadgets"*, while `b.md` **on disk** begins `# Alpha`
+- `pnk doctor` — **exit 0**, every row `OK`, including **`OK failures: none recorded`**
+
+**The lesson is S17's, and it is why this was checked rather than assumed:** a defect recorded
+against a moving tree needs its sha, and *"still live"* written on one day is a claim about that day
+only. This one survived; S17 did not, and both were recorded the same way.
+
 **Three separate failures, and the third is the worst.**
 
 | | |
@@ -397,7 +418,7 @@ until this pass at **06:19**.
 | # | Item | Blocked on | Owner |
 |---|---|---|---|
 | 1 | ~~**S2** — silent index loss behind a green `doctor`~~ — **BUILT.** Landed `3876b57` 20260826 04:06 UTC; text corrections `325ab9e` 04:35. Verify by opening `src/pinakes/doctor.py:463 _retired_documents`, not by reading this row | — | coder |
-| 2 | **S16** — a two-file rename swap crashes `sync` and leaves the index describing the wrong file. **Scoped by S19: the fix must *order* the applicable plans, not only detect and break the inapplicable ones.** S19's non-cyclic half has **never been independently reproduced** — build the control for it before building to it | nothing | coder |
+| 2 | **S16** — a two-file rename swap crashes `sync` and leaves the index describing the wrong file. **Re-reproduced 20260826 06:49 UTC against `origin/main`'s exact `src/` (`a4a754a`), after S2's fix — all three failures intact.** **Scoped by S19: the fix must *order* the applicable plans, not only detect and break the inapplicable ones.** S19's non-cyclic half has **never been independently reproduced** — build the control for it before building to it | nothing | coder |
 | 3 | **S3** — the per-thread connection in `serve` | nothing | coder |
 | 4 | **S1** — `PermissionError` aborts the whole walk | nothing | coder |
 | 5 | **S4** — escape at render in `template.py` | nothing | coder |

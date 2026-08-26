@@ -176,7 +176,11 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   Pinakes** (thirteen numbered — S1–S9 and S16–S19 — plus unnumbered Low classes; **that file states
   no total and neither should you**) — **S16 and S17 were both found by *reviewing
   a fix*, which is the sweep's own lesson turned on itself.** S16 crashes `sync` on an ordinary
-  two-file rename swap while `doctor` reports OK — **still live, reproduced on `main` 20260826**.
+  two-file rename swap while `doctor` reports OK, and `search` then answers from the wrong file —
+  **still live, re-reproduced 20260826 06:49 UTC against `origin/main`'s exact `src/` tree**, after S2's fix.
+  The earlier claim of a 20260826 reproduction was **unsupported**: the only run on record was
+  20260825 18:18, *before* that fix — which is exactly how S17 came to be recorded as open after
+  it had been cured.
   **S17 is ✅ FIXED** (it printed a remedy that never worked and left the document unindexed): the
   moved-sidecar guard from S2's second review fixed it as a side effect, **verified with a control**.
   **S2 is ✅ BUILT** (landed `3876b57`, 20260826 04:06 UTC). **S18 and S19 are open.** **D-36 and D-37 are now answered**. Every

@@ -24,6 +24,16 @@ Parking them in one named section beat both alternatives — a fourth register w
 above, and a build order per plan makes a coder read four files to learn what is next, which is how
 the seam formed.
 
+**HIGH — the top of the coder's queue was a claim nobody had re-checked, and checking it took nine
+minutes.** `CLAUDE.md` said S16 was *"still live, reproduced on `main` 20260826"*. **Nothing in the
+sweep plan supported that date** — the only run on record is `32442db`, **20260825 18:18**, which is
+*before* S2's fix landed at 04:06 the next morning. And S2's fix is known to have **cured S17 as a
+side effect**, so "does it also cure S16?" was a live question that no document had asked. Reproduced
+end to end against a `src/` tree byte-identical to `origin/main`: **it is still live**, all three
+failures intact. The finding is not that the claim was false — it happened to be true — but that
+**nobody could have known, and it was written as though someone did**. A defect recorded against a
+moving tree needs its sha; S17 was recorded the same way and had already been fixed.
+
 **MEDIUM — reading names instead of targets put a false claim in a file that exists to state a
 denominator honestly.** `tools/batteries/README.md` named `src/pinakes/cli.py` among *"the two
 highest-churn modules … [that] still have none"*. `src-pinakes-init.toml` mutates it **twice**. The
