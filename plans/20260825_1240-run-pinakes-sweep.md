@@ -350,9 +350,87 @@ avoided.
 cycles alone does not fix this class.** A build-order row reading *"make swaps work"* **under-scopes
 it**. S16's fix must **order the applicable plans**, not only detect and break the inapplicable ones.
 
-**Provenance:** the planner has **not** independently reproduced S19; the ordering argument was read
-against `pairing.py` and is consistent with the S16 and S17 reproductions the planner did run, but
-**the claim that it fires on non-cyclic walks is the coder's measurement.**
+**Provenance — SUPERSEDED 20260826 07:18 UTC. It now reproduces, on both sides, run by both sessions
+independently.** This paragraph used to say the planner had *not* reproduced S19 and that the
+ordering argument was read against `pairing.py` rather than measured. **Both halves have since been
+run**, and the control was built before the fix, which is what S17 cost us the last time it was not.
+
+**The end-to-end reproduction (coder), `src/` byte-identical to `origin/main`**
+(`git rev-parse HEAD:src` → `db34cd8125b69c29234fbcc9575b8260b2700fad`), `light` backend, scratch KB
+outside the repo. The walk is **not** a cycle and a valid order exists — `b.md → c.md` then
+`a.md → b.md`, freeing `b.md` first makes the whole plan applicable. **Four symptoms, and the fourth
+is new:**
+
+| | |
+|---|---|
+| `pnk sync` | **exit 1**, raw traceback, `sqlite3.IntegrityError: UNIQUE constraint failed: documents.path` at `src/pinakes/sync.py:2411` in `_index_document` |
+| `pnk doctor` | **exit 0**, every row `OK` — including `OK retired documents: none` and **`OK failures: none recorded`** |
+| `pnk search` | **exit 0**, `[1] docs/b.md — Beta` quoting Beta's body while `b.md` **on disk** begins `# Alpha` |
+| `pnk search`, second hit | **`[2] docs/a.md — Alpha`, and `a.md` does not exist on disk at all.** The index answers from a path that is **gone**. The other three say the index describes the *wrong* file; this one says it describes a file that is not there |
+
+**The plan itself, driven directly — measured twice, independently.** The coder drove `pair()` and
+the planner re-ran it from a separately written probe. **Three rows matched exactly.**
+
+**🛑 THIS TABLE IS THE *BEFORE* STATE, at the `src/` tree named above.** It is a measurement, not a
+description of `pair()` today, and it stays true as that. **The ordering fix changes the two
+non-cycle rows** — the chain comes out *strictly reverse*, which is the applicable order — and the
+**cycle row is unchanged, deliberately.** The after column is added when the fix lands and its
+values are measured, not before.
+
+| Walk | `pair()` emits | Applicable? |
+|---|---|---|
+| **Cycle** — `a ↔ b` | `Adopt(B→a.md)`, `Adopt(A→b.md)` | **No order works.** Each target is held by the other; needs a temporary path. This is S16's known-deferred case and it is genuinely different |
+| **Non-cycle, two** — `b→c`, `a→b` | `Adopt(A→b.md)`, `Adopt(B→c.md)` | **A valid order exists and this is not it.** Reversing the two is applicable |
+| **Non-cycle, chain of three** — `a→b`, `b→c`, `c→d` | `Adopt(A→b.md)`, `Adopt(B→c.md)`, `Adopt(C→d.md)` | **Emitted in exactly the wrong order**; the valid order is strictly reverse |
+| **Non-cycle onto a free name** — `b→z` | `Adopt(B→z.md)`, plus `Skip`/`RefreshMetadata` for the untouched document | **Yes. Green today.** The two runs differ here only by construction — an unchanged sidecar hash gives `Skip`, a changed one `RefreshMetadata` — and the row is green either way |
+
+**🛑 USE THE CHAIN OF THREE AS THE PINNING TEST, not the two-file shift.** The coder's reasoning, and
+it is the reason this row exists: **the valid order is *strictly reverse*, so no accident of
+path-sorting can produce it, and a fix that merely reorders two adjacent actions passes the two-file
+case while failing this one.** A control is only worth writing if it kills the plausible-but-wrong
+fix.
+
+**The mechanism, confirmed rather than inferred:** the same-path loop emits its `Adopt` at each
+surviving path in walk order (sorted by path), and the adoption loop emits the rest afterwards.
+**Neither loop knows that a target path is still held by a row this same plan is about to move.**
+`documents.path` being `UNIQUE` is the only reason anything notices — and it notices by crashing.
+
+### The cycle's price — found by building it and backing it out (20260826 07:30 UTC)
+
+**Recorded because no plan had it, and because a build-order row reading *"make cycles work"* would
+under-scope the cycle exactly as *"make swaps work"* under-scoped the chain.**
+
+The obvious remedy for the cycle class is a clean refusal — `pair()` raising before anything is
+applied, rather than emitting a plan that crashes halfway. **The coder built it, it worked, and it
+was backed out**, because it breaks **five committed tests**, three of which are guards that exist
+*only while a cycle still produces a plan*:
+
+| Guard | What it can only observe by watching a plan be applied and fail |
+|---|---|
+| `tests/test_pairing.py:447 test_a_name_swap_never_retires_an_id_the_same_plan_adopts` | the plan does not retire an id it also adopts |
+| `tests/test_pairing.py:493 test_a_three_way_rename_cycle_adopts_every_id_and_retires_none` | every id survives a three-way cycle |
+| `tests/test_sync.py:2661 test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row` | **the silent-loss shape S2 exists to prevent** — no live document loses its row when the second half fails |
+
+**So refusing the cycle cleanly is a decision about behaviour, not an implementation detail**, and
+its price is denominated in **S2's coverage**. It is not taken here, and it was correctly not taken
+inside an ordering fix. Whoever settles the cycle starts from this cost rather than rediscovering
+it; the reasoning is also in `src/pinakes/pairing.py`'s docstring, where the person reaching for it
+will look.
+
+**And one of those three guards contradicts itself, which will block exactly that person.**
+`test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row`'s docstring says **"The sync's
+own outcome is deliberately not asserted… what this test pins is that no live document loses its
+row, which must hold *however that defect is settled*."** Its body implements that with
+`contextlib.suppress(sqlite3.IntegrityError)` at `tests/test_sync.py:2687` — which **pins the
+exception type**. A cycle settled by raising anything else fails a test whose docstring promises it
+would not. **Intent portable, code not.** Verified 20260826 07:30. Owner: **coder**, unscheduled — it blocks
+nobody until the cycle is settled, and it blocks that person completely.
+
+**So the two classes are now measured, not argued, and they need different fixes:** ordering the
+applicable plans fixes the **entire chain class**; **cycles remain** and need a temporary path. When
+the chain class is fixed, **the cycle case must be shown still failing, deliberately and in the
+commit message** — otherwise *"swaps still crash"* becomes *"swaps are fixed"* in someone's summary
+and the next session builds on it. That is S17's failure exactly.
 
 ## Low
 
@@ -418,7 +496,7 @@ until this pass at **06:19**.
 | # | Item | Blocked on | Owner |
 |---|---|---|---|
 | 1 | ~~**S2** — silent index loss behind a green `doctor`~~ — **BUILT.** Landed `3876b57` 20260826 04:06 UTC; text corrections `325ab9e` 04:35. Verify by opening `src/pinakes/doctor.py:463 _retired_documents`, not by reading this row | — | coder |
-| 2 | **S16** — a two-file rename swap crashes `sync` and leaves the index describing the wrong file. **Re-reproduced 20260826 06:49 UTC against `origin/main`'s exact `src/` (`a4a754a`), after S2's fix — all three failures intact.** **Scoped by S19: the fix must *order* the applicable plans, not only detect and break the inapplicable ones.** S19's non-cyclic half has **never been independently reproduced** — build the control for it before building to it | nothing | coder |
+| 2 | **S16** — a two-file rename swap crashes `sync` and leaves the index describing the wrong file. **Re-reproduced 20260826 06:49 UTC against `origin/main`'s exact `src/` (`a4a754a`), after S2's fix — all three failures intact.** **Scoped by S19: the fix must *order* the applicable plans, not only detect and break the inapplicable ones.** **S19's non-cyclic half now reproduces — measured on both sides 20260826 07:19 UTC, by both sessions independently**, so the scope is settled rather than argued: **ordering the applicable plans fixes the entire chain class; cycles remain and need a temporary path.** **Pin it with the chain of three** (`a→b`, `b→c`, `c→d`), not the two-file shift — the valid order there is *strictly reverse*, so a fix that merely swaps two adjacent actions passes the small case and fails the real one. **Show the cycle case still failing in the commit message** | nothing | coder |
 | 3 | **S3** — the per-thread connection in `serve` | nothing | coder |
 | 4 | **S1** — `PermissionError` aborts the whole walk | nothing | coder |
 | 5 | **S4** — escape at render in `template.py` | nothing | coder |
