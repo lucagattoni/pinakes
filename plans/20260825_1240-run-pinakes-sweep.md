@@ -161,6 +161,31 @@ argument for the note: a fresh session reading a green gate would have landed a 
 **Not preserved here:** the four `doctor` defects and the rework plan, all of which landed and are
 therefore readable in `main`'s history and in `retro.d/`'s S2 fragment.
 
+> ### 🧹 A task with a checkable precondition — delete the branch once this section is on `main`
+>
+> **`20260825_1243-s2-silent-index-loss` is still on `origin`, local and remote both at
+> `5917886`**, holding four commits that are not on `main`:
+>
+>     5917886  The lesson from the fifth test: per-test, never per-run
+>     508c61d  DO NOT LAND THIS BRANCH AS IT STANDS — adversarial review failed it
+>     f59f52f  S2 fragments: the changelog entry and what the sweep taught
+>     96dae64  S2: a retired row blocked its own path, and doctor called it healthy
+>
+> **It is to be deleted — but not until the section above is on `main`.** None of its *code* landed
+> (the S2 fix was rewritten from scratch), so this repository's rule — *confirm the content actually
+> landed before deleting a branch that is not an ancestor of the default branch* — is discharged by
+> **this section**, not by the S2 commits. Until it is on `main`, the record exists only on a feature
+> branch that could be reworked or abandoned.
+>
+> **The precondition is one command**, so this is a task rather than a thing someone must remember:
+>
+>     git grep -c "S2's abandoned first attempt" origin/main -- plans/20260825_1240-run-pinakes-sweep.md
+>
+> **Non-zero → delete all three copies**, in this order: remove the worktree, `git worktree prune`,
+> delete the local ref, delete the remote ref, `git remote prune origin`, then **verify with
+> `git branch -a` that nothing survives**. **Zero → do nothing yet.** A stale branch ref costs
+> nothing; deleting the only copy of a record costs everything.
+
 ### S17 † — `pnk sync` prints a remedy that never works, and the document stays out of the index
 
 **Found 20260825 by the coder while adversarially reviewing S2; a dead agent's probe file recovered it.

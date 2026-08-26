@@ -49,6 +49,18 @@ defects"* in the table below it. Both were written the same day. **Proximity is 
 and the same file is where a routing table already carries the instruction *"this row deliberately
 states no count"* — a remedy that existed one row away and was not applied.
 
+**HIGH, and the worst of these — a gate was cited as evidence for a property it cannot see.** A
+blockquote annotating a table row was written *inside* the table, which renders it as a table cell.
+The repair moved it after the last row **with no blank line**, so Python-Markdown's `tables`
+extension swallowed it as one more `<tr>` — a cell whose text begins with a literal `>`. **`mkdocs
+build --strict` exits 0 on the broken form and on the fixed one alike**, so *"`make docs` EXIT=0"*,
+offered in a commit message as proof the repair worked, **certified nothing about the repair**. The
+generalisation is the same one this project already applies to tests and to mutation batteries, and
+it had not been carried across to gates: **make the gate red on purpose first. If it cannot fail on
+the broken form, it is not evidence for the fixed one.** It is also the same failure as
+`check.sh | tail` reporting `tail`'s exit status — a green signal that is not a function of the
+property anyone cares about — and the two were hit by two different sessions within an hour.
+
 **LOW, and it cuts against this pass — the writing changed the number the writing states.** The
 scope sentence records the table's row count. Adding fourteen rows moved it from 890 to 904, so a
 count copied from the parent commit would have been falsified **by the edit that copied it**. Stated
