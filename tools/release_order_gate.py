@@ -197,6 +197,23 @@ class Sequence:
             # other failure here gets — never as a traceback. `paid_path_gate.py`'s gate 1 exists
             # for the same reason: a check that cannot find what it guards has stopped guarding it.
             raise UnreadableError(f"{self.path}: {exc}") from exc
+        return self.versions_in(text)
+
+    def versions_in(self, text: str) -> list[Version]:
+        """The same read, against text already in hand rather than a path.
+
+        Split out 20260826 for `tools/status_header_gate.py`'s layer 2, which needs the newest
+        entry of *the Published versions row* out of a `docs/STATUS.md` it has already read (and,
+        under `--status-file`, out of a copy that is not at that path at all). It reads this
+        sequence through `SEQUENCES` rather than restating the `within` anchor, because the
+        alternative is two copies of one fact and this repository has been burned by that.
+        `tools/two_leg_gate.py` importing from `graph_gate` is the precedent (cited without a line
+        number on purpose — a line is a measurement of a neighbour that moves), and the coupling is
+        part of D-35 rather than a build-time choice.
+
+        `versions()` is now this plus the read, so there is one scoping-and-matching path and no
+        way for the two callers to disagree about what the sequence contains.
+        """
         if self.within is not None:
             # Scope first, then match. A sequence living inside one line of prose cannot be reached
             # by a line-anchored pattern, and an unanchored one would match every version in the

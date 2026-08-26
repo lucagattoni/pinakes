@@ -25,7 +25,7 @@ finding… It is not a harness failure, so this exits 0 — read the rows."* So 
 carry a coverage regression, and anything CI-shaped built on top of this needs its own check on the
 survivor count. `tests/test_batteries.py` is a **resolvability gate**, not a regression gate.
 
-**And the denominator.** Eight batteries, eight primary targets. Six are under `tools/`; **two
+**And the denominator.** Nine batteries, nine primary targets. Seven are under `tools/`; **two
 modules under `src/` have one** — `src-pinakes-init.toml`, over the check that decides whether a
 KB's `.pinakes/` can reach a remote, and `src-pinakes-pairing.toml`, which spans **two** files,
 `src/pinakes/pairing.py` and `src/pinakes/sync.py`, because the guarantee it mutates spans both. No

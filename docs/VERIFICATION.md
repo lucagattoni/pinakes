@@ -22,36 +22,33 @@ test, or write **none** and say why in the same commit.
   make it obvious — and the I9 review still found one row mapped from a name alone, which was
   wrong (the completeness audit's). Treat a row as a strong pointer, not a proof.
 * **The scope began as `plans/20260727_1543-v0.2.md`'s promises**, which is what the table this
-  replaces covered, and has grown with the work since. **Re-measured 20260825 18:38 UTC, on the tree this commit
-  creates: 904 rows, 45 distinct increment ids** — **not enumerated here on purpose.** A range
-  like *I1–I11* reads as a claim that every id in it has a row, and four do not (I10, T6, E2 and E6
-  have none; T6 is the deferred `sqlite-vec` tier, so it *cannot*), while `L5b` is real and no range
-  contains it. **Count them with the gate's filter rather than trusting a range**, **naming 64 of the 76 test
-  modules in `tests/`** (measured 20260826 06:52 UTC at `a4a754a` with the gate's own `REFERENCE`
-  filter: 1 146 references, 64 modules, 76 modules on disk). **The denominator moves on its own and
-  nothing turns red when it does** — it was 74 until `tests/test_review_pass_gate.py` landed
-  **carrying no row**, because `tests/test_verification.py` fails on a name that does not resolve,
-  never on a module that is absent. **Twelve modules on disk have no row**; that is the number to
-  re-measure, not to restate. The parent
-  `03e6f86` measured 890 and 44, and **the change that added the fourteen server-boundary rows below
-  is what moved them** — stated because a count restated from the parent commit would have been
-  falsified by the very edit that restated it. (That clause read *"this change"* until 20260826,
-  when it stopped resolving: two further changes had landed on top of it.) An earlier version of this paragraph said
-  the table *"stopped"* at 0.12.0 and that the gap was *"four releases wide"*; both were true when
-  written and neither has been true for a long time. **Do not restate a release count here** — it
-  goes stale silently, which is what happened. State what was measured and when — **and count the rows
-  the way the gate does**: an earlier version of this paragraph said 923, which counted the table
-  headers `tests/test_verification.py` skips — 33 of them at the time, **35** now — the MCP section added one and the
-  markdown-link table's missing header added another, which is the same moving-denominator trap one layer down. **The module figure had rotted the same way and worse**
-  — it said *62 of the 67*, wrong on both halves; there are 74 modules and 63 carry a row. Count them
-  with the gate's own `REFERENCE` regex, not by searching the file for a filename: the eleven unnamed
-  module names are spelled out in the bullet directly below, so a substring test over this file scores
-  them as covered and reports 74 of 74, finding nothing.
+  replaces covered, and has grown with the work since. **Measured 20260826 07:04 UTC on `bb17c6c`,
+  the tree this branch merges, with the gate's own `REFERENCE` regex: 1 158 references over 920
+  rows, naming 64 of the 76 test modules in `tests/`, with 35 table headers the gate skips and 12
+  modules carrying no row.** **Every one of those figures moves on its own, and nothing turns red
+  when one does** — `tests/test_verification.py` fails on a name that does not resolve, never on a
+  module that is absent — so the module denominator went 74 → 75 → 76 in silence as
+  `test_review_pass_gate.py` and `test_release_tag_gate.py` landed. **Re-measure with the regex; do
+  not restate, and do not search this file for a filename** — the unnamed modules are spelled out in
+  the bullet below, so a substring test scores them as covered and reports 76 of 76.
+
+  **The increment-id count is removed rather than restated.** It read *45 distinct increment ids*;
+  on 20260826 two parties independently failed to reproduce it with any filter either trusted, so it
+  is gone. Ranges are not enumerated either: *I1–I11* reads as a claim that every id in it has a row,
+  and four do not (I10, T6, E2 and E6; T6 is the deferred `sqlite-vec` tier, so it *cannot*), while
+  `L5b` is real and no range contains it.
+
+  **This paragraph has gone stale in every way a counted claim can, which is why it now carries a sha
+  and a clock.** It said the table *"stopped"* at 0.12.0 and the gap was *"four releases wide"* —
+  true when written, false for a long time after. It said **923 rows**, counting the table headers
+  the gate skips (33 then, **35** now). It said **62 of the 67** modules, wrong on both halves. Each
+  correction was found by counting, never by reading. **Do not restate a release count here at all.**
 * **Two gaps remain, and they are different in kind.** **Six modules carry zero rows** —
   `test_chunk.py`, `test_ids.py`, `test_lock.py`, `test_pairing.py`, `test_uri.py`, `test_embed.py`.
-  They predate the table and are not unowned. **Five more are named by no row at all** —
+  They predate the table and are not unowned. **Six more are named by no row at all** —
   `test_build_rfc_corpus.py`, `test_deep_reservation.py`, `test_measure_sync_cpu.py`,
-  `test_rfc_golden_set.py`, `test_two_leg_gate.py`. **`test_init.py` is no longer among them: it
+  `test_rfc_golden_set.py`, `test_two_leg_gate.py`, and **`test_review_pass_gate.py`, which landed in
+  `a36f0e6` and is owed rows under D-34** — a gate's own correctness is a promise. **`test_init.py` is no longer among them: it
   carries 27 rows**, and `test_eval.py` carries 32 throughout *The golden set, per question (G2)* —
   both were once listed here as absent, in error, and each correction was found by counting rather
   than by reading.
@@ -858,6 +855,14 @@ which is the section above; this is what a module that *may* import a client the
 | `docs/STATUS.md` line 3 names `pinakes.__version__`, in the exact `**Latest release: x.y.z**` shape | fix | `tests/test_status_header_gate.py::test_the_real_status_file_agrees_with_the_real_version`, `tests/test_status_header_gate.py::test_agreeing_versions_pass` |
 | a drifted header fails naming both versions and the file | fix | `tests/test_status_header_gate.py::test_disagreeing_versions_fail_naming_both` |
 | deleting, moving or reformatting the header cannot silence the gate | fix | `tests/test_status_header_gate.py::test_a_missing_line_fails`, `tests/test_status_header_gate.py::test_a_reformatted_line_fails`, `tests/test_status_header_gate.py::test_the_header_on_the_wrong_line_fails` |
+| a version that is landed but not published — `line3 > R`, the newest entry of STATUS's *Published versions* row — must carry the hold marker, on a page that deploys on every push | fix | `tests/test_status_header_gate.py::test_a_landed_but_unpublished_version_requires_the_hold_marker`, `tests/test_status_header_gate.py::test_the_hold_marker_satisfies_layer_two_when_it_names_the_published_version` |
+| a version that **is** published may not keep the marker — the half X7's index rule is green on by construction, and no release-order sequence reads line 3's tail | fix | `tests/test_status_header_gate.py::test_a_published_version_may_not_keep_the_hold_marker` |
+| the marker is a parsed shape carrying a checkable claim, not a glyph — its qualifier must name the version `pip install` actually gets | fix | `tests/test_status_header_gate.py::test_a_hold_marker_naming_the_wrong_published_version_fails`, `tests/test_status_header_gate.py::test_the_marker_must_be_a_parsed_shape_not_a_loose_glyph` |
+| the qualified form of line 3 is **legal** — `SHAPE` has no `$`, so it passed by accident and tightening the regex would have outlawed the sanctioned state silently | fix | `tests/test_status_header_gate.py::test_the_qualified_form_is_legal_and_that_is_now_pinned` |
+| a headline behind the published row is always red | fix | `tests/test_status_header_gate.py::test_a_headline_behind_the_published_row_is_always_red` |
+| a *Published versions* row the gate cannot read is a **hard failure, never a skip** — missing, or no longer unique | fix | `tests/test_status_header_gate.py::test_a_row_the_gate_cannot_read_is_a_hard_failure_never_a_skip`, `tests/test_status_header_gate.py::test_a_second_published_versions_row_fails_rather_than_reading_the_first` |
+| `R` is read through `release_order_gate.SEQUENCES` rather than a second copy of its `within` anchor, and a rename there fails rather than disabling the layer | fix | `tests/test_status_header_gate.py::test_the_published_row_sequence_still_resolves`, `tests/test_status_header_gate.py::test_a_renamed_sequence_fails_rather_than_disabling_layer_two` |
+| layer 1 stays first, so `ci.yml`'s negative check still reads the reason it greps for | fix | `tests/test_status_header_gate.py::test_layer_one_runs_first_so_the_ci_negative_check_still_reads_its_reason` |
 | landing refuses when the default branch's sha did not move — the merge that reports success and lands nothing | fix | `tests/test_land.py::test_refuses_when_the_default_branch_did_not_move`, `tests/test_land.py::test_cleanup_does_not_run_when_the_landing_was_refused` |
 | landing merges in the primary checkout even when invoked from the feature worktree | fix | `tests/test_land.py::test_merges_in_the_primary_checkout_even_when_invoked_from_the_feature_worktree` |
 | landing cannot fold uncommitted work into the merge, or land onto the wrong branch | fix | `tests/test_land.py::test_refuses_a_dirty_primary_checkout`, `tests/test_land.py::test_refuses_to_merge_the_default_branch_into_itself` |
