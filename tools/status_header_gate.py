@@ -76,7 +76,13 @@ import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+# `append`, deliberately not `insert(0, ...)`. Run as a script, this file's own directory is
+# already `sys.path[0]` and the line is a no-op; it exists for the in-process import in
+# `tests/test_status_header_gate.py`, which loads this file by path. Putting `tools/` at
+# the FRONT of a path a test process shares would let any file in it shadow a stdlib module of the
+# same name for everything else in that process — a cost with no benefit, since `release_order_gate`
+# is not a name anything else provides.
+sys.path.append(str(Path(__file__).resolve().parent))
 
 from release_order_gate import SEQUENCES, AmbiguousRegionError, Sequence, Version
 
@@ -177,8 +183,9 @@ def _check_hold_marker(status_file: Path, text: str, tail: str, stated: Version)
             f"{status_file} line {HEADER_LINE} names {_show(stated)}, which is ahead of the "
             f"*Published versions* row's newest entry {_show(newest)} — so it is landed and not "
             f"published, and the line says nothing about that on a page that deploys on every "
-            f"push. Add the hold marker: ** — ⏸ **landed on `main`, NOT tagged and NOT on PyPI; "
-            f"`pip install pinakes` still gets {_show(newest)}.**"
+            f"push. Add the hold marker: ` — ⏸ **landed on `main`; `pip install pinakes` still "
+            f"gets {_show(newest)}.**` — the qualifier names the index, not the tag, because the "
+            f"row may lag a tag and this gate stays green across that whole interval"
         )
     if _show(newest) not in marker.group("why"):
         return _fail(
