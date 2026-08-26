@@ -47,15 +47,26 @@ where it is evaluated: the sidecar beside that path is the one that disagrees, s
 claiming the row's id is necessarily a different one. It would have shipped as an unkillable mutant
 — a line no test can pin, which reads as care and provides none.
 
-**LOW, but it is the number the previous attempt got wrong — the check is free.** Timed over the same
-2000-document KB with retired rows present, so the walk actually runs: `pnk doctor` median **0.822s
-on `origin/main`, 0.818s with the check** — inside the noise, five runs each. The attempt this
-replaces measured 2.25x (0.746s → 1.682s), and the cost was not the check, it was what the check
-asked for: a SHA-256 over the whole corpus and a second `ruamel` parse of every sidecar
-`_sidecars()` had already parsed thirty lines earlier. This version reuses that parse and asks the
-walk for paths alone. **The general form: a diagnostic's cost is decided by the question it asks,
-not by the number of checks it runs** — and the expensive question and the cheap one had the same
-answer here, which is why the expensive one survived review the first time.
+**MEDIUM — I measured the check as free, and it is not. It costs 12–17%.** The first measurement
+said `pnk doctor` went 0.822s → 0.818s over 2000 documents and I wrote "free, within noise" into a
+fragment. An adversarial reviewer measured +12% on the same corpus, which sent me back to it. They
+were right. Re-measured **alternating branch and main against one KB** rather than running each side
+once in its own worktree: main 0.7099s / 0.6700s, branch 0.7959s / 0.7823s — **+12.1% and +16.8%** —
+and `walk_document_paths` alone is **49 ms** over 1995 documents. The added work is real, it is the
+glob, and it is paid only when the KB has retired rows (otherwise the check returns before walking).
+
+**The method is the finding.** Two sequential measurements taken in two worktrees cannot resolve a
+10% difference on a machine that drifts by more than that between them — my "before" run happened to
+land slow and my "after" fast, and the difference I was trying to detect was smaller than the drift
+I did not control for. Interleaving costs nothing and would have shown it immediately. **A/B by
+alternation, never A-then-B**, whenever the effect is smaller than the noise you have not measured.
+
+What survives is the comparison that actually mattered: the attempt this replaces measured **2.25x**
+(0.746s → 1.682s) and this is about **1.15x**, because the expensive question was never the check —
+it was a SHA-256 over the whole corpus and a second `ruamel` parse of every sidecar `_sidecars()`
+had already parsed. Reusing that parse and asking the walk for paths alone is what the ratio buys.
+"Cheaper by a factor of eight" was the honest claim; "free" was not, and nobody would have caught it
+if a reviewer had not run the number I had already published.
 
 **And the exit code is still not a validity signal, demonstrated while verifying this.** Running the
 real `pnk doctor` against a healthy 2000-document scratch KB exits **1** — for `embedding` and
