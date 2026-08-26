@@ -17,7 +17,8 @@ under the key named beside it, so none of it has to be believed:
 - 3.0% `new_share_pct` — the same, for its turns that opened a repository file no earlier pass had.
 - **40.1%** `repeat_share_over_5m_pct` — the repeat share over the 69 passes that cost more than
   5M raw tokens each. Median per pass, `repeat_share_median_over_5m_pct`, 39.1%.
-- 281 `later_passes` over 19 `increments`, 1.12B raw tokens — the population.
+- 305 `later_passes` over 20 `increments`, 1.12B raw tokens — the population. It read 281 over
+  19 until the turn floor stopped hiding passes that were killed early.
 
 **Re-derivation is not the cheap part of a review pass; it is the part that scales** — the share
 rises with how expensive the pass is, because a re-read early in a long pass is re-transmitted by
