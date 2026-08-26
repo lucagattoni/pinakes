@@ -15,7 +15,7 @@
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`, so there is
 # one less thing in it that can rot.
 
-mutants = 41
+mutants = 42
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · the sixth sequence — STATUS's *Published on PyPI* prose
@@ -392,3 +392,20 @@ file = "tools/release_order_gate.py"
 old  = '''    labels = {(s.path, s.what) for s in sequences}'''
 new  = '''    labels = {(s.path, s.what) for s in sequences} | {("docs/STATUS.md", "no such list")}'''
 kills = "tests/test_release_order_gate.py::test_a_not_behind_naming_no_sequence_is_refused_when_the_module_is_built"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260826 · `versions_in()`, split out for D-35 layer 2
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# `versions()` was split into a read plus `versions_in(text)` so `tools/status_header_gate.py` can
+# ask this module which releases the *Published versions* row names, out of a `docs/STATUS.md` it
+# has already read — rather than restating the `within` anchor and leaving two copies of one fact.
+# The mutant below is the seam itself: if the split ever stops delegating, the two callers can
+# disagree about what a sequence contains and each will be internally consistent.
+
+[[mutant]]
+name = "versions() stops delegating to versions_in(), so the two callers can drift apart"
+file = "tools/release_order_gate.py"
+old = '''        return self.versions_in(text)'''
+new = '''        return []'''
+kills = "tests/test_release_order_gate.py::test_the_real_documents_are_in_release_order"

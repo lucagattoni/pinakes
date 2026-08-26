@@ -1,0 +1,144 @@
+# Mutation battery — `tools/status_header_gate.py`.
+#
+#     python3 tools/mutate.py tools/batteries/tools-status_header_gate.toml
+#
+# Every row is a way this gate could be wrong while still printing a green run; the test named
+# beside it is the one assertion that catches that.
+#
+# **This target had no battery until 20260826**, which `plans/20260825_0749-exposure-and-silent-status.md`
+# named as a residual before the build rather than after it. Most of the rows below are layer 2 —
+# the hold marker — because layer 2 exists precisely to catch a state that is *green by
+# construction* everywhere else in this repository, and a check like that is exactly the kind that
+# can be deleted without any other gate noticing.
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 12
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260826 · D-35 layer 2 — the hold marker, against the *Published versions* row
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Mutant 1 is the control: a known-catchable change on the layer that already existed, run first,
+# because a battery with no kills is a broken harness rather than a clean bill.
+
+[[mutant]]
+name = "CONTROL — layer 1 compares the stated version to itself"
+file = "tools/status_header_gate.py"
+old = '''    if stated != expected:'''
+new = '''    if stated != stated:'''
+kills = "tests/test_status_header_gate.py::test_disagreeing_versions_fail_naming_both"
+
+[[mutant]]
+name = "layer 2 is never called, and the gate reports on layer 1 alone as it did before D-35"
+file = "tools/status_header_gate.py"
+# The whole increment, removed in one line, with a success message that still reads correctly
+# because it is layer 1's. This is the shape a careless revert takes.
+old = '''    layer_two = _check_hold_marker(status_file, text, tail, _parse(stated))'''
+new = '''    layer_two = 0'''
+kills = "tests/test_status_header_gate.py::test_a_landed_but_unpublished_version_requires_the_hold_marker"
+
+[[mutant]]
+name = "an unreadable *Published versions* row becomes a skip instead of a hard failure"
+file = "tools/status_header_gate.py"
+# `return 0` in front of the refusal, not `if False:` — removing the branch entirely would crash on
+# `published[-1]`, and a mutant killed by an IndexError is a claim about a broken tool rather than
+# about the property. The decision is explicit that this case is a hard failure and never a skip;
+# a skip would disarm the marker rule from a commit touching neither this file nor STATUS.md.
+old = '''    if not published:
+        return _fail('''
+new = '''    if not published:
+        return 0
+        return _fail('''
+kills = "tests/test_status_header_gate.py::test_a_row_the_gate_cannot_read_is_a_hard_failure_never_a_skip"
+
+[[mutant]]
+name = "a second row that looks like the row is swallowed, and layer 2 reads whichever sorted first"
+file = "tools/status_header_gate.py"
+# `release_order_gate.py` refuses an ambiguous `within` rather than resolving it to the first
+# match, and that refusal has to reach *this* gate as a failure. Caught here, not there.
+old = '''    except AmbiguousRegionError as exc:
+        return _fail('''
+new = '''    except AmbiguousRegionError as exc:
+        return 0
+        return _fail('''
+kills = "tests/test_status_header_gate.py::test_a_second_published_versions_row_fails_rather_than_reading_the_first"
+
+[[mutant]]
+name = "a published version may keep the marker — the exact state nothing else can see"
+file = "tools/status_header_gate.py"
+# The single most valuable row in this battery. X7's index rule is *unqualified + absent → red*, so
+# a stale marker after a successful publish is green there by construction, forever; `SHAPE` stops
+# at the closing `**`; no release-order sequence reads line 3's tail. Delete this branch and a
+# false headline stands indefinitely with every gate in the repository green.
+old = '''        if marker is not None:'''
+new = '''        if False:'''
+kills = "tests/test_status_header_gate.py::test_a_published_version_may_not_keep_the_hold_marker"
+
+[[mutant]]
+name = "a landed-but-unpublished version no longer needs the marker"
+file = "tools/status_header_gate.py"
+old = '''    if marker is None:
+        return _fail('''
+new = '''    if marker is None:
+        return 0
+        return _fail('''
+kills = "tests/test_status_header_gate.py::test_a_landed_but_unpublished_version_requires_the_hold_marker"
+
+[[mutant]]
+name = "the marker's qualifier stops having to name what `pip install` actually gets"
+file = "tools/status_header_gate.py"
+# Leaves the marker required and its content unchecked — so a qualifier that is a release behind
+# reads as a hold correctly announced. It is a claim about the index, and this is the only check
+# on it.
+old = '''    if _show(newest) not in marker.group("why"):'''
+new = '''    if False:'''
+kills = "tests/test_status_header_gate.py::test_a_hold_marker_naming_the_wrong_published_version_fails"
+
+[[mutant]]
+name = "R becomes the row's OLDEST entry rather than its newest"
+file = "tools/status_header_gate.py"
+# One character. The row is ascending, so `[0]` is 0.2.2 — every version is then "ahead of" R, the
+# marker is permanently required, and its qualifier must name a release from July.
+old = '''    newest = published[-1]'''
+new = '''    newest = published[0]'''
+kills = "tests/test_status_header_gate.py::test_the_hold_marker_satisfies_layer_two_when_it_names_the_published_version"
+
+[[mutant]]
+name = "a headline BEHIND the published row stops being red and is treated as a hold"
+file = "tools/status_header_gate.py"
+old = '''    if stated < newest:'''
+new = '''    if False:'''
+kills = "tests/test_status_header_gate.py::test_a_headline_behind_the_published_row_is_always_red"
+
+[[mutant]]
+name = "the marker loosens to a bare glyph, so the only checkable part becomes optional"
+file = "tools/status_header_gate.py"
+# A reader sees a pause glyph either way, and so does anything that greps for the character. What
+# is lost is the qualifier — the span that carries the claim about the index.
+old = '''HOLD = re.compile(r"⏸\s*\*\*(?P<why>[^*]+)\*\*")'''
+new = '''HOLD = re.compile(r"(?P<why>⏸)")'''
+kills = "tests/test_status_header_gate.py::test_the_marker_must_be_a_parsed_shape_not_a_loose_glyph"
+
+[[mutant]]
+name = "layer 1's failure loses the phrase ci.yml greps, leaving the negative check on exit code alone"
+file = "tools/status_header_gate.py"
+# A coupling across three files: this string, `ci.yml`'s `grep -q`, and the `tests/test_check_script.py`
+# pin that holds the grep as a command. `ci.yml`'s own comment says a bare non-zero exit is
+# insufficient because a crash satisfies it — so reworded here alone, that step stops distinguishing
+# a gating failure from a broken tool.
+old = '''            f"{stated}, but pinakes.__version__ is {expected} — the header drifted from the "'''
+new = '''            f"{stated}, but pinakes.__version__ is {expected} — the header disagrees with the "'''
+kills = "tests/test_status_header_gate.py::test_layer_one_runs_first_so_the_ci_negative_check_still_reads_its_reason"
+
+[[mutant]]
+name = "PUBLISHED_ROW points at the PROSE sequence forty lines away — and the real tree stays green"
+file = "tools/status_header_gate.py"
+# **The mutant to read twice.** `release_order_gate.py` has two sequences over `docs/STATUS.md`, and
+# on the real file today they have the same newest entry — so this edit changes nothing a run
+# against `main` could show, and `test_the_published_row_sequence_still_resolves` passes too,
+# because the prose sequence exists. Reading the wrong one of those two is the recorded mistake
+# that let the row drift four releases while the gate reported every one of them present.
+old = '''PUBLISHED_ROW = ("docs/STATUS.md", "the Published versions row")'''
+new = '''PUBLISHED_ROW = ("docs/STATUS.md", "the Published on PyPI prose")'''
+kills = "tests/test_status_header_gate.py::test_the_hold_marker_satisfies_layer_two_when_it_names_the_published_version"

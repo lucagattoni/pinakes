@@ -154,9 +154,18 @@ uv run --frozen python3 tools/eval_reproducibility_gate.py
 # every table below it (plans/20260731_1202-open-corrections.md, 20260803); a checklist missed it four times,
 # which is this project's threshold for turning the item into a gate. Only the version is gated,
 # never the `last reviewed` date beside it — a wall-clock staleness check fails on a quiet
-# weekend with no code change, the same reasoning recorded at prices-toml-parses above. On main
-# the invariant has no exception window: a release bumps `__version__` and the header in one
-# commit (docs/RELEASING.md step 2 + sweep table), and between releases neither moves.
+# weekend with no code change, the same reasoning recorded at prices-toml-parses above.
+#
+# **There IS an exception window, and this comment denied it until 20260826.** `__version__` means
+# *landed on `main`* (D-35, taken by the user 20260825 12:37), so between a release commit landing
+# and its tag reaching PyPI, line 3 names a version `pip install` cannot get — deliberately, three
+# times, once for fourteen minutes. Layer 2 of the gate makes the line say so: with R = the newest
+# entry of STATUS's *Published versions* row, `line3 > R` requires the hold marker, `line3 == R`
+# forbids it, and a row it cannot read is a hard failure rather than a skip. Offline, because R is
+# a committed file — which is what keeps this invocation in a script whose own comment demands it
+# stay offline-capable.
+#
+# This line is byte-pinned by tests/test_check_script.py; the comment is not.
 uv run --frozen python3 tools/status_header_gate.py
 
 # release-order: the six ordered release sequences in CHANGELOG.md, docs/ROADMAP.md and
