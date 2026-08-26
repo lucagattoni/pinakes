@@ -45,7 +45,12 @@ the question has a one-line answer nobody was asking —
 README, and checks nothing about what the batteries reach.
 
 **MEDIUM — I invented a duration inside a pass about unmeasured claims.** I wrote *"fourteen hours"*
-for how long the table said `S2 · LIVE`, four times across four files, and **never computed it**. S2
+for how long the table said `S2 · LIVE`, four times across four files, and **never computed it**.
+**That count is not re-derivable from git and this sentence is the only record of it** — the error
+was corrected *before* the first commit, so history contains this description and not one instance.
+Stated here rather than left to look like a measurement: it is a report of a working tree nobody
+else can inspect, which is the weakest kind of claim this repository accepts and it is accepted only
+because a retrospective has no other way to describe what it caught. S2
 landed at 04:06 and the pass ran at 06:19: **two hours**. The eleven decision rows were the
 twelve-hour ones. Two different numbers had been collapsed into one invented figure that flattered
 the finding. Caught only because the timestamps had to be re-derived for an unrelated reason.
