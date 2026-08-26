@@ -109,10 +109,15 @@ is a small increment on top of a grammar already proven on text.
 > open in a published document — a worse state than today.
 >
 > **The premise that failed: nothing writes the floor.** The clause requires that *"a KB whose
-> manifest carries the new value declares a floor"*, and no surface does that. **D-6** decided `pnk
-> init` never stamps `requires_pinakes`; **D-11** decided `pnk upgrade --apply` never writes it. So
-> the mechanism the clause depends on was decided away on either side of it, and the clause was left
-> specifying a floor with no writer.
+> manifest carries the new value declares a floor"*, and no surface does that. **D-11** (✅ **TAKEN**
+> 20260804) settled that `pnk upgrade --apply` never writes it, and `pnk init` does not stamp it
+> either — though that half rests on **D-6, which is a standing *recommendation*, not a taken
+> decision** (`⭐ A — open (it is today's behaviour)`, filed in the O-5 group the plan describes as
+> *"Recommendations only"*). **The two do not have the same status and an earlier draft of this note
+> said they did.** The practical bar is unaffected, because D-11's own rationale absorbs D-6's
+> reasoning — *"whatever writes `requires_pinakes` inherits B's cost"*. So the mechanism the clause
+> depends on is absent on both sides of it, and the clause was left specifying a floor with no
+> writer.
 >
 > **The harm it was written to prevent already has its remedy, and it is in the place a user looks.**
 > `docs/GUIDE.md` § *Troubleshooting* carries the row *"unknown key(s) in a KB you did not edit —

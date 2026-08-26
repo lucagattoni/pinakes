@@ -314,6 +314,7 @@ and this release can be numbered whenever it is cut.
 > | Name | What it is |
 > |---|---|
 > | **the template release** | Template ecosystem, `pnk upgrade`, the `sqlite-vec` tier |
+> | **the graph release, staged** | The PPR graph channel and the `[ner]` extra — **eval-gated, never scheduled**. Not the same name as *the graph release*, which left this table at its final cut, 0.11.0 |
 >
 > **The deep release left this table at 0.26.0**, its final cut (D-9). `--write-suggestions` is
 > deferred and unplanned; when it is planned it needs a name of its own, not the old one.

@@ -42,7 +42,9 @@ relative link cannot be correct in both.** `tools/markdown_link_gate.py` resolve
 satisfy it breaks the link at splice time instead, because the spliced text lands at the root.
 
 **Use an absolute `https://github.com/lucagattoni/pinakes/blob/main/…` URL** — the one form correct
-in both places, and the form `CHANGELOG.md` already uses for everything outside `docs/`. Found
+in both places. (`CHANGELOG.md` uses both styles today: 6 absolute blob URLs and 9 working relative
+links outside `docs/`. The relative ones resolve because they were written *into* the assembled file,
+not into a fragment — which is exactly the difference this section is about.) Found
 20260825 by the gate, on a fragment whose links were right for where the text was going and wrong
 for where it was sitting.
 

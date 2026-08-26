@@ -64,14 +64,19 @@ default *on a corpus where three of the seven edge kinds derived zero edges*.
 
 ---
 
-## Live · **three items live, one CLOSED 20260824 — read each body, not this heading**
+## Live · **four items live, one CLOSED 20260824 — read each body, not this heading**
 
-> **20260825 18:16 — the live item's *decision* is taken; its *build* is not.** D-31, D-32 and D-33
-> were answered by the user: **`pnk doctor` asks both questions — tracked *and* ignored —
-> unconditionally** (option C, and *not* the shortcut variant an earlier pass proposed, which
-> silently downgraded a WARN to OK on exactly the KB where `pnk init` had just warned). So this item
-> is **queued coder work**, no longer a stop. The second item's remaining widening question is
-> **deferred behind a written trigger** — read its body, not this heading.
+> **Items are named below, never numbered — an ordinal rots the moment anything is inserted above
+> it, and this blockquote said "the second item" until three arrived over it on 20260825.**
+>
+> **20260825 18:16 — the `pnk init` gitignore item's *decision* is taken; its *build* is not.** D-31,
+> D-32 and D-33 were answered by the user: **`pnk doctor` asks both questions — tracked *and* ignored
+> — unconditionally** (option C, and *not* the shortcut variant an earlier pass proposed, which
+> silently downgraded a WARN to OK on exactly the KB where `pnk init` had just warned). So that item
+> is **queued coder work**, no longer a stop.
+>
+> **The `tools/fragments.py` item is CLOSED**, and the widening question inside its body is
+> **deferred behind a written trigger** — read the body, not the heading.
 
 **It emptied at 0.22.0 (20260811) and refilled the next day, from E5** — the third time in its
 life, and again within days. **An empty list means nobody has run Pinakes lately, never that it is

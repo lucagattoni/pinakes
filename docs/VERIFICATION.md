@@ -34,8 +34,9 @@ test, or write **none** and say why in the same commit.
   the way the gate does**: an earlier version of this paragraph said 923, which counted the 33 table
   headers `tests/test_verification.py` skips. **The module figure had rotted the same way and worse**
   — it said *62 of the 67*, wrong on both halves; there are 74 modules and 63 carry a row. Count them
-  with the gate's own `REFERENCE` regex, not by searching the file for a filename: eleven of the
-  module names appear in this very paragraph, so a substring test reports 74 of 74 and finds nothing.
+  with the gate's own `REFERENCE` regex, not by searching the file for a filename: the eleven unnamed
+  module names are spelled out in the bullet directly below, so a substring test over this file scores
+  them as covered and reports 74 of 74, finding nothing.
 * **Two gaps remain, and they are different in kind.** **Six modules carry zero rows** —
   `test_chunk.py`, `test_ids.py`, `test_lock.py`, `test_pairing.py`, `test_uri.py`, `test_embed.py`.
   They predate the table and are not unowned. **Five more are named by no row at all** —

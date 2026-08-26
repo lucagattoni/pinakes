@@ -14,7 +14,7 @@ plausible document shapes, that is **5.8×–53.5× the chunk count**.
 It did not bite on the RFC realism corpus — but only because every chunk there has an empty
 `heading_path`, so `parent-child` derived **zero edges**. The cost is real and unmeasured.
 
-## The decision · **ALL THREE REQUIREMENTS CLOSED.** Requirements 1 and 2 closed 20260804 (ceiling measured 21:05; the `--drop parent-child` arm shipped in 0.11.0). **Requirement 3 CLOSED 20260825 18:41 UTC by the user: its antecedent is measured false on every real corpus, so the conditional never fires and `parent-child` stays transitive exactly as built**
+## The decision · **ALL THREE REQUIREMENTS CLOSED.** Requirements 1 and 2 closed 20260804 (ceiling measured 21:05; the `--drop parent-child` arm shipped in 0.11.0). **Requirement 3 CLOSED by the user 20260825 18:16 UTC (recorded here 18:41): its antecedent is measured false on every real corpus, so the conditional never fires and `parent-child` stays transitive exactly as built**
 
 **Keep it transitive, as built.** Three additions, none of them code today:
 
@@ -27,7 +27,7 @@ It did not bite on the RFC realism corpus — but only because every chunk there
 3. **If the ceiling is alarming, the immediate-parent variant is the arm to measure** — not a
    change to make first and measure afterwards.
 
-> ### ✅ Requirement 3 — CLOSED 20260825 18:41 UTC, taken by the user
+> ### ✅ Requirement 3 — CLOSED. Taken by the user **20260825 18:16 UTC**; recorded here 18:41
 >
 > **A conditional whose antecedent is false closes without deciding anything.** Requirement 3 reads
 > *"**If** the ceiling is alarming…"*, and the ceiling is measured **not** alarming on every real
@@ -69,7 +69,7 @@ refused to let a reachability ceiling choose the kind set, and sent that questio
 same reasoning applies here, for the same reason: a ceiling gauge cannot rank, and an argument
 cannot measure.
 
-## Why not the alternatives · **the *Immediate parent only* row is not a rejection — and its conditional did NOT fire on any real corpus (3.80 rows/chunk over 300 real specifications; the 53.42 that looked like a firing was a purpose-built worst-shape corpus). Requirement 3 closed 20260825 18:41**
+## Why not the alternatives · **the *Immediate parent only* row is not a rejection — and its conditional did NOT fire on any real corpus (3.80 rows/chunk over 300 real specifications; the 53.42 that looked like a firing was a purpose-built worst-shape corpus). Requirement 3 closed by the user 20260825 18:16**
 
 | Option | Why not |
 |---|---|
