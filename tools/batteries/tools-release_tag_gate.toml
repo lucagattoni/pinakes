@@ -97,8 +97,17 @@ kills = "tests/test_release_tag_gate.py::test_a_lightweight_tag_fails"
 [[mutant]]
 name = "an annotated tag with an empty message passes — the same defect one layer in"
 file = "tools/release_tag_gate.py"
-old = '''    if not message.stdout.strip():'''
-new = '''    if False:'''
+# **`return 0`, not `if False:` — and the first draft was the second.** Removing the branch does
+# not make an empty annotation *pass*; it makes the success line crash on
+# `splitlines()[0]`, and the mutant died on an `IndexError` traceback rather than on the exit
+# code. A KILLED row about a crash is a claim about the wrong thing: it says the tests notice a
+# broken tool, not that they notice an unnotated tag being waved through. This shape reaches the
+# success path, exit 0, exactly as the defect would.
+old = '''    if not message.stdout.strip():
+        return _fail('''
+new = '''    if not message.stdout.strip():
+        return 0
+        return _fail('''
 kills = "tests/test_release_tag_gate.py::test_an_annotated_tag_with_an_empty_message_fails"
 
 [[mutant]]
