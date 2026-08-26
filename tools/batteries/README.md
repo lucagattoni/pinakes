@@ -32,10 +32,15 @@ KB's `.pinakes/` can reach a remote, and `src-pinakes-pairing.toml`, which spans
 invariant in [`docs/INVARIANTS.md`](../../docs/INVARIANTS.md) has a battery of its own. The covered
 files change 1–13 times in 30 days — **except `sync.py` at 39, which was this paragraph's own example
 of high-churn code with no battery until 20260825**, and is named here so that change is visible
-rather than quietly dropped. **The two highest-churn modules in the repository still have none:
-`src/pinakes/cli.py` at 52 and `src/pinakes/doctor.py` at 36** (measured 20260825 by
+rather than quietly dropped. **Of the two highest-churn modules in the repository, one has no battery and one is
+covered without being named** — `src/pinakes/doctor.py` at 36 commits has none, while
+`src/pinakes/cli.py` at 52 is mutated twice by `src-pinakes-init.toml` (measured 20260825 by
 `git log --since="30 days ago" --follow`, over a repository whose first commit is 2026-07-25 — so
-these are close to lifetime counts, not a steady-state rate). This is a
+these are close to lifetime counts, not a steady-state rate; the `cli.py` correction is 20260826).
+**A battery's name is not its coverage, and reading the names is how that sentence went wrong** —
+`src-pinakes-init.toml` reaches `cli.py`, and `tools-mcp_handshake_gate.toml` reaches seven files
+including `Makefile`, `check.sh`, `pyproject.toml` and both CI workflows. To ask what is actually
+mutated, ask the batteries: `grep -h 'file = ' tools/batteries/*.toml | sort -u`. This is a
 starting point, not a coverage claim, and a reader who greps a battery and finds every anchor
 resolving has learned nothing about the code that has no battery at all.
 

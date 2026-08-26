@@ -379,18 +379,37 @@ inspected `sys.modules`: no `anthropic`, no `anthropic.*`, no `pinakes.deep.clie
 ## Build order
 
 **The coder proposed S2, S3, S1 and that order is adopted** — silent loss before loud crash, because a
-green `doctor` over a lost document is the failure nobody can see.
+green `doctor` over a lost document is the failure nobody can see. **S16 takes the first unbuilt slot
+on that same reasoning**, and the reasoning is stated rather than assumed: it is the only live finding
+that is *both* halves at once — `sync` raises, **and** the index is left describing the wrong file
+while `doctor` exits 0 — and it was **reproduced on `main` 20260826**, after S2's fix had landed.
+
+**Reconciled against the tree 20260826 06:19 UTC at `c1125ef`, re-verified at `a36f0e6`** — which
+landed while this pass was being written and changed no file in `plans/` or `docs/`. Every row below was
+re-derived by command rather than carried forward, and the rows for S16, S18 and D-36's schedule did
+not exist before that pass. **Where this table and the *Actionable* table in
+[`20260825_1252-plans-sweep-findings.md`](20260825_1252-plans-sweep-findings.md) disagree, this one
+wins.** That one is a dated snapshot, not a queue: eleven of its rows had been wrong since the
+decisions were taken at **20260825 18:16** — twelve hours — and it said *S2 · LIVE · blocked on
+nothing* from S2's landing at **04:06** until this pass at **06:19**.
 
 | # | Item | Blocked on | Owner |
 |---|---|---|---|
-| 1 | **S2** — silent index loss behind a green `doctor` | nothing | coder |
-| 2 | **S3** — the per-thread connection in `serve` | nothing | coder |
-| 3 | **S1** — `PermissionError` aborts the whole walk | nothing | coder |
-| 4 | **S4** — escape at render in `template.py` | nothing | coder |
-| 5 | **S5-S9** | nothing | coder |
-| 6 | **D-36** — **ANSWERED 20260825 18:16, option E** (derive the bound from a generative round-trip corpus) — *this row used to name two options; option E replaced both* | **nothing — answered**; build unscheduled | coder |
-| 7 | **D-37** — **ANSWERED 20260825 18:16, option E**: gate the move hint on the **orphaned sidecar**, not the mint count | **nothing — answered** | coder |
-| 8 | The Low section's findings (**four classes; the count of five is retracted in this file's header**) | S1-S9 | coder |
+| 1 | ~~**S2** — silent index loss behind a green `doctor`~~ — **BUILT.** Landed `3876b57` 20260826 04:06 UTC; text corrections `325ab9e` 04:35. Verify by opening `src/pinakes/doctor.py:463 _retired_documents`, not by reading this row | — | coder |
+| 2 | **S16** — a two-file rename swap crashes `sync` and leaves the index describing the wrong file. **Scoped by S19: the fix must *order* the applicable plans, not only detect and break the inapplicable ones.** S19's non-cyclic half has **never been independently reproduced** — build the control for it before building to it | nothing | coder |
+| 3 | **S3** — the per-thread connection in `serve` | nothing | coder |
+| 4 | **S1** — `PermissionError` aborts the whole walk | nothing | coder |
+| 5 | **S4** — escape at render in `template.py` | nothing | coder |
+| 6 | **S5–S9** — the accept-then-mishandle batch. **D-37 is what was stopping it**, at S6, and D-37 is answered | nothing | coder |
+| 7 | **S18** — a restored paid document is refused forever, and the reason it prints is false | nothing | coder |
+| 8 | **D-36's build** — **ANSWERED 20260825 18:16, option E** (derive the bound from a generative round-trip corpus; set the free `ruamel` options). *This row used to name two options; option E replaced both, and **the adversarial pass invented it** — read the decision, never a memory of the options.* **Scheduled here as of 20260826**; until then this row read *build unscheduled*, which is an owner with no queue position | nothing — answered | coder |
+| 9 | **D-37's build** — **ANSWERED 20260825 18:16, option E**: gate the move hint on the **orphaned sidecar**, not the mint count. Also invented by the adversarial pass | nothing — answered | coder |
+| 10 | The Low section's findings (**four classes; the count of five is retracted in this file's header**) | S1–S9 | coder |
+
+**S19 gets no row of its own, deliberately.** It is a constraint on S16's fix, not a separate build —
+giving it a row would licence someone to "do S19" and leave S16's ordering unfixed, which is the
+opposite of what S19 says. **S17 needs no row either: it is ✅ FIXED**, as a side effect of the
+moved-sidecar guard from S2's second review, verified with a control.
 
 **S4's fix is escape at render, not reject at `init`.** Settled between the two sessions: it repairs the
 mechanism where the defect actually is, changes no `init` contract, and `name = "Bob's \"Special\" KB"`
@@ -400,6 +419,29 @@ stays cheap and does not grow a decision of its own.
 
 **S1, S5, S6, S8, S9 all share one shape** — an input the tool accepts and then mishandles, rather than
 refuses. Whoever builds them should say whether that is one fix or five; this plan does not assume.
+
+## Decided work with an owner and no build order
+
+**These are not sweep findings.** They are parked here because they have **nowhere else**, and that is
+the point of the section rather than an accident of it: each was decided, each has an owner, and none
+had a queue position anywhere in the repository. **The G5 gate re-run aged 21 days in exactly this
+state** — handed to the planner by a retrospective, filed in no build order, invisible to every sweep
+that reads headings.
+
+**Why they are here and not each in their owning plan.** Three homes were possible: a new repo-wide
+queue file (a fourth register, and this file already documents what happens when two registers of the
+same facts diverge); a `## Build order` added to each owning plan (correct by ownership, but it makes
+a coder read four plans to find out what is next, which is the cost that produced the 21-day seam);
+or this section (one place a coder already reads, each row linking to the plan that owns the
+decision). **The third was chosen** — it is the only one that neither duplicates a register nor
+scatters the queue. Each row names its owning plan, and **that plan, not this table, owns the
+decision's content.**
+
+| Item | Owning plan | Blocked on | Owner |
+|---|---|---|---|
+| **`_toml.py`'s unknown-key remedy** — offer the second hypothesis (*this manifest may have been written by a newer Pinakes: upgrade, or ask its author to declare `[kb] requires_pinakes`*) and repoint from `docs/DESIGN.md §2.1` — which delegated its field tables to `docs/MANIFEST.md` in 0.2.1 — to `docs/MANIFEST.md`. **Pin the new sentence with a test.** Forward-only, and that is its honest cost: it changes the *reading* build, so no window already open is helped | [`20260805_1313-decisions-init-titles-and-grammar.md`](20260805_1313-decisions-init-titles-and-grammar.md) | nothing — answered 20260825 18:16 (E+F) | coder |
+| **The re-extraction loop's deferral trigger** — ⏸ DEFERRED 20260825 18:16 **with a trigger**, and the trigger's home is `src/pinakes/extract/audit.py`'s **docstring**, read by whoever would build it, rather than a roadmap row read by a sweeper. **The text is dictated by the planner and pasted unchanged** (§ *Content mine, keystrokes yours*). **Verified 20260826: the docstring does not carry it yet** | [`20260727_1543-v0.2.md`](20260727_1543-v0.2.md) decision 12 / I7c | nothing — the planner owes the text, then the coder pastes it | planner → coder |
+| **The G5 gate re-run** — its own three-leg gate, **no immediate-parent eighth leg**, ~2.4 h unattended CPU. **Split into halves that are separately ownable**: the coder clones the corpus, adds `headings = "numbered"`, runs `pnk sync --rebuild`, then `tools/graph_matrix.py`'s seven legs and `tools/graph_gate.py`'s three-leg gate; **the planner writes the verdict into `docs/STATUS.md` and `docs/ROADMAP.md`**. Expected result is another null, and `expand` stays `off` either way — it is worth running because a **shipped default** rests on an index where three of seven edge kinds derived zero. **Last: it blocks nothing.** If session time rather than CPU is the binding constraint, declining it is a legitimate outcome and the decision brief says so | [`20260825_1803-open-decisions.md`](20260825_1803-open-decisions.md) decision 7 | nothing | coder, then planner |
 
 ## The corpus rule does not apply
 
