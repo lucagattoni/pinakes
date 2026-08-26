@@ -1,14 +1,14 @@
-## Every review pass rebuilds the map, and the fourth one pays most for it (20260826 07:40)
+## Every review pass rebuilds the map, and the expensive ones pay most for it (20260826 07:40)
 
 Measuring where adversarial review spends its tokens, and building the tool that carries the answer
-forward, produced four things worth keeping. Three are about this repository's review loop; one is
-about measurement itself, and it is the one that generalises.
+forward, produced five things worth keeping. Three are about this repository's review loop; two
+are about measurement itself, and those are the ones that generalise.
 
 **The cost is re-derivation, and it scales with the pass rather than away from it.** Over the 910
 subagent transcripts here, **35.6% of a later review pass's raw tokens go to turns whose only file
 access was a file an earlier pass over the same increment had already opened** — against **3.0%**
-for turns that opened something new. 96% of what the median later pass opens was already opened by an earlier
-one. And the share **rises with how expensive the pass is**: 40.1% over the 69 passes costing
+for turns that opened something new. 96% of what the median later pass opens was already
+opened by an earlier one. And the share **rises with how expensive the pass is**: 40.1% over the 69 passes costing
 more than 5M raw tokens. The reason is arithmetic rather than psychology — a file read at turn 6 of
 a 90-turn pass is re-transmitted by all 84 turns after it, so the earlier and longer the pass, the
 more a redundant read costs. *Lesson: the expensive part of a review pass is not the reviewing. It
@@ -55,3 +55,17 @@ Two corollaries, both earned in the same hour:
   cost one command instead of one act of remembering. This is the direct answer to the failure
   recorded in [`tools/review_pass_gate.py`](https://github.com/lucagattoni/pinakes/blob/main/tools/review_pass_gate.py),
   which shipped three measured claims that a change made in the same increment falsified.
+
+**And the fifth, which arrived while writing the fourth: the corpus is live, so a measurement over
+it needs a stamp exactly as a measurement over a working tree needs a sha.** Two peer sessions were
+writing subagent transcripts into the same directory throughout this work. Running `--measure`
+twice, minutes apart, with no code change between them, moved a published figure from 96.1% to
+95.8%. Nothing was wrong; the corpus had grown. `--measure` now prints `transcripts_read` and
+`newest_transcript` with every result, and the module docstring quotes both beside its numbers.
+
+This is the same lesson a peer had reached from the other direction in the same hour — it dictated
+counted prose to two branches from two trees, neither containing the other's change, so whichever
+landed second would have made the sentence false. **A stamped measurement that no longer matches the
+tree is *dated*; an unstamped one is merely wrong, and looks identical.** The two of us met this
+from opposite ends of one morning, which is the strongest evidence either of us has that it is a
+property of working here and not of either task.

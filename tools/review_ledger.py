@@ -737,8 +737,14 @@ def _executes(command: str) -> bool:
     return bool(RUNS.search(PATHISH.sub(" ", command)) or SCRIPTS.search(command))
 
 
-def brief_for(name: str, passes: list[Pass], width: int = 100) -> tuple[list[str], int]:
-    """Render the carry-forward brief, and the exit status that goes with it."""
+def brief_for(name: str, passes: list[Pass], width: int = 240) -> tuple[list[str], int]:
+    """Render the carry-forward brief, and the exit status that goes with it.
+
+    `width` is generous because the reader is an agent, not a terminal. At 100 characters, **23 of
+    the 25 probes shown for one real increment ended in `[CUT]`** — a section headed *re-run one of
+    these rather than rebuilding it*, in which almost nothing shown could be run. Wrapping a shell
+    command would be worse than a long line: it invites pasting half of one.
+    """
     out: list[str] = []
     total = sum(p.tokens for p in passes)
     out.append(f"{len(passes)} earlier review pass(es) over {name}, {total:,} raw tokens spent.")
@@ -772,11 +778,15 @@ def brief_for(name: str, passes: list[Pass], width: int = 100) -> tuple[list[str
             key=lambda kv: (0 if _executes(kv[0]) else 1, -shapes[kv[0]], kv[0]),
         )
         executing = sum(1 for shape in first if _executes(shape))
-        out.append(f"PROBES ALREADY RUN — {len(probes)} calls, {len(shapes)} distinct, {executing}")
-        out.append("of them executing the project rather than reading it. Re-run one rather than")
-        out.append("rebuilding it; [n passes] is how many have already paid to write it.")
-        out.append("<dir> is each pass's own scratch copy — substitute yours. A line ending [CUT]")
-        out.append("is NOT runnable as shown; --json carries it whole:")
+        out.append(
+            f"PROBES ALREADY RUN — {len(probes)} calls, {len(shapes)} distinct, "
+            f"{executing} of them executing the project rather than reading it."
+        )
+        out.append("Re-run one rather than rebuilding it. [n passes] is how many have already paid")
+        out.append(
+            "to write it; <dir> is each pass's own scratch copy, so substitute yours; a line"
+        )
+        out.append("marked [CUT] is NOT runnable as shown, and --json carries it whole.")
         for shape, sample in ranked[:25]:
             count = shapes[shape]
             marker = f" [{count} passes]" if count > 1 else f" [pass {sample.pass_number}]"
@@ -795,17 +805,19 @@ def brief_for(name: str, passes: list[Pass], width: int = 100) -> tuple[list[str
     opened = Counter(f for entry in passes for f in set(entry.files) if f)
     if opened:
         out.append(
-            f"FILES ALREADY OPENED ({len(opened)}) — the count is how many passes opened it,"
+            f"FILES ALREADY OPENED ({len(opened)}) — the count is how many passes opened it, which"
         )
-        out.append("which is how much of this ground has been walked, not how well:")
+        out.append("is how much of this ground has been walked, and says nothing about how well:")
         for path, count in opened.most_common(30):
             out.append(f"  {count:2d}x  {path}")
         out.append("")
 
     unopened = [path for path in changed_files(name) if path not in opened]
     if unopened:
-        out.append(f"CHANGED BY THIS INCREMENT, OPENED BY NOBODY ({len(unopened)}) — the only")
-        out.append("section here that is a gap rather than a summary:")
+        out.append(
+            f"CHANGED BY THIS INCREMENT, OPENED BY NOBODY ({len(unopened)}) — the only section"
+        )
+        out.append("here that is a gap rather than a summary. Start with these:")
         for path in unopened:
             out.append(f"  {path}")
         out.append("")
