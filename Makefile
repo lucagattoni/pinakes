@@ -99,11 +99,20 @@ smoke: build  ## Install the built wheel in isolation and exercise it — what r
 		--expect-version "$$(basename dist/*.whl | cut -d- -f2)"
 	@echo "smoke: the built wheel installs, imports every module and answers an MCP handshake."
 
-release-check:  ## Verify the git tag you are about to push matches pinakes.__version__
-	@version="$$(uv run --frozen python -c 'import pinakes; print(pinakes.__version__)')"; \
-	echo "package version: $$version"; \
-	echo "tag to push:     v$$version"; \
-	echo "publishing is manual by design: git tag -a v$$version -m ... && git push origin v$$version"
+# Four legs, each named in the tool's docstring with what it costs: a release tag points at HEAD
+# (and exactly one does), it names pinakes.__version__, it is annotated with a message
+# `gh release create --notes-from-tag` can read, and it is **not already on origin** — which is
+# what makes CLAUDE.md's "before the tag, never after" checkable instead of remembered.
+#
+# It ran for the life of this target as three `echo`s: no comparison and no failure path, so it
+# could not fail and therefore verified nothing, while CLAUDE.md sent an operator here as the last
+# check before a version PyPI never takes back (plans/20260731_1202-open-corrections.md).
+#
+# **Deliberately not in check.sh**: HEAD carries no release tag on an ordinary commit, so leg 1
+# would be red on every commit in the repository. tests/test_release_tag_gate.py holds it instead
+# — and pins this recipe, because a target describing a check it does not run is what it replaced.
+release-check:  ## Gate the annotated tag at HEAD — run it after `git tag -a` and before the push
+	uv run --frozen python3 tools/release_tag_gate.py
 
 docs:  ## Build the docs site into site/ — --strict, exactly what the docs workflow runs
 	$(DOCS) build --strict
