@@ -160,12 +160,11 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   (*promises only*, plus the audit that rowed 14 unrowed promises in `tests/test_serve.py`), arity
   requirement 3 closed, the three residues ruled, the `requires_pinakes` clause closed-superseded,
   `expect_green` declined, and the re-extraction loop and the `fragments.py` widening both deferred
-  behind **written triggers**. **D-31/32/33 and D-37 have build-order rows owned by `coder`.** **D-36's build is
-  decided but unscheduled** — its row says so itself; it carries no blocker and no schedule. **The `_toml.py` unknown-key message
-  has an owner** (the 20260805 plan assigns it to the coder) **but no row**. **The G5 gate re-run has an owner and no row** — the decisions
-  table gives it `planner → coder` and splits the halves (coder drives the rebuild and the legs,
-  planner writes it up), but **no build order anywhere carries it**, which is the gap that matters. Unowned work is how it aged 21 days, so it is named here
-  rather than left to a sweep.
+  behind **written triggers**. **Every decided item now carries a build-order row** — D-36's build,
+  the `_toml.py` unknown-key message and the G5 gate re-run gained theirs 20260826, the last after
+  **21 days** with an owner and no queue position. Work whose owning plan has no build order is
+  parked in the sweep plan's § *Decided work with an owner and no build order*, each row linking to
+  the plan that owns the decision. **An owner without a queue position is how work ages here.**
   [`plans/20260825_0749-exposure-and-silent-status.md`](plans/20260825_0749-exposure-and-silent-status.md)
   — **§ X1 is built and on `main`**; **D-35 was answered 20260825 12:37**, which unblocks **§ X7**
   (three layers, and *not* what that plan first proposed — read the section, not the memory of it);
@@ -177,21 +176,30 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   Pinakes** (thirteen numbered — S1–S9 and S16–S19 — plus unnumbered Low classes; **that file states
   no total and neither should you**) — **S16 and S17 were both found by *reviewing
   a fix*, which is the sweep's own lesson turned on itself.** S16 crashes `sync` on an ordinary
-  two-file rename swap while `doctor` reports OK — **still live, reproduced on `main` 20260826**.
+  two-file rename swap while `doctor` reports OK, and `search` then answers from the wrong file —
+  **still live, re-reproduced 20260826 06:49 UTC against `origin/main`'s exact `src/` tree**, after S2's fix.
+  The earlier claim of a 20260826 reproduction was **unsupported**: the only run on record was
+  20260825 18:18, *before* that fix — which is exactly how S17 came to be recorded as open after
+  it had been cured.
   **S17 is ✅ FIXED** (it printed a remedy that never worked and left the document unindexed): the
   moved-sidecar guard from S2's second review fixed it as a side effect, **verified with a control**.
-  **S18 and S19 are open.** **D-36 and D-37 are now answered**. Every
+  **S2 is ✅ BUILT** (landed `3876b57`, 20260826 04:06 UTC). **S18 and S19 are open.** **D-36 and D-37 are now answered**. Every
   other file in `plans/` is closed, answered, deferred or proposed-unscheduled — and **an
   empty-looking list still means *the next thing to build has not been planned yet*, never *nothing
   to do***. `docs/ROADMAP.md` Part 5 holds what comes after.
-- **A `##` heading is a status claim, and nothing gates it.** In
+- **A status claim is never gated — not a `##` heading, not a table cell.** In
   [`plans/20260731_1202-open-corrections.md`](plans/20260731_1202-open-corrections.md) an item's
-  closure can sit in its **body**, so `grep '^## '` returns *Live* and stops. **This put two
-  different freshly-cleared coder sessions within one message of rebuilding a landed increment, on
-  20260824 and again on 20260825**; both times a peer caught it and no gate did. **Read an item's
-  body before building it**, and read an empty list as *nobody has run Pinakes lately*. **An item
-  that reads as a decision may only be an unchecked assumption** — and one that reads as live may
-  already be closed.
+  closure can sit in its **body**, so `grep '^## '` returns *Live* and stops — **this put two
+  freshly-cleared coder sessions within one message of rebuilding a landed increment, 20260824 and
+  again 20260825**; both times a peer caught it and no gate did. **On 20260826 it recurred one level
+  in**: [`plans/20260825_1252-plans-sweep-findings.md`](plans/20260825_1252-plans-sweep-findings.md)
+  holds **two registers of the same facts**, the pass that answered eight decisions updated the
+  bullets and not the 27-row table — **twelve of its 27 rows stopped describing the tree**, and row
+  1 read *S2 · LIVE · blocked on nothing* from S2's landing until a planner happened to look. **So: where a
+  dated snapshot and a `## Build order` disagree,
+  the build order wins.** **Read an item's body before building it**, and read an empty list as
+  *nobody has run Pinakes lately*. **An item that reads as a decision may only be an unchecked
+  assumption** — and one that reads as live may already be closed.
 
 ## Landing work: always push, always release
 
