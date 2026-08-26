@@ -186,7 +186,30 @@ therefore readable in `main`'s history and in `retro.d/`'s S2 fragment.
 > `git branch -a` that nothing survives**. **Zero → do nothing yet.** A stale branch ref costs
 > nothing; deleting the only copy of a record costs everything.
 
-### S17 † — `pnk sync` prints a remedy that never works, and the document stays out of the index
+### S17 ✅ **FIXED on `main`** — `pnk sync` printed a remedy that never worked, and the document stayed out of the index
+
+> ### ✅ FIXED, and this row was WRONG about it for four hours
+>
+> **Verified fixed by the planner 20260826 04:40, with a control**, on a scratch KB outside the repo:
+>
+>     main 03e6f86   sync fails: SidecarError, docs/c.md NEVER INDEXED, three retries identical
+>     main 325ab9e   sync EXIT=0, "1 indexed, 1 renamed, 1 unchanged", docs/c.md ACTIVE
+>
+> **Nobody set out to fix it.** The **moved-sidecar guard**, which came out of S2's *second*
+> adversarial pass, fixes S17 as a side effect — S17 is the same *one id, two paths* shape: the
+> sidecar travels to the new path while the index still says the id lives at the old one. The guard
+> stops the old path emitting anything, so adoption carries the id across and the new file mints.
+>
+> **🔁 THE REUSABLE ERROR, and it is why this row is kept rather than deleted.** S17 was measured
+> against a *moving branch* and reported as a property of the defect. **It was true when taken and
+> false four commits later, and nothing in the report could show that — because the report carried no
+> sha.** A finding measured against a branch needs the sha it was measured at, or it silently becomes
+> a claim about a tree that no longer exists. This row is one message away from having sent someone
+> to rebuild a two-part fix for a defect that already works.
+>
+> **It still belongs in a changelog**: it shipped broken in 0.30.2 and is fixed in whatever cuts next.
+
+**The record of the defect, as it was:**
 
 **Found 20260825 by the coder while adversarially reviewing S2; a dead agent's probe file recovered it.
 Pre-existing on `main`, unrelated to S2 and unfixed by it. Reproduced end to end by the planner** on a
@@ -236,8 +259,13 @@ runs), so the ledger grows without bound while the state never changes.
 
 ### S18 † — a restored paid document is refused forever, and the reason it prints is false
 
-**Found by the coder 20260826 while adversarially reviewing S2. Pre-existing on `origin/main`;
-neither term is touched by any branch in flight.** Severity **MEDIUM**.
+**Found by the coder 20260826 while adversarially reviewing S2. Severity **MEDIUM**. STILL OPEN —
+re-checked by the planner 20260826 04:40 on `main` at `325ab9e`**, after S17 turned out to have been fixed by
+an unrelated increment: the disjunct is still there, so this one did not go the same way.
+
+**⚠️ Cite it by symbol, not by line.** It was `pairing.py:244` when first recorded and is
+**`pairing.py:298`** now — the S2 rework moved it, four hours later, exactly as this repository's
+citation-rot rule predicts. Find it with `grep -n 'hash_changed = ' src/pinakes/pairing.py`.
 
 **Provenance, stated because this file's own § *Provenance* says the markers are not uniform.** The
 planner **verified the code claim directly on `origin/main`** and did *not* reproduce it end to end —
@@ -262,8 +290,17 @@ paid-protection clause and stop conflating *retired* with *changed*, so this is 
 
 ### S19 † — `pair()` produces an inapplicable order for renames that are NOT cycles
 
-**Found by the coder 20260826, reproduced by them on `origin/main`. Pre-existing.** Severity
-**MEDIUM**, and **it changes the scope of S16 rather than sitting beside it.**
+**Found by the coder 20260826. Severity **MEDIUM**, and it changes the scope of S16 rather than
+sitting beside it. STILL OPEN — the planner reproduced the cycle half 20260826 04:40 on `main` at
+`325ab9e`**: swapping two documents' names still exits **1** with
+`sqlite3.IntegrityError: UNIQUE constraint failed: documents.path`, and the index still shows both
+paths `active`, so the swap is rejected wholesale rather than applied wrongly.
+
+**What the planner did NOT reproduce**, stated because S17 has just shown what an unverified report
+costs: **the non-cyclic half.** The claim that the same error fires on rename walks which are *not*
+cycles and *do* have a valid order is the coder's measurement, read against `pairing.py` and
+consistent with the cycle behaviour above — **but it is the half that carries the rescoping, and it
+deserves its own control before S16 is built to it.**
 
 **S16's known-deferred case is a *cycle*** — a swap, where no ordering works without a temporary
 path. **This is different and worse-scoped: the same `IntegrityError` fires on rename walks that are
@@ -336,8 +373,8 @@ green `doctor` over a lost document is the failure nobody can see.
 | 3 | **S1** — `PermissionError` aborts the whole walk | nothing | coder |
 | 4 | **S4** — escape at render in `template.py` | nothing | coder |
 | 5 | **S5-S9** | nothing | coder |
-| 6 | **D-36** — fix, or bound row plus test | the decision | user, then split |
-| 7 | **D-37** — what the state means | the decision | user, then coder |
+| 6 | **D-36** — **ANSWERED 20260825 18:16, option E** (derive the bound from a generative round-trip corpus) — *the two options this row names were both replaced* | **nothing — answered**; build unscheduled | coder |
+| 7 | **D-37** — **ANSWERED 20260825 18:16, option E**: gate the move hint on the **orphaned sidecar**, not the mint count | **nothing — answered**; this unblocked S6 | coder |
 | 8 | The five low findings | S1-S9 | coder |
 
 **S4's fix is escape at render, not reject at `init`.** Settled between the two sessions: it repairs the

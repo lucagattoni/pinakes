@@ -163,8 +163,9 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   behind **written triggers**. **D-31/32/33 and D-37 have build-order rows owned by `coder`.** **D-36
   does not** — its row still reads *"user, then split"* and names the pre-decision options that
   option E replaced, so its build is decided but **unscheduled**. **The `_toml.py` unknown-key message
-  has an owner** (the 20260805 plan assigns it to the coder) **but no row**. **The G5 gate re-run has
-  neither** — no row, no owner, anywhere. Unowned work is how it aged 21 days, so it is named here
+  has an owner** (the 20260805 plan assigns it to the coder) **but no row**. **The G5 gate re-run has an owner and no row** — the decisions
+  table gives it `planner → coder` and splits the halves (coder drives the rebuild and the legs,
+  planner writes it up), but **no build order anywhere carries it**, which is the gap that matters. Unowned work is how it aged 21 days, so it is named here
   rather than left to a sweep.
   [`plans/20260825_0749-exposure-and-silent-status.md`](plans/20260825_0749-exposure-and-silent-status.md)
   — **§ X1 is built and on `main`**; **D-35 was answered 20260825 12:37**, which unblocks **§ X7**
