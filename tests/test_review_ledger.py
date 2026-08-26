@@ -46,7 +46,11 @@ def run(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def _assistant(
-    stamp: str, context: int, blocks: list[dict[str, object]] | None = None, **extra: object
+    stamp: str,
+    context: int,
+    blocks: list[dict[str, object]] | None = None,
+    output: int = 0,
+    **extra: object,
 ) -> dict[str, object]:
     return {
         "type": "assistant",
@@ -54,7 +58,11 @@ def _assistant(
         **extra,
         "message": {
             "role": "assistant",
-            "usage": {"input_tokens": 0, "cache_read_input_tokens": context, "output_tokens": 0},
+            "usage": {
+                "input_tokens": 0,
+                "cache_read_input_tokens": context,
+                "output_tokens": output,
+            },
             "content": blocks if blocks is not None else [{"type": "thinking", "thinking": "..."}],
         },
     }
@@ -106,6 +114,8 @@ def plain_pass(
     workflow: str | None = None,
     contexts: list[int] | None = None,
     killed: bool = False,
+    output: int = 0,
+    dangling: str | None = None,
 ) -> Path:
     """A review pass that runs `commands`, then reports (or is killed before it can).
 
@@ -117,10 +127,14 @@ def plain_pass(
     for index, size in enumerate(sizes):
         if index < len(commands):
             identifier = f"{name}-t{index}"
-            turns.append(_assistant(stamp, size, [_bash(identifier, commands[index])]))
+            turns.append(_assistant(stamp, size, [_bash(identifier, commands[index])], output))
             turns.append(_result(identifier, f"output of {commands[index][:40]}"))
         else:
-            turns.append(_assistant(stamp, size))
+            turns.append(_assistant(stamp, size, None, output))
+    if dangling is not None:
+        # A tool call with no tool_result after it: what a transcript looks like when the harness
+        # stopped the agent while the command was still running.
+        turns.append(_assistant(stamp, sizes[-1], [_bash(f"{name}-cut", dangling)], output))
     if killed:
         turns.append(
             _assistant(
@@ -132,7 +146,7 @@ def plain_pass(
             )
         )
     else:
-        turns.append(_assistant(stamp, sizes[-1], [{"type": "text", "text": report}]))
+        turns.append(_assistant(stamp, sizes[-1], [{"type": "text", "text": report}], output))
     return transcript(projects, name, brief, turns, workflow, stamp)
 
 
@@ -370,3 +384,74 @@ def test_the_listing_ranks_increments_by_what_they_cost(tmp_path: Path) -> None:
     assert out.returncode == 0, out.stdout + out.stderr
     rows = [line for line in out.stdout.splitlines() if "20260" in line]
     assert rows[0].endswith("20260102_0000-y"), out.stdout
+
+
+def test_a_command_the_pass_was_stopped_inside_is_still_carried(tmp_path: Path) -> None:
+    """The last thing a killed pass ran is the most interesting probe it has, and it has no result.
+
+    Probes were paired to their `tool_result`, so a call the harness interrupted was dropped in
+    silence — and thirteen of the twenty-four passes over one real increment were killed, which
+    makes this the common case here rather than an edge. It is carried, and labelled as having no
+    result, because a probe with no output is evidence of what was tried and not of what it showed.
+    """
+    plain_pass(
+        tmp_path,
+        "a1",
+        "2026-01-01T00:00:00Z",
+        ["uv run pytest tests/test_sync.py -q"],
+        killed=True,
+        dangling="uv run pytest tests/test_pairing.py -q --tb=long",
+    )
+    out = run("20260101_0000-x", "--projects", str(tmp_path))
+    assert "uv run pytest tests/test_pairing.py -q --tb=long" in out.stdout, out.stdout
+    assert "(no result — the pass was stopped inside this command)" in out.stdout
+
+
+def test_a_truncated_probe_is_marked_as_not_runnable(tmp_path: Path) -> None:
+    """The section says re-run these, so a line that has been cut has to say it was cut.
+
+    Pasting a truncated shell command is worse than pasting nothing: it can succeed at doing
+    something other than what it shows. `--json` carries the whole command for that reason.
+    """
+    long_command = "uv run pytest " + " ".join(f"tests/test_{n}.py" for n in range(12))
+    plain_pass(tmp_path, "a1", "2026-01-01T00:00:00Z", [long_command])
+    out = run("20260101_0000-x", "--projects", str(tmp_path))
+    assert "[CUT]" in out.stdout, out.stdout
+    assert (
+        long_command
+        in json.loads(run("20260101_0000-x", "--projects", str(tmp_path), "--json").stdout)[
+            "passes"
+        ][0]["probes"][0]["command"]
+    )
+
+
+def test_the_share_is_measured_against_the_total_the_brief_prints(tmp_path: Path) -> None:
+    """One denominator. The brief's per-pass total and `--measure`'s divisor are the same number.
+
+    `cost_split` divided by context alone while the brief printed context plus output. Output is
+    0.5% of the bill here, so the two never disagreed enough to notice — and *quoting a ratio
+    beside a total stated in a different unit* is the defect the retrospective this tool came from
+    rated HIGH. Same fixture as the arithmetic test, with 10 output tokens on every turn: raw
+    becomes 2700 + 70 = 2770 and turn 0's weight of 600 is 21.7% of it, not 22.2%.
+    """
+    sizes = [100, 200, 300, 400, 500, 600]
+    plain_pass(
+        tmp_path,
+        "a1",
+        "2026-01-01T00:00:00Z",
+        ["cat src/pinakes/sync.py"],
+        contexts=sizes,
+        output=10,
+    )
+    plain_pass(
+        tmp_path,
+        "a2",
+        "2026-01-01T01:00:00Z",
+        ["cat src/pinakes/sync.py"],
+        contexts=sizes,
+        output=10,
+    )
+    out = run("--measure", "--json", "--projects", str(tmp_path))
+    numbers = json.loads(out.stdout)
+    assert numbers["repeat_share_pct"] == 21.7, numbers
+    assert numbers["raw_tokens_measured"] == 2770.0, numbers

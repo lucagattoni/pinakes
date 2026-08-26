@@ -5,10 +5,10 @@ forward, produced four things worth keeping. Three are about this repository's r
 about measurement itself, and it is the one that generalises.
 
 **The cost is re-derivation, and it scales with the pass rather than away from it.** Over the 949
-subagent transcripts here, **35.5% of a later review pass's raw tokens go to turns whose only file
+subagent transcripts here, **35.4% of a later review pass's raw tokens go to turns whose only file
 access was a file an earlier pass over the same increment had already opened** — against **3.0%**
 for turns that opened something new. The median later pass opens *nothing* that was not already
-opened. And the share **rises with how expensive the pass is**: 39.9% over the 69 passes costing
+opened. And the share **rises with how expensive the pass is**: 39.8% over the 69 passes costing
 more than 5M raw tokens. The reason is arithmetic rather than psychology — a file read at turn 6 of
 a 90-turn pass is re-transmitted by all 84 turns after it, so the earlier and longer the pass, the
 more a redundant read costs. *Lesson: the expensive part of a review pass is not the reviewing. It

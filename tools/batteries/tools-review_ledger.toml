@@ -8,13 +8,14 @@
 # that is quietly wrong is inherited, and the pass that inherits it is the one that was supposed to
 # be checking.
 #
-# Four of the seven rows below are defects that were **actually in this file** when it first ran
-# against the real corpus, with `ruff`, `pyright` and every existing test green. They are mutants
-# because they were bugs, not because they were imagined.
+# Six of the nine rows below are defects that were **actually in this file** — four found when it
+# first ran against the real corpus, two more by its own adversarial pass — with `ruff`, `pyright`
+# and every existing test green each time. They are mutants because they were bugs, not because
+# they were imagined.
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 7
+mutants = 9
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260826 · the carried-forward review ledger
@@ -94,3 +95,25 @@ file = "tools/review_ledger.py"
 old = '''            weight = float(growth * (self.turns - index - 1))'''
 new = '''            weight = float(growth)'''
 kills = "tests/test_review_ledger.py::test_the_repeat_share_is_the_arithmetic_it_claims"
+
+[[mutant]]
+name = "WAS A BUG — a command the pass was stopped inside is dropped, with nothing to say it existed"
+file = "tools/review_ledger.py"
+# Probes were paired to their `tool_result`, so an interrupted call vanished. On one real increment
+# thirteen of twenty-four passes were killed, and the command each was inside is the single probe a
+# successor most wants. The brief still renders; it is just quietly missing the best line in it.
+old = '''    for identifier in order:
+        if identifier in pending:'''
+new = '''    for identifier in order:
+        if False:'''
+kills = "tests/test_review_ledger.py::test_a_command_the_pass_was_stopped_inside_is_still_carried"
+
+[[mutant]]
+name = "WAS A BUG — the share is divided by context alone while the brief totals context plus output"
+file = "tools/review_ledger.py"
+# Two denominators in one report, which is the defect the retrospective this tool came from rated
+# HIGH. Output is 0.5% of the bill, so no figure moves enough to look wrong — and every ratio is
+# then against a total the tool itself never prints.
+old = '''        raw = float(self.tokens)'''
+new = '''        raw = float(sum(self.context))'''
+kills = "tests/test_review_ledger.py::test_the_share_is_measured_against_the_total_the_brief_prints"

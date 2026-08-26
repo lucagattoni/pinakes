@@ -8,12 +8,12 @@ under the key named beside it, so none of it has to be believed:
 
 - **100%** `files_already_opened_median_pct` — of the files a later pass opens, an earlier pass
   over the same increment had already opened. Median, not mean.
-- **35.5%** `repeat_share_pct` — of a later pass's raw tokens go to turns whose *only* file access
+- **35.4%** `repeat_share_pct` — of a later pass's raw tokens go to turns whose *only* file access
   was one of those already-opened files.
 - 3.0% `new_share_pct` — the same, for its turns that opened a repository file no earlier pass had.
-- **39.9%** `repeat_share_over_5m_pct` — the repeat share over the 69 passes that cost more than
-  5M raw tokens each. Median per pass, `repeat_share_median_over_5m_pct`, 39.3%.
-- 281 `later_passes` over 18 `increments`, 1.11B raw tokens — the population.
+- **39.8%** `repeat_share_over_5m_pct` — the repeat share over the 69 passes that cost more than
+  5M raw tokens each. Median per pass, `repeat_share_median_over_5m_pct`, 39.1%.
+- 281 `later_passes` over 18 `increments`, 1.12B raw tokens — the population.
 
 **Re-derivation is not the cheap part of a review pass; it is the part that scales** — the share
 rises with how expensive the pass is, because a re-read early in a long pass is re-transmitted by
@@ -21,8 +21,9 @@ every turn after it. It survived every cut it was given: the long tail of per-fi
 ordinal-2-to-4 head, passes separated by more than two hours, passes of forty turns or more.
 `--measure` exists because **a number in a docstring is a claim with no way to check it** —
 `tools/review_pass_gate.py` shipped with three that were wrong and nothing in the repository could
-see it. Two of the four figures above moved during this tool's own build, when two defects in it
-were fixed; they moved *here* because re-running one command is what updating them costs.
+see it. Four of the figures above moved during this tool's own build and its own adversarial
+pass, as three defects in it were fixed; they moved *here* because re-running one command is what
+updating them costs.
 
 **What a pass re-derives is not mainly file content.** Read the tool calls rather than counting
 them: reviewers here overwhelmingly *run* things — their own detached worktree, their own scratch
@@ -234,12 +235,17 @@ class Pass:
         is the reason the share rises with how expensive a pass is: a re-read early in a long pass
         is paid for by every turn after it.
 
+        `raw` here is the same total the brief prints for the pass — context plus output, one
+        denominator. It excluded output until this tool's own adversarial pass: 0.5% of the bill,
+        and a second denominator in a report whose subject is ratios. That exact defect is the one
+        the retrospective this tool came from rated HIGH.
+
         A turn counts as **repeat** only when *every* file it opened was already opened by an
         earlier pass. That is deliberately the generous reading — a turn that re-opens a known file
         to check something genuinely new is counted as repeat here — which makes the resulting share
         a ceiling on what a carry-forward could recover, never a floor.
         """
-        raw = float(sum(self.context))
+        raw = float(self.tokens)
         repeat = new = 0.0
         for index in range(self.turns):
             if index + 1 >= self.turns:
@@ -472,6 +478,7 @@ def read_pass(transcript: Path, tracked: frozenset[str] = frozenset()) -> Pass |
     result = Pass(agent_id=agent_id, started=started, brief=brief)
 
     pending: dict[str, str] = {}  # tool_use id -> the command, awaiting its output
+    order: list[str] = []  # every Bash id in call order, so an unanswered one is still recoverable
     for record in records:
         kind = record.get("type")
         message = record.get("message")
@@ -528,6 +535,7 @@ def read_pass(transcript: Path, tracked: frozenset[str] = frozenset()) -> Pass |
                 identifier = block.get("id")
                 if name == "Bash" and isinstance(command, str) and isinstance(identifier, str):
                     pending[identifier] = " ".join(command.split())
+                    order.append(identifier)
 
         elif kind == "user":
             content = body.get("content")
@@ -543,6 +551,14 @@ def read_pass(transcript: Path, tracked: frozenset[str] = frozenset()) -> Pass |
                 if isinstance(identifier, str) and identifier in pending:
                     output = " ".join(_text(block.get("content")).split())
                     result.probes.append(Probe(pending.pop(identifier), output, 0))
+
+    # **A command whose result never came back is the most interesting one a killed pass ran.**
+    # It is the call the agent was still inside when the harness stopped it, and pairing probes to
+    # their results alone dropped it silently. Thirteen of twenty-four passes over one real
+    # increment were killed, so this is the common case here rather than the edge.
+    for identifier in order:
+        if identifier in pending:
+            result.probes.append(Probe(pending[identifier], "", 0))
 
     return result if result.turns >= 5 else None
 
@@ -728,13 +744,18 @@ def brief_for(name: str, passes: list[Pass], width: int = 100) -> tuple[list[str
         executing = sum(1 for shape in first if _executes(shape))
         out.append(f"PROBES ALREADY RUN — {len(probes)} calls, {len(shapes)} distinct, {executing}")
         out.append("of them executing the project rather than reading it. Re-run one rather than")
-        out.append("rebuilding it; [n passes] is how many have already paid to write it:")
+        out.append("rebuilding it; [n passes] is how many have already paid to write it.")
+        out.append("<dir> is each pass's own scratch copy — substitute yours. A line ending [CUT]")
+        out.append("is NOT runnable as shown; --json carries it whole:")
         for shape, sample in ranked[:25]:
             count = shapes[shape]
             marker = f" [{count} passes]" if count > 1 else f" [pass {sample.pass_number}]"
-            out.append(f"  $ {shape[:width]}{marker}")
+            cut = " [CUT]" if len(shape) > width else ""
+            out.append(f"  $ {shape[:width]}{cut}{marker}")
             if sample.output:
                 out.append(f"      -> {sample.output[:width]}")
+            elif sample.pass_number:
+                out.append("      -> (no result — the pass was stopped inside this command)")
         if len(ranked) > 25:
             out.append(
                 f"  ... {len(ranked) - 25} more distinct probe(s) not shown (--json has all)"
@@ -790,6 +811,12 @@ def measure(projects: Path | None = None) -> dict[str, float]:
     Concurrent members of one fan-out are excluded from the headline: they start within minutes of
     each other and cannot carry anything forward, whatever this tool does. They are counted
     separately because they are the case a *shared* brief helps and a sequential carry does not.
+
+    **Two of these keys have different populations, which is stated here because a reader will
+    otherwise assume one.** `repeat_share_pct`, `new_share_pct` and the two `over_5m` keys are
+    **sequential later passes only**. `files_already_opened_median_pct` is over **every** later
+    pass, concurrent ones included — it asks what a pass found already opened, which is a fact about
+    the increment whether or not anything could have carried it.
     """
     grouped = collect(projects)
     sequential_raw = sequential_repeat = sequential_new = 0.0
