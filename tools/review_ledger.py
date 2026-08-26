@@ -1,19 +1,23 @@
 """Every review pass starts from zero. This reconstructs what the earlier ones already did.
 
-**The measurement, 20260826, over the 949 subagent transcripts on this machine (5.13B raw tokens).**
-Adversarial review is the largest single category of subagent spend in this project — 44.0% by the
-retrospective's clustering, 43.8% by this tool's own classifier, derived independently. Inside that
-spend, later passes repeat earlier ones. **Every figure in this table is what `--measure` prints**,
+**The measurement, over the subagent transcripts on this machine: 910 of them, 5.14B raw tokens,
+newest 20260826 11:32 UTC.** That stamp is not decoration — the corpus is live, other sessions write
+into it while this runs, and `--measure` prints `transcripts_read` and `newest_transcript` for the
+same reason a measurement against a working tree needs a sha. Adversarial review is the largest
+single category of that spend — **43.9% by this tool's classifier (469 runs, 2.26B tokens)**,
+independently reproducing the 44.0% the retrospective reached by clustering task titles by hand.
+Inside it, later passes repeat earlier ones. **Every figure below is what `--measure` prints**,
 under the key named beside it, so none of it has to be believed:
 
-- **100%** `files_already_opened_median_pct` — of the files a later pass opens, an earlier pass
-  over the same increment had already opened. Median, not mean.
-- **35.4%** `repeat_share_pct` — of a later pass's raw tokens go to turns whose *only* file access
+- **95.8%** `files_already_opened_median_pct` — of the files a later pass opens, an earlier pass
+  over the same increment had already opened. Median, not mean; it read 100% until this tool
+  learned to see `Makefile` and `uv.lock`.
+- **35.6%** `repeat_share_pct` — of a later pass's raw tokens go to turns whose *only* file access
   was one of those already-opened files.
 - 3.0% `new_share_pct` — the same, for its turns that opened a repository file no earlier pass had.
-- **39.8%** `repeat_share_over_5m_pct` — the repeat share over the 69 passes that cost more than
+- **40.1%** `repeat_share_over_5m_pct` — the repeat share over the 69 passes that cost more than
   5M raw tokens each. Median per pass, `repeat_share_median_over_5m_pct`, 39.1%.
-- 281 `later_passes` over 18 `increments`, 1.12B raw tokens — the population.
+- 281 `later_passes` over 19 `increments`, 1.12B raw tokens — the population.
 
 **Re-derivation is not the cheap part of a review pass; it is the part that scales** — the share
 rises with how expensive the pass is, because a re-read early in a long pass is re-transmitted by
@@ -21,9 +25,9 @@ every turn after it. It survived every cut it was given: the long tail of per-fi
 ordinal-2-to-4 head, passes separated by more than two hours, passes of forty turns or more.
 `--measure` exists because **a number in a docstring is a claim with no way to check it** —
 `tools/review_pass_gate.py` shipped with three that were wrong and nothing in the repository could
-see it. Four of the figures above moved during this tool's own build and its own adversarial
-pass, as three defects in it were fixed; they moved *here* because re-running one command is what
-updating them costs.
+see it. Every figure above moved at least once during this tool's own build and its two
+adversarial passes, as five defects in it were fixed; they moved *here* because re-running one
+command is what updating them costs.
 
 **What a pass re-derives is not mainly file content.** Read the tool calls rather than counting
 them: reviewers here overwhelmingly *run* things — their own detached worktree, their own scratch
@@ -35,8 +39,9 @@ with them.
 
 **And the gap is worth more than it looks, which took two measurements to find out.** "Point the
 next pass at the changed files nobody has opened" was going to be dropped on a first pass at the
-number — 92%, near-total coverage, nothing to say. Re-derived after the path-normalisation defect
-below was fixed, it is **207 of 248 changed files opened (83%), and 90% on multi-pass increments**.
+number — 92%, near-total coverage, nothing to say. Re-derived after two defects below were fixed —
+the path normalisation, and a scan that could not see an extensionless filename — it is **211 of
+248 changed files opened (85%), and 92% on multi-pass increments**.
 What goes unopened is not noise: `src/pinakes/__init__.py` — where `__version__` lives — was never
 opened across the **41** passes over `20260823_0718-mutation-batteries`, and no pass in this corpus
 has ever opened the `changelog.d/` or `retro.d/` fragment its own increment wrote. That section is
@@ -131,7 +136,30 @@ HEAD: Final = 400
 
 READS: Final = re.compile(r"\b(cat|sed|head|tail|less|grep|rg|awk|wc)\b|git show|git diff|git log")
 PATHISH: Final = re.compile(r"[\w./@+-]*[/.][\w./@+-]+")
-SUFFIXES: Final = (".py", ".md", ".toml", ".yaml", ".yml", ".sh", ".json", ".cfg", ".txt")
+SUFFIXES: Final = (
+    ".py",
+    ".md",
+    ".toml",
+    ".yaml",
+    ".yml",
+    ".sh",
+    ".json",
+    ".jsonl",
+    ".cfg",
+    ".ini",
+    ".txt",
+    ".lock",
+    ".pyi",
+)
+"""Extensions that make a token in a shell command worth testing as a path.
+
+**`.lock` and an extensionless name were missing, and that turned a detection gap into a finding.**
+`cat uv.lock` and `sed -n '1,5p' Makefile` matched nothing, so both files were reported under
+*changed by this increment, opened by nobody* on every increment that touched them —
+indistinguishable from a file nobody read. A gap section whose gaps include *what this tool
+cannot see* is worse than no gap section: it is confidently wrong about the one thing it exists to
+say. Extensionless root files are matched by name below.
+"""
 
 TOP: Final = (
     "src/",
@@ -174,11 +202,6 @@ A path matching nothing here is not a file in this repository — a scratch KB's
 JSON dump — and is dropped. Those are real work and often repeated work, but they are not shared
 ground, and counting them as such is what the bug above did.
 """
-
-NOISE: Final = frozenset(
-    {"2>&1", "&1", "&2", "/dev/null", "/dev/stdout", "/dev/stderr", "e.g.", "i.e."}
-)
-"""Path-shaped tokens that are not paths. Kept short: this list decides nothing but display."""
 
 
 @dataclass
@@ -436,11 +459,13 @@ def _paths_in(name: str, payload: dict[str, object], tracked: frozenset[str]) ->
     command = payload.get("command")
     if not isinstance(command, str) or not READS.search(command):
         return []
-    opened = [
-        _normalise(token)
-        for token in cast(list[str], PATHISH.findall(command))
-        if token.endswith(SUFFIXES) and token not in NOISE
+    # A root file may have no extension at all — `Makefile`. `PATHISH` needs a `/` or a `.` to
+    # match, so those are found by scanning words rather than path-shaped tokens.
+    tokens = [t for t in cast(list[str], PATHISH.findall(command)) if t.endswith(SUFFIXES)]
+    tokens += [
+        w.strip("'\"`,;()[]") for w in command.split() if w.strip("'\"`,;()[]") in ROOT_FILES
     ]
+    opened = [_normalise(token) for token in tokens]
     return [path for path in opened if _is_repository_file(path, tracked)]
 
 
@@ -582,8 +607,8 @@ def transcripts(projects: Path | None = None) -> list[Path]:
     """Every subagent transcript for this project, at either depth the harness writes.
 
     Direct subagents land in `<session>/subagents/`; a `Workflow` fan-out's agents land one
-    directory deeper under `workflows/<run id>/`. **The deeper one is 81% of them here** (772 of
-    949), and a glob written for the shallow layout alone finds a fifth of the corpus while looking
+    directory deeper under `workflows/<run id>/`. **The deeper one is 80% of them here** (732 of
+    910), and a glob written for the shallow layout alone finds a fifth of the corpus while looking
     entirely healthy — the same near-miss `tools/review_pass_gate.py` records against its own
     discovery.
     """
@@ -808,6 +833,13 @@ def measure(projects: Path | None = None) -> dict[str, float]:
     every file it opened had already been opened by an earlier pass over the same increment, and it
     opened at least one; **new** when it opened something no earlier pass had.
 
+    **The corpus is live, and the result carries its own provenance for that reason.** Other
+    sessions write subagent transcripts into the same directory while this runs, so two invocations
+    minutes apart legitimately differ — `files_already_opened_median_pct` moved 96.1 to 95.8 during
+    one editing pass here, with no code change between them. `transcripts_read` and
+    `newest_transcript` are the corpus's version stamp: **a figure from this command means nothing
+    without them**, exactly as a figure measured against a working tree means nothing without a sha.
+
     Concurrent members of one fan-out are excluded from the headline: they start within minutes of
     each other and cannot carry anything forward, whatever this tool does. They are counted
     separately because they are the case a *shared* brief helps and a sequential carry does not.
@@ -818,6 +850,13 @@ def measure(projects: Path | None = None) -> dict[str, float]:
     pass, concurrent ones included — it asks what a pass found already opened, which is a fact about
     the increment whether or not anything could have carried it.
     """
+    seen_transcripts = transcripts(projects)
+    newest = 0.0
+    for path in seen_transcripts:
+        try:
+            newest = max(newest, path.stat().st_mtime)
+        except OSError:
+            continue
     grouped = collect(projects)
     sequential_raw = sequential_repeat = sequential_new = 0.0
     concurrent_raw = concurrent_repeat = 0.0
@@ -860,6 +899,8 @@ def measure(projects: Path | None = None) -> dict[str, float]:
         return round(100.0 * part / whole, 1) if whole else 0.0
 
     return {
+        "transcripts_read": float(len(seen_transcripts)),
+        "newest_transcript": newest,
         "increments": float(increments),
         "later_passes": float(later),
         "files_already_opened_median_pct": round(statistics.median(overlaps), 1)
@@ -899,7 +940,11 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(numbers, indent=2))
         else:
             for key, value in numbers.items():
-                print(f"{key:38} {value:,.1f}")
+                if key == "newest_transcript":
+                    stamp = datetime.fromtimestamp(value, tz=UTC).strftime("%Y%m%d %H:%M UTC")
+                    print(f"{key:38} {stamp}")
+                else:
+                    print(f"{key:38} {value:,.1f}")
         return 0
 
     grouped = collect(args.projects)

@@ -1,11 +1,11 @@
 - **`tools/review_ledger.py` — a later review pass no longer starts from zero.** Adversarial review
   is the largest single category of subagent spend in this project, and later passes spend it
-  re-deriving what earlier passes established. Measured over the 949 subagent transcripts on this
-  machine (5.13B raw tokens): **35.4% of a later pass's raw tokens go to turns whose only file
+  re-deriving what earlier passes established. Measured over the 910 subagent transcripts on this
+  machine (5.14B raw tokens, newest 20260826 11:32 UTC): **35.6% of a later pass's raw tokens go to turns whose only file
   access was a file an earlier pass over the same increment had already opened**, against 3.0% for
-  turns that opened something new — and **39.8%** for the 69 passes costing over 5M raw tokens,
-  because a re-read early in a long pass is re-transmitted by every turn after it. The median later
-  pass opens nothing that was not already opened. The tool reconstructs, from the transcripts
+  turns that opened something new — and **40.1%** for the 69 passes costing over 5M raw tokens,
+  because a re-read early in a long pass is re-transmitted by every turn after it. 96% of what the median later
+  pass opens was already opened by an earlier one. The tool reconstructs, from the transcripts
   already on disk and with no cooperation from any pass, what earlier ones **ran** (deduplicated
   across each reviewer's own scratch directory, so seventeen passes writing the same `pytest`
   invocation read as one probe run seventeen times), what they **opened**, what they **reported**,

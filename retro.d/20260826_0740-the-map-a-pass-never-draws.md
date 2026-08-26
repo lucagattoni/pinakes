@@ -4,11 +4,11 @@ Measuring where adversarial review spends its tokens, and building the tool that
 forward, produced four things worth keeping. Three are about this repository's review loop; one is
 about measurement itself, and it is the one that generalises.
 
-**The cost is re-derivation, and it scales with the pass rather than away from it.** Over the 949
-subagent transcripts here, **35.4% of a later review pass's raw tokens go to turns whose only file
+**The cost is re-derivation, and it scales with the pass rather than away from it.** Over the 910
+subagent transcripts here, **35.6% of a later review pass's raw tokens go to turns whose only file
 access was a file an earlier pass over the same increment had already opened** — against **3.0%**
-for turns that opened something new. The median later pass opens *nothing* that was not already
-opened. And the share **rises with how expensive the pass is**: 39.8% over the 69 passes costing
+for turns that opened something new. 96% of what the median later pass opens was already opened by an earlier
+one. And the share **rises with how expensive the pass is**: 40.1% over the 69 passes costing
 more than 5M raw tokens. The reason is arithmetic rather than psychology — a file read at turn 6 of
 a 90-turn pass is re-transmitted by all 84 turns after it, so the earlier and longer the pass, the
 more a redundant read costs. *Lesson: the expensive part of a review pass is not the reviewing. It
@@ -25,7 +25,7 @@ probe, not the file list. A map of what was read helps a reader; a command that 
 worker.*
 
 **And the coverage hole nobody was looking for.** The tool reports, per increment, the changed files
-no pass ever opened: **207 of 248 across the corpus (83%; 90% on multi-pass increments)**. The
+no pass ever opened: **211 of 248 across the corpus (85%; 92% on multi-pass increments)**. The
 misses are not noise. `src/pinakes/__init__.py` — where `__version__` lives — was never opened
 across the **41** passes over `20260823_0718-mutation-batteries`. And **no review pass in this
 corpus has ever opened the `changelog.d/` or `retro.d/` fragment its own increment wrote**: the

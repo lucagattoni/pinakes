@@ -276,7 +276,7 @@ def test_reading_a_package_file_is_not_executing_the_project(tmp_path: Path) -> 
 
 
 def test_a_workflow_fanouts_agents_are_found(tmp_path: Path) -> None:
-    """Fan-out agents live one directory deeper, and they are 81% of the corpus here.
+    """Fan-out agents live one directory deeper, and they are 80% of the corpus here.
 
     A glob written for the shallow layout alone finds a fifth of the transcripts while looking
     entirely healthy — the same near-miss `tools/review_pass_gate.py` records against its own
