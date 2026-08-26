@@ -54,9 +54,31 @@ extended on 20260823 when it crossed it again. Nothing was dropped in either mov
    reports success three times over
    ([`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md)).
 5. (`land.py` pushed for you. If you landed by hand anyway, push now.)
-6. `make release-check` — prints `__version__` and the tag to push. **Run it before the tag, never
-   after**: a tag publishes to PyPI, and PyPI does not allow re-uploading a version.
-7. `git tag -a vx.y.z`, push the tag. The workflow refuses a tag disagreeing with `__version__`.
+6. `git tag -a vx.y.z -m "…"` — **create the tag and do not push it.** Until it is pushed it is a
+   local object `git tag -d` removes without trace; the push is what reaches the publishing
+   workflow, and PyPI does not allow re-uploading a version.
+7. `make release-check`, **then** push the tag. The gate sits between the two halves of this step
+   and it can fail: it refuses when **no** release-shaped tag points at `HEAD` (or more than one
+   does), when the tag does not name `pinakes.__version__`, when the tag is lightweight or its
+   annotation is empty (`gh release create --notes-from-tag` runs *after* `uv publish`), and when
+   the tag is **already on the remote** — which is how *"never after"* is enforced rather than
+   remembered. **An unreachable remote is red, not green.** The workflow then refuses a
+   disagreeing tag a second time, after the push, where reading a red run is the only way to find
+   out.
+
+   > ⚠️ **This target was three `echo`s until 20260826** — it printed `__version__` and the tag,
+   > with no comparison and no failure path, while this step and `CLAUDE.md` both described it as
+   > the last check before an irreversible publish. **What changed is the order**: the tag must
+   > exist for anything to be compared, so *"run it before the tag"* is now *before the **push***,
+   > which is the irreversible half and the half `CLAUDE.md`'s reasoning actually names.
+   > `tools/release_tag_gate.py`, pinned by `tests/test_release_tag_gate.py`. It is deliberately
+   > **not** in `check.sh`: `HEAD` carries no release tag on an ordinary commit, so leg 1 would be
+   > red on every commit in the repository.
+   >
+   > **The step numbers below are deliberately unmoved.** Five live citations name *"`docs/RELEASING.md`
+   > step 8"* — `CHANGELOG.md`, `docs/STATUS.md`, `docs/ROADMAP.md`, `.github/workflows/release.yml`
+   > and `tests/test_check_script.py` — and renumbering would leave every one of them off by one,
+   > silently.
 8. **The GitHub release is created by the workflow as of 0.22.0** — `gh release create
    --verify-tag --notes-from-tag`, after the PyPI upload so a failure there can never cost the
    release its version number. **Verify it exists anyway** (see below); that is this file's rule

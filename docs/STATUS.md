@@ -1119,7 +1119,9 @@ review found a defect in the landed code — a remedy naming a diagnostic that p
 because the tag had not been pushed, the fix was folded into the untagged `## [0.30.2]` section
 rather than becoming an 0.30.3 that corrected a release nobody had received. **Landing and
 publishing being separate steps is what made that possible**, and it is the reason
-[`docs/RELEASING.md`](RELEASING.md) puts `make release-check` before the tag and never after.
+[`docs/RELEASING.md`](RELEASING.md) puts `make release-check` before the **push** and never after.
+(It read *"before the tag"* until 20260826 07:02 UTC, when the target became a real gate: the tag has to exist
+for anything to be compared, and the push is the irreversible half.)
 
 **And the same forty minutes carried a public defect nobody noticed, which is recorded here because
 the paragraph above would otherwise leave a false lesson.** Line 3 of this file read
