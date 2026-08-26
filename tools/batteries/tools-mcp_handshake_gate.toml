@@ -18,7 +18,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 28
+mutants = 30
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.28.0 · the mcp 2.x port, and the handshake that proves a wheel still speaks
@@ -256,3 +256,37 @@ old = '''echo "all gates green"'''
 new = '''uv run --frozen python3 tools/mcp_handshake_gate.py --kb tests/demo-kb --update-snapshot
 echo "all gates green"'''
 kills = "tests/test_check_script.py::test_no_automated_caller_can_regenerate_the_tool_schemas_it_is_supposed_to_check"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260826 · `make release-check` made real
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# **These two mutate the `Makefile` and belong to a different gate.** `tools/release_tag_gate.py`
+# has its own battery, `tools-release_tag_gate.toml`; the `Makefile` does not get a second one,
+# because a file belongs to exactly one battery and this is the one that already claims it
+# (`tools/batteries/README.md`). They sit here under the idea this battery already carries in
+# three other files — *a gate is only a gate when its exit status is what the next command reads*
+# — and the target they cover is the one that spent its whole life failing exactly that test:
+# `make release-check` was three `echo`s behind a help string promising it verified the tag.
+
+[[mutant]]
+name = "release-check's recipe is commented out, leaving the help string promising the check"
+file = "Makefile"
+# `make` hands a recipe line beginning `\t#` to `/bin/sh`, which ignores it and exits 0 — so the
+# target succeeds, `make help` still advertises the gate, and nothing anywhere says the tag was
+# never checked. Measured as a real failure mode in this repository on 20260822, for `make smoke`.
+old = '''	uv run --frozen python3 tools/release_tag_gate.py'''
+new = '''	#uv run --frozen python3 tools/release_tag_gate.py'''
+kills = "tests/test_release_tag_gate.py::test_make_release_check_runs_the_gate_rather_than_describing_it"
+
+[[mutant]]
+name = "one hyphen tells make to ignore the gate's exit status"
+file = "Makefile"
+# A recipe line beginning `-` has its status discarded. The gate still runs, still prints its
+# refusal, and `make release-check` still exits 0 — which is the pre-20260826 behaviour restored
+# in one character, with the failure text on screen to make it look like it worked.
+old = '''release-check:  ## Gate the annotated tag at HEAD — run it after `git tag -a` and before the push
+	uv run --frozen python3 tools/release_tag_gate.py'''
+new = '''release-check:  ## Gate the annotated tag at HEAD — run it after `git tag -a` and before the push
+	-uv run --frozen python3 tools/release_tag_gate.py'''
+kills = "tests/test_release_tag_gate.py::test_make_release_check_runs_the_gate_rather_than_describing_it"

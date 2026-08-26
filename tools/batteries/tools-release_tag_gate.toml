@@ -1,0 +1,137 @@
+# Mutation battery — `tools/release_tag_gate.py`.
+#
+#     python3 tools/mutate.py tools/batteries/tools-release_tag_gate.toml
+#
+# Every row is a way this gate could be wrong while still printing a green run; the test named
+# beside it is the one assertion that catches that. **A row is a claim about one assertion, never
+# about the gate.**
+#
+# This target is unusual and the reason shapes the battery: **the thing it replaced was a target
+# that could not fail.** `make release-check` was three `echo`s — it read `__version__`, printed
+# it, printed the tag, printed the command to run, and exited 0 whatever was true. So the mutants
+# that matter here are not the ones that make the gate *wrong*; they are the ones that quietly
+# return it to that state — a leg that passes on absence, a comparison of a value to itself, a
+# question the gate could not ask and answered anyway.
+#
+# **Two mutants for this increment live elsewhere**: the `Makefile` recipe that invokes this gate
+# is claimed by `tools-mcp_handshake_gate.toml`, and a file belongs to exactly one battery
+# (`tools/batteries/README.md`). They are in that file's `unreleased, 20260826` section, under the
+# idea it already carries — *a gate is only a gate when its exit status is what the next command
+# reads*.
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 10
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260826 · `make release-check` made real
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Mutant 1 is the control, and it is also the leg that matters most: it restores the precise defect
+# the increment removed. A battery with no kills is a broken harness rather than a clean bill, and
+# this is the known-catchable one to run first.
+
+[[mutant]]
+name = "CONTROL — leg 1 passes on absence again, which is exactly what this target did for its whole life"
+file = "tools/release_tag_gate.py"
+# `return 0` in front of the failure, rather than deleting the branch: this is the shape the defect
+# actually took — a gate that reaches the check, finds nothing to compare, and reports success.
+# The `return _fail(...)` below it becomes unreachable and still compiles, so the mutant changes
+# one thing under a name promising one thing.
+old = '''    if not tags:
+        return _fail('''
+new = '''    if not tags:
+        return 0
+        return _fail('''
+kills = "tests/test_release_tag_gate.py::test_no_tag_at_head_fails"
+
+[[mutant]]
+name = "leg 2 compares the tag to itself — green on every tag, naming a version it never checked"
+file = "tools/release_tag_gate.py"
+# The failure mode `tests/test_release_tag_gate.py`'s docstring names: a message that prints a
+# version is compatible with a check that compared that version to itself. The output of this
+# mutant is indistinguishable from a correct run on a correct tree.
+old = '''    if tag != wanted:'''
+new = '''    if tag != tag:'''
+kills = "tests/test_release_tag_gate.py::test_a_mismatched_tag_fails_naming_both_versions"
+
+[[mutant]]
+name = "leg 2 fails without naming the version the package states"
+file = "tools/release_tag_gate.py"
+# Both mentions go, because `wanted` is `v` + `expected` and either one alone leaves the number in
+# the message. A failure naming only the tag tells the operator a tag is wrong and not what to
+# compare it against — and it is the shape a self-comparison would also print.
+old = '''            f"the tag at HEAD is {tag}, but pinakes.__version__ is {expected}, so the tag to "
+            f"push is {wanted}. Either the version bump was missed (docs/RELEASING.md step 2) or "'''
+new = '''            f"the tag at HEAD is {tag}, which is not the one to push. "
+            f"Either the version bump was missed (docs/RELEASING.md step 2) or "'''
+kills = "tests/test_release_tag_gate.py::test_a_mismatched_tag_fails_naming_both_versions"
+
+[[mutant]]
+name = "the release-tag shape stops being a shape, so any `v` tag satisfies leg 1"
+file = "tools/release_tag_gate.py"
+# `v1.2`, `v1.2.3-rc1` and a nightly tag all point at HEAD in the test. With the shape gone, two
+# of the three count, leg 1 reports an ambiguity, and the failure is about the wrong thing —
+# a gate whose message has stopped describing the tree.
+old = '''RELEASE_TAG = re.compile(r"^v\d+\.\d+\.\d+$")'''
+new = '''RELEASE_TAG = re.compile(r"v")'''
+kills = "tests/test_release_tag_gate.py::test_a_tag_that_is_not_release_shaped_does_not_count_as_a_tag"
+
+[[mutant]]
+name = "two release tags on one commit are accepted, and the first one sorted wins"
+file = "tools/release_tag_gate.py"
+old = '''    if len(tags) > 1:'''
+new = '''    if False:'''
+kills = "tests/test_release_tag_gate.py::test_two_release_tags_at_head_fail_naming_both"
+
+[[mutant]]
+name = "leg 3 accepts a lightweight tag and refuses an annotated one"
+file = "tools/release_tag_gate.py"
+# Not `if False:` — this is the inversion a careless edit produces, and it is worse than removal:
+# the gate still fails on the tree, so it still *looks* like a gate, on the one shape that is
+# correct. `gh release create --notes-from-tag` runs after `uv publish`.
+old = '''    if kind.stdout.strip() != "tag":'''
+new = '''    if kind.stdout.strip() != "commit":'''
+kills = "tests/test_release_tag_gate.py::test_a_lightweight_tag_fails"
+
+[[mutant]]
+name = "an annotated tag with an empty message passes — the same defect one layer in"
+file = "tools/release_tag_gate.py"
+old = '''    if not message.stdout.strip():'''
+new = '''    if False:'''
+kills = "tests/test_release_tag_gate.py::test_an_annotated_tag_with_an_empty_message_fails"
+
+[[mutant]]
+name = "leg 4 inverts: a tag already on the remote passes and an unpushed one is refused"
+file = "tools/release_tag_gate.py"
+# This is the leg that makes CLAUDE.md's *before the tag, never after* checkable. Inverted, the
+# gate is green exactly when the version has already gone to PyPI.
+old = '''    if remote_tag.stdout.strip():'''
+new = '''    if not remote_tag.stdout.strip():'''
+kills = "tests/test_release_tag_gate.py::test_a_tag_already_on_the_remote_fails"
+
+[[mutant]]
+name = "an unreachable remote is read as `the tag is not published`"
+file = "tools/release_tag_gate.py"
+# The single most dangerous edit in this file, and the cheapest to make by accident: with the
+# returncode check gone, a failed `ls-remote` leaves empty stdout, which the next branch reads as
+# *absent from the remote* — so the gate answers, green, a question it could not ask. It is the
+# class of defect this whole increment exists to remove, reintroduced at the one leg that is about
+# an irreversible act.
+old = '''    if remote_tag.returncode != 0:
+        return _fail(
+            f"cannot reach {remote} to ask whether {tag} is already published: "'''
+new = '''    if False:
+        return _fail(
+            f"cannot reach {remote} to ask whether {tag} is already published: "'''
+kills = "tests/test_release_tag_gate.py::test_an_unreachable_remote_fails_rather_than_passing"
+
+[[mutant]]
+name = "a green run stops naming the one command left to run"
+file = "tools/release_tag_gate.py"
+# Small, and here because the old target's *only* real service was printing the push command. If
+# the replacement drops it, the operator composes the command by hand — which is where a mistyped
+# tag comes from, and the gate has already been run by then.
+old = '''    print(f"release-tag: nothing else stands before the publish. Next: git push {remote} {tag}")'''
+new = '''    print("release-tag: nothing else stands before the publish.")'''
+kills = "tests/test_release_tag_gate.py::test_a_matching_annotated_unpushed_tag_passes"
