@@ -171,3 +171,23 @@ Neither it nor `tests/test_batteries.py` can see:
 - **whether the mutants still die.** Only running the battery says that.
 
 A green check is not a green run. Run the battery.
+
+## Reading a SURVIVED row
+
+**A `SURVIVED` row is a claim about a *pair* — the mutant and the selector named in its `kills` —
+and it does not say which half failed.** Before believing that a survivor means the behaviour is
+untested, **run the mutant against the whole suite**. If something else kills it, the battery was
+right about the risk and wrong about the witness: the row names the wrong test, and the fix is the
+selector, not a new test. If nothing kills it, the gap is real. One command separates two diagnoses
+that look identical in the report, and the wrong one costs a test nobody needed.
+
+**And be suspicious of a target whose every assertion goes through one summarising helper.** If the
+tests for a function all compare its output through something that reduces a sequence to a
+count-by-kind — a census, a set, a sorted list — then **mutants that change the *order* of that
+sequence and not its contents will survive every one of them**, because the helper deletes exactly
+the property the mutant changed. Measured on `src/pinakes/pairing.py` at `cd9f009`, 20260825: its
+actions are a list, `documents.path` is `UNIQUE`, so the order *is* the behaviour — and a mutant that
+moved a `SoftDelete` past an `Adopt` produced an identical census and **was killed by nothing in the
+repository: 2 165 tests, of which the 267 in the three modules covering that code are the ones that
+were supposed to.** The remedy is a named property asserting the ordering directly
+(`retires_before_adopting()`), not another assertion routed through the same helper.
