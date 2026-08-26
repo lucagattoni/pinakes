@@ -109,3 +109,33 @@ commit where the survival was observed, with the mutant applied and the full sui
 passed, 0 failed.** The claim was true and the denominator was invented, which is the same defect
 one level up from the one the paragraph was describing. **State the population, not just the
 number** — and when a scoped run is what you have, name the scope.
+
+**HIGH — I reported a defect as open after my own later commits had fixed it, and a planner recorded
+it as scheduled work.** S17 (a rename that frees a path a new document then takes) was measured
+early, against `origin/main` and against my branch *as it then stood*; both failed, so I filed it as
+pre-existing and unfixed. It was pre-existing. But the moved-sidecar guard that came out of the
+second adversarial pass — four commits later — fixes it as a side effect, because S17's mechanism is
+the same *one id at two paths* shape. Re-measured with a control: at `03e6f86` the walk records
+`SidecarError: … appeared after the walk had already read this directory` and the renamed document
+is **never indexed**; at `3876b57` it reports `1 indexed, 1 renamed` and the document is active.
+
+**The error is not the measurement, it is the report: a finding taken against a moving branch has a
+sha, and mine did not carry one.** It was true when taken and false four commits later, and nothing
+in the report let either of us see that. It had already been written into a plan as a two-part fix,
+which is one message from a fresh session rebuilding something that works — the failure this
+repository's own `CLAUDE.md` records happening twice in two days. **Stamp every cross-session
+finding with the commit it was measured at, and re-measure before anyone schedules it.**
+
+And the repair for the claim itself is a test, not a corrected sentence. *"S17 is fixed"* written in
+a plan is a fact that decays silently; `test_a_rename_that_frees_a_path_a_new_document_then_takes`
+is the same fact that goes red if it stops being true. Confirmed red at `03e6f86` before being
+believed.
+
+**LOW — and the same disease in a docstring I had just written.** `_retired_documents` claimed the
+pre-commit hook's sidecar "cannot trip it: nothing the hook does retires anything", and the
+changelog fragment repeated it. A reviewer measured otherwise: at a **reused** path — a new document
+at a name some earlier document held — `sync --sidecars-only` does reach rule (2). The report there
+is *true* (the document has no row and `pnk search` cannot see it) and the shipped hook pair never
+leaves that state, since post-commit indexes inside the same commit. So the check is right and the
+sentence was wrong, which is the more embarrassing half: **an absolute claim written to explain why
+a design is safe, in the same paragraph that had already earned the right to a narrower one.**
