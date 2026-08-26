@@ -160,9 +160,38 @@ Never batch increments; each is a separate, bisectable landing:
    else, so the battery re-runs after it. Anything worth keeping gets a
    [`retro.d/`](https://github.com/lucagattoni/pinakes/blob/main/retro.d/README.md) fragment; trivia
    stays in the commit message.
+
+   **🛑 The pass opens the increment's own fragments, and every file the increment changed.** Not
+   the plan it was working from — the diff. **This step's own position in this list is why it did
+   not**: step 6 writes the `changelog.d/` fragment *after* the last review pass in step 5, so the
+   procedure **guarantees** the fragment is never reviewed. Either write the fragments before the
+   final pass, or run one more pass after them; do not leave it to memory.
+
+   **A fragment is not scratch.** `tools/fragments.py` splices it into `CHANGELOG.md` and
+   `docs/RETROSPECTIVES.md`, and `docs/` **publishes on every push** — so an unreviewed fragment is
+   an unreviewed published document. Measured 20260826 07:42: the changelog fragment written in `d9fe1a9`
+   carried *"wrong for twelve hours"*, a duration that had been **invented** and repeated across
+   four files, in an increment whose subject was unmeasured claims. The review pass did not catch
+   it because the pass read the plans and **never opened the fragment**; it was found while
+   re-deriving timestamps for an unrelated reason.
+
+   **The same hole covers ordinary source files.** A corpus measurement over this repository's own
+   transcripts (`python3 tools/review_ledger.py <increment>`, landing separately; its last section
+   is headed *CHANGED BY THIS INCREMENT, OPENED BY NOBODY*) found review passes open **207 of 248**
+   changed files — 83%, and 90% on multi-pass increments — while `src/pinakes/__init__.py`, where
+   `__version__` lives, was opened by **none of the 41 passes** over the mutation-batteries
+   increment. **A file the increment changed and no pass opened is the cheapest place for a defect
+   to survive review.**
+
+   **The rule says *opened*, and that word is doing deliberate work.** What a transcript can show is
+   which files a pass **opened**; whether it *reviewed* them is not observable and no tool will ever
+   check it. So the checkable rule is the weak one — open every changed file and every fragment —
+   and it is stated as the floor rather than the goal. **An opened file is not a reviewed file**;
+   the measurement is a lower bound on attention, never evidence of it.
 6. **A `changelog.d/` fragment in the same commit as the code** — never an edit to `CHANGELOG.md`
    itself
    ([`changelog.d/README.md`](https://github.com/lucagattoni/pinakes/blob/main/changelog.d/README.md)).
+   **Written before the last review pass, or reviewed by one of its own** — see step 5.
 7. Land it — but first `python3 tools/shared_file_overlap.py --fetch --strict`: **other agents
    land work concurrently at any time**, and a clean auto-merge is not a correct merge
    (`CLAUDE.md` § Landing work). Then `python3 tools/land.py <branch> --cleanup`. **Never `git merge` by hand** — from inside
