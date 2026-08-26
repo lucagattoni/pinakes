@@ -17,7 +17,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 10
+mutants = 16
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -209,3 +209,85 @@ new = """    for root_name in manifest.sources.roots:
             truncated = truncated or hit_cap
 """
 kills = "tests/test_sync.py::test_the_population_walk_never_opens_a_document"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260826 · S16/S19 — ordering a rename chain so the database will accept it
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# `documents.path` is `UNIQUE`, so *when* an action writes decides whether it can write at all, and
+# `pair()` built its list in path order — fine for deciding what each file is, arbitrary for
+# deciding when to write it. Renaming three notes forward emitted the plan in exactly reverse of
+# the only applicable order.
+#
+# **Every mutant here changes an ORDER and nothing else.** `describe()` returns the same census for
+# all of them, every id is placed at the same path, and `retires_before_adopting` holds — the
+# properties this battery already carried cannot see any of it. That is the point: this is the
+# blindness the 20260825 pass recorded on this same file ("a census is not a plan"), reached from
+# the other side.
+
+[[mutant]]
+name = "CONTROL — the ordering pass is computed and then not applied"
+file = "src/pinakes/pairing.py"
+# The whole fix removed in one line, with a plan that still passes every pre-existing assertion.
+old = '''        actions=tuple(_order_for_path_availability(actions, before_by_path)),'''
+new = '''        actions=tuple(actions),'''
+kills = "tests/test_pairing.py::test_a_rename_chain_of_three_is_ordered_so_every_move_lands_on_a_free_path"
+
+[[mutant]]
+name = "the ordering pass runs but its result is discarded end to end"
+file = "src/pinakes/pairing.py"
+# The same edit, witnessed by the end-to-end test instead of the unit one: `pnk sync` exits 1 on a
+# raw `sqlite3.IntegrityError` at `sync.py`'s INSERT, which is the shipped 0.30.2 behaviour.
+old = '''    return PairingResult(
+        actions=tuple(_order_for_path_availability(actions, before_by_path)),'''
+new = '''    return PairingResult(
+        actions=tuple(actions),'''
+kills = "tests/test_sync.py::test_a_rename_chain_syncs_and_every_document_keeps_its_id"
+
+[[mutant]]
+name = "a move stops being recorded as freeing the path it came from"
+file = "src/pinakes/pairing.py"
+# With no path ever recorded as freed, every dependency resolves to "nothing frees this" and the
+# pass becomes a no-op that still looks like it ran.
+old = '''        case Adopt(old_path=old) | Rename(old_path=old):
+            return old'''
+new = '''        case Adopt(old_path=old) | Rename(old_path=old):
+            return None'''
+kills = "tests/test_pairing.py::test_a_rename_chain_of_three_is_ordered_so_every_move_lands_on_a_free_path"
+
+[[mutant]]
+name = "a retired row stops imposing an order, so a DELETED holder is treated as live"
+file = "src/pinakes/pairing.py"
+# The inverse of the real rule. `sync`'s write guard clears a *retired* row out of a writer's way,
+# so a DELETED holder needs no ordering; treating it as live invents dependencies on actions that
+# may not exist, and treating a LIVE one as retired removes the dependency that matters.
+old = '''        if held is None or held.state != ACTIVE:'''
+new = '''        if held is None or held.state == ACTIVE:'''
+kills = "tests/test_pairing.py::test_a_rename_chain_of_three_is_ordered_so_every_move_lands_on_a_free_path"
+
+[[mutant]]
+name = "the topological sort takes actions in arbitrary set order rather than lowest index first"
+file = "src/pinakes/pairing.py"
+# Stability is a property, not a nicety: without it every unrelated plan is reordered too, and the
+# diff of a future fix stops being readable. `sorted` on the ready list is the whole of it.
+old = '''    ready = sorted(index for index in range(len(actions)) if index not in remaining)'''
+new = '''    ready = list(reversed([index for index in range(len(actions)) if index not in remaining]))'''
+kills = "tests/test_pairing.py::test_a_move_onto_a_name_nobody_holds_is_not_reordered"
+
+[[mutant]]
+name = "a SoftDelete stops being recorded as freeing the path it retires"
+file = "src/pinakes/pairing.py"
+# **Expected to SURVIVE, and committed saying so.** This branch is correct — `sync`'s write guard
+# deletes a retired row holding a path a different id wants, so the retirement genuinely has to
+# happen first — but no plan `pair()` can currently produce puts a writer *before* the SoftDelete
+# of its path's holder: the same-path loop emits the pair adjacently and in the right order
+# already. It was load-bearing in the draft that REFUSED cycles (a missing freer read as an
+# unorderable plan) and that draft was backed out, so today the branch is a complete model of the
+# database's rule rather than a reachable path. Recorded here so the next reader knows the row is
+# a known survivor rather than a coverage gap nobody noticed — and so that whoever settles the
+# cycle case sees immediately that this becomes load-bearing again.
+old = '''        case SoftDelete(path=path):
+            return path'''
+new = '''        case SoftDelete(path=path):
+            return None'''
+kills = "tests/test_pairing.py::test_a_retire_and_an_adopt_at_one_path_keep_their_order"

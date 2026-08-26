@@ -2694,6 +2694,50 @@ def test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row(kb: Path) -
     assert surviving == {"a.md", "b.md"}
 
 
+def test_a_rename_chain_syncs_and_every_document_keeps_its_id(kb: Path) -> None:
+    """S16/S19, end to end: a rename chain now applies, and nothing is re-minted.
+
+    `a → b`, `b → c`, `c → d` — **not** a cycle, and an applicable order plainly exists: move the
+    last one first. `pairing` used to emit them in path order, so the first write landed on a path
+    the next document still held, and `documents.path` being `UNIQUE` turned an ordinary `git mv`
+    of three notes into `pnk sync` exiting 1 on a raw `sqlite3.IntegrityError` — after which
+    `pnk search` answered from a path no longer on disk and `pnk doctor` reported every row `OK`,
+    including `failures: none recorded`.
+
+    **Ids are the assertion, not just the exit code.** A plan that dropped the rows and re-minted
+    them would also sync cleanly and would destroy every inbound `pnk://` link — ULID permanence is
+    the invariant here, and the counts `pnk sync` prints — `renamed`, with `minted` and
+    `deleted` both zero — are what say
+    which happened.
+    """
+    for name, body in (("a.md", "Alpha"), ("b.md", "Beta"), ("c.md", "Gamma")):
+        write(kb, name, f"# {body}\n\n{body} body here.\n")
+    run(kb)
+    before = {Path(str(row["path"])).name: row["id"] for row in index(kb)}
+    assert set(before) == {"a.md", "b.md", "c.md"}
+
+    docs = kb / "docs"
+    # Applied last-first on disk, which is the only way a person can do it without a temporary
+    # name — and leaves exactly the walk `pairing` used to mis-order.
+    for source, target in (("c.md", "d.md"), ("b.md", "c.md"), ("a.md", "b.md")):
+        (docs / source).rename(docs / target)
+        (docs / f"{source}{SIDECAR_SUFFIX}").rename(docs / f"{target}{SIDECAR_SUFFIX}")
+
+    report = run(kb)
+
+    assert report.renamed == 3, f"expected three renames, got {report}"
+    assert report.minted == 0, "a re-mint would look like a clean sync and destroy every link"
+    assert report.deleted == 0, "a retire-and-re-adopt would pass the id check by luck otherwise"
+    after = {
+        Path(str(row["path"])).name: row["id"] for row in index(kb) if row["state"] == "active"
+    }
+    assert after == {
+        "b.md": before["a.md"],
+        "c.md": before["b.md"],
+        "d.md": before["c.md"],
+    }
+
+
 def test_the_population_walk_never_opens_a_document(kb: Path, monkeypatch: Any) -> None:
     """`walk_document_paths` answers *which* documents this KB collects, and `pnk doctor` is its
     only caller — the command you run when the KB is already broken. Opening files there would
