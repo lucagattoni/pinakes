@@ -264,8 +264,24 @@ re-checked by the planner 20260826 04:40 on `main` at `325ab9e`**, after S17 tur
 an unrelated increment: the disjunct is still there, so this one did not go the same way.
 
 **⚠️ Cite it by symbol, not by line.** It was `pairing.py:244` when first recorded and is
-**`pairing.py:298`** now — the S2 rework moved it, four hours later, exactly as this repository's
-citation-rot rule predicts. Find it with `grep -n 'hash_changed = ' src/pinakes/pairing.py`.
+**`pairing.py:298`** now — the S2 rework moved it four hours later. Find it with
+`grep -n 'hash_changed = ' src/pinakes/pairing.py`.
+
+> **🔁 The same failure as S17, one level out — and having both here is the point.** S17 was a
+> *finding* measured against a moving tree and reported without its sha; this is a *line number*
+> measured against a moving tree and recorded without one. **A citation is a measurement.** Both were
+> correct when taken and false within hours, and in neither case could the record show it. The
+> remedy differs by kind — a finding carries the sha it was measured at, a citation names a symbol
+> or a heading instead of a line — but the failure is identical, which is why this repository keeps
+> re-deriving it under two different names.
+>
+> **And a third instance the same day, in a different register:** the predicate `a table cell begins
+> with ">"` flags `> ~2M` (*greater than two million*) as a swallowed blockquote. **The signal has to
+> be a function of the property, not of something correlated with it** — the defect is that a
+> swallowed blockquote leaves the row's *remaining cells empty*, and that is what a gate must test.
+> Same family as `check.sh | tail` reporting `tail`'s exit status, and as `mkdocs --strict` exiting
+> 0 on both the broken and the fixed form. **If any of this reaches a gate, that sentence belongs in
+> its comment.**
 
 **Provenance, stated because this file's own § *Provenance* says the markers are not uniform.** The
 planner **verified the code claim directly on `origin/main`** and did *not* reproduce it end to end —
