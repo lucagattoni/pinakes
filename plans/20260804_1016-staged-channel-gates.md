@@ -491,8 +491,10 @@ corpus **before** the extra is built, not after.
    since rotted, which is the second reason not to re-count.
 
    > **Ruling, 20260825 18:40 UTC — planner.** *The graph release, staged* **belongs in `CLAUDE.md`'s
-   > unbuilt-work table, and was missing from it.** The five entries above are obedient: every one
-   > uses the *name*, and naming is what the rule asks for. The defect was the list, not the
+   > unbuilt-work table, and was missing from it.** The entries above are obedient: every one
+   > uses the *name*, and naming is what the rule asks for. **(This sentence said *"the five entries"*
+   > until 20260826 — the count moved down here when it was removed from the clause, which is what a
+   > partial repair looks like.)** The defect was the list, not the
    > documents. It earns its line by the behaviour test — without a sanctioned name in the list, an
    > agent writing about the PPR channel has nothing to call it and reaches for a version number,
    > which is exactly what the rule forbids. **It is not the same name as *the graph release***,

@@ -544,7 +544,7 @@ B loses on its real costs instead: `manifest.py:437` would print `(this build is
   looseness its docstring says exists for the `last reviewed` date, and *nothing pins that the
   qualified form is legal*. Anyone tightening that regex would silently outlaw it. The build adds a
   test asserting it is legal.
-* **No mutation battery exists for `status_header_gate.py`** — six batteries, none for this target — so
+* **No mutation battery exists for `status_header_gate.py`** — seven batteries as of 20260826, none for this target — so
   a new file is correct here, and it forces the counted-paragraph edit in `tools/batteries/README.md`
   that `tests/test_batteries.py` asserts.
 * **Layer 2 reads `SEQUENCES` from `release_order_gate.py`** rather than duplicating its `within`

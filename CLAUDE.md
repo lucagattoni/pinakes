@@ -160,9 +160,8 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   (*promises only*, plus the audit that rowed 14 unrowed promises in `tests/test_serve.py`), arity
   requirement 3 closed, the three residues ruled, the `requires_pinakes` clause closed-superseded,
   `expect_green` declined, and the re-extraction loop and the `fragments.py` widening both deferred
-  behind **written triggers**. **D-31/32/33 and D-37 have build-order rows owned by `coder`.** **D-36
-  does not** — its row still reads *"user, then split"* and names the pre-decision options that
-  option E replaced, so its build is decided but **unscheduled**. **The `_toml.py` unknown-key message
+  behind **written triggers**. **D-31/32/33 and D-37 have build-order rows owned by `coder`.** **D-36's build is
+  decided but unscheduled** — its row says so itself; it carries no blocker and no schedule. **The `_toml.py` unknown-key message
   has an owner** (the 20260805 plan assigns it to the coder) **but no row**. **The G5 gate re-run has an owner and no row** — the decisions
   table gives it `planner → coder` and splits the halves (coder drives the rebuild and the legs,
   planner writes it up), but **no build order anywhere carries it**, which is the gap that matters. Unowned work is how it aged 21 days, so it is named here
