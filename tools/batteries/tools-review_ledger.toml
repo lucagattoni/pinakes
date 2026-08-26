@@ -43,13 +43,17 @@ new = '''    if best > 0:
 kills = "tests/test_review_ledger.py::test_a_package_path_keeps_its_directories"
 
 [[mutant]]
-name = "WAS A BUG — the first top-level directory wins, so a branch name joins the file's identity"
+name = "WAS A BUG — the last top-level name wins, and the committed corpora leave the map entirely"
 file = "tools/review_ledger.py"
-# `rfind` -> `find`. One file read from two branches becomes two files, and the repeat share falls
-# for a reason that has nothing to do with what any pass did.
-old = '''        for candidate in (path.rfind("/" + marker), 0 if path.startswith(marker) else -1):'''
-new = '''        for candidate in (path.find("/" + marker), 0 if path.startswith(marker) else -1):'''
-kills = "tests/test_review_ledger.py::test_a_branch_named_directory_does_not_leak_into_the_path"
+# The original `rfind`, restored. `tests/demo-kb/docs/x.md` becomes `docs/x.md`, which is not a
+# tracked file, so the screen below drops it — 102 paths, silently. This row exists because the
+# battery's first run left it SURVIVED against a test that asserted the wrong property, and
+# answering the survivor is what found the defect.
+old = '''        found = path.find("/" + marker)
+        if found != -1 and (best == -1 or found < best):'''
+new = '''        found = path.rfind("/" + marker)
+        if found != -1 and (best == -1 or found > best):'''
+kills = "tests/test_review_ledger.py::test_a_corpus_path_that_nests_a_top_level_name_keeps_all_of_it"
 
 [[mutant]]
 name = "WAS A BUG — probes are compared raw, so each pass's scratch directory makes every one unique"

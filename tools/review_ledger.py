@@ -348,19 +348,30 @@ def changed_files(increment: str) -> list[str]:
 def _normalise(path: str) -> str:
     """Reduce any spelling of a repository file to its repository-relative path, or `""`.
 
-    The *last* occurrence of a top-level directory wins. `docs/` appears inside
-    `Pinakes-worktrees/20260807_2143-docs-audit-findings/docs/README.md`, and taking the first
-    match would keep the branch name in the path — two passes on two branches reading one file
-    would then look like two files.
+    The **earliest** occurrence of a top-level directory wins, because what is being removed is the
+    checkout prefix and the repository-relative path begins at the first marker after it.
+
+    **This was `rfind` — last wins — until a surviving mutant made the case for it.** The reasoning
+    was that a branch directory could contain `docs`, so the later match must be the real one. It
+    cannot: a branch is `20260807_2143-docs-audit-findings`, where `docs` is bounded by hyphens and
+    never by slashes, so the marker `/docs/` does not match it at all. What last-wins *did* match
+    was the committed corpus — `tests/demo-kb/docs/access-restrictions.md` reduced to
+    `docs/access-restrictions.md`, which is not a file, and the `docs/` screen below then discarded
+    it. **102 tracked paths nest a top-level name that way**, and every review pass that ever read
+    the demo KB vanished from the map. No test failed, no gate went red, and the mutant that
+    survived is what asked the question.
     """
     path = path.strip().strip("'\"`,;()[]")
     if not path:
         return ""
     best = -1
     for marker in TOP:
-        for candidate in (path.rfind("/" + marker), 0 if path.startswith(marker) else -1):
-            if candidate > best:
-                best = candidate
+        if path.startswith(marker):
+            best = 0
+            break
+        found = path.find("/" + marker)
+        if found != -1 and (best == -1 or found < best):
+            best = found
     if best > 0:
         return path[best + 1 :]
     if best == 0:

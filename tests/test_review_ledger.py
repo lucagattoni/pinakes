@@ -213,20 +213,24 @@ def test_a_package_path_keeps_its_directories(tmp_path: Path) -> None:
     assert files == ["src/pinakes/sync.py"], files
 
 
-def test_a_branch_named_directory_does_not_leak_into_the_path(tmp_path: Path) -> None:
-    """The *last* top-level directory wins, or a branch name becomes part of the file's identity.
+def test_a_corpus_path_that_nests_a_top_level_name_keeps_all_of_it(tmp_path: Path) -> None:
+    """`tests/demo-kb/docs/x.md` is a file. `docs/x.md` is not.
 
-    `Pinakes-worktrees/20260807_2143-docs-audit-findings/docs/README.md` contains `docs/` twice.
-    Taking the first would keep the branch, and one file read from two branches would be two.
+    102 tracked paths in this repository nest a top-level directory name inside another — the
+    committed demo and partner corpora are `tests/*/docs/*.md`. Anchoring on the *last* marker
+    reduced every one of them to a `docs/` path that does not exist, which the tracked-file screen
+    then discarded, so every review pass that read the demo KB disappeared from the map. Nothing
+    went red; a surviving mutant asked the question.
     """
     plain_pass(
         tmp_path,
         "a1",
         "2026-01-01T00:00:00Z",
-        ["cat /Users/x/Pinakes-worktrees/20260807_2143-docs-audit/tools/land.py"],
+        ["cat /Users/x/Pinakes-worktrees/br/tests/demo-kb/docs/appraisal-criteria.md"],
     )
     out = run("20260101_0000-x", "--projects", str(tmp_path), "--json")
-    assert json.loads(out.stdout)["passes"][0]["files"] == ["tools/land.py"]
+    files = json.loads(out.stdout)["passes"][0]["files"]
+    assert files == ["tests/demo-kb/docs/appraisal-criteria.md"], files
 
 
 def test_one_probe_run_in_two_scratch_directories_is_one_probe(tmp_path: Path) -> None:
