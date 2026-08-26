@@ -55,3 +55,36 @@ only because the harness counted launched agents against returned ones and refus
 confirmed by re-deriving it rather than by reading it again. *Lesson: an adversarial pass that
 returns nothing is making a claim about itself first and about the work second, and re-reading a
 number never falsifies it — recomputing it does.*
+
+**And the finding the report should have led with: the retrospective loop IS the spend, and
+its yield halves while its price does not.** The report's own share figures were computed from a
+keyword classifier and were wrong twice. Recomputed the plain way — list every subagent run's task
+title with its token total, then let the clusters fall out — 899 runs and 5.13 billion raw tokens
+divide like this: **adversarial review of an increment, plus the refuters serving it, is 44.0%**;
+building and fixing increments is 18.1%; plan work 7.8%; decision analysis 5.9%; sweeps 5.7%; corpus
+and eval authoring 1.5%. A further 16.7% resisted clustering and is named here rather than
+distributed, so 44% is a floor. **Review is 2.4x the next largest category**, and the nine single
+most expensive runs in the project are all *build* work, which is the other thing the title listing
+makes obvious and no proposal in the report addressed.
+
+The decay inside that loop is recorded in the repo's own agent briefs, because each pass is told what
+came before: **passes 1–4 over one increment found 30, 22, 13 and 6 issues.** Median cost per pass,
+over the runs that state their number: 7.5M raw tokens at pass 2, 12.5M at pass 3, 12.9M at pass 5 —
+flat to rising. Yield halves, price does not, so the marginal cost of a finding roughly doubles every
+pass. *The caveat that keeps this honest:* only 43 runs state which pass they are, and later passes
+announce themselves ("the FIFTH adversarial review pass") while a first pass usually just describes
+the task — so the split of spend by pass number is biased and is not quoted. The decay curve is
+quoted verbatim from the briefs.
+
+*Lesson: the loop's cost is not the depth of any one pass, it is that every pass pays full price for
+context the previous ones already established.* Each pass is a fresh agent, told the history but
+handed none of the evidence, so it re-derives the map before it can look for anything new — at a
+measured ~102,000 tokens per turn, where 99.5% of those tokens are re-transmitted context and 0.5%
+are the findings. That is the shape to attack: not fewer passes and not cheaper models, both of which
+trade away what later passes are good at, but a later pass that starts from what the earlier ones
+established instead of from zero.
+
+*And the method lesson, which is the one that generalises:* the clusters above came from listing
+every task title against its token total and reading the list. Three successive regex classifiers
+over agent prompts had each produced a different, confidently wrong answer. **Sort the units of work
+by cost and read the labels** before writing a classifier over them.
