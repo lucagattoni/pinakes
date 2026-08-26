@@ -476,9 +476,15 @@ corpus **before** the extra is built, not after.
    **This clause used to count instead, and the count was false when it was written.** It said *"two
    entries exist and are deliberate"* and named a third as drift. `docs/DESIGN.md` had carried a
    third entry of the same shape since **20260729**, five days before this file was written, and
-   there are **five** today — in `docs/STATUS.md` (§ *Release roadmap*), `docs/DESIGN.md`,
-   `docs/ROADMAP.md` (twice — its release table and § *The graph release, staged — gates only, not
-   scheduled*), and `docs/graph/PINAKES_APPROACH.md` §10. **A tripwire whose condition was already
+   there are more now — `docs/STATUS.md`, `docs/DESIGN.md`, `docs/ROADMAP.md`,
+   `docs/graph/PINAKES_APPROACH.md`, `docs/README.md` and `CLAUDE.md` all carry one.
+
+   **This clause states no count, and that is the repair rather than a smaller version of the
+   defect.** A first attempt at fixing it wrote *"there are five today"* — accurate against
+   `origin/main` at the moment of writing, and **falsified by the same commit**, which added three
+   more naming entries including the `CLAUDE.md` row the ruling below mandates. **A rule that counts
+   instances rots; that is the whole finding, and a repaired count is still a count.** Find them with
+   `grep -rn 'graph release, staged\|graph release (staged)' docs/ CLAUDE.md`. **A tripwire whose condition was already
    met on the day it was armed reports drift that is not drift**, and it cost two separate readers a
    full pass before anyone opened the file it accused. **Locate every entry by heading text, never by
    line number**, per the ⚠️ in the header — the line numbers this clause originally carried have

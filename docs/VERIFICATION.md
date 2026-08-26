@@ -34,8 +34,8 @@ test, or write **none** and say why in the same commit.
   written and neither has been true for a long time. **Do not restate a release count here** — it
   goes stale silently, which is what happened. State what was measured and when — **and count the rows
   the way the gate does**: an earlier version of this paragraph said 923, which counted the table
-  headers `tests/test_verification.py` skips — 33 of them at the time, 34 now that the section below
-  added one, which is the same moving-denominator trap one layer down. **The module figure had rotted the same way and worse**
+  headers `tests/test_verification.py` skips — 33 of them at the time, **35** now — the MCP section added one and the
+  markdown-link table's missing header added another, which is the same moving-denominator trap one layer down. **The module figure had rotted the same way and worse**
   — it said *62 of the 67*, wrong on both halves; there are 74 modules and 63 carry a row. Count them
   with the gate's own `REFERENCE` regex, not by searching the file for a filename: the eleven unnamed
   module names are spelled out in the bullet directly below, so a substring test over this file scores
@@ -53,7 +53,7 @@ test, or write **none** and say why in the same commit.
   ratifying the reading `db7d1c1` had already operated on since 20260804. **A promise is a
   user-visible guarantee, a named invariant, or a gate's own correctness.** It is *not* a unit test
   of an internal primitive, and it is *not* a per-surface re-assertion of a promise already rowed
-  elsewhere. `tests/` holds 2 032 test functions against these 904 rows, and **that ratio is not by
+  elsewhere. `tests/` holds **2 051** test functions against these 904 rows, and **that ratio is not by
   itself evidence of a hole** — a sample of the residue found those two categories dominate it. That
   inference was drawn here once anyway, by a planner, hours after the lesson that named it.
 * **But "not systematically debt" is not "no debt", and the difference was measured rather than

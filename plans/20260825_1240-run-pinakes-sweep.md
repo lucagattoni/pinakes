@@ -86,7 +86,7 @@ is itself the point: *the review of a fix found a defect the fix was not about.*
     # swap both names, sidecars travelling with them, as a `git mv` pair leaves them
     pnk sync                             # exit 1, sqlite3.IntegrityError:
                                          #   UNIQUE constraint failed: documents.path
-                                         #   at src/pinakes/sync.py:2331
+                                         #   raised by _index_document's INSERT (line moved twice; grep it)
 
 **Three separate failures, and the third is the worst.**
 
@@ -288,18 +288,17 @@ planner **verified the code claim directly on `origin/main`** and did *not* repr
 that requires a paid-extracted document and a paid backend. **The end-to-end behaviour is the coder's
 reproduction, not the planner's.** Weigh it accordingly.
 
-`src/pinakes/pairing.py:244` reads
+`src/pinakes/pairing.py`'s same-path branch reads
 
     hash_changed = document.content_hash != file.content_hash or document.state == DELETED
 
 **The second disjunct forces `hash_changed` True for any retired row, including one whose file is
 byte-identical to what was indexed.** If that row's `extraction_backend` is paid and the run is free,
-`:249-256` then emits `PaidExtractionRequired` — so **a paid document deleted and restored unchanged
-is never resurrected**, and `src/pinakes/sync.py:1331` tells the user it was extracted with the paid
-backend *"but its content changed."* **It did not.** The remedy the tool prints asks them to spend
+the `recorded_is_paid and not effective_is_paid and not override` branch below it then emits `PaidExtractionRequired` — so **a paid document deleted and restored unchanged
+is never resurrected**, and `src/pinakes/sync.py`'s refusal message (`grep -n 'but its content changed'`) tells the user it was extracted with the paid backend *"but its content changed."* **It did not.** The remedy the tool prints asks them to spend
 money re-extracting a file that has not moved a byte.
 
-**Why the disjunct is there matters for the fix**: the comment at `:250-251` states the intent —
+**Why the disjunct is there matters for the fix**: its *"Decision 9's paid-protection clauses"* comment states the intent —
 *"never silently keep indexing text a changed file no longer matches"* — which is about a **changed**
 file. A retired row is being treated as a changed file to reuse one branch. The fix must keep the
 paid-protection clause and stop conflating *retired* with *changed*, so this is not a one-token edit.
@@ -389,9 +388,9 @@ green `doctor` over a lost document is the failure nobody can see.
 | 3 | **S1** — `PermissionError` aborts the whole walk | nothing | coder |
 | 4 | **S4** — escape at render in `template.py` | nothing | coder |
 | 5 | **S5-S9** | nothing | coder |
-| 6 | **D-36** — **ANSWERED 20260825 18:16, option E** (derive the bound from a generative round-trip corpus) — *the two options this row names were both replaced* | **nothing — answered**; build unscheduled | coder |
-| 7 | **D-37** — **ANSWERED 20260825 18:16, option E**: gate the move hint on the **orphaned sidecar**, not the mint count | **nothing — answered**; this unblocked S6 | coder |
-| 8 | The five low findings | S1-S9 | coder |
+| 6 | **D-36** — **ANSWERED 20260825 18:16, option E** (derive the bound from a generative round-trip corpus) — *this row used to name two options; option E replaced both* | **nothing — answered**; build unscheduled | coder |
+| 7 | **D-37** — **ANSWERED 20260825 18:16, option E**: gate the move hint on the **orphaned sidecar**, not the mint count | **nothing — answered** | coder |
+| 8 | The Low section's findings (**four classes; the count of five is retracted in this file's header**) | S1-S9 | coder |
 
 **S4's fix is escape at render, not reject at `init`.** Settled between the two sessions: it repairs the
 mechanism where the defect actually is, changes no `init` contract, and `name = "Bob's \"Special\" KB"`

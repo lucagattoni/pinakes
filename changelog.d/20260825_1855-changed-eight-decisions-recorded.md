@@ -9,7 +9,7 @@
   writes the floor. **D-11** (taken 20260804) settled that `pnk upgrade --apply` never
   does, and `pnk init` does not either — the latter resting on **D-6, a standing recommendation
   rather than a taken decision**. `expect_green` is
-  **declined** on measurement — 0 of 136 committed mutants asks for a green control, and the field
+  **declined** on measurement — 0 of 146 committed mutants across seven batteries asks for a green control, and the field
   would be parsed, ignored and reported to nobody. The paid re-extraction loop and the
   `tools/fragments.py` body-rule widening are **deferred behind written triggers** rather than left
   open. **The audit D-34 licensed was run rather than promised**, and it found the closing claim

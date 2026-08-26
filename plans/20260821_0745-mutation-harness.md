@@ -21,7 +21,7 @@ allowance. Both are decisions, not omissions.
 > ### ❌ DECLINED 20260825 18:16 by the user — `expect_green` and the per-mutant zero-kill allowance
 >
 > **Measured, not argued.** `expect_green` exists in exactly **two commits** in the whole history and
-> in **no** source, test, doc or CHANGELOG entry. Across **136 mutants in six committed batteries,
+> in **no** source, test, doc or CHANGELOG entry. Across **146 mutants in seven committed batteries,
 > zero** ask for a green control. `load_battery` validates presence only and rejects no unknown key,
 > so an `expect_green = …` written today would be **parsed, ignored, and reported to nobody**.
 >
@@ -41,7 +41,7 @@ allowance. Both are decisions, not omissions.
 > reach that, and adding it would look like it did.
 >
 > **What would re-open this:** a battery whose author can state a control they cannot express by
-> re-aiming a mutant. None of the six can.
+> re-aiming a mutant. None of the seven can.
 
 **Exit criteria, met:** the six tests are 52; the tool was used for its own increment's mutation
 pass — **25 mutants against its own guards, 25 killed** — and `docs/VERIFICATION.md` carries ten
