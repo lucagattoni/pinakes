@@ -176,12 +176,22 @@ Never batch increments; each is a separate, bisectable landing:
    re-deriving timestamps for an unrelated reason.
 
    **The same hole covers ordinary source files.** A corpus measurement over this repository's own
-   transcripts (`python3 tools/review_ledger.py <increment>`, landing separately; its last section
-   is headed *CHANGED BY THIS INCREMENT, OPENED BY NOBODY*) found review passes open **207 of 248**
-   changed files — 83%, and 90% on multi-pass increments — while `src/pinakes/__init__.py`, where
-   `__version__` lives, was opened by **none of the 41 passes** over the mutation-batteries
+   transcripts found that **what a pass misses is overwhelmingly the fragments its own increment
+   wrote** — on nine of the twelve increments with any miss at all — and that `src/pinakes/__init__.py`,
+   where `__version__` lives, was opened by **none of the 41 passes** over the mutation-batteries
    increment. **A file the increment changed and no pass opened is the cheapest place for a defect
    to survive review.**
+
+   **Ask it about your own increment rather than quoting a ratio from here**:
+   `python3 tools/review_ledger.py <increment>`, whose last section is headed
+   *CHANGED BY THIS INCREMENT, OPENED BY NOBODY* and lists the paths. **No percentage is quoted in
+   this paragraph, deliberately.** It carried *207 of 248, 83%, 90%* for four hours and all three
+   were wrong by the time they were read — the tool's scan could not see an extensionless filename
+   or a `.lock`, so `Makefile` and `uv.lock` were reported unopened on every increment that touched
+   them. Worse, **the corpus is alive**: it is this repository's own transcripts, and the sessions
+   measuring it are writing into it, which moved a published figure from 96.1% to 95.8% between two
+   runs **with no code change at all**. A ratio over a growing denominator is a claim with a
+   shelf-life measured in minutes; the command has none.
 
    **The rule says *opened*, and that word is doing deliberate work.** What a transcript can show is
    which files a pass **opened**; whether it *reviewed* them is not observable and no tool will ever

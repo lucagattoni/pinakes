@@ -27,6 +27,14 @@ The whole section, including its own `##` heading with the timestamp the file's 
 
     **HIGH — …**
 
+**The heading's stamp is a *copy* of the filename's prefix — one reading of the clock, written
+twice.** Not a second reading, and not the time you finished writing: `20260729_0336-` and
+`(20260729 03:36)` are the same four digits by construction. **Composing it instead is the failure
+this rule exists to stop**, and it is not a rounding error — on 20260826 three headings were typed
+from memory in one morning, out by 1 minute, 2 minutes and **3 hours 30 minutes**, in fragments
+whose own subject was measurement discipline. The largest drifts furthest precisely because nothing
+prompts you to look. **`date -u "+%Y%m%d_%H%M"` once; paste it into both places.**
+
 Fragments are spliced **before** the design-review-passes section, which stays at the foot.
 
 **Never link to another fragment by filename.** Splicing puts every fragment into one
