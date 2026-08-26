@@ -31,13 +31,25 @@ reads as a clean bill just as convincingly. Both are reported; both fail the gat
 
 **Why it also lists artifacts, and why they are labelled EVIDENCE.** A dead agent's context is gone,
 but its files are not — and re-running a recovered probe is far cheaper than re-running the agent.
-Measured over 613 review agents in this project: **87% leave some artifact**, but only 8% ever call
-the `Write` tool; the rest is shell redirects, averaging 10.4 per agent. The retention is the weak
-half. Of 6,015 redirect targets, **58% are relative paths** — landing in the agent's own worktree,
-destroyed by the `--cleanup` that `tools/land.py` performs — 33% go to `/dev/null`, and only 9%
-reach `/tmp`. Eight targets in six thousand hit another stable absolute path. So a coder session
-losing a lens's probes to worktree cleanup within the hour was the median case, not bad luck, and
-this gate exists to be run **before** anything cleans up.
+
+Measured over **533 review-classified subagent runs** in this project, and the numbers argue for
+*enforcing* a probe convention rather than exploiting one: **only 41% leave any artifact at all, and
+59% leave nothing**. Of 6,146 redirect and write targets, **49.2% are not file paths** (a `head -c`
+count, a `2>&1`, a dict literal inside a heredoc), 27.1% are `/dev/null` or an fd dup, **12.8% land
+somewhere that survives, and 10.9% land where `land.py --cleanup` destroys them** — so of the
+artifacts that are real, roughly half die with the worktree. A coder session losing a lens's probes
+to cleanup within the hour was an ordinary outcome, not bad luck, and this gate exists to be run
+**before** anything cleans up.
+
+**Those figures were wrong in this docstring until 20260826, and both causes are worth naming.**
+It first read *"613 review agents, 87% leave some artifact, 58% of 6,015 targets are relative
+paths"*. The population was classified by matching the word "review" over each agent's brief — but
+this repo instructs every *implementer* to "adversarially review" its own work, so coder agents
+counted as reviewers, and coder agents write far more files than reviewers do. And the `is_file`
+filter above was added *during this tool's own build*, after a real run reported `0` and `15,}` as
+recoverable files; adding it silently falsified the measurement quoted three paragraphs below it,
+which nobody re-ran. **A number in a docstring is a claim with no gate on it**, and the fix that
+invalidates it will not say so.
 
 They are listed as evidence and never as findings. A recovered probe says what the agent ran, never
 what it concluded — one recovered probe in the run that motivated this asserted something its own
