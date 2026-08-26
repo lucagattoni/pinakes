@@ -10,9 +10,11 @@ repository treated it as the last check before a version PyPI will never accept 
 
 **The tag must already exist locally when this runs, and that is the point.** A gate that compares
 "the tag" while silently passing when there is no tag to compare is the same defect one layer out.
-So the release procedure creates the tag first and pushes it second, with this gate in between:
-the tag is a local, deletable object at that moment, and pushing it is the step that reaches the
-publishing workflow. *"Run it before the tag"* means before the **push** — the irreversible half.
+So this gate requires the tag to be created first and pushed second, with itself in between: the
+tag is a local object `git tag -d` removes without trace at that moment, and the push is what
+reaches the publishing workflow. *"Run it before the tag"* means before the **push** — the
+irreversible half, and the half `CLAUDE.md`'s own reasoning names (*PyPI never accepts a version
+twice*).
 
 **Four legs, and each one is a mistake that already has a cost.**
 
@@ -41,8 +43,10 @@ own objects. The check was considered and left out on purpose: every offline for
 (a remote-tracking ref is as stale as the last fetch, and the remote's tip may legitimately be an
 object this clone does not have), and the version that is correct has to fetch, which makes a
 release gate mutate local state and go red for *being behind* — a state that is not a publish
-hazard. The procedure covers it instead: `docs/RELEASING.md` steps 4 and 5 land and push before
-step 6 creates the tag, and `tools/land.py` is what pushes.
+hazard. The procedure covers it instead: `docs/RELEASING.md` lands the branch and pushes it —
+through `tools/land.py`, which pushes for you — before the tag is created at all. **Deliberately
+number-free**: that document's steps are being renumbered around this gate, and a citation to a
+step number is a measurement of a neighbour that is currently moving.
 
 `--repo`, `--expect-version` and `--remote` exist for those tests, which build a real repository
 with a real (local, bare) remote rather than faking git. With no flags it reads this repository
