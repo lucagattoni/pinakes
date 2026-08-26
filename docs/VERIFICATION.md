@@ -26,10 +26,17 @@ test, or write **none** and say why in the same commit.
   creates: 904 rows, 45 distinct increment ids** — **not enumerated here on purpose.** A range
   like *I1–I11* reads as a claim that every id in it has a row, and four do not (I10, T6, E2 and E6
   have none; T6 is the deferred `sqlite-vec` tier, so it *cannot*), while `L5b` is real and no range
-  contains it. **Count them with the gate's filter rather than trusting a range**, **naming 63 of the 74 test modules in `tests/`.** The parent
-  `03e6f86` measured 890 and 44; **this change is what moved them**, by adding the fourteen
-  server-boundary rows below — stated because a count restated from the parent commit would have been
-  falsified by the very edit that restated it. An earlier version of this paragraph said
+  contains it. **Count them with the gate's filter rather than trusting a range**, **naming 64 of the 76 test
+  modules in `tests/`** (measured 20260826 06:52 UTC at `a4a754a` with the gate's own `REFERENCE`
+  filter: 1 146 references, 64 modules, 76 modules on disk). **The denominator moves on its own and
+  nothing turns red when it does** — it was 74 until `tests/test_review_pass_gate.py` landed
+  **carrying no row**, because `tests/test_verification.py` fails on a name that does not resolve,
+  never on a module that is absent. **Twelve modules on disk have no row**; that is the number to
+  re-measure, not to restate. The parent
+  `03e6f86` measured 890 and 44, and **the change that added the fourteen server-boundary rows below
+  is what moved them** — stated because a count restated from the parent commit would have been
+  falsified by the very edit that restated it. (That clause read *"this change"* until 20260826,
+  when it stopped resolving: two further changes had landed on top of it.) An earlier version of this paragraph said
   the table *"stopped"* at 0.12.0 and that the gap was *"four releases wide"*; both were true when
   written and neither has been true for a long time. **Do not restate a release count here** — it
   goes stale silently, which is what happened. State what was measured and when — **and count the rows

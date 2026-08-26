@@ -263,6 +263,43 @@ therefore invisible to every other checkout.
 > and the fact stops being invisible. **If this is judged scope creep, cut it and keep A; D-31 and
 > D-32 do not depend on it.**
 
+### D-33's deferred half — RULED by the planner 20260826 06:19 UTC
+
+**What was left open**, and it is narrower than it looks: the recommendation above names
+`.git/info/exclude`, which is **never** committed. It says nothing about an **uncommitted
+`.gitignore`** — a file that exists in the working tree, protects this checkout today, and protects
+nobody who clones. Until 20260826 this half had no owner at all, which is the seam this pass exists
+to close.
+
+**This is a planner ruling, not a user decision, and the distinction is the reason it could be
+taken.** A-versus-B is not reopened: the user's Option C stands, one notion of *protected* governs
+the verdict, and the detail line says when protection is local-only. What remained was applying that
+settled principle to a **second** local-only source. Deriving is planner work; re-deciding would not
+have been.
+
+**The ruling.** An uncommitted `.gitignore` is reported by the same mechanism and with different
+words, because the two cases differ in the one way a user acts on:
+
+| Protection source | Detail line | Why the wording differs |
+|---|---|---|
+| `.git/info/exclude` or `core.excludesFile` | `ok — ignored via .git/info/exclude (local to this checkout)` | **Permanently local.** There is no action that makes it shared, so the line states a fact and stops |
+| A `.gitignore` that is **not committed** | `ok — ignored via .gitignore, which is not committed yet (commit it, or collaborators get no protection)` | **Temporarily local**, and one command ends it. A line that only states the fact would be withholding the remedy |
+| A committed `.gitignore` | no detail line | Protection is shared; there is nothing invisible to surface |
+
+**No new severity and no new verdict** — all three are `OK` rows, exactly as the recommendation
+requires.
+
+**One `git` question is added, and it is *not* the one X1 already asks — read this before building
+it.** The question is whether the `.gitignore` that produced the match exists in **`HEAD`**
+(`git ls-tree HEAD -- <path>`). X1 runs `git ls-files` (`init.py:202`), which reads the **index**, so
+a `.gitignore` that is `git add`-ed and never committed would read as *protected* there. **That is
+exactly the case this row exists to catch**, so reusing X1's command would produce a check that is
+silent on its own motivating example. Same shape, different command, and the difference is
+load-bearing.
+
+**Overturn it in one line if it is wrong** — cut the middle row and the uncommitted case falls back
+to the committed case's silence, which is today's behaviour. Nothing else depends on it.
+
 ---
 
 # Part 2 — The same skeleton, in documents: a status claim nothing gates
@@ -574,7 +611,7 @@ read its section above for the decided three-layer shape, which is *not* what th
 | 3 | ~~**X3** — read the nine unread `plans/` files~~ — **BUILT 20260825 12:52.** All **twenty** read, not nine: the dropped nine could not be identified after the fact. **317 sections classified by body, 93 heading/body mismatches.** Findings: [`20260825_1252-plans-sweep-findings.md`](20260825_1252-plans-sweep-findings.md) | — | planner |
 | 4 | ~~**X4** (stale paragraph only)~~ — **BUILT 20260825 12:49.** Rewritten to the measured state; `test_init.py` moved out of the unrepresented list (27 rows), and the release-count claim removed rather than restated | — | planner |
 | 5 | **D-31/D-32** → `doctor` check — **option C, both questions, unconditionally** | **nothing — answered 20260825 18:16** | coder |
-| 6 | **D-33** detail line | **nothing — answered 20260825 18:16**; D-33's *deferred half* (what the line says when protection comes only from an **uncommitted** `.gitignore`) is its own item and is assigned to nobody | coder |
+| 6 | **D-33** detail line — **and its deferred half is now ruled**, so this row is buildable end to end. the exact strings are in § *D-33's deferred half — RULED*, in this file's D-33 section above | **nothing — answered 20260825 18:16; the deferred half ruled by the planner 20260826 06:19** | coder |
 | 7 | ~~**X5a/b/c**, **X6**~~ — **ALL FOUR BUILT.** X5b 12:52 (`docs/RELEASING.md`); **X5a, X5c, X6 at 13:00** — the user chose the slim form for `CLAUDE.md` (a pointer, not the rule inline, since the file is 60% over its own size guideline), so `CLAUDE.md` gained 4 lines and `docs/BUILDING.md` carries the rules: § *Content mine, keystrokes yours* and the `RESUME.md` bound in § *Hand over before you stop* | — | planner |
 | 8 | ~~**D-34** — VERIFICATION.md scope~~ — **ANSWERED 20260825 18:16 and BUILT.** Promises only, ratified; the bounded audit run, finding **14 unrowed promises in `tests/test_serve.py`** — two of them security boundaries — now rowed under a new *The MCP server boundary (I13)*; the scope sentence's *62 of the 67* corrected to *63 of 74* | — | planner |
 | 9 | **X7** — line 3's three layers (D-35 **answered** 20260825 12:37) | **nothing — unblocked** | coder |
