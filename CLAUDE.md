@@ -222,7 +222,9 @@ left local is invisible to every other agent, machine and scheduled run. **The p
 - **Cut the release** as soon as the work passes the SemVer table (feature = MINOR, fix/docs/deps =
   PATCH, breaking = MAJOR). Complete work never lingers in `[Unreleased]`.
 - **A tag publishes to PyPI** and PyPI never accepts a version twice: `make release-check` runs
-  **before** the tag, never after. **A CHANGELOG entry and a `__version__` are only claims** —
+  **before the push**, never after — create the tag, gate it, then push
+  ([`docs/RELEASING.md`](docs/RELEASING.md) steps 6–7). It is a real gate as of 20260826 and
+  **absence is red**; it was three `echo`s until then. **A CHANGELOG entry and a `__version__` are only claims** —
   verify the release happened, never assume it.
 
 ## Tooling

@@ -64,7 +64,7 @@ default *on a corpus where three of the seven edge kinds derived zero edges*.
 
 ---
 
-## Live · **four items live, one CLOSED 20260824 — read each body, not this heading**
+## Live · **three items live as of 20260826 07:01 UTC, two CLOSED (20260824 and today) — read each body, not this heading**
 
 > **Items are named below, never numbered — an ordinal rots the moment anything is inserted above
 > it, and this blockquote said "the second item" until three arrived over it on 20260825.**
@@ -98,7 +98,7 @@ construction. Measured over all 18 readable fixtures, every document accepted wi
 corpus and count documents clearing the paid-path gate that still retain ≥2 auditable pages. Nobody
 has run it.
 
-### 🛑 `make release-check` verifies nothing, and it is the only thing standing before an irreversible publish · **LIVE, added 20260825 19:02 — planner-raised, coder-owned**
+### ~~🛑 `make release-check` verifies nothing, and it is the only thing standing before an irreversible publish~~ · **✅ CLOSED 20260826 07:01 UTC — built in `674eda6`, `tools/release_tag_gate.py` + `tests/test_release_tag_gate.py`.** Four legs, and **absence is red**: no release-shaped tag on `HEAD` (or two), a tag not naming `pinakes.__version__`, a lightweight tag or an empty annotation, and a tag **already on the remote** — which makes *never after* checkable rather than remembered. **An unreachable remote is red, not green.** Each leg was watched red on purpose; 40 mutants, 40 killed. **`docs/RELEASING.md` steps 6 and 7 swapped** — the tag is created, gated, then pushed — because a gate cannot compare a tag that does not exist, and the irreversible half was always the **push**
 
 **`CLAUDE.md` says `make release-check` runs *before* the tag, never after, because PyPI never
 accepts a version twice.** The target's own help text promises *"Verify the git tag you are about to
@@ -112,11 +112,17 @@ non-zero on a mismatch, **and fail when there is no tag at all** — a gate that
 the same defect one layer out. **Watch it go red before believing it**, and say in the commit what
 made it red.
 
-**Sequencing — this is bound to the tag, not to the S-queue.** It does not outrank the live
-user-facing defects (S2, S16, S3, S1, S4), which harm users on PyPI today while this one harms
-nobody until someone tags. But **the 0.30.3 tag is taken and pending**, gated on D-35 layer 2, so
-this must land **before that tag is pushed** and belongs beside layer 2 rather than at a queue
-position. Both exist for the same reason: the release path relies on somebody remembering.
+**Sequencing — this was bound to the tag, not to the S-queue**, and it landed first, which is the
+order it needed. It never outranked the live user-facing defects (S2 ✅ built, S16, S3, S1, S4) that
+harm users on PyPI today while this one harmed nobody until someone tagged. **The 0.30.3 tag is
+taken and still pending**, so of the three gates on it, this one is now discharged: **D-35 layer 2
+is in build**, and the third is the user's — whether to tag 0.30.3 first or fold its entry into the
+next cut. Both gates existed for the same reason, and it is worth keeping after the fix: the release
+path relied on somebody remembering.
+
+**Closed 20260826 07:01 UTC.** The remedy above asked for two things and got both — *"fail when there is no
+tag at all"* is leg 1, and *"watch it go red before believing it"* was done per leg and recorded in
+the commit messages.
 
 ### `src/pinakes/extract/pageyield.py` justifies its constant with an example the constant refuses — **at two sites** · **LIVE, added 20260825 19:02 — planner-raised, coder-owned**
 
