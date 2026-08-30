@@ -153,6 +153,14 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
 **What is live right now** — the full routing table, with what each closed plan still binds, is
 [`docs/README.md`](docs/README.md):
 
+- **🛑🛑 `./check.sh` IS RED ON `main` AND NO COMMIT DID IT — read
+  [`plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md`](plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md)
+  before anything else.** `prices.toml` aged past `max_price_age_days` (30) on 20260827 and **25
+  tests fail**; every other gate passes. **CI's green is dated 20260826 and nothing has run since.**
+  **A user decision unblocks it and nothing else does.** That file also holds the state of a
+  self-review that **lost 26 of 52 agents to a session limit** — 30 of 51 findings never verified —
+  and five confirmed defects, one of them an unescaped `|` in a code span **splitting table cells on
+  the published site**.
 - **🛑 Two plans have scheduled work, and it is now all coder work — every decision is taken.**
   The **eight decisions and fifteen questions** in
   [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md) were **ANSWERED by
