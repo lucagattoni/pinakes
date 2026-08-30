@@ -43,12 +43,17 @@ The estimator refuses to price, `cost_eur` comes back `None`, `pnk ask --deep` e
 gives **`249 passed, 1 skipped, 0 failed`**; restoring the committed date brings all 25 back. The
 tree was restored and `__pycache__` cleared; `git status` clean.
 
-**CI is green on `3712a7f` and that green is a lie of omission** — it is dated **20260826 11:51** and
-**nothing has run since**. A re-run today goes red on the `[light,pdf,claude]` leg. The `[light]` leg
-should stay green (those tests carry `skipif` guards on the extras), so the next push produces a
-green `docs` job beside one green and one red matrix leg. **A green run is a claim about the moment
-it ran** — this repository has written that sentence before and had not yet met a case where the
-tree did not change at all.
+**CI's green was a lie of omission, and it is no longer even stale — it has gone red.** The green
+was dated **20260826 11:51** with nothing run since. **The prediction this paragraph used to make
+has since been measured, and it was wrong in every particular except the cause.** Run
+`33304454176` on `b9fb71e` (pushed 20260830 09:35 UTC) **failed on the `check (light pdf)` leg** at
+09:39:07Z — *not* the `[light,pdf,claude]` leg this file named — while `check (light pdf claude)`
+and `check (light)` were **cancelled by fail-fast** rather than finishing, so the predicted "green
+`docs` job beside one green and one red matrix leg" did not happen either. Every failing assertion
+in that log is the `prices.toml` refusal, verbatim, which is the half that held. **A green run is a
+claim about the moment it ran** — this repository has written that sentence before and had not yet
+met a case where the tree did not change at all. It has now met one, and then guessed the shape of
+its own failure wrong while standing next to it.
 
 **The irony is load-bearing and belongs in the record.** `tools/status_header_gate.py:52` rejects a
 wall-clock staleness check with *"a wall-clock staleness check fails on a quiet weekend with no code
@@ -134,6 +139,43 @@ dropped.*
 
 **Of the 15 that survived, one is fixed.** The rest are live on `3712a7f`.
 
+### The anatomy of the death, and why the intuition about it is backwards
+
+**Measured by the `optimize-adversarial-review-tokens` session from the run's own 52 `agent-*.jsonl`
+transcripts, deduplicated by `requestId`; cost in price-units
+(`input x1 + cache_write x1.25 + cache_read x0.1 + output x5`), a ratio model and not currency.**
+The planner re-derived the journal accounting independently and takes the per-agent costs on the
+method stated; **the distinction is recorded because it is this document's own subject.**
+
+| | |
+|---|---|
+| Agents / requests / cost | **52 · 749 · 10 185 819 price-units** |
+| Journal | `started 52`, `result 26`, `failed 26` — **yield 26/52 = 50%** |
+| **The five `Find` lenses** | **71.4% of the entire run** (18.3 + 14.2 + 14.0 + 13.7 + 11.2%), 455 of 749 requests, **73–97 requests each at 187k–250k context** |
+| The other 47 | none above **1.7%** |
+| Session-limit deaths | **26**, all inside **11:55:26–11:55:47** — a 21-second window |
+| Of those, dead at request 1, zero context | **18** |
+| **Combined cost of all 26 dead agents** | **4.69%** |
+
+**The intuition is backwards, and that is the finding.** A reader who hears "26 agents died on a
+session limit" guards the dead agents. **They cost 4.69% between them and 18 of them never ran at
+all.** The loss is the **71.4% that succeeded** — five deep document reviews, each a *session* rather
+than a subagent task, whose findings the verify stage then never consumed. **Narrowing the five
+lenses buys more than capping the forty-seven verifiers**, and the run was shaped the other way.
+
+**`wf_1075a32b-c8f.json` records `"status": "completed"` beside `agentCount: 52`.** Half the fan-out
+was gone and nothing in the artefact says so — because `parallel()`/`pipeline()` resolve a dead agent
+to `null`, `.filter(Boolean)` erases it, and a script that reads its own empty result as clean will
+return one. **The authoring reference's *"no silent caps: `log()` what was dropped"* rule was written
+for deliberate truncation and does not cover being killed** — and this run managed both, since the
+planner's own `.slice(0, 12)` silently discarded four raised findings on top of it.
+
+**The recovery window is narrower than the failure window, and that is a design gap rather than an
+oversight.** `resumeFromRunId` is documented **same-session-only**. The thing that killed the run —
+a session limit — is also what ends the session that could resume it. **The 26 cached results were
+recoverable only from the transcripts on disk**, which is how all seven of the coder's findings and
+all four of the `.slice()` casualties came back.
+
 ### Confirmed by hand on 20260830, and none of them a typo
 
 | Where | Defect |
@@ -160,15 +202,83 @@ that one string failed first**: a line-based `grep` (the phrase was wrapped acro
 it right.** *The author is not a reliable verifier of the author's own text* — and a shell one-liner
 composed in the moment is not a reliable instrument for checking prose.
 
+## What item 1 actually costs
+
+**This section exists because the row above it was wrong for two hours.** It said the
+`test_doctor.py` fix "Unblocks `./check.sh`". **It unblocks 1 of 25.** Both live peers found the
+same thing independently and within minutes of each other; the planner then verified the mechanism
+rather than relaying it, and it is sharper than either report.
+
+**There is nothing to fix in the estimator.** `src/pinakes/budget/estimate.py:82`'s
+`assert_prices_fresh` is *already pure*, and says so:
+
+> `now` is an explicit `YYYYMMDD HH:MM` string, never the wall clock: staleness is checked against
+> whatever the caller supplies, which is what keeps every estimator pure and deterministic under
+> test.
+
+**The impurity is entirely in the callers, and there are four unconditional ones:**
+
+| Call site | |
+|---|---|
+| `src/pinakes/cli.py:874` | `now = datetime.now(UTC).strftime(...)` — no seam |
+| `src/pinakes/cli.py:1259` | `now=datetime.now(UTC)` — no seam |
+| `src/pinakes/extract/claude.py:649` | `now=datetime.now(UTC).strftime(...)` — no seam |
+| `src/pinakes/doctor.py:1586` | `age = (datetime.now(UTC) - as_of).days` — the WARN path |
+| **`src/pinakes/cli.py:667`** | **`now or datetime.now(UTC)` — the one that already has a seam, and the model for the other three** |
+
+**So the 25 failures are two mechanisms, not one.** `test_doctor.py`'s single failure is the
+**WARN**; the other 24 (`test_cli_ask.py` 18, `test_extract_claude.py` 5, `test_pdf_trace.py` 1) go
+through the **refusal**, which is the design working exactly as intended, seen through tests that
+assumed it never would. **One fixture cannot cover both paths.** *How* to close it is the coder's
+call, not this file's.
+
+## The 22 nobody has ever checked
+
+**30 of the 51 raises were never verified.** Deduplicated against the 14 that item 4 already covers,
+**22 distinct findings remain, and no one has ever looked at any of them.** They are listed here
+because the sole record was a `journal.jsonl` in a session directory — the precise failure this
+document exists to stop. Severity is **as raised**, by an agent whose claim was never tested: three
+HIGH, seven MEDIUM, twelve LOW. **Read the column as "what an unverified agent asserted", never as a
+defect count.**
+
+| Sev | File | Locator | What the text says |
+|---|---|---|---|
+| HIGH | `plans/20260825_1252-plans-sweep-findings.md` | line 81 (Actionable row 5) | \| 5 \| `plans/20260825_0749-exposure-and-silent-status.md` — *X7 — line 3's three layers (D-35 answered 20260 |
+| HIGH | `retro.d/20260826_0632-the-queues-describe-the-tree.md` | line 47 | **MEDIUM — I invented a duration inside a pass about unmeasured claims.** I wrote *"fourteen hours"* for how l |
+| MEDIUM | `retro.d/20260826_0702-one-fix-falsified-six-documents.md` | line 1 and line 3 — "six documents" | "## One code change falsified six documents…" / "The moment it landed, **six documents were false** — and none |
+| MEDIUM | `plans/20260731_1202-open-corrections.md` | line 118 — "**D-35 layer 2 is in build**" | **The 0.30.3 tag is taken and still pending**, so of the three gates on it, this one is now discharged: **D-35 |
+| HIGH | `retro.d/20260826_0632-the-queues-describe-the-tree.md` | lines 47–53 | "I wrote *\"fourteen hours\"* for how long the table said `S2 · LIVE`, four times across four files, and **nev |
+| MEDIUM | `tools/batteries/README.md` | line 33 — "The covered files change 1–13 times in 30 days — **except `sync.py` at 39**" | "The covered files change 1–13 times in 30 days — except `sync.py` at 39, which was this paragraph's own examp |
+| MEDIUM | `plans/20260825_0749-exposure-and-silent-status.md` | line 617, build-order row 9 — "**LAYER 2 BUILT 20260826**, landed `6a77f3c` … 54 mutants, 0 sur | "LAYER 2 BUILT 20260826, landed `6a77f3c`: … **54 mutants, 0 survived**" |
+| LOW | `retro.d/20260826_0702-one-fix-falsified-six-documents.md` | line 3 — "The moment it landed, **six documents were false**" (and the table at lines 5–10) | "`make release-check` became a real gate in `674eda6`. The moment it landed, **six documents were false**" — f |
+| LOW | `plans/20260825_1252-plans-sweep-findings.md` | lines 65–68 — "But eight rows have no build-order row anywhere … **12, 13, 14, 17, 22, 24, 26,  | "eight rows have no build-order row anywhere, and for those this table is still the register — 12, 13, 14, 17, |
+| LOW | `retro.d/20260826_1130-the-procedure-guaranteed-the-fragment-was-never-reviewed.md` | line 44 — "three of the nine disagreed with their own filename" | "Every fragment **heading** I typed by hand, and three of the nine disagreed with their own filename" |
+| LOW | `retro.d/20260826_0702-one-fix-falsified-six-documents.md` | line 18 — "Here it was about twenty minutes and nothing published inside it" | "There is always a window. Here it was about twenty minutes and nothing published inside it, but that is sched |
+| LOW | `plans/20260825_0749-exposure-and-silent-status.md` | line 618, build-order row 10 — "**BUILT 20260826 07:24 UTC**" | "~~**X7 doc half**~~ — **BUILT 20260826 07:24 UTC.** `docs/RELEASING.md`'s line-3 sweep row now **asks for the |
+| MEDIUM | `docs/BUILDING.md` | line 179-180, "its last section is headed *CHANGED BY THIS INCREMENT, OPENED BY NOBODY*" | `python3 tools/review_ledger.py <increment>`, landing separately; its last section is headed *CHANGED BY THIS  |
+| MEDIUM | `plans/20260825_1252-plans-sweep-findings.md` | line 83 (Actionable row 7, rewritten and re-landed today), "VERIFICATION.md:282 pins it"; same  | MANIFEST.md:303 promises comments survive and VERIFICATION.md:282 pins it |
+| LOW | `retro.d/20260826_0638-a-gate-that-could-not-fail.md` | line 33, "Nine of the eleven tests supply `--repo` and `--expect-version`" | Nine of the eleven tests supply `--repo` and `--expect-version`, so the defaults are a region no fixture reach |
+| LOW | `retro.d/20260826_0659-the-half-a-gate-cannot-see.md` | line 24, "which of `release_order_gate.py`'s **two** `docs/STATUS.md` sequences carries `R`" | `PUBLISHED_ROW` names which of `release_order_gate.py`'s **two** `docs/STATUS.md` sequences carries `R`. |
+| LOW | `plans/20260825_1240-run-pinakes-sweep.md` | line 449 and 460: "`docs/MANIFEST.md:307-319` lists ten exclusions" / "refuted against `MANIFES | `docs/MANIFEST.md:307-319` lists ten exclusions … a block-style-reflow finding was refuted against `MANIFEST.m |
+| LOW | `docs/README.md` | line 61, "`docs/STATUS.md:303`, the `0.15.1` row out of release order" | One is fixed, and it is the one to read before leaving the rest: `docs/STATUS.md:303`, the `0.15.1` row out of |
+| MEDIUM | `plans/20260825_1803-open-decisions.md` | line 592, the bullet beginning "**CORRECTION — `docs/GUIDE.md:797` does NOT miss this case**" | The row reads: `\| \`unknown key(s)\` in a KB you did not edit \| The same cause, on a KB that declares **no** |
+| LOW | `plans/20260825_1803-open-decisions.md` | line 150, the bullet beginning "**The hold's public description is currently ACCURATE and live* | - **The hold's public description is currently ACCURATE and live — closing an item the brief left unverified.  |
+| LOW | `plans/20260825_1803-open-decisions.md` | line 146, the bullet beginning "**CORRECTION to the brief: \"0.6.0 (MINOR) is the last release… | - **CORRECTION to the brief: … 0.18.0 (20260807 22:37) opens its notes with "**`pnk doctor` now says *how far* |
+| LOW | `docs/STATUS.md` | line 308, `> # 🚫 Unbuilt work is named, never numbered` | > # 🚫 Unbuilt work is named, never numbered |
+
+**Recovered by differencing the 51 raises against the 15 in `SURVIVED.md` and the 14 in item 4.**
+Six of the 51 were refuted and are harmless to re-check; the extraction cannot tell which six, so
+this list is an upper bound on work and a lower bound on nothing.
+
 ## Build order
 
 | # | Item | Blocked on | Owner |
 |---|---|---|---|
-| 1 | **C — stop `test_doctor.py` reading the wall clock**, using `test_deep_loop.py:153`'s existing `prices()` pattern. **Needs no decision: it restores `DESIGN.md:811`.** Unblocks `./check.sh` | nothing | coder |
+| 1 | **C — stop the suite reading the wall clock**, `test_deep_loop.py:153`'s existing `prices()` pattern being the model. **Needs no decision: it restores `DESIGN.md:811`.** **It is not a one-file fix: `test_doctor.py` is 1 of the 25** — see § *What item 1 actually costs* | nothing | coder |
 | 2 | **The release step that refreshes `prices.toml`** — it has never existed, so every install refuses paid estimates 30 days after each release. Doc half `docs/RELEASING.md` (planner); the numbers need re-measuring (**user**) | **the user**, for the numbers | planner + user |
-| 3 | The five confirmed defects above | nothing — but `check.sh` is red until item 2 | planner (all five are planner-owned documents) |
+| 3 | The five confirmed defects above | nothing — but `check.sh` is red until **item 1** (this row used to say item 2, which was wrong: item 2 is the recurrence cure, not the unblock) | planner (all five are planner-owned documents) |
 | 4 | The other 14 unfixed survivors in `SURVIVED.md` | nothing, same caveat | planner |
-| 5 | A **targeted** verification pass over the 30 unverified findings — **not** `resumeFromRunId`, which is same-session-only | items 3-4, so it does not re-raise what is already fixed | planner |
+| 5 | A **targeted** verification pass over the never-verified findings — **not** `resumeFromRunId`, which is same-session-only. **30 raises were never verified; deduplicated against the 14 that item 4 covers, 22 distinct items remain**, enumerated in § *The 22 nobody has ever checked* | items 3-4, so it does not re-raise what is already fixed | planner |
 
 **The corpus rule does not apply.** Nothing here touches chunking, fusion, reranking or the
 confidence signal.
