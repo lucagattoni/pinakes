@@ -1,4 +1,4 @@
-## The cycle's price, found by building the fix and backing it out (20260826 07:31)
+## The cycle's price, found by building the fix and backing it out (20260826 07:33)
 
 **MEDIUM — the obvious remedy for a defect had a cost nobody had counted, and counting it required
 writing the code and throwing it away.** S16's cycle class (`a ↔ b`) looks like it wants a clean

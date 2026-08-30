@@ -32,7 +32,7 @@ KB's `.pinakes/` can reach a remote, and `src-pinakes-pairing.toml`, which spans
 invariant in [`docs/INVARIANTS.md`](../../docs/INVARIANTS.md) has a battery of its own. The covered
 files change 1–13 times in 30 days — **except `sync.py` at 39, which was this paragraph's own example
 of high-churn code with no battery until 20260825**, and is named here so that change is visible
-rather than quietly dropped. **Of the two highest-churn modules in the repository, one has no battery and one is
+rather than quietly dropped. **Two further high-churn modules, one with no battery and one
 covered without being named** — `src/pinakes/doctor.py` at 36 commits has none, while
 `src/pinakes/cli.py` at 52 is mutated twice by `src-pinakes-init.toml` (measured 20260825 by
 `git log --since="30 days ago" --follow`, over a repository whose first commit is 2026-07-25 — so
@@ -181,10 +181,25 @@ A green check is not a green run. Run the battery.
 
 **A `SURVIVED` row is a claim about a *pair* — the mutant and the selector named in its `kills` —
 and it does not say which half failed.** Before believing that a survivor means the behaviour is
-untested, **run the mutant against the whole suite**. If something else kills it, the battery was
-right about the risk and wrong about the witness: the row names the wrong test, and the fix is the
-selector, not a new test. If nothing kills it, the gap is real. One command separates two diagnoses
-that look identical in the report, and the wrong one costs a test nobody needed.
+untested, **run the mutant against the whole suite** — but run it as
+`uv run pytest --ignore=tests/test_batteries.py`, and the flag is not optional. If something else
+kills it, the battery was right about the risk and wrong about the witness: the row names the wrong
+test, and the fix is the selector, not a new test. If nothing kills it, the gap is real. One command
+separates two diagnoses that look identical in the report, and the wrong one costs a test nobody
+needed.
+
+**🛑 Why the flag: this remedy has a false-positive mode, and it fires on exactly the batteries that
+cover `tools/`.** The whole suite includes
+[`tests/test_batteries.py`](https://github.com/lucagattoni/pinakes/blob/main/tests/test_batteries.py),
+whose `test_every_anchor_still_resolves_exactly_once_in_the_file_it_names` fails on **any** edit to a
+battery target — which is what a mutant is. So the suite goes red for a survivor as readily as for a
+kill, and *"something else killed it"* is exactly the wrong conclusion. **Measured 20260826 11:43 UTC**, not
+argued: applying `tools-fragments.toml`'s first mutant to `tools/fragments.py` and running the two
+files separately gave the intended killer **exit 1** *and*
+`tests/test_batteries.py` **exit 1**, `1 failed, 10 passed`, the failure being the anchor check.
+Restored, both green, 51 passed. **`tools/mutate.py` is not affected and its report was never
+wrong** — it runs only the selector a row names. The false positive belongs to *this paragraph's
+advice*, and it existed from the day the advice was written.
 
 **And be suspicious of a target whose every assertion goes through one summarising helper.** If the
 tests for a function all compare its output through something that reduces a sequence to a

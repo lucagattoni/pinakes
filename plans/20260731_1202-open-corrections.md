@@ -64,7 +64,7 @@ default *on a corpus where three of the seven edge kinds derived zero edges*.
 
 ---
 
-## Live · **three items live as of 20260826 07:01 UTC, two CLOSED (20260824 and today) — read each body, not this heading**
+## Live · **three items live as of 20260826 07:02 UTC, two CLOSED (20260824 and today) — read each body, not this heading**
 
 > **Items are named below, never numbered — an ordinal rots the moment anything is inserted above
 > it, and this blockquote said "the second item" until three arrived over it on 20260825.**
@@ -98,7 +98,7 @@ construction. Measured over all 18 readable fixtures, every document accepted wi
 corpus and count documents clearing the paid-path gate that still retain ≥2 auditable pages. Nobody
 has run it.
 
-### ~~🛑 `make release-check` verifies nothing, and it is the only thing standing before an irreversible publish~~ · **✅ CLOSED 20260826 07:01 UTC — built in `674eda6`, `tools/release_tag_gate.py` + `tests/test_release_tag_gate.py`.** Four legs, and **absence is red**: no release-shaped tag on `HEAD` (or two), a tag not naming `pinakes.__version__`, a lightweight tag or an empty annotation, and a tag **already on the remote** — which makes *never after* checkable rather than remembered. **An unreachable remote is red, not green.** Each leg was watched red on purpose; 40 mutants, 40 killed. **`docs/RELEASING.md` steps 6 and 7 swapped** — the tag is created, gated, then pushed — because a gate cannot compare a tag that does not exist, and the irreversible half was always the **push**
+### ~~🛑 `make release-check` verifies nothing, and it is the only thing standing before an irreversible publish~~ · **✅ CLOSED 20260826 07:02 UTC — built in `674eda6`, `tools/release_tag_gate.py` + `tests/test_release_tag_gate.py`.** Four legs, and **absence is red**: no release-shaped tag on `HEAD` (or two), a tag not naming `pinakes.__version__`, a lightweight tag or an empty annotation, and a tag **already on the remote** — which makes *never after* checkable rather than remembered. **An unreachable remote is red, not green.** Each leg was watched red on purpose; 40 mutants, 40 killed. **`docs/RELEASING.md` steps 6 and 7 swapped** — the tag is created, gated, then pushed — because a gate cannot compare a tag that does not exist, and the irreversible half was always the **push**
 
 **`CLAUDE.md` says `make release-check` runs *before* the tag, never after, because PyPI never
 accepts a version twice.** The target's own help text promises *"Verify the git tag you are about to
@@ -120,7 +120,7 @@ is in build**, and the third is the user's — whether to tag 0.30.3 first or fo
 next cut. Both gates existed for the same reason, and it is worth keeping after the fix: the release
 path relied on somebody remembering.
 
-**Closed 20260826 07:01 UTC.** The remedy above asked for two things and got both — *"fail when there is no
+**Closed 20260826 07:02 UTC.** The remedy above asked for two things and got both — *"fail when there is no
 tag at all"* is leg 1, and *"watch it go red before believing it"* was done per leg and recorded in
 the commit messages.
 

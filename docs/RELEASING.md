@@ -23,6 +23,36 @@ extended on 20260823 when it crossed it again. Nothing was dropped in either mov
    stale base, when a parallel docs pass had already shipped v0.2.1.)*
 2. **`python3 tools/shared_file_overlap.py --fetch --strict`**, then *read* the merged state of what
    it names.
+3. **Re-verify `src/pinakes/budget/prices.toml` and re-stamp its `as_of`.** This step exists because
+   its absence is a shipped defect: `as_of` was written once, at the file's creation
+   (`20260728 16:31`), and **no release had ever refreshed it**.
+
+   **The window runs from `as_of`, not from the release.** `max_price_age_days` defaults to **30**
+   (`src/pinakes/manifest.py`), so a table stamped 20260728 stops pricing on **20260827** in every
+   installed copy — `pnk ask --deep` exits 1, `cost_eur` comes back `None`, and `pnk doctor` WARNs.
+   **This happened on `main` on 20260827 and took the test suite red with it**, four days before
+   anyone looked ([`plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md)).
+   A release that ships an unrefreshed table hands the user a clock that is already partly run down.
+
+   **The remedy the product prints is a promise only this file can keep.** `StalePricesError` says
+   *"Upgrade pinakes to refresh the bundled prices"* — which is true only if upgrading actually
+   does. **Until this step existed, it did not.**
+
+   | Field | How to re-verify |
+   |---|---|
+   | `[models.*]` `input_per_mtok_usd` / `output_per_mtok_usd` | Anthropic's published API pricing for that exact model id. **Unchanged is the normal outcome** — `claude-opus-5` has been `5.00`/`25.00` since the file was written, re-confirmed 20260830 |
+   | `usd_per_eur` | A named FX source, on the day you stamp. **This is the field that actually moves**, and every EUR figure the project prints depends on it |
+   | `as_of` | `date -u "+%Y%m%d %H:%M"` — **read the clock, never compose it** |
+
+   > ⚠️ **Re-stamping `as_of` without re-verifying the numbers is not a refresh — it is falsifying a
+   > measurement.** The stamp does not mean *"someone released on this date"*; it means *"these
+   > prices were checked and true at this time"*, and the whole staleness guard is built on trusting
+   > it. If you cannot verify a price, **stop and say so** — do not stamp. **Raising
+   > `max_price_age_days` is not the remedy either**: it widens the window in which Pinakes will
+   > price a paid run from numbers nobody has checked.
+
+   **Releasing more than 30 days apart still strands users**, whatever this step does — the window
+   belongs to `as_of`, and only a release can move it. Nothing currently warns about that gap.
 
 ## The procedure
 
@@ -75,10 +105,15 @@ extended on 20260823 when it crossed it again. Nothing was dropped in either mov
    > **not** in `check.sh`: `HEAD` carries no release tag on an ordinary commit, so leg 1 would be
    > red on every commit in the repository.
    >
-   > **The step numbers below are deliberately unmoved.** Five live citations name *"`docs/RELEASING.md`
-   > step 8"* — `CHANGELOG.md`, `docs/STATUS.md`, `docs/ROADMAP.md`, `.github/workflows/release.yml`
-   > and `tests/test_check_script.py` — and renumbering would leave every one of them off by one,
-   > silently.
+   > **The step numbers below are deliberately unmoved.** **Six** live citations name
+   > *"`docs/RELEASING.md` step 8"* — `CHANGELOG.md`, `docs/STATUS.md`, `docs/ROADMAP.md`,
+   > `.github/workflows/release.yml`, `tests/test_check_script.py` **and
+   > `plans/20260811_0720-decisions-gates-and-corrections.md:142`** — and renumbering would leave
+   > every one of them off by one, silently. **The sixth was missed twice**: by this note and by
+   > the retrospective that repeats its count, both of which said five. Re-counted 20260830 with
+   > `grep -rn "step 8" --include=*.md --include=*.yml --include=*.py .` minus `site/`; two further
+   > hits (`plans/20260729_0256`, `plans/20260801_0749`) name a *different* step 8 and are excluded
+   > deliberately, which is the distinction the original count never wrote down.
 8. **The GitHub release is created by the workflow as of 0.22.0** — `gh release create
    --verify-tag --notes-from-tag`, after the PyPI upload so a failure there can never cost the
    release its version number. **Verify it exists anyway** (see below); that is this file's rule

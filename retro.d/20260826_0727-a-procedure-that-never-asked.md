@@ -1,4 +1,4 @@
-## The marker was 0-for-2 because the procedure never asked for it (20260826 07:26)
+## The marker was 0-for-2 because the procedure never asked for it (20260826 07:27)
 
 **MEDIUM — a convention with a 0-for-2 record was blamed on the people following it, and the
 procedure had never contained it.** `docs/STATUS.md`'s hold marker had been written twice and missed

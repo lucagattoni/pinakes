@@ -74,7 +74,7 @@ test, or write **none** and say why in the same commit.
   ratifying the reading `db7d1c1` had already operated on since 20260804. **A promise is a
   user-visible guarantee, a named invariant, or a gate's own correctness.** It is *not* a unit test
   of an internal primitive, and it is *not* a per-surface re-assertion of a promise already rowed
-  elsewhere. `tests/` holds **2 051** test functions against these 904 rows, and **that ratio is not by
+  elsewhere. `tests/` holds more test functions than this table has rows, and **that ratio is not by
   itself evidence of a hole** — a sample of the residue found those two categories dominate it. That
   inference was drawn here once anyway, by a planner, hours after the lesson that named it.
 * **But "not systematically debt" is not "no debt", and the difference was measured rather than
@@ -919,7 +919,7 @@ with itself — it is a model, not the database.
 | the tag names `pinakes.__version__`, and a mismatch fails naming **both** versions — a message naming one is compatible with comparing a value to itself | fix | `tests/test_release_tag_gate.py::test_a_mismatched_tag_fails_naming_both_versions`, `tests/test_release_tag_gate.py::test_a_matching_annotated_unpushed_tag_passes` |
 | one commit publishes one version — two release tags on it are refused, naming both | fix | `tests/test_release_tag_gate.py::test_two_release_tags_at_head_fail_naming_both` |
 | a lightweight tag, or an annotation with an empty message, is refused *before* the publish — `gh release create --notes-from-tag` runs after `uv publish` | fix | `tests/test_release_tag_gate.py::test_a_lightweight_tag_fails`, `tests/test_release_tag_gate.py::test_an_annotated_tag_with_an_empty_message_fails` |
-| a tag already on the remote fails — which is what makes `CLAUDE.md`'s *before the tag, never after* checkable rather than remembered | fix | `tests/test_release_tag_gate.py::test_a_tag_already_on_the_remote_fails` |
+| a tag already on the remote fails — which is what makes `CLAUDE.md`'s *before the push, never after* checkable rather than remembered | fix | `tests/test_release_tag_gate.py::test_a_tag_already_on_the_remote_fails` |
 | a remote the gate cannot reach fails rather than passing — the one leg about an irreversible act must not answer a question it could not ask | fix | `tests/test_release_tag_gate.py::test_an_unreachable_remote_fails_rather_than_passing` |
 | with no flags the gate reads *this* repository and *this* `__version__` — the region every fixture's `--repo`/`--expect-version` seam leaves unreached | fix | `tests/test_release_tag_gate.py::test_the_defaults_are_this_repository_and_this_version` |
 | `make release-check` runs the gate as the command whose exit status `make` reads, and its `##` help string cannot promise a check the recipe does not run | fix | `tests/test_release_tag_gate.py::test_make_release_check_runs_the_gate_rather_than_describing_it`, `tests/test_release_tag_gate.py::test_the_release_check_help_string_and_its_recipe_are_pinned_together` |
@@ -1246,3 +1246,33 @@ Every row below is driven by `tests/fixtures/deep/`, with `anthropic` **not inst
 | a sidecar that already carries `links:` is given entries **without a second key** — two `links:` in one mapping is a YAML duplicate key, which ruamel refuses outright | E7 | `tests/test_deep_suggest.py::test_a_sidecar_that_already_has_links_is_given_entries_without_a_second_key` |
 | `--json` carries a `suggestions` object holding **the same fragment the human surface prints**, and `null` when nothing was paid for — the promise `answer` and `transcript` already make | E7 | `tests/test_cli_ask.py::test_the_json_suggestions_object_carries_the_fragment_the_human_surface_prints`, `tests/test_cli_ask.py::test_a_free_ask_suggests_nothing`, `tests/test_cli_ask.py::test_json_carries_a_null_answer_and_an_escalation_block` |
 | the shipped `rel` and `origin` are the values the design names, and `docs/CLI.md` quotes the header this build prints — both spelled out literally, because every other assertion imports the constant it checks and the mutation pass proved that catches nothing | E7 | `tests/test_deep_suggest.py::test_the_shipped_relation_and_provenance_are_the_values_the_design_names`, `tests/test_deep_suggest.py::test_the_documentation_quotes_the_header_this_build_prints` |
+
+## The review ledger — what earlier passes did, carried to the next one
+
+[`tools/review_ledger.py`](https://github.com/lucagattoni/pinakes/blob/main/tools/review_ledger.py)
+reconstructs earlier adversarial review passes over an increment from the subagent transcripts on
+disk. **Its output is read by a later pass as established ground, which is why its promises are
+here**: a gate that fails wrongly is noticed within the hour, while a carried-forward map that is
+quietly wrong is inherited by the pass that was supposed to be checking. Every row below is a way it
+could print a plausible brief and exit `0` while being wrong.
+
+| What must be true | Increment | Where it is checked |
+|---|---|---|
+| a completed pass yields a brief naming what it ran and what it reported, and exits `0` | — | `tests/test_review_ledger.py::test_a_single_pass_is_a_brief_and_a_clean_exit` |
+| an increment with no passes on disk exits `2` and says so — never `0`, which would report an absent ledger as a clean one | — | `tests/test_review_ledger.py::test_an_increment_with_nothing_on_disk_says_so_and_exits_two` |
+| a pass killed by the harness is reported as incomplete rather than as a finding, read from the record's `error` flag and never from its prose, and the brief exits `1` | — | `tests/test_review_ledger.py::test_a_killed_pass_is_not_a_pass_that_reported` |
+| a pass that finished and said nothing is incomplete too — the quieter failure, which reads as a clean bill and replays from cache as one | — | `tests/test_review_ledger.py::test_a_pass_that_finished_and_said_nothing_is_incomplete` |
+| an implementer is never counted as a review pass, though `CLAUDE.md` puts reviewer vocabulary in every coder's brief | — | `tests/test_review_ledger.py::test_an_implementer_is_not_a_review_pass` |
+| a package path keeps its directories, and a corpus path that nests a top-level name keeps all of it — `src/pinakes/sync.py` is not `sync.py`, and `tests/demo-kb/docs/x.md` is not `docs/x.md` | — | `tests/test_review_ledger.py::test_a_package_path_keeps_its_directories`, `tests/test_review_ledger.py::test_a_corpus_path_that_nests_a_top_level_name_keeps_all_of_it` |
+| one probe run by two passes in their own scratch directories is counted as one probe run twice, so the ranking is a ranking | — | `tests/test_review_ledger.py::test_one_probe_run_in_two_scratch_directories_is_one_probe` |
+| reading a file out of the package is not executing the project — `pinakes` is a directory as well as a command | — | `tests/test_review_ledger.py::test_reading_a_package_file_is_not_executing_the_project` |
+| a `Workflow` fan-out's agents are found, one directory deeper than a direct subagent and 80% of the corpus | — | `tests/test_review_ledger.py::test_a_workflow_fanouts_agents_are_found` |
+| `--measure` computes the share the docstring claims, on a fixture whose arithmetic is worked by hand — a re-read's cost is its own turn plus every turn that re-transmits it | — | `tests/test_review_ledger.py::test_the_repeat_share_is_the_arithmetic_it_claims` |
+| concurrent members of one fan-out are measured apart from sequential passes, since they cannot carry from each other whatever the tool does | — | `tests/test_review_ledger.py::test_concurrent_members_of_one_fanout_are_measured_apart` |
+| housekeeping — `cd`, `ls`, worktree setup and teardown — is not carried as evidence | — | `tests/test_review_ledger.py::test_housekeeping_is_not_carried_as_evidence` |
+| every brief states the three things it is not: opened is not reviewed, a printed command is not an exit status, a quoted finding is not a fact | — | `tests/test_review_ledger.py::test_the_brief_always_states_what_it_is_not` |
+| `--list` leads with the increments that cost the most, since that is how a reader finds one worth a brief | — | `tests/test_review_ledger.py::test_the_listing_ranks_increments_by_what_they_cost` |
+| a command the pass was **stopped inside** is carried with its output marked absent — probes were paired to their result, so the last thing a killed pass ran vanished, and 13 of 24 passes over one real increment were killed | — | `tests/test_review_ledger.py::test_a_command_the_pass_was_stopped_inside_is_still_carried` |
+| a probe too long to print is marked `[CUT]` and carried whole in `--json` — a truncated shell command can succeed at doing something other than what it shows | — | `tests/test_review_ledger.py::test_a_truncated_probe_is_marked_as_not_runnable` |
+| every share is divided by **the same total the brief prints** for that pass, context plus output — one denominator, the defect this tool's own retrospective rated HIGH | — | `tests/test_review_ledger.py::test_the_share_is_measured_against_the_total_the_brief_prints` |
+| a pass killed in its first turns is still counted — the floor that drops runs which did nothing must not be able to shrink the numerator and denominator of the incomplete count together | — | `tests/test_review_ledger.py::test_a_pass_killed_in_its_first_turns_is_still_counted` |

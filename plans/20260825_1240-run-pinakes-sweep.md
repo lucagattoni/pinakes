@@ -414,8 +414,10 @@ was backed out**, because it breaks **five committed tests**, three of which are
 **So refusing the cycle cleanly is a decision about behaviour, not an implementation detail**, and
 its price is denominated in **S2's coverage**. It is not taken here, and it was correctly not taken
 inside an ordering fix. Whoever settles the cycle starts from this cost rather than rediscovering
-it; the reasoning is also in `src/pinakes/pairing.py`'s docstring, where the person reaching for it
-will look.
+it. **The same reasoning must land in `src/pinakes/pairing.py`'s docstring alongside S16's ordering
+fix, where the person reaching for it will look.** *Verified 20260830: it is not there yet —
+`grep -ci cycle src/pinakes/pairing.py` is `0` on `main`, and the text exists only on the unlanded
+branch `20260826_0712-s16-s19-rename-ordering`. This sentence used to assert it as already true.*
 
 **And one of those three guards contradicts itself, which will block exactly that person.**
 `test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row`'s docstring says **"The sync's

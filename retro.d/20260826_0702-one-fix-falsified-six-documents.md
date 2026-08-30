@@ -28,7 +28,10 @@ the handover listing the damage, not the ownership rule being relaxed.**
 **LOW — the counted anchor did not bite, and it was worth checking rather than assuming.**
 `docs/RELEASING.md` warns that Part 5's *Open corrections* heading carries its own item count in its
 anchor, so closing an item breaks every in-page link. Checked: the heading is a bare
-`## Open corrections` at `ROADMAP.md:2254` and the counts live in prose at `:102`, `:124` and `:185`.
+`## Open corrections` at `ROADMAP.md:2255` and the counts live in prose at `:102`, `:122` and `:186`.
+**Corrected 20260830**: every one of those numbers was right at `c111645^` and wrong the instant
+`c111645` landed — the commit that added this fragment shifted `ROADMAP.md` by a line. `:124` was
+never a count, so the third is `:122`, not `:124` plus the shift.
 The warning describes a hazard that is not present in the current text — **true when written, and
 now a trap for whoever believes it and works around a problem that is not there.**
 

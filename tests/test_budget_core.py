@@ -61,6 +61,12 @@ def test_prices_are_installed_package_data() -> None:
     assert isinstance(data["as_of"], str)
     assert isinstance(data["usd_per_eur"], str)
     Decimal(data["usd_per_eur"])  # must parse as an exact decimal, not raise
+    # ...and `as_of` as the one timestamp format everything reads it with. Written out rather than
+    # imported, like `check.sh`'s gate and for the same reason: this test reads the committed file
+    # the way an installed copy would, so the format it must be in is the assertion, not a constant
+    # that could move with it. A malformed `as_of` does fail the suite in seven other places
+    # (`test_paid_path.py`'s subprocess gates), but none of them says why.
+    datetime.strptime(data["as_of"], "%Y%m%d %H:%M")
     assert "claude-opus-5" in data["models"]
 
 
