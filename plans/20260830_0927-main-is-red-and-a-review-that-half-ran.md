@@ -421,6 +421,43 @@ instead of `main`; the measurement happened where the session was standing. **An
 instrument-imposed selector is the hardest kind to notice, because there was never a moment of
 choosing to look back on.**
 
+### A sixth instance, and the rule's first return
+
+**The refinement was itself fitted to an unexamined population, which is the sixth case.** Its
+author built it from the four instances that were *selections* and it therefore missed the fifth,
+where nothing was selected and a renderer was simply used — the gap the `or an instrument you chose`
+clause closes. **A rule about generalising from an unexamined sample, generalised from an unexamined
+sample.** Recorded because it is the cheapest possible demonstration that the failure is structural
+rather than careless.
+
+**Then its author applied it to their own report, and it returned something better than an error.**
+The whole token analysis is denominated in a cost model — `input ×1.0, cache-write ×1.25, cache-read
+×0.1, output ×5.0` — which was stated in a footer without saying which weights were *sourced*.
+**The output ratio is** — `prices.toml` carries `claude-opus-5` at `$5.00`/`$25.00` per MTok, so
+×5.0 is measured, and the planner re-derived that from the committed file rather than accepting it.
+**The two cache multipliers were never verified against anything**; "standard" was doing the work
+that evidence should.
+
+So they were bounded rather than defended:
+
+| cost model | context transmission | generation |
+|---|---|---|
+| as published | 85.3% | 14.7% |
+| cheaper reads (0.08) | 83.0% | 16.9% |
+| dearer reads (0.125) | 87.3% | 12.6% |
+| 1h-TTL write (2.0) | 86.8% | 13.1% |
+| dearer output (×10) | 74.4% | 25.6% |
+| most hostile (read 0.05, write 1.0) | 76.7% | 23.2% |
+
+**The headline moves between 74.4% and 87.3% and never comes near flipping**, so the *ranking* of
+that report's recommendations does not depend on the unverified weights — only their precise sizes
+do. **The finding survived; the claim got a boundary.**
+
+**That is the return worth advertising when this rule is proposed.** A rule that only ever finds
+errors gets resented and quietly dropped. This one's first application to a *correct* piece of work
+converted an unstated assumption into a stated bound, which is what makes it worth the sentence it
+costs.
+
 **Attribution, stated because this document is about claims being traceable:** the refinement is the
 `optimize-adversarial-review-tokens` session's; the counter-case that killed the 34-of-64 figure was
 the coder's, not that session's own insight, and it asked not to be credited for it; the table and
