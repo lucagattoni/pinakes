@@ -21,7 +21,7 @@ from pinakes.pairing import (
     WalkedFile,
     WalkedSidecar,
     WalkSnapshot,
-    _vacates,
+    _vacates,  # pyright: ignore[reportPrivateUsage]
     actions_of,
     describe,
     pair,
