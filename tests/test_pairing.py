@@ -21,6 +21,7 @@ from pinakes.pairing import (
     WalkedFile,
     WalkedSidecar,
     WalkSnapshot,
+    _vacates,
     actions_of,
     describe,
     pair,
@@ -985,3 +986,62 @@ def test_an_orphaned_sidecar_does_not_cost_a_live_document_its_id() -> None:
         "the orphans must still be reported — they are the evidence for the user, and reporting "
         "them is what makes ignoring them for identity safe"
     )
+
+
+def test_vacates_reports_every_way_a_path_is_freed() -> None:
+    """`_vacates` is the ordering pass's model of *what makes a path available*, and it must match
+    the database's rule rather than the subset of it today's plans happen to exercise.
+
+    **Three ways a path stops being held, and a `SoftDelete` is the one no fixture reaches.** A move
+    frees the path it came from; a retirement frees the path it retires, because `sync`'s write
+    guard deletes a *retired* row holding a path a different id now wants. That third case is
+    unreachable through `pair()` — the same-path loop already emits `SoftDelete` then `Adopt`
+    adjacently and in the right order — so the only honest way to pin it is at the level the
+    contract lives, on the helper itself.
+
+    Written because the battery row for that branch said *"expected to SURVIVE"* in prose while
+    declaring a `kills` selector, and the format has no key for the first: the row asserted, in the
+    only field a machine reads, the opposite of its own comment. Testing the helper makes the claim
+    true instead of softening it — and the branch becomes load-bearing again the moment the deferred
+    cycle case is settled.
+    """
+    doc = mint_doc_id()
+    assert (
+        _vacates(
+            Adopt(
+                doc_id=doc,
+                path="docs/b.md",
+                content_hash="h",
+                sidecar_hash=None,
+                old_path="docs/a.md",
+            )
+        )
+        == "docs/a.md"
+    )
+    assert (
+        _vacates(
+            Rename(
+                doc_id=doc,
+                old_path="docs/a.md",
+                path="docs/b.md",
+                content_hash="h",
+                sidecar_hash=None,
+            )
+        )
+        == "docs/a.md"
+    )
+    assert _vacates(SoftDelete(doc_id=doc, path="docs/a.md")) == "docs/a.md", (
+        "a retirement frees its path for a different id, because sync's write guard clears a "
+        "retired row out of the way — drop this and the ordering pass stops modelling the rule"
+    )
+    # An adoption that is a first ingest rather than a move frees nothing, and neither does any
+    # action that leaves a row where it is. A model that over-reports would invent dependencies on
+    # actions that never come.
+    assert (
+        _vacates(
+            Adopt(doc_id=doc, path="docs/n.md", content_hash="h", sidecar_hash=None, old_path=None)
+        )
+        is None
+    )
+    assert _vacates(Mint(path="docs/n.md", content_hash="h")) is None
+    assert _vacates(Skip(doc_id=doc, path="docs/a.md")) is None

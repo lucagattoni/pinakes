@@ -37,6 +37,7 @@ Two consequences worth stating, because both are ways a KB quietly rots:
   answered here, once, and never at execution time.
 """
 
+import heapq
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
@@ -525,8 +526,11 @@ def _order_for_path_availability(
     **A cycle is a different class, it is deferred, and this function deliberately leaves it
     exactly as it was.** Swapping two names has no applicable order at all — whichever moves first
     writes onto a path the other still holds — and resolving it needs a temporary path this pure
-    function has no way to create. So the cyclic actions are emitted **in their original order** and
-    still fail at the first write, as they do on 0.30.2 today.
+    function has no way to create. So the cyclic actions keep their order **relative to each other**
+    and still fail at the first write, exactly as they do on 0.30.2 — the *outcome* is untouched.
+    They are appended after the actions that could be ordered rather than left where they were,
+    which is the one thing about a mixed plan that does change, and is stated because an earlier
+    version of this sentence claimed otherwise.
 
     **Refusing the cycle here was written, tested and backed out, and the reason is worth keeping.**
     Raising from `pair()` would be tidier — nothing is applied, so nothing is half-applied — but it
@@ -574,15 +578,20 @@ def _order_for_path_availability(
 
     # Kahn's algorithm, always taking the lowest original index among the ready actions, so the
     # result is the input order with the minimum disturbance the constraints require.
+    #
+    # **A heap, because the obvious list is quadratic.** The first version kept `ready` as a list
+    # and did `ready.pop(0)` plus `ready = sorted([*ready, *newly])` every iteration — both O(n) per
+    # emitted action, so O(n²) over the plan, and the whole plan goes through here as soon as *one*
+    # action is constrained. Measured before the change: 0.08 s for 5 000 actions, 4.9 s for 40 000,
+    # 46 s for 120 000. `heapq` pops the same lowest index and yields the same order, so this is the
+    # queue and not the algorithm.
     remaining = {index: set(deps) for index, deps in blocked_by.items()}
     ordered: list[Action] = []
-    ready = sorted(index for index in range(len(actions)) if index not in remaining)
-    emitted: set[int] = set()
+    ready = [index for index in range(len(actions)) if index not in remaining]
+    heapq.heapify(ready)
     while ready:
-        index = ready.pop(0)
+        index = heapq.heappop(ready)
         ordered.append(actions[index])
-        emitted.add(index)
-        newly: list[int] = []
         for dependent in sorted(blocks.get(index, ())):
             deps = remaining.get(dependent)
             if deps is None:
@@ -590,13 +599,17 @@ def _order_for_path_availability(
             deps.discard(index)
             if not deps:
                 del remaining[dependent]
-                newly.append(dependent)
-        ready = sorted([*ready, *newly])
+                heapq.heappush(ready, dependent)
 
-    # Whatever could not be emitted is a cycle: every one of them is still waiting on another one
-    # of them. They go out in their original relative order — unchanged behaviour, deliberately —
-    # so a swap fails at its first write exactly as it does today, and the chain class that shares
-    # a plan with it is still ordered correctly rather than being punished for its company.
+    # Whatever is left could not be emitted: every one of them is still waiting on another one of
+    # them, which is a cycle. They keep their order **relative to each other** and are appended
+    # after everything that could be ordered.
+    #
+    # **They are NOT left in place, and an earlier version of this comment said they were.** Two
+    # reviewers found it separately. The distinction matters only for a plan holding a cycle *and*
+    # other actions: those others now come first. It changes nothing about the outcome — a swap
+    # still fails at its first write, as it does in 0.30.2 — but "unchanged behaviour" was a claim
+    # about the list, and the list does change.
     ordered.extend(actions[index] for index in sorted(remaining))
     return ordered
 

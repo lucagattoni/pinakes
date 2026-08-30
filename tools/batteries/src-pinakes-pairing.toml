@@ -302,24 +302,34 @@ file = "src/pinakes/pairing.py"
 # had been edited. **An artifact of mutating a file this battery anchors into, not a behaviour
 # test** — worth knowing before reading any whole-suite run of a mutant against a battery target.
 # Re-witnessed by a test whose plan has a constraint AND untouched actions beside it.
-old = '''    ready = sorted(index for index in range(len(actions)) if index not in remaining)'''
-new = '''    ready = list(reversed([index for index in range(len(actions)) if index not in remaining]))'''
+# **Anchor and `new` both repaired 20260826** when the quadratic queue became a heap. The old pair
+# mutated `ready = sorted(...)`, a line that no longer exists; `heappop` is where "lowest index
+# first" now lives, and popping the raw list end instead gives the arbitrary order this row is
+# about. Repairing only `old` is the recorded way to produce a mutant that changes two things under
+# a name promising one.
+old = '''        index = heapq.heappop(ready)'''
+new = '''        index = ready.pop()'''
 kills = "tests/test_pairing.py::test_actions_under_no_constraint_keep_their_order_inside_a_plan_that_has_one"
 
 [[mutant]]
 name = "a SoftDelete stops being recorded as freeing the path it retires"
 file = "src/pinakes/pairing.py"
-# **Expected to SURVIVE, and committed saying so.** This branch is correct — `sync`'s write guard
-# deletes a retired row holding a path a different id wants, so the retirement genuinely has to
-# happen first — but no plan `pair()` can currently produce puts a writer *before* the SoftDelete
-# of its path's holder: the same-path loop emits the pair adjacently and in the right order
-# already. It was load-bearing in the draft that REFUSED cycles (a missing freer read as an
-# unorderable plan) and that draft was backed out, so today the branch is a complete model of the
-# database's rule rather than a reachable path. Recorded here so the next reader knows the row is
-# a known survivor rather than a coverage gap nobody noticed — and so that whoever settles the
-# cycle case sees immediately that this becomes load-bearing again.
+# **This row said "expected to SURVIVE" in prose while declaring a `kills` selector, and the format
+# has no way to say the first.** `tools/mutate.py` requires `file`, `old`, `new`, `kills`, and
+# `tests/test_batteries.py` gates only that the selector RESOLVES — so the row asserted, in the only
+# field a machine reads, the opposite of what its comment said. Found by a review of this increment.
+#
+# **Resolved by making the claim true rather than by softening the prose.** The branch models the
+# database's rule completely: `sync`'s write guard deletes a *retired* row holding a path a
+# different id now wants, so the retirement genuinely has to happen first. No plan `pair()` can
+# currently produce puts a writer *before* the SoftDelete of its path's holder — the same-path loop
+# emits that pair adjacently and in the right order already — which is why no end-to-end fixture
+# reaches it. So the witness tests `_vacates` **directly**, at the level the contract lives, and the
+# row is now an ordinary killed mutant instead of a contradiction. It was load-bearing in the
+# cycle-refusal draft that was backed out, and becomes load-bearing again the moment the cycle is
+# settled; that is why it is modelled rather than trimmed to what is reachable today.
 old = '''        case SoftDelete(path=path):
             return path'''
 new = '''        case SoftDelete(path=path):
             return None'''
-kills = "tests/test_pairing.py::test_a_retire_and_an_adopt_at_one_path_keep_their_order"
+kills = "tests/test_pairing.py::test_vacates_reports_every_way_a_path_is_freed"
