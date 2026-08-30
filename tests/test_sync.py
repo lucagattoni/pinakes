@@ -1126,6 +1126,43 @@ def test_a_fresh_clone_with_no_local_cache_or_index_fails_honestly_not_falsely(
     assert fake_paid in remedy
 
 
+def test_a_retired_paid_document_restored_unchanged_is_not_told_its_content_changed(
+    kb: Path, fake_paid: str
+) -> None:
+    """S18, and the sibling of the fresh-clone case above: the file is byte-identical, so the
+    failure must not say it changed.
+
+    Deleting a document retires its row and **drops its chunks with it**, so restoring the file
+    genuinely does need a paid re-extraction — the refusal is right and only its reason was wrong.
+    It said "but its content changed" and the content had not moved a byte, so the remedy asked the
+    user to pay for a change that never happened.
+
+    Both files go and both come back, which is what restoring from a backup looks like: deleting
+    only the PDF strands its sidecar and takes a different branch entirely.
+    """
+    _paid_index(kb, fake_paid)
+    pdf = kb / "docs" / "a.pdf"
+    side = kb / "docs" / f"a.pdf{SIDECAR_SUFFIX}"
+    kept, kept_side = pdf.read_bytes(), side.read_bytes()
+
+    pdf.unlink()
+    side.unlink()
+    assert run(kb).ok, "the retirement itself is not a failure"
+
+    pdf.write_bytes(kept)
+    side.write_bytes(kept_side)
+    report = run(kb)  # the manifest's own backend is free
+
+    assert not report.ok
+    assert len(report.failures) == 1
+    path, error, remedy = report.failures[0]
+    assert path == "docs/a.pdf"
+    assert "content changed" not in error, "the file came back byte-identical"
+    assert "unchanged" in error
+    assert "retired" in error
+    assert fake_paid in remedy
+
+
 def test_a_rebuild_keeps_a_changed_paid_document_searchable_but_flagged(
     kb: Path, fake_paid: str
 ) -> None:
