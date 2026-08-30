@@ -7779,6 +7779,926 @@ sha.** Silence from a watcher is indistinguishable from *still running*, which i
 rewritten to emit on every terminal non-success state rather than to wait for a success that may
 never arrive.
 
+## S2 — A census is not a plan (20260825 18:55)
+
+**HIGH — two mutants survived 267 tests because every assertion counted actions instead of ordering
+them.** `pairing.pair()` returns a list of actions, and `describe()` — the helper the whole test file
+asserts through — reduces it to a census by kind. When the same-path branch stops emitting a
+`SoftDelete`, the vanished-path loop re-emits one further down the list, so the wrong plan and the
+right plan have an **identical census**: same actions, same counts, different meaning. `documents.path`
+is UNIQUE, so the order is the entire behaviour — an `Adopt` applied while the row it replaces is
+still active raises `IntegrityError` instead of replacing it. One of the two survived the entire
+suite. The generalisable form: **when a function returns a sequence, a test that asserts its
+contents has not asserted the sequence**, and a helper that summarises is where that blindness
+hides. The fix was a named property (`retires_before_adopting`) rather than a positional
+`assert kinds == [...]`, so it states what must hold rather than what happened to be produced.
+
+**A SURVIVED row is a claim about a pair, and here the wrong half was the selector.** The inverted-guard
+mutant was killed by *five* tests — just not the one the battery named beside it. Re-running it
+against the whole suite rather than the selector is what showed that, and it took one command. The
+battery's own README already says this ("either half of which can be wrong"); what this adds is the
+cheap procedure: **before believing a survivor, run the mutant against everything, not against its
+selector.** A survivor that nothing kills and a survivor whose selector is misaddressed need
+different fixes, and they are indistinguishable from the battery's output alone.
+
+**MEDIUM — the first discriminator was wrong, and a test falsified it rather than a reviewer.** The
+`doctor` check was designed, reviewed and specified as *"a retired row whose file and matching
+sidecar are both still on disk"*. That rule misses the state S2 is named for. When a sidecar's id
+changes at a path, the row that gets retired keeps **its own old path**, while the document that has
+become unfindable is the one whose sidecar now claims that id somewhere else — so a path-based rule
+reports the wrong document and misses the real one. What found it was writing a test for an adjacent
+case (a path reused by a different document) and watching it fail for a reason I had not predicted.
+The rule is now keyed on the retired **id**. Worth stating because the wrong rule had already
+survived a careful adversarial review: **a specification written from the mechanism can be wrong in
+the same direction as the code**, and only a case neither party considered separates them.
+
+**MEDIUM — running corrected a confident inference, and the correction changed the build order.** From
+the pure function I inferred that a rename chain silently re-mints a published id — a `Mint` for a
+document whose sidecar already carried one, which would breach ULID permanence. Running it showed
+the crash *preempts* the mint: on `main` the first adoption raises before the `Mint` is ever
+reached. The defect is latent rather than shipped. That is not a smaller finding, it is a different
+one, and it carries an ordering constraint nobody had written down: **fixing the rename collision
+without this fix first would unmask the re-mint.** The inference was sound and the conclusion was
+wrong, which is this repository's most-recorded failure shape and was reproduced here in the space
+of ten minutes.
+
+**LOW — a condition that cannot be false is worse than no condition.** The first draft of the guard
+read `claimed is not None and claimed.document_path != path`. The second term can never be false
+where it is evaluated: the sidecar beside that path is the one that disagrees, so the sidecar
+claiming the row's id is necessarily a different one. It would have shipped as an unkillable mutant
+— a line no test can pin, which reads as care and provides none.
+
+**MEDIUM — I measured the check as free, and it is not. It costs 12–17%.** The first measurement
+said `pnk doctor` went 0.822s → 0.818s over 2000 documents and I wrote "free, within noise" into a
+fragment. An adversarial reviewer measured +12% on the same corpus, which sent me back to it. They
+were right. Re-measured **alternating branch and main against one KB** rather than running each side
+once in its own worktree: main 0.7099s / 0.6700s, branch 0.7959s / 0.7823s — **+12.1% and +16.8%** —
+and `walk_document_paths` alone is **49 ms** over 1995 documents. The added work is real, it is the
+glob, and it is paid only when the KB has retired rows (otherwise the check returns before walking).
+
+**The method is the finding.** Two sequential measurements taken in two worktrees cannot resolve a
+10% difference on a machine that drifts by more than that between them — my "before" run happened to
+land slow and my "after" fast, and the difference I was trying to detect was smaller than the drift
+I did not control for. Interleaving costs nothing and would have shown it immediately. **A/B by
+alternation, never A-then-B**, whenever the effect is smaller than the noise you have not measured.
+
+What survives is the comparison that actually mattered: the attempt this replaces measured **2.25x**
+(0.746s → 1.682s) and this is about **1.15x**, because the expensive question was never the check —
+it was a SHA-256 over the whole corpus and a second `ruamel` parse of every sidecar `_sidecars()`
+had already parsed. Reusing that parse and asking the walk for paths alone is what the ratio buys.
+"Cheaper by a factor of eight" was the honest claim; "free" was not, and nobody would have caught it
+if a reviewer had not run the number I had already published.
+
+**And the exit code is still not a validity signal, demonstrated while verifying this.** Running the
+real `pnk doctor` against a healthy 2000-document scratch KB exits **1** — for `embedding` and
+`reranker`, because the fake backend is registered inside pytest and not in a plain CLI process.
+Two sessions built measurement harnesses on that exit code in one day; this is a third sighting
+inside an hour of deliberately watching for it. Assert on the named check row, never on the exit
+code.
+
+**HIGH — the fix introduced the exact shape it was removing, and only an adversarial pass saw it.**
+Guarding the branch where a sidecar *disagrees* with the row left the ordinary branch alone, so a
+sidecar **moved** from one document onto another produced `RefreshMetadata(X, a.md)` beside
+`Adopt(X, b.md)`: the same-path loop trusted the index row because nothing beside `a.md`
+contradicted it, and the adoption loop followed the sidecar that had walked away. One id, two
+paths, one plan. Measured on both sides: `origin/main` raises `IntegrityError` and keeps both rows;
+this branch **exited 0**, moved the row to `b.md`, and left `a.md` on disk with no row at all —
+indexed yesterday, unfindable today, nothing recorded. **A loud failure turned into a silent one is
+the precise regression that condemned the previous attempt at this fix**, and this increment
+reproduced it while carrying a commit message about not doing so. Two things made it findable: an
+independent reviewer that ran `origin/main` as a control rather than reasoning about it, and a
+`UNIQUE` constraint that had been the only thing noticing — by crashing. The lesson is not "guard
+the other branch". It is that **a guard written for the case you are thinking about is not a
+property**; the repair is `places_each_id_once()`, asserted over every shape the file exercises,
+because a helper asserted case by case is a helper nobody runs on the case they did not think of.
+
+**MEDIUM — a property helper that did not implement its own docstring.** `retires_before_adopting()`
+was written to assert "no `Adopt` may land on a path this plan retires *later*", and built its
+index of retirements with `reversed(list(enumerate(...)))` — so for a path retired twice it kept the
+**earliest** position, and a plan that retires a path, adopts onto it, then retires it again passed.
+It was doing real work (it is the only thing that kills two of the battery's mutants) and it was
+still wrong about the sentence above it. **A named property is worth more than an inline assertion
+and is also a second place to be wrong**; the reviewer read the implementation rather than the name,
+which is the only way that class is ever caught.
+
+**MEDIUM — the count I published was scoped and I called it complete.** This file said a mutant
+"survived the entire suite" and the battery said "the whole suite of 267 tests". 267 was
+`pytest tests/test_pairing.py tests/test_sync.py tests/test_doctor.py` — the three files covering
+the code — while the suite is 2167. Caught when a planner asked to publish the number in a document
+whose whole subject is not publishing counts nobody has run. Re-measured properly, at the exact
+commit where the survival was observed, with the mutant applied and the full suite run: **2165
+passed, 0 failed.** The claim was true and the denominator was invented, which is the same defect
+one level up from the one the paragraph was describing. **State the population, not just the
+number** — and when a scoped run is what you have, name the scope.
+
+**HIGH — I reported a defect as open after my own later commits had fixed it, and a planner recorded
+it as scheduled work.** S17 (a rename that frees a path a new document then takes) was measured
+early, against `origin/main` and against my branch *as it then stood*; both failed, so I filed it as
+pre-existing and unfixed. It was pre-existing. But the moved-sidecar guard that came out of the
+second adversarial pass — four commits later — fixes it as a side effect, because S17's mechanism is
+the same *one id at two paths* shape. Re-measured with a control: at `03e6f86` the walk records
+`SidecarError: … appeared after the walk had already read this directory` and the renamed document
+is **never indexed**; at `3876b57` it reports `1 indexed, 1 renamed` and the document is active.
+
+**The error is not the measurement, it is the report: a finding taken against a moving branch has a
+sha, and mine did not carry one.** It was true when taken and false four commits later, and nothing
+in the report let either of us see that. It had already been written into a plan as a two-part fix,
+which is one message from a fresh session rebuilding something that works — the failure this
+repository's own `CLAUDE.md` records happening twice in two days. **Stamp every cross-session
+finding with the commit it was measured at, and re-measure before anyone schedules it.**
+
+And the repair for the claim itself is a test, not a corrected sentence. *"S17 is fixed"* written in
+a plan is a fact that decays silently; `test_a_rename_that_frees_a_path_a_new_document_then_takes`
+is the same fact that goes red if it stops being true. Confirmed red at `03e6f86` before being
+believed.
+
+**LOW — and the same disease in a docstring I had just written.** `_retired_documents` claimed the
+pre-commit hook's sidecar "cannot trip it: nothing the hook does retires anything", and the
+changelog fragment repeated it. A reviewer measured otherwise: at a **reused** path — a new document
+at a name some earlier document held — `sync --sidecars-only` does reach rule (2). The report there
+is *true* (the document has no row and `pnk search` cannot see it) and the shipped hook pair never
+leaves that state, since post-commit indexes inside the same commit. So the check is right and the
+sentence was wrong, which is the more embarrassing half: **an absolute claim written to explain why
+a design is safe, in the same paragraph that had already earned the right to a narrower one.**
+
+## Taking eight decisions into the documents — what the writing found (20260825 18:55)
+
+The decisions were taken by the user at 20260825 18:16. This is what surfaced while writing them
+into the files, and every item is something the deciding pass did not know.
+
+**HIGH — a correction about false precision was itself a timezone error, and it nearly propagated.**
+The decision record listed three defects in `docs/VERIFICATION.md`'s scope sentence. Two were
+already resolved before the pass began: the 923→890 row count was corrected earlier the same day,
+and the *"impossible"* provenance stamp is not impossible — `c23359f` is
+`2026-08-25T13:42:55+01:00`, i.e. **12:42:55 UTC**, so the 12:49 UTC measurement is seven minutes
+*after* it. An adversary read a local timestamp as UTC. **Had the planner trusted the list rather
+than checking it, it would have "fixed" a correct stamp into a wrong one** — a repair that
+manufactures the defect it repairs. Checked with `git show -s --format=%ad --date=iso-local`, not
+by reading.
+
+**HIGH — the two numbers in one sentence rotted the same way, and the earlier correction pass fixed
+only one of them.** The same sentence carried *"890 rows"* (corrected) and *"62 of the 67 test
+modules"* (left). The module figure was wrong on **both** halves: there are **74** modules and
+**63** carry a row. **A sentence with two numbers of one class is a sentence where correcting one
+and stopping is the likely failure** — the reader's eye treats the sentence as handled.
+
+**HIGH — the obvious way to count that sentence reports 74 of 74 and finds nothing.** Counting
+"modules named in the document" by testing whether each filename appears in the text is wrong here,
+because **the preamble itself lists the eleven unnamed modules by name**. The measurement instrument
+is contaminated by the prose it measures. The gate's own `REFERENCE` regex — which matches only a
+`tests/x.py::y` reference — gives 63. This was hit live, mid-pass, and the wrong number was on
+screen before the right one.
+
+**HIGH — the bounded audit found a cluster, not an instance, and the cause was structural.** D-34
+was licensed on one unrowed promise found by sampling. Auditing a single module found **14 of
+`tests/test_serve.py`'s 31 tests unrowed**, two of them security boundaries: the MCP path-refusal
+(`../../etc/passwd`) and the labelling of retrieved text as evidence rather than instruction.
+**The cause was not neglect** — the server's rows lived under *the links release* and *page
+citations*, and **no section owned the server boundary**. A missing section is invisible to every
+gate and to every reader who checks whether *a* row exists. Fixed by adding the section, not by
+adding rows to the wrong ones.
+
+**MEDIUM — a tripwire whose condition was already met on the day it was armed.** The
+staged-channel-gates clause said *"two entries exist and are deliberate… if a third appears, that is
+the drift this rule exists to catch."* `docs/DESIGN.md` had carried a third entry of the same
+shape since **five days before the clause was written**. It reported drift that was not drift, and
+cost two separate readers a full pass. **A rule that counts instances rots; a rule that names a
+class does not.** It now forbids a class — no plan, no increment, no numbered item, no version
+number — and says index, routing and naming entries are permitted and uncounted.
+
+**MEDIUM — a count went stale eleven lines from a row that already carried the right one.**
+`docs/README.md` said the sweep held *"fifteen confirmed defects"* in its prose and *"Sixteen
+defects"* in the table below it. Both were written the same day. **Proximity is not consistency**,
+and the same file is where a routing table already carries the instruction *"this row deliberately
+states no count"* — a remedy that existed one row away and was not applied.
+
+**HIGH, and the worst of these — a gate was cited as evidence for a property it cannot see.** A
+blockquote annotating a table row was written *inside* the table, which renders it as a table cell.
+The repair moved it after the last row **with no blank line**, so Python-Markdown's `tables`
+extension swallowed it as one more `<tr>` — a cell whose text begins with a literal `>`. **`mkdocs
+build --strict` exits 0 on the broken form and on the fixed one alike**, so *"`make docs` EXIT=0"*,
+offered in a commit message as proof the repair worked, **certified nothing about the repair**. The
+generalisation is the same one this project already applies to tests and to mutation batteries, and
+it had not been carried across to gates: **make the gate red on purpose first. If it cannot fail on
+the broken form, it is not evidence for the fixed one.** It is also the same failure as
+`check.sh | tail` reporting `tail`'s exit status — a green signal that is not a function of the
+property anyone cares about — and the two were hit by two different sessions within an hour.
+
+**LOW, and it cuts against this pass — the writing changed the number the writing states.** The
+scope sentence records the table's row count. Adding fourteen rows moved it from 890 to 904, so a
+count copied from the parent commit would have been falsified **by the edit that copied it**. Stated
+in the file rather than silently re-measured, because it is the third time in one day a change here
+invalidated a pointer to itself.
+
+## Reconciling the queues — two registers of one fact, and an owner with nowhere to queue (20260826 06:32)
+
+The increment was meant to close a scheduling gap `CLAUDE.md` names in bold. It found the gap was
+the smaller half.
+
+**HIGH — a file that holds two registers of the same facts will diverge, and no gate can see it.**
+`plans/20260825_1252-plans-sweep-findings.md` carries a 27-row *Actionable* table with **Status,
+Blocked-on and Owner** columns, and a § *Open questions* list of thirteen bullets. They describe the
+same decisions. The 20260825 18:16–18:41 pass updated the bullets, inline, carefully — and never
+touched the table. **Twelve of the 27 rows stopped describing the tree** — eleven of them stating
+*LIVE* (eight) or *UNCLEAR* (three) for work that was built, answered, declined, deferred or ruled
+that evening. This is the repository's own recorded failure — *a `##` heading is a status claim and
+nothing gates it* — moved one level in, **into a table cell**, where reading the item's body does not
+help because the body is the cell. **The fix is not to maintain both.** It is to say which one wins:
+a dated snapshot carries a disposition, a `## Build order` carries the queue, and where they
+disagree the build order is right by construction.
+
+**HIGH — an owner is not a schedule, and the difference is measured in weeks.** Three decided items
+had an owner and **no queue position anywhere**: the `_toml.py` unknown-key remedy, the paid
+re-extraction loop's trigger, and the G5 gate re-run — which sat that way for **21 days** while
+every sweep that read headings passed over it. The seam is structural: an item whose owning plan has
+no `## Build order` has nowhere to be queued, and `docs/README.md` routes to *files*, not to work.
+Parking them in one named section beat both alternatives — a fourth register would repeat the defect
+above, and a build order per plan makes a coder read four files to learn what is next, which is how
+the seam formed.
+
+**HIGH — the top of the coder's queue was a claim nobody had re-checked, and checking it took nine
+minutes.** `CLAUDE.md` said S16 was *"still live, reproduced on `main` 20260826"*. **Nothing in the
+sweep plan supported that date** — the only run on record is `32442db`, **20260825 18:18**, which is
+*before* S2's fix landed at 04:06 the next morning. And S2's fix is known to have **cured S17 as a
+side effect**, so "does it also cure S16?" was a live question that no document had asked. Reproduced
+end to end against a `src/` tree byte-identical to `origin/main`: **it is still live**, all three
+failures intact. The finding is not that the claim was false — it happened to be true — but that
+**nobody could have known, and it was written as though someone did**. A defect recorded against a
+moving tree needs its sha; S17 was recorded the same way and had already been fixed.
+
+**MEDIUM — reading names instead of targets put a false claim in a file that exists to state a
+denominator honestly.** `tools/batteries/README.md` named `src/pinakes/cli.py` among *"the two
+highest-churn modules … [that] still have none"*. `src-pinakes-init.toml` mutates it **twice**. The
+same error hides more: `tools-mcp_handshake_gate.toml` reaches **seven** files including `Makefile`,
+`check.sh`, `pyproject.toml` and both CI workflows. **A battery's name is not its coverage**, and
+the question has a one-line answer nobody was asking —
+`grep -h 'file = ' tools/batteries/*.toml | sort -u`. Its own gate could not catch it:
+`tests/test_batteries.py` forces a battery whose stem does not begin `tools-` to be named in the
+README, and checks nothing about what the batteries reach.
+
+**MEDIUM — I invented a duration inside a pass about unmeasured claims.** I wrote *"fourteen hours"*
+for how long the table said `S2 · LIVE`, four times across four files, and **never computed it**.
+**That count is not re-derivable from git and this sentence is the only record of it** — the error
+was corrected *before* the first commit, so history contains this description and not one instance.
+Stated here rather than left to look like a measurement: it is a report of a working tree nobody
+else can inspect, which is the weakest kind of claim this repository accepts and it is accepted only
+because a retrospective has no other way to describe what it caught. S2
+landed at 04:06 and the pass ran at 06:19: **two hours**. The eleven decision rows were the
+twelve-hour ones. Two different numbers had been collapsed into one invented figure that flattered
+the finding. Caught only because the timestamps had to be re-derived for an unrelated reason.
+
+**MEDIUM — and the reason they had to be re-derived: `--date=format-local` where the rule says UTC.**
+Local here is UTC+1, so `3876b57` went into three files as *05:06* when it is **04:06 UTC**. The
+retrospective fragment written **twelve hours earlier** records an adversary making the same
+substitution in the other direction, and says it *"would have 'fixed' a correct stamp into a wrong
+one"*. **Reading that fragment did not prevent repeating it**, which is worth more than the fix: the
+guard has to be in the command, not in the memory of a lesson. `git log` takes `--date=format-local`
+and `TZ=UTC git log` gives the rule's answer; nothing warns you which you typed.
+
+**LOW — `main` moved twice during the pass, and once it falsified a row as it was being written.**
+A branch recorded as unowned — its author's session ended, and a direct message to the only other
+candidate failed `HTTP 409` — landed while that row was being drafted. A peer said so; the claim was
+verified against `git ls-remote` rather than relayed, and the row was deleted before it was
+committed. The rule that saved it is the cheap one: **verify at the moment of landing, not at the
+start.**
+
+## `make release-check` — a gate that could not fail, and what that says about the others (20260826 06:38)
+
+**HIGH — the target had a help string, a `docs/RELEASING.md` step, a `CLAUDE.md` rule and a
+`docs/STATUS.md` sentence, and no comparison anywhere in its recipe.** Four documents described a
+check; the recipe printed three lines and exited 0. Nothing was wrong with any single document —
+each was written by someone who had read the others. **The failure is that a target's documentation
+and a target's exit status are separate artifacts, and only one of them is executable.** The
+generalisable form: *a check named in four places and implemented in none is indistinguishable, from
+every document, from a check that works.* It survived from the target's creation to 20260826, and
+what found it was neither a gate nor a reader of the Makefile — it was a planner building an
+argument that rested on the phrase *"the tree `make release-check` was run against"* and going to
+read what that meant.
+
+**The remedy is not "test the gate" — it is `make help` and the recipe pinned in one test.** The
+`##` string is what a release operator reads and it is *not* an argument to the recipe, so the two
+can disagree silently forever. `test_the_release_check_help_string_and_its_recipe_are_pinned_together`
+holds them together. Two of this increment's mutants are the same idea one layer down: commenting
+the recipe out (`make` hands `\t#…` to `/bin/sh`, which exits 0) and a single leading `-` (`make`
+discards that line's exit status). Both restore *"the target cannot fail"* in one character, and
+both now die.
+
+**MEDIUM — a `KILLED` row is not self-validating, and this is the mirror of the survivor rule the
+batteries README already states.** The mutant for *"an annotated tag with an empty message passes"*
+was written as `if not …: → if False:`. It reported `KILLED`. It was killed by an `IndexError`
+traceback out of `splitlines()[0]`, not by the exit code — because removing that branch does not
+make the empty-message case pass, it makes the tool crash. So the row was a true statement about
+the wrong property: *the tests notice a broken tool*, not *the tests notice an unannotated tag being
+waved through*. Rewritten as an early `return 0`, it dies on `assert 0 == 1`. **Read what killed a
+mutant, not that something did** — `mutate.py` prints the assertion, and it is the only place the
+distinction is visible.
+
+**MEDIUM — the increment's own test of its own gate had the escape hatch the gate exists to
+remove.** Nine of the eleven tests supply `--repo` and `--expect-version`, so the defaults are a
+region no fixture reaches; the one test covering them read
+`assert str(ROOT) in output or result.returncode == 0`, and on the green branch the `or` carried it
+and it could not fail. An unfailable assertion inside the increment whose entire subject is an
+unfailable check. **A test seam does not only hide the real path — it concentrates the temptation
+to write a weak assertion there**, because that is where a strong one is awkward. The repair was
+two assertions that can fail plus two mutants (`REPO` repointed, the default version hard-coded to
+`0.0.0`) that are invisible to every other test in the file.
+
+**LOW, and named rather than closed: the gate never asks whether `HEAD` is on the remote's default
+branch.** A tag on an unpushed commit passes all four legs, and pushing it hands the publishing
+workflow bytes that are on no branch. Every offline form of the check is wrong — a remote-tracking
+ref is as stale as the last fetch, and the remote's tip may be an object this clone does not have —
+and the correct form has to fetch, which makes a release gate mutate local state and go red for
+being *behind*, a state that is not a publish hazard. Left to the procedure, which lands and pushes
+before it tags. **The reasoning is in the tool's docstring, not only here**, because the next person
+to notice the gap will be reading the tool.
+
+**A citation is a measurement, again, and this time it was caught inside the same increment.** The
+docstring's gap paragraph first read *"steps 4 and 5 land and push before step 6 creates the tag"* —
+citing a numbering that only exists in a diff still sitting with the planner. Rewritten number-free.
+The same pass kept `docs/RELEASING.md`'s steps 6 and 7 **unrenumbered** for the same reason: five
+live citations name *"`docs/RELEASING.md` step 8"* — in `CHANGELOG.md`, `docs/STATUS.md`,
+`docs/ROADMAP.md`, `.github/workflows/release.yml` and `tests/test_check_script.py` — and pushing
+that step to 9 would leave every one off by one, silently, in the exact class this repository has
+now recorded five passes of.
+
+## Measuring the review loop — every arithmetic claim in the report had an error (20260826 06:50)
+
+A session measured what this project's adversarial review costs, from the agent transcripts on disk,
+and proposed eight ways to make it cheaper. An adversarial fan-out over those proposals returned 52
+findings. **Six of the six arithmetic claims that were re-derived turned out to be wrong**, in a
+report whose whole purpose was to be quantitative. The mechanism it described survived; almost none
+of its numbers did. What follows is why each one broke, because the causes are not specific to this
+measurement.
+
+**HIGH — a number in a docstring is a claim with no gate on it, and the fix that invalidates it will
+not say so.** `tools/review_pass_gate.py` shipped citing "613 review agents, 87% leave some
+artifact, 58% of 6,015 targets are relative paths". During that same increment a filter was added
+rejecting shell fragments a redirect-scan had reported as files — `0`, `c`, `15,}` — because a real
+run showed them. Adding it changed the denominator of the measurement quoted three paragraphs
+further down the same file, and nothing re-ran it: 49.2% of those 6,015 "targets" were never files.
+The true figures are 41% leaving any artifact and 59% leaving none. `./check.sh`, `pyright`, `ruff`
+and sixteen tests were green throughout. *Lesson: prose in a source file is unversioned evidence.
+When a change alters what a measurement counts, the measurement is stale even though the diff never
+touches it — and no gate in this repo can see that.*
+
+**HIGH — a keyword classifier over agent briefs counts the repository's own instructions.** The
+population was built by matching `review` over each subagent's task. `CLAUDE.md` tells every
+*implementer* to "adversarially review" its work, so coder agents matched and were counted as
+reviewers — and coder agents write far more files, and cost far more per turn (median ~173,500
+tokens/turn against a reviewer's ~61,700), so they distorted every derived ratio. The replacement
+classifies on role and was hand-audited over a 30-run random sample: 14 of 14 correct, recall
+imperfect, so it is a lower bound rather than a point estimate. *Lesson: when the corpus is agent
+transcripts, the vocabulary of the task and the vocabulary of the instructions are the same
+vocabulary. State a classifier's measured error rate, or do not state a population.*
+
+**HIGH — the currency was never declared, and the two currencies disagree by 25x.** "87% of review
+spend is re-transmission, 13% is the findings" is a *weighted* ratio. In raw tokens — the unit every
+other figure in the same report used — it is 99.5% re-transmission and **0.5% output**. Both are
+true; quoting one beside totals stated in the other puts two denominators in one paragraph.
+*Lesson: a ratio over tokens is meaningless until the weighting is written next to it.*
+
+**MEDIUM — a pooled ratio is not a typical one.** "101,256 tokens per turn" was Σtokens ÷ Σturns
+across the corpus. Corrected and de-contaminated it is 91,617 pooled, against a **per-agent median
+of 61,688** — the pooled figure sits near the 90th percentile of individual agents, so it described
+almost none of them. *Lesson: pooling answers "what did the fleet cost"; sizing a per-agent budget
+needs the per-agent distribution, and the two differ by 50% here.*
+
+**MEDIUM — six merges from one afternoon are not "recent increments".** The report argued that review
+was disproportionate to the work, citing the last four merges at 7, 37, 62 and 232 changed lines.
+Those were one burst of documentation and fragment merges. Re-sampled, the surrounding increments run
+70 to 1,211 lines. An entire proposal — scale the review down for small increments — rested on that
+sample and does not survive it. *Lesson: `git log --merges -n` returns the most recent n, not a
+sample of the distribution, and a project that lands in bursts makes those two very different.*
+
+**And the finding that made the rest recoverable: the fan-out that raised all of this lost every one
+of its six refuters to a usage limit and returned `{"confirmed": []}`.** Written the way the tool's
+own documentation recommends — collecting results and filtering out the empty ones — that is
+indistinguishable from an adversary that examined the work and approved it. The findings survived
+only because the harness counted launched agents against returned ones and refused. Each was then
+confirmed by re-deriving it rather than by reading it again. *Lesson: an adversarial pass that
+returns nothing is making a claim about itself first and about the work second, and re-reading a
+number never falsifies it — recomputing it does.*
+
+**And the finding the report should have led with: the retrospective loop IS the spend, and
+its yield halves while its price does not.** The report's own share figures were computed from a
+keyword classifier and were wrong twice. Recomputed the plain way — list every subagent run's task
+title with its token total, then let the clusters fall out — 899 runs and 5.13 billion raw tokens
+divide like this: **adversarial review of an increment, plus the refuters serving it, is 44.0%**;
+building and fixing increments is 18.1%; plan work 7.8%; decision analysis 5.9%; sweeps 5.7%; corpus
+and eval authoring 1.5%. A further 16.7% resisted clustering and is named here rather than
+distributed, so 44% is a floor. **Review is 2.4x the next largest category**, and the nine single
+most expensive runs in the project are all *build* work, which is the other thing the title listing
+makes obvious and no proposal in the report addressed.
+
+The decay inside that loop is recorded in the repo's own agent briefs, because each pass is told what
+came before: **passes 1–4 over one increment found 30, 22, 13 and 6 issues.** Median cost per pass,
+over the runs that state their number: 7.5M raw tokens at pass 2, 12.5M at pass 3, 12.9M at pass 5 —
+flat to rising. Yield halves, price does not, so the marginal cost of a finding roughly doubles every
+pass. *The caveat that keeps this honest:* only 43 runs state which pass they are, and later passes
+announce themselves ("the FIFTH adversarial review pass") while a first pass usually just describes
+the task — so the split of spend by pass number is biased and is not quoted. The decay curve is
+quoted verbatim from the briefs.
+
+*Lesson: the loop's cost is not the depth of any one pass, it is that every pass pays full price for
+context the previous ones already established.* Each pass is a fresh agent, told the history but
+handed none of the evidence, so it re-derives the map before it can look for anything new — at a
+measured ~102,000 tokens per turn, where 99.5% of those tokens are re-transmitted context and 0.5%
+are the findings. That is the shape to attack: not fewer passes and not cheaper models, both of which
+trade away what later passes are good at, but a later pass that starts from what the earlier ones
+established instead of from zero.
+
+*And the method lesson, which is the one that generalises:* the clusters above came from listing
+every task title against its token total and reading the list. Three successive regex classifiers
+over agent prompts had each produced a different, confidently wrong answer. **Sort the units of work
+by cost and read the labels** before writing a classifier over them.
+
+## D-35 layer 2 — the half a gate cannot see, and a gate I ran wrong (20260826 06:59)
+
+**HIGH — I ran `uv run ruff check . | tail -1` between edits, and it reported `tail`'s exit
+status.** A failing checker read as a pass, and it hid a real `E501` for two edits. This is not a
+new lesson anywhere: `check.sh` exists *because* of exactly this, says so in its own header
+comment, and `CLAUDE.md` carries it as a standing rule — *a gate is only a gate when its exit
+status is what the next command reads*. Nothing false was ever claimed, because `./check.sh` runs
+its gates bare and is what ran before each commit. **The generalisable part is where the defect
+lived: not in the project's gates, which are correct, but in the ad-hoc command I typed to check my
+work between them.** A rule written about `check.sh` was read as being about `check.sh`. Piping any
+checker into `head`, `tail`, `grep` or `tee` to read its output is the same mistake wherever it
+happens, and the safe habit is `cmd > log 2>&1; echo $?` — the exit status first, the output after.
+
+**HIGH — the property worth gating was the one no existing check could ever have failed on.** D-35's
+own reasoning is the durable part: an index-based rule can require the marker when a version is
+*absent* from PyPI, and can never require its *removal* once the version is present. Removal is
+green by construction — in the header gate (its `SHAPE` stops at the closing `**`), in the
+release-order gate (no sequence reads line 3's tail), and in the index rule itself. **When choosing
+what to build, "which direction of this property is currently unfalsifiable?" locates the gap
+faster than "what is broken?"** — the broken direction usually already has a check; the
+unfalsifiable one has never had a chance to fail.
+
+**MEDIUM — the mutant that proves it is the one the real tree cannot show.** `PUBLISHED_ROW` names
+which of `release_order_gate.py`'s **two** `docs/STATUS.md` sequences carries `R`. Repoint it at the
+other one — the *Published on PyPI* prose, forty lines away — and: the real tree stays green,
+because both sequences have the same newest entry today; the test asserting the sequence resolves
+stays green, because the prose sequence exists; and every other test stays green. Only a fixture
+whose prose is absent kills it. **Reading the wrong one of those two is a recorded failure in this
+repository** — it is how the row drifted four releases while the gate reported every one of them
+present, *in the sequence next door*. A mutant whose kill requires a fixture is exactly the mutant
+worth committing, and the reasoning beside it is the part that is not re-derivable.
+
+**MEDIUM — the gate dictated remedy text it could not hold true.** Its failure message told the
+operator to write *"landed on `main`, NOT tagged and NOT on PyPI"*. **`NOT tagged` is a claim about
+git that goes false at the tag**, while the version is still unpublished and the *Published
+versions* row may legitimately still lag — so the gate would have been green over a marker it had
+itself dictated and which had become half-false. The qualifier now names the index only. The rule:
+**a check may only prescribe text whose truth it can keep checking**; anything else it suggests is
+a claim it has quietly delegated to a human and stopped watching.
+
+**LOW, stated before the build rather than discovered after it — layer 2's green is narrower than it
+looks.** `docs/RELEASING.md` permits the *Published versions* row to lag a release, because an entry
+is held back until it is verified from the index. So after a successful publish `line3 > R` still
+holds and layer 2 stays green over a marker that has become false. It enforces the marker's removal
+**at the moment the row is updated, not at the moment of publication**; the publication window is
+layer 3's, which is soft and not built. This is written into the tool's docstring, not only here,
+because the next person to over-read this gate's green will be reading the tool.
+
+## One code change falsified six documents, and the owner of the code could not fix any of them (20260826 07:02)
+
+`make release-check` became a real gate in `674eda6`. The moment it landed, **six documents were
+false** — and none of them was in the coder's file set.
+
+| Document | What it said |
+|---|---|
+| `docs/README.md` | *"`make release-check` **runs no gate at all**"* |
+| `docs/ROADMAP.md` ×3 | the same claim, at `:124`, `:185`, `:2274` |
+| `plans/20260731_1202-open-corrections.md` | the item itself, `🛑 LIVE` |
+| `docs/STATUS.md`, `CLAUDE.md` | *"before the tag, never after"* — now *before the **push*** |
+
+**MEDIUM — two rules this repository holds simultaneously cannot both be satisfied, and nobody had
+said so.** *Keep docs in sync with code — in the same change* is a standing rule and calls stale docs
+a **severe** defect. *Documentation has one owner* says no other agent edits a document; it proposes.
+For any coder change that falsifies a document, **the same-change rule is unsatisfiable by
+construction** — the person who knows the change cannot write the document, and the person who owns
+the document is a separate session. There is always a window. Here it was about twenty minutes and
+nothing published inside it, but that is scheduling luck, not a property of the mechanism.
+
+**The tension resolves in favour of ownership, and the cost should be named rather than absorbed.**
+The mitigations that actually worked, both of them cheap: the coder **enumerated the falsified
+documents in the same message that announced the landing** — five of the six, each with a line
+number, before being asked — and the planner ran the sweep as the next increment rather than
+batching it. Neither is written down anywhere as the procedure. **What makes the window survivable is
+the handover listing the damage, not the ownership rule being relaxed.**
+
+**LOW — the counted anchor did not bite, and it was worth checking rather than assuming.**
+`docs/RELEASING.md` warns that Part 5's *Open corrections* heading carries its own item count in its
+anchor, so closing an item breaks every in-page link. Checked: the heading is a bare
+`## Open corrections` at `ROADMAP.md:2255` and the counts live in prose at `:102`, `:122` and `:186`.
+**Corrected 20260830**: every one of those numbers was right at `c111645^` and wrong the instant
+`c111645` landed — the commit that added this fragment shifted `ROADMAP.md` by a line. `:124` was
+never a count, so the third is `:122`, not `:124` plus the shift.
+The warning describes a hazard that is not present in the current text — **true when written, and
+now a trap for whoever believes it and works around a problem that is not there.**
+
+**LOW — five citations were the reason not to renumber, and they were verified rather than
+relayed.** The coder's diff deliberately kept steps 6–8 numbered as they were, because five live
+citations name *"`docs/RELEASING.md` step 8"* — `CHANGELOG.md`, `docs/STATUS.md`, `docs/ROADMAP.md`,
+`.github/workflows/release.yml`, `tests/test_check_script.py`. All five were grepped before the diff
+was accepted. **Renumbering is the invisible half of a documentation edit**: nothing goes red, and
+every citation is off by one.
+
+## S19, measured twice independently — and the row that disagreed is the useful one (20260826 07:20)
+
+S19 said `pair()` emits an inapplicable order for renames that are not cycles. Until today that was
+**an argument from reading `pairing.py`**, and the plan said so in a provenance paragraph. Both
+halves have now been run: the coder reproduced it end to end, and the planner re-drove `pair()` from
+a **separately written probe** rather than checking the coder's output.
+
+**MEDIUM — three rows matched exactly, and the fourth differed for a reason worth keeping.** On
+cycle, non-cycle-two and chain-of-three the two probes emitted identical action sequences. On
+*rename onto a free name* one probe reported `RefreshMetadata` and the other `Skip` — because one
+construction changed the untouched document's sidecar hash and the other did not. **The row is green
+either way and the disagreement changes nothing**, but recording *why* two measurements of "the same
+thing" differ is what makes the three that agreed worth anything. A silent reconciliation would have
+left a reader unable to tell agreement from coincidence.
+
+**MEDIUM — the control was designed to kill the plausible-but-wrong fix, not to demonstrate the
+bug.** The obvious pinning case is the two-file shift. The coder argued for a **chain of three**
+instead: its valid order is *strictly reverse*, so no accident of path-sorting can produce it, and
+**a fix that merely reorders two adjacent actions passes the two-file case while failing this one.**
+That is the difference between a test that proves the bug existed and a test that constrains the fix.
+
+**LOW — and it converted a build-order row from under-scoped to scoped.** Before the measurement,
+*"make swaps work"* was a defensible reading of S16. After it, the classes are distinct and
+measured: **ordering the applicable plans fixes the whole chain class; cycles need a temporary path
+and a separate mechanism.** The plan now says so, and asks that **the cycle case be shown still
+failing** in the commit that fixes the chain — otherwise *"swaps still crash"* becomes *"swaps are
+fixed"* in the next summary, which is precisely how S17 was recorded as open after being cured.
+
+## The marker was 0-for-2 because the procedure never asked for it (20260826 07:27)
+
+**MEDIUM — a convention with a 0-for-2 record was blamed on the people following it, and the
+procedure had never contained it.** `docs/STATUS.md`'s hold marker had been written twice and missed
+twice, and that record is what justified building a gate (D-35 layer 2). It is a good gate. But
+`docs/RELEASING.md` — the document a release operator actually follows, whose sweep table exists
+precisely to name every place a release goes stale — **never mentioned the marker at all.** A release
+cut by following it verbatim produces the false line, every time, correctly. **Before building a gate
+because a convention keeps being missed, check that the convention is written where the person doing
+the work would read it.** Both were worth doing here; only one of them was diagnosed.
+
+**MEDIUM — the live marker carried a claim its own gate had deliberately rejected.** Line 3 read
+*"landed on `main`, NOT tagged and NOT on PyPI"*. The coder had explicitly cut *NOT tagged* from the
+gate's suggested text, because it is a claim about **git** that goes false at `git tag` while the
+version is still unpublished — the line would be half-wrong for the whole tag-to-publish interval,
+with the gate green over it (`HOLD` requires only `⏸` and a bold span naming the published version).
+**The reasoning had been recorded in the gate's docstring and the document it governs was never
+brought into line.** A decision written down next to the code is not a decision applied to the data.
+
+**LOW, and it is the third instance today of one trap.** Driving the gate red on purpose, the first
+measurement was `uv run python tools/status_header_gate.py 2>&1 | grep -v warning; echo $?` — which
+reports **`grep`'s** status, not the gate's, and printed `0` for a run that had just failed. The
+coder hit the identical shape with `| tail -1` an hour earlier and wrote it up as *"a rule written
+about `check.sh` got read as being about `check.sh`"*. **The rule is not about a file; it is about
+whatever command's exit status you are actually reading** — and an ad-hoc pipe typed to inspect a
+result is exactly where it is forgotten, because it does not look like a gate. Re-measured bare:
+**exit 1 without the marker, exit 0 with it.**
+
+## The cycle's price, found by building the fix and backing it out (20260826 07:33)
+
+**MEDIUM — the obvious remedy for a defect had a cost nobody had counted, and counting it required
+writing the code and throwing it away.** S16's cycle class (`a ↔ b`) looks like it wants a clean
+refusal: `pair()` raises before anything is applied instead of emitting a plan that crashes halfway.
+The coder built exactly that, it worked, and **backed it out** — it breaks five committed tests, and
+three of them are guards that exist *only while a cycle still produces a plan*, including
+`test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row`, which pins **the silent-loss
+shape S2 exists to prevent** and can only observe it by watching a plan be applied and fail.
+
+**So the cycle's remedy is not "add a temporary path". It is "add a temporary path *and* replace
+three of S2's guards".** A build-order row reading *make cycles work* would have under-scoped it
+exactly as *make swaps work* under-scoped the chain — the same error, one class along, and it would
+have been discovered mid-increment by someone with a fix already written.
+
+**The judgement worth keeping is the refusal to land it.** Refusing a cycle cleanly is a **behaviour
+decision** costing S2 coverage, not an implementation detail of an ordering fix, so it did not belong
+in that increment however well it worked. Backing out working code because it answers a question
+nobody asked is harder than shipping it, and it is what the *never assume what the plans have not
+decided* rule actually costs when it bites.
+
+**LOW — and one of the three guards contradicts itself in a way that will block precisely the person
+who settles the cycle.** Its docstring: *"The sync's own outcome is deliberately not asserted… what
+this test pins is that no live document loses its row, which must hold **however that defect is
+settled**."* Its body: `contextlib.suppress(sqlite3.IntegrityError)`, which **pins the exception
+type**. Settle the cycle by raising anything else and the test fails, with a docstring promising it
+would not. **A test's intent and its implementation can disagree, and the docstring is the half that
+gets read** — nothing checks the other one against it.
+
+## Every review pass rebuilds the map, and the expensive ones pay most for it (20260826 07:40)
+
+Measuring where adversarial review spends its tokens, and building the tool that carries the answer
+forward, produced five things worth keeping. Three are about this repository's review loop; two
+are about measurement itself, and those are the ones that generalise.
+
+**The cost is re-derivation, and it scales with the pass rather than away from it.** Over the 910
+subagent transcripts here, **35.6% of a later review pass's raw tokens go to turns whose only file
+access was a file an earlier pass over the same increment had already opened** — against **3.0%**
+for turns that opened something new. 96% of what the median later pass opens was already
+opened by an earlier one. And the share **rises with how expensive the pass is**: 40.1% over the 69 passes costing
+more than 5M raw tokens. The reason is arithmetic rather than psychology — a file read at turn 6 of
+a 90-turn pass is re-transmitted by all 84 turns after it, so the earlier and longer the pass, the
+more a redundant read costs. *Lesson: the expensive part of a review pass is not the reviewing. It
+is standing the map back up, and the passes best placed to find something rare are the ones paying
+most for ground that was already walked.*
+
+**What a pass re-derives is not mainly file content, and counting tool calls said otherwise until
+the labels were read.** Reviewers here overwhelmingly *run* things: their own detached worktree,
+their own scratch KB, `pytest` inside it, a throwaway probe script, then `git worktree remove`. On
+one increment, **seventeen separate passes wrote and ran `uv run --frozen pytest
+tests/test_pairing.py`**, and **seven independently discovered that `timeout` is not installed on
+this machine** — each paying full price for the discovery. *Lesson: the carry that matters is the
+probe, not the file list. A map of what was read helps a reader; a command that already ran helps a
+worker.*
+
+**And the coverage hole nobody was looking for.** The tool reports, per increment, the changed files
+no pass ever opened: **211 of 248 across the corpus (85%; 92% on multi-pass increments)**. The
+misses are not noise. `src/pinakes/__init__.py` — where `__version__` lives — was never opened
+across the **41** passes over `20260823_0718-mutation-batteries`. And **no review pass in this
+corpus has ever opened the `changelog.d/` or `retro.d/` fragment its own increment wrote**: the
+files that carry this project's memory forward are the ones its review procedure never reads.
+*Lesson: "reviewed until clean" is a claim about what the passes looked at, and until something
+lists the diff beside the reads, nobody knows what that was.*
+
+**The method lesson, which is the one that generalises: a mutant that survives is a question, and
+the answer was that my reasoning was backwards.** The battery's first run left one row alive — the
+mutant that flipped path normalisation from last-match to first-match. The test it named asserted a
+property the fixture never created, so the mutant was unobservable. Answering *why* it survived
+found that the shipped rule was the wrong one: last-match reduced `tests/demo-kb/docs/x.md` to
+`docs/x.md`, which is not a file, and the tracked-file screen then discarded it. **102 tracked paths
+are shaped that way.** The written justification for last-match — that a branch directory might
+contain `docs` — was simply false: a branch is `20260807_2143-docs-audit-findings`, where `docs` is
+bounded by hyphens and the `/docs/` marker never matches it. Every gate was green throughout.
+
+Two corollaries, both earned in the same hour:
+
+- **Then measure the fix rather than asserting it.** The natural write-up was *"every review pass
+  that read the demo KB vanished from the map"*. Checked: **28 of 49,000 read targets normalise
+  differently, 27 of them recovered, and the published shares do not move at all.** Real, silent,
+  and small. The defect class deserved the fix; the sentence deserved the smaller number.
+- **A number in a docstring is a claim with no gate on it, so give it a command.** `--measure`
+  re-derives every figure in this tool's own docstring, under the key printed beside it. Two of
+  those figures moved during the build, when the two defects above were fixed — and updating them
+  cost one command instead of one act of remembering. This is the direct answer to the failure
+  recorded in [`tools/review_pass_gate.py`](https://github.com/lucagattoni/pinakes/blob/main/tools/review_pass_gate.py),
+  which shipped three measured claims that a change made in the same increment falsified.
+
+**And the fifth, which arrived while writing the fourth: the corpus is live, so a measurement over
+it needs a stamp exactly as a measurement over a working tree needs a sha.** Two peer sessions were
+writing subagent transcripts into the same directory throughout this work. Running `--measure`
+twice, minutes apart, with no code change between them, moved a published figure from 96.1% to
+95.8%. Nothing was wrong; the corpus had grown. `--measure` now prints `transcripts_read` and
+`newest_transcript` with every result, and the module docstring quotes both beside its numbers.
+
+This is the same lesson a peer had reached from the other direction in the same hour — it dictated
+counted prose to two branches from two trees, neither containing the other's change, so whichever
+landed second would have made the sentence false. **A stamped measurement that no longer matches the
+tree is *dated*; an unstamped one is merely wrong, and looks identical.** The two of us met this
+from opposite ends of one morning, which is the strongest evidence either of us has that it is a
+property of working here and not of either task.
+
+## The review step ran before the fragment existed, so the fragment was never reviewed (20260826 11:30)
+
+A peer measured that **no adversarial pass in this repository's transcript corpus has ever opened
+the `changelog.d/` or `retro.d/` fragment its own increment wrote**, and that passes open only
+**207 of 248** files their increment changed — with `src/pinakes/__init__.py`, where `__version__`
+lives, opened by **none of the 41 passes** over the mutation-batteries increment.
+
+**MEDIUM — the cause is not inattention, it is the order of the steps.** `docs/BUILDING.md` lists
+the adversarial review as step 5 and *"a `changelog.d/` fragment in the same commit as the code"* as
+step 6. **The fragment does not exist when the last review pass runs.** The procedure guarantees the
+outcome the measurement found; no reviewer had to forget anything. That is a better finding than
+"reviewers skip fragments", and it is only visible if you read the two steps as an ordering rather
+than as a list.
+
+**MEDIUM — and it had already cost something, in the increment that was about exactly this.** The
+changelog fragment written in `d9fe1a9` carried *"wrong for twelve hours"* — a duration that had
+been **invented**, and repeated across four files, inside an increment whose whole subject was
+claims asserted without measurement. The review pass did not catch it because the pass read the
+plans and **never opened the fragment**. It was found while re-deriving timestamps for an unrelated
+reason. A fragment is not scratch: `tools/fragments.py` splices it into `CHANGELOG.md` and
+`docs/RETROSPECTIVES.md`, and `docs/` publishes on every push — **an unreviewed fragment is an
+unreviewed published document.**
+
+**LOW, and it is the caveat that keeps the rule honest.** The rule says *opened*, not *reviewed*,
+and the peer insisted on the distinction before it was written down. A transcript can show which
+files a pass opened; whether it reviewed them is **not observable and no tool will ever check it**.
+So the checkable rule is the weak one, and it is stated as a floor rather than a goal. **An opened
+file is not a reviewed file** — the measurement is a lower bound on attention, never evidence of it.
+Writing the strong version would have produced a rule that reads as a guarantee and is not one,
+which is the failure class this repository names most often.
+
+**LOW — and applying the rule immediately caught a false negative in the checking itself.** Verifying
+that the `d9fe1a9` fragment really had carried the invented duration, `grep -o "wrong for.*hours"`
+returned **nothing** — on a file that contains the phrase. **Markdown had wrapped it across a line
+break, and `grep` is line-based.** The first measurement said the claim was unfounded; the second,
+`tr '\n' ' '` before matching, said it was true. **A grep over prose is a grep over lines, not over
+sentences** — so a phrase spanning a wrap is invisible to it, and the failure is silent and reads
+exactly like a clean result. That is the shape of every defect in this increment: a check that
+answers a narrower question than the one asked, and returns green.
+
+**MEDIUM — and opening my own fragments found that I had composed three timestamps today, in seven
+fragments about not composing things.** The repository's most-repeated rule is *read the clock, never
+compose it*. Every fragment **filename** obeyed it — they come from `date -u "+%Y%m%d_%H%M"`. Every
+fragment **heading** I typed by hand, and three of the nine disagreed with their own filename:
+
+| Fragment | filename | heading I wrote | out by |
+|---|---|---|---|
+| `…0727-a-procedure-that-never-asked` | 07:27 | 07:26 | 1 minute |
+| `…0733-the-cycles-price` | 07:33 | 07:31 | 2 minutes |
+| `…1130-…-never-reviewed` (this one) | 11:30 | **08:00** | **3 h 30 m** |
+
+The last is the instructive one: I wrote *08:00* from a sense of how long the session had been
+running. The clock said **11:35**. **A composed timestamp is not approximately right — it is
+unrelated**, and the error grows with exactly the thing that makes you stop checking.
+
+**And nothing catches it. Measured, not assumed.** A probe fragment named `…_0101-…` with the
+heading stamp `23:59` — twenty-two hours apart — was reported by
+`python3 tools/fragments.py --check` as **"all well-formed", exit 0.** The filename prefix is parsed
+(`fragments.py:124`) only to be *stripped* before reading the slug; **the heading's stamp is never
+compared to it.** Both halves of the fragment resolve, so the same shape as every other defect in
+this increment: a check that answers a narrower question than the one asked, and returns green.
+
+**The fix is a gate and it is `tools/`, so it is proposed rather than written**: `--check` should
+fail when a retrospective heading's `YYYYMMDD HH:MM` disagrees with its filename prefix. Both are in
+the file; nothing external is needed; and it converts the repository's most-repeated convention —
+which has now missed **three times in one morning, in the fragments of the sessions writing about
+measurement** — into something that cannot miss silently.
+
+## The remedy for a bad survivor had a false-positive mode, and it was in the advice (20260826 11:46)
+
+`tools/batteries/README.md` § *Reading a SURVIVED row* told you to **run the mutant against the whole
+suite** to tell a mis-named witness from a real gap. **That advice has a false positive, and it fires
+on exactly the batteries covering `tools/`.**
+
+**MEDIUM — the whole suite includes the test that fails on any edit to a battery target.**
+`tests/test_batteries.py::test_every_anchor_still_resolves_exactly_once_in_the_file_it_names` checks
+that each battery's `old` string still resolves in the file it names — and **a mutant is precisely an
+edit to that string.** So the suite goes red for a survivor exactly as readily as for a kill, and
+*"something else killed it"* — the conclusion the paragraph tells you to draw — is unreachable from
+the evidence it tells you to gather.
+
+**Measured, not argued.** Applying `tools-fragments.toml`'s first mutant to `tools/fragments.py`
+(`return line.rstrip() == "---"` → `return False`) and running the two files separately:
+
+| | exit | |
+|---|---|---|
+| the row's own `kills` selector | **1** | a genuine kill — the behaviour is tested |
+| `tests/test_batteries.py` | **1** | `1 failed, 10 passed` — the anchor check, not a behaviour test |
+
+Restored, `__pycache__` cleared, both green again: 51 passed. The fix is one flag —
+`uv run pytest --ignore=tests/test_batteries.py` — now in the paragraph, with the reason beside it.
+
+**LOW, and it is the part worth generalising: `tools/mutate.py` was never wrong.** It runs only the
+selector a row names, so its report was honest throughout. **The defect lived in the prose that told
+a human what to do next**, and prose is not covered by anything. A tool can be correct, its tests
+green, its battery complete — and the sentence telling you how to read its output can still send you
+to the wrong diagnosis. **Found by a coder following the instruction literally and noticing the kill
+was the wrong shape**, which is the only way this class is ever found.
+
+**And the correction improved on the framing it corrected.** The first version of this finding — mine
+— said a whole-suite mutant run *"scored a kill that was an artifact"*, which reads as a defect in
+the harness. It is not: the harness never made the claim. Locating a defect in the **advice** rather
+than the tool is what makes it fixable in one flag instead of a redesign.
+
+## A ratio over a growing denominator, and a stamp that should never have been read twice (20260826 11:51)
+
+Two conventions were relying on someone being careful. Both now say what to run instead.
+
+**MEDIUM — three figures I put into `docs/BUILDING.md` were wrong within four hours, and the second
+reason is the one that matters.** The rule cited *207 of 248 changed files opened, 83%, 90% on
+multi-pass increments*. The first reason they moved is ordinary: the measuring tool's scan could not
+match an **extensionless filename or a `.lock`**, so `Makefile` and `uv.lock` were reported as
+*opened by nobody* on every increment that touched them — a gap section confidently naming what the
+tool cannot see. Fixed by its author; the figures became 211, 85%, 92%.
+
+**The second reason has no fix: the corpus is alive.** It is this repository's own transcripts, and
+the sessions measuring it are writing into it while it is measured. `--measure` moved a published
+figure from **96.1% to 95.8% between two runs with no code change at all**. **A ratio over a growing
+denominator has a shelf-life measured in minutes.** So the paragraph now quotes the *command* —
+`python3 tools/review_ledger.py <increment>` — and no percentage, which is the same conclusion
+`docs/VERIFICATION.md` reached the same morning by a different route: two sessions dictating counts
+from two trees, neither containing the other's change.
+
+**The general form, arrived at from opposite ends by two sessions in one morning:** *a stamped
+measurement that no longer matches the tree is **dated**, not false; a restated count is simply
+wrong.* One of us met it by dictating counts from two trees, the other by watching a corpus grow
+under a measurement. **That it was reached twice independently is better evidence that it is a
+property of working here than either route is on its own.**
+
+**LOW — and the counterexample keeps the rule honest.** The stamp gate proposed for
+`tools/fragments.py` compares a heading's timestamp to its own filename. **Both values are inside
+the file**, so it is immune to everything above: no corpus, no denominator, nothing to grow. It is
+the exception that shows what the rule is really about — not *never state a number*, but **never
+state a number whose subject can move without the document knowing.**
+
+**MEDIUM — and the convention that gate will enforce did not exist in writing.** `retro.d/README.md`
+showed a heading with a timestamp and never said where the timestamp came from, which left
+*name-early, head-late* looking like a legitimate workflow and made a **tolerance** look reasonable.
+It is now written: **the heading's stamp is a *copy* of the filename's prefix — one reading of the
+clock, written twice.** That makes exact equality correct by construction rather than by taste, and
+it was a coder's question about tolerance that exposed the gap: **a gate cannot be specified against
+a convention nobody wrote down.**
+
+## Red on the clock, and five measurements of one string that all failed (20260830 09:29)
+
+**MEDIUM — a suite went red with no commit, and the design had already decided it should not.**
+`prices.toml` aged past `max_price_age_days` (30) on 20260827 and 25 tests began failing. Not one
+line of code changed. `docs/DESIGN.md` §5 had **chosen** a runtime refusal plus a `doctor` WARN so
+staleness would not gate a build — and then 25 tests asserted the un-stale path **without pinning a
+clock**, so the suite quietly became the gate the design refused. **The defect is neither the
+constant nor the table's age: it is a test that inherits today's date and asserts an outcome that
+depends on it.**
+
+**And the precedent cited against wall-clock checks was this file.** `tools/status_header_gate.py:52`
+declines a staleness check because *"a wall-clock staleness check fails on a quiet weekend with no
+code change"* — **naming `prices.toml` as the reason not to add one.** `prices.toml` then did
+exactly that, after a quiet four days.
+
+**MEDIUM — two adversarial reviews died the same way within hours, and both reported a clean bill.**
+52 agents, 26 dead; 19 agents, 17 dead, the second returning a literal
+`{"raised":0,"confirmed":[],"refuted":[]}`. **Two independent instances in one day is the contract,
+not bad luck** — a dead agent becomes `null` and `.filter(Boolean)` erases the evidence. Both were
+recoverable from agent transcripts on disk, which makes it a **procedure** rather than a warning.
+`tools/review_ledger.py` exits 1 on an unfinished pass and would have caught both **before either
+result was read**. A third hole was nobody's session limit: the workflow capped a lens at
+`.slice(0, 12)` when it raised **16**, and logged nothing. Three of the four dropped were real.
+
+**HIGH, and it is about the author rather than the tools: five measurements of one string failed
+before the truth came out.** The claim was that a fragment *"written in `d9fe1a9`"* carried the
+phrase *"wrong for twelve hours"*. Checking it:
+
+| attempt | result | why it lied |
+|---|---|---|
+| `grep` for the phrase | no match | the phrase was **wrapped across a newline**; `grep` is line-based |
+| `tr '\n' ' '` then match | no match | Markdown **indentation** left multiple spaces between the words |
+| the same check in a shell `for` loop | `0` for every sha | a **quoting artifact**; the file plainly contained it |
+| reading `29856b9` | "confirmed true" | **the sentence names `d9fe1a9`**, a different commit |
+| `uv run … \| grep …; echo $?` on a gate | `0` on a failing run | `$?` is **`grep`'s** status |
+
+**The claim was false and three independent agents said so while the author confirmed it twice.**
+Four of those five failures are the same shape: *a check that answers a narrower question than the
+one asked, and returns something indistinguishable from a clean result.* **A shell one-liner
+composed in the moment is not an instrument** — and the author is the least reliable verifier of the
+author's own text, which is the case for spending agents on prose nobody else has read.
+
+**LOW — and the handover rule caught itself.** All of the above lived only in `RESUME.md`, which
+[`docs/BUILDING.md`](https://github.com/lucagattoni/pinakes/blob/main/docs/BUILDING.md) calls **"a
+convenience, never a carrier"**: excluded from git, invisible to every other checkout, *"cannot
+discover that one exists"*. **The rule is the planner's own and the planner broke it** — by putting
+a repository-wide blocker somewhere no other session could ever find. That is what this commit fixes.
+
+## Unblocking the clock-red suite: the seam was the table, not the clock (20260830 14:31)
+
+**MEDIUM — a true observation pointed at a fix that would have reached none of the failures.**
+The impurity was real and was enumerated correctly: four unconditional `datetime.now(UTC)` reads in
+callers (`cli.py:874`, `cli.py:1259`, `extract/claude.py:649`, `doctor.py:1586`), against one
+existing seam at `cli.py:667`. The inference — *so add seams to the other three* — did not follow.
+`tests/test_cli_ask.py` drives real `main([...])`, so there is no `now` to inject, and seaming all
+three would have made **zero** of its 18 failures reachable. Every clause was true; the population
+the argument was about, *the failing tests*, had never been examined. The seam that works is the
+**price table**, which the repository already did twice
+(`tests/test_deep_loop.py`, `tests/test_extract_claude.py`) without either helper being noticed by
+the pass that enumerated the clock reads.
+
+**MEDIUM — the fix is a fake, so the honest version fakes exactly one field.** An autouse fixture
+that returned a synthetic price table would have taken the committed `prices.toml` out of the
+suite's reach entirely. Calling the real `load_prices()` and replacing only `as_of` leaves every
+model price, the FX rate and the parse of the committed file on the real path: a defect in any of
+them still fails the same tests. The remaining unreachable inch was named before it was accepted —
+and then **measured**, not argued: with `as_of = "28 July 2026"` committed, the suite is still red
+in 7 places. Nothing was lost from the catch. What was lost was the *sentence*, since all seven are
+subprocess gates that report a free-path failure rather than an unparsable timestamp, so
+`test_prices_are_installed_package_data` — which already asserts the format of every other field in
+that file — now parses `as_of` too.
+
+**MEDIUM — a review finding is a hypothesis until a control runs, and two of mine died there.**
+The adversarial pass over this fix raised two gaps: no test pins the CLI refusal on a stale table,
+and nothing notices a malformed committed `as_of`. Both were plausible, self-consistent and
+directly implied by the change. **Both were wrong on inspection.**
+`test_cli_ask.py::test_a_price_it_cannot_compute_leaves_the_free_command_working` already pins both
+halves of the refusal and its docstring already says a stale table takes that branch; the malformed
+case is caught seven ways. Written up unchecked, the pass would have added a duplicate test and a
+`docs/VERIFICATION.md` row for a promise already rowed. **The review's output was one line, and its
+value was the two things it stopped.**
+
+**LOW — "the fix is green" is three claims when CI is a three-leg matrix.** Fail-fast names whichever
+leg loses the race, so a run summary reports one leg and hides two. Each leg was run separately
+rather than inferred: `[light]` 2234 passed / 126 skipped, `[light,pdf]` 2352 / 8,
+`[light,pdf,claude]` 2356 / 4 — and the six tests that only the extras can reach are exactly the
+six a `[light]`-only checkout skips, which is why two sessions counted 19 and 25 all morning
+without either being wrong.
+
+**And the defect's own cause was sitting in the file the fix lands in, written as an assumption.**
+`test_a_stale_price_table_warns_and_names_the_setting`'s docstring opened *"the shipped table is
+current by construction"* — one function below the test that failed because it is not. The
+correction lands in the same change, or the fix leaves the premise that produced the defect
+in place. **A docstring is a claim with a shelf life and nothing checks it.**
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings

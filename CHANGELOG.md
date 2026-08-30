@@ -10,6 +10,199 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.31.0] — 20260830 14:46
+
+### Added
+
+- **`pnk doctor` gains a `retired documents` check.** It reports any document the KB still collects
+  whose id the index has retired — the document is on disk, it carries its identity, and `pnk search`
+  cannot see it. `doctor` printed `sidecars: N readable` and `index: M active documents` on adjacent
+  lines and compared them to nothing. The check asks about the retired **id**, never the path, so it
+  finds the document where it now sits rather than where its row still says it was; and because it
+  starts from a row that once existed, the sidecars the pre-commit hook mints with no index row do
+  not trip it — the shipped hook pair indexes them in the same commit.
+
+- **`tools/review_pass_gate.py` — a review fan-out that lost agents no longer reports success.**
+  A `Workflow` adversarial pass returned `{"confirmed":[],"total_raised":0}` with **four of its seven
+  agents dead** on the usage limit; another the same day returned an all-empty result after 800k
+  tokens with all six dead. Neither was wrong about what it found — both were wrong about having
+  looked. It is documented behaviour rather than a bug: a dying agent returns `null`, and the
+  recommended idiom for collecting a fan-out is `.filter(Boolean)`, so the standard script turns a
+  dead agent into an absent finding. The gate reads `journal.jsonl`, where a `result` carries its
+  `started`'s `key`, and refuses any pass whose agents did not all return — the same rule this repo
+  already applies to a mutation run with no kills. It also refuses an agent that returned *empty*,
+  which resuming cannot fix because the empty result is what replays from cache, and it lists a dead
+  agent's files as **evidence, never findings** — split by whether `land.py --cleanup` will destroy
+  them. Measured over 533 review-classified subagent runs: only 41% leave any artifact at all, and
+  of the targets that are real files, roughly half land where the worktree cleanup destroys them —
+  which argues for enforcing a probe convention rather than exploiting one. Exit `0` only when every agent returned content; `2` when the
+  run is still being written to, because a gate that calls a live run dead is one people learn to
+  ignore.
+
+- **`docs/STATUS.md`'s headline can no longer claim a hold that is over, or hide one that is not.**
+  `pinakes.__version__` means *landed on `main`*, so there is a legitimate window in which line 3
+  names a version `pip install` cannot get — on a page published on every push. The gate now reads
+  `R`, the newest entry of that file's *Published versions* row: `line3 > R` **requires** the hold
+  marker, `line3 == R` **forbids** it, `line3 < R` is always red, and a row it cannot read is a
+  hard failure rather than a skip. The marker is a parsed shape whose qualifier must name `R` —
+  the version `pip install` actually gets — because a qualifier is a claim about the index and an
+  unchecked claim about the index is how line 3 came to need a gate.
+- **The half that could never have been caught otherwise is the *removal*.** A marker left behind
+  after a successful publish was green in every check this repository has: the header gate's shape
+  stops at the closing `**`, none of the release-order gate's seven sequences reads line 3's tail,
+  and an index-based rule can only fire on a version that is *absent*. It would have stood
+  indefinitely with every gate passing.
+
+- **`tools/review_ledger.py` — a later review pass no longer starts from zero.** Adversarial
+  review is the largest single category of subagent spend in this project, and later passes spend
+  it re-deriving what earlier passes established. Measured over the 910 subagent transcripts on
+  this machine (5.14B raw tokens, newest 20260826 11:32 UTC): **35.6% of a later pass's raw tokens
+  go to turns whose only file access was a file an earlier pass over the same increment had
+  already opened**, against 3.0% for turns that opened something new — and **40.1%** for the 69
+  passes costing over 5M raw tokens, because a re-read early in a long pass is re-transmitted by
+  every turn after it. 96% of what the median later pass opens was already opened by an earlier
+  one. The tool reconstructs, from the transcripts already on disk and with no cooperation from
+  any pass, what earlier ones **ran** (deduplicated across each reviewer's own scratch directory,
+  so seventeen passes writing the same `pytest` invocation read as one probe run seventeen times),
+  what they **opened**, what they **reported**, and — the only section that is a gap rather than a
+  summary — what the increment changed that **nobody opened**. It leads with the passes that did
+  not finish: a rate-limited agent's last message is ordinary assistant text, so a partial pass
+  reads as coverage exactly as an empty fan-out reads as a clean bill
+  ([`tools/review_pass_gate.py`](https://github.com/lucagattoni/pinakes/blob/main/tools/review_pass_gate.py),
+  one layer down). Three disclaimers print on every brief, because a carried map is the cheapest
+  way yet found to make a later pass inherit an earlier one's mistake: opened is not reviewed, a
+  printed command is not an exit status, a quoted finding is not a fact. `--measure` re-derives
+  every number in the module docstring, since a number in a docstring is otherwise a claim with no
+  way to check it.
+
+### Changed
+
+- **The eight open decisions taken on 20260825 are now recorded where the next reader opens, not
+  only in the record that took them.** `docs/VERIFICATION.md` states what it maps — **promises, not
+  every test** (D-34), with *promise* defined: a user-visible guarantee, a named invariant, or a
+  gate's own correctness. Arity requirement 3 is **closed** — its conditional's antecedent is
+  measured false on every real corpus (3.80 `parent-child` rows/chunk over 300 real specifications,
+  0 of 300 reaching the synthetic 53.42), so `parent-child` stays transitive exactly as built. The
+  20260805 `requires_pinakes` floor clause is **closed-superseded** and folded into
+  [KB-UPDATES.md](https://github.com/lucagattoni/pinakes/blob/main/docs/KB-UPDATES.md) §8 beside the older question it is an instance of: nothing
+  writes the floor. **D-11** (taken 20260804) settled that `pnk upgrade --apply` never
+  does, and `pnk init` does not either — the latter resting on **D-6, a standing recommendation
+  rather than a taken decision**. `expect_green` is
+  **declined** on measurement — 0 of 146 committed mutants across seven batteries asks for a green control, and the field
+  would be parsed, ignored and reported to nobody. The paid re-extraction loop and the
+  `tools/fragments.py` body-rule widening are **deferred behind written triggers** rather than left
+  open. **The audit D-34 licensed was run rather than promised**, and it found the closing claim
+  unsafe: `tests/test_serve.py` carried **14 of its 31 tests unrowed**, two of them security
+  boundaries — the MCP path-refusal and the labelling of retrieved text as evidence rather than
+  instruction. The cause was structural rather than neglect, so the fix is a section that owns the
+  server boundary, not rows bolted onto feature sections.
+- **A guide sentence for the case Pinakes cannot detect for you.** [GUIDE.md](https://github.com/lucagattoni/pinakes/blob/main/docs/GUIDE.md) §
+  *Moving, sharing and publishing a KB* now says that a hand-set manifest key makes a KB unreadable
+  to an older build, that `[kb] requires_pinakes` is how to declare it, and that **nothing sets it
+  for you** — `pnk init` does not stamp it and `pnk upgrade --apply` does not write it, both by
+  design.
+
+- **Every decided item now carries a build-order row, and the registers that disagreed about them
+  have been reconciled against the tree.** Three pieces of decided work had an **owner and no queue
+  position anywhere in the repository** — the `_toml.py` unknown-key remedy, the paid re-extraction
+  loop's deferral trigger, and the G5 gate re-run, which sat in that state for **21 days**. They now
+  have rows in the sweep plan's new § *Decided work with an owner and no build order*, each linking
+  to the plan that owns the decision rather than restating it. D-36's build, which read *build
+  unscheduled*, gained a position; S16 and S18 gained rows they never had; and S2 is recorded as
+  built rather than queued.
+- **A dated snapshot no longer reads as a work queue.** The *Actionable* table in the 20260825 plans
+  sweep held **27 rows with Status, Blocked-on and Owner columns**, and **twelve of them had stopped
+  describing the tree** — eleven stating *LIVE* or *UNCLEAR* for work that was built,
+  answered, declined, deferred or ruled — **every falsifying disposition stamped between 20260825
+  12:52 and 20260826 04:35**, and row 1 reading *S2 · LIVE · blocked on nothing* from the moment S2
+  landed. The cause was
+  structural rather than neglect: **that file carries two registers of the same facts**, and the
+  pass that took the decisions updated one and not the other. The table now states that it is a
+  snapshot, and that **where it and a `## Build order` disagree, the build order wins**.
+
+### Fixed
+
+- **A sidecar whose id no longer matches the row at its path stops wedging the index.** The stale
+  row is retired and keeps its `path`, `documents.path` is UNIQUE, and the `ON CONFLICT (id)` clause
+  cannot see a conflict on the path — so the adoption collided with the row it was replacing and
+  `sqlite3.IntegrityError` escaped as a raw traceback. The retired row survived the failure, so
+  every later `pnk sync` hit the same wall (measured: three consecutive runs, same error, row still
+  retired), `pnk search` could not see the document, and `pnk doctor` reported the KB healthy at
+  exit 0. Reached with no hand edit at all by a merge conflict, a `git checkout <sha> -- <file>.pnk.yaml`,
+  or a sidecar copied between KBs.
+
+- **A sync no longer plans one document's id into two places at once.** Renaming two documents past
+  each other, renaming them in a chain, or moving one document's sidecar onto another all made
+  `pnk sync` build a plan that both kept an id where it was and carried it somewhere else. Which
+  half won depended only on which action was applied last: a document could leave `pnk search` with
+  nothing recorded and the command exiting 0, and a rename chain could re-mint an id its sidecar
+  already carried. `pairing` now decides whether an id is ending, staying or moving from the whole
+  walk before anything is applied, so no plan retires an id it also adopts and no plan places one id
+  at two paths. **Renaming documents past each other still fails** — `documents.path` is UNIQUE and
+  the adoptions cross — and that is left to its own fix. What changed is that the failure now costs
+  nothing: on a pure rename, where nothing is added or deleted in the same sync, the index is left
+  exactly as it was, measured across every one of the six ways three documents' names can be
+  permuted. Previously the same input committed a retirement first and left a document soft-deleted
+  behind the crash.
+
+- **`tools/batteries/README.md` no longer says a covered module is uncovered.** Its denominator
+  paragraph named `src/pinakes/cli.py` as one of *"the two highest-churn modules … [that] still have
+  none"*, while `src-pinakes-init.toml` mutates it twice. The claim came from reading battery
+  **names** rather than their targets, and the same error hides more of the map than one line:
+  `tools-mcp_handshake_gate.toml` reaches **seven** files, including `Makefile`, `check.sh`,
+  `pyproject.toml` and both CI workflows. The paragraph now separates the two cases — `doctor.py`
+  genuinely has none; `cli.py` is covered without being named — and gives the command that answers
+  the question directly, `grep -h 'file = ' tools/batteries/*.toml | sort -u`. **Its own gate could
+  not have caught this**: `tests/test_batteries.py` forces a battery whose name does not begin
+  `tools-` to be listed, and nothing checks a claim about what the batteries reach.
+
+- **`make release-check` now gates the tag instead of printing it.** Its recipe was three `echo`s —
+  it read `__version__`, printed it, printed the tag, printed the command to run — with no
+  comparison and no failure path, so it could not fail and therefore verified nothing, while
+  [`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md) sent a release operator
+  to it as the last check before a publish PyPI never takes back. `tools/release_tag_gate.py`
+  replaces it with four legs that can each go red: exactly one release-shaped tag points at `HEAD`
+  (**absence is red** — a check reporting success with nothing to compare *is* the defect), the tag
+  names `pinakes.__version__`, it is annotated with a message `gh release create --notes-from-tag`
+  can read, and it is **not already on the remote** — which turns *"before the tag, never after"*
+  from a convention into a check. An unreachable remote is red, never green.
+- **The tag is now created before `make release-check` runs, and pushed after it.** The tag has to
+  exist for anything to be compared, and until it is pushed it is a local object `git tag -d`
+  removes without trace: *"before the tag"* is *before the **push***, which is the irreversible half
+  and the one PyPI's refusal to accept a version twice is actually about.
+
+- **The release procedure now asks for the hold marker, which is why the marker had never once been
+  produced by following it.** `docs/RELEASING.md`'s release-sweep table names every place a release
+  stales, and its `docs/STATUS.md` line 3 row said only *bump it with `__version__`*. But
+  `__version__` means *landed on `main`*, not *published*, so between the release commit and the
+  version reaching PyPI that line names a version `pip install` cannot get — **on a page that
+  deploys on every push.** The row now carries the marker's shape, the version it must name, when it
+  is removed, and the rule that its qualifier **names the index and never the tag**. The marker was
+  **0-for-2** on being produced by the procedure, and the procedure is the reason.
+- **`docs/STATUS.md`'s own hold marker said *"NOT tagged"*, which is a claim about git rather than
+  about the index.** It goes false at `git tag` while the version is still unpublished, so the line
+  would have been half-wrong for the whole interval between tagging and publishing — with
+  `tools/status_header_gate.py` green over it, because layer 2 requires only `⏸` plus a bold span
+  naming the published version. The qualifier now names the index alone. **The gate was driven red
+  on purpose to confirm it sees the marker at all** — exit 1 with the marker removed, exit 0 with it
+  restored.
+
+- **The test suite no longer reads the wall clock against the committed price table.** `prices.toml`
+  aged past `[budget] max_price_age_days` on 20260827 and 25 tests began failing with no commit
+  anywhere near them — the suite had quietly become the CI staleness gate that
+  [`docs/DESIGN.md`](https://github.com/lucagattoni/pinakes/blob/main/docs/DESIGN.md) §5 and
+  `check.sh`'s own prices-toml gate both deliberately refuse to be. The seam is the **table**, not
+  the clock: an autouse fixture calls the real `load_prices()` and replaces exactly one field,
+  `as_of`, so every model price, the FX rate and the parse of the committed file stay real and the
+  tests that assert a real UTC stamp still do. It reaches only `cli.py` and `sync.py`, which import
+  `load_prices` inside a function; a module that binds the name at import time still reads the
+  committed `as_of` for real, which is where `pnk doctor`'s price-table checks and the paid-path
+  gates keep checking it. `pnk doctor`'s own OK case now pins a fresh table exactly as its sibling
+  one function below pins an aged one. **This changes no behaviour of an installed copy**: a table
+  older than `max_price_age_days` still WARNs in `pnk doctor` and still refuses to price a paid run,
+  which is the design working as specified. The fix is entirely in how the tests read the table,
+  never in what the table says.
+
 ## [0.30.3] — 20260825 08:27 · ⏸ PREPARED, NEVER PUBLISHED
 
 > **There is no `v0.30.3` tag and no PyPI artifact.** The release commit
@@ -4017,7 +4210,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.30.2...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.31.0
 [0.30.3]: https://github.com/lucagattoni/pinakes/commit/d3a8f681afb23573a75e8299ecf112a8f158b848
 [0.30.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.30.2
 [0.30.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.30.1
