@@ -72,11 +72,38 @@ today's date and assert an outcome that depends on it.
 | **B. Raise `max_price_age_days`** | moves the cliff | one line, no measurement | **weakens a deliberate guard.** The whole point is that a stale table must not silently price a paid run. Raising it trades a correct refusal for a quiet suite |
 | **C. Pin the clock in the affected tests** ⭐ | the tests stop inheriting today's date | **the only option that stops recurrence.** It also restores `DESIGN.md` §5's intent — staleness stays a runtime refusal and a `doctor` WARN, and stops being a build gate nobody chose | a `tests/` change, so it is the **coder's**; and it must not pin so hard that a genuinely stale table stops being caught — the refusal itself still needs a test |
 
-**The planner's reading, offered and not taken:** **C, and A on its own merits whenever the numbers
-are re-measured.** They are not alternatives — C fixes the suite, A fixes the prices, and B alone
-buys 30 days by making the product worse. **But A-then-C and C-then-A differ in what is red in
-between, and only the user can say whether a spend-affecting constant may be refreshed without a
-re-measurement.** Until this is answered, `./check.sh` is red and nothing lands.
+### 🛑 NARROWED 20260830 09:40 — C is a *correction*, not a preference, and it needs no decision
+
+**Two peers found what makes this smaller than the table above suggests, and every citation below
+was verified by the planner rather than relayed:**
+
+- **`docs/DESIGN.md:811`, verbatim:** *"Staleness is deliberately **not** a CI gate: a wall-clock
+  check would fail a quiet weekend with no code change at all."*
+- **`src/pinakes/doctor.py:1571`** says it again in its own docstring — *"deliberately never a CI
+  gate"*.
+- **`tests/test_doctor.py:596-598`** asserts `Status.OK` from a check that reads the wall clock.
+  **That test *is* the CI gate the design forbids**, and it failed on the exact scenario both
+  sentences name.
+- **`tests/test_deep_loop.py:153-154` already carries the cure and says why** — a `prices()` helper
+  returning the shipped table with `as_of=NOW`, docstringed *"so staleness is never why a test
+  fails"*. `test_doctor.py` never adopted it.
+
+**So option C restores a decision the project already took, using a pattern already in the tree.**
+It is a defect fix and it does not need the user. **A and B remain worth doing on their own merits,
+and neither is needed to unblock CI.**
+
+**What still needs the user is the bigger half.** `git log --follow src/pinakes/budget/prices.toml`
+shows `as_of` was written **once, at creation, and never refreshed**, and `docs/RELEASING.md`
+mentions prices **zero times**. So **every installed copy refuses paid estimates 30 days after each
+release**, and the remedy the error itself prints — *"Upgrade pinakes to refresh the bundled
+prices"* — names a release step **that does not exist**. A shipped defect with a documentation half
+(`docs/RELEASING.md`, planner-owned) and a numbers half nobody can invent. **It recurs every 30 days
+until a release step exists.**
+
+**Scope correction worth keeping:** it is **25 tests across four files**, not one. `test_doctor.py`
+is the only one asserting the WARN directly; the 18 in `test_cli_ask.py` fail one layer in, where
+the estimator refuses to price — **the design working as intended**, seen through tests that assumed
+it never would.
 
 ## 2. A five-lens review of the planner's own work reported less than it found
 
@@ -137,8 +164,8 @@ composed in the moment is not a reliable instrument for checking prose.
 
 | # | Item | Blocked on | Owner |
 |---|---|---|---|
-| 1 | **The price-table decision** — A, B or C above | **the user** | user → coder |
-| 2 | The remedy it chooses | item 1 | coder (C or B), planner (A's write-up) |
+| 1 | **C — stop `test_doctor.py` reading the wall clock**, using `test_deep_loop.py:153`'s existing `prices()` pattern. **Needs no decision: it restores `DESIGN.md:811`.** Unblocks `./check.sh` | nothing | coder |
+| 2 | **The release step that refreshes `prices.toml`** — it has never existed, so every install refuses paid estimates 30 days after each release. Doc half `docs/RELEASING.md` (planner); the numbers need re-measuring (**user**) | **the user**, for the numbers | planner + user |
 | 3 | The five confirmed defects above | nothing — but `check.sh` is red until item 2 | planner (all five are planner-owned documents) |
 | 4 | The other 14 unfixed survivors in `SURVIVED.md` | nothing, same caveat | planner |
 | 5 | A **targeted** verification pass over the 30 unverified findings — **not** `resumeFromRunId`, which is same-session-only | items 3-4, so it does not re-raise what is already fixed | planner |
