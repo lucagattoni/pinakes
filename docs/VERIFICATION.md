@@ -57,7 +57,7 @@ test, or write **none** and say why in the same commit.
   ratifying the reading `db7d1c1` had already operated on since 20260804. **A promise is a
   user-visible guarantee, a named invariant, or a gate's own correctness.** It is *not* a unit test
   of an internal primitive, and it is *not* a per-surface re-assertion of a promise already rowed
-  elsewhere. `tests/` holds **2 051** test functions against these 904 rows, and **that ratio is not by
+  elsewhere. `tests/` holds more test functions than this table has rows, and **that ratio is not by
   itself evidence of a hole** — a sample of the residue found those two categories dominate it. That
   inference was drawn here once anyway, by a planner, hours after the lesson that named it.
 * **But "not systematically debt" is not "no debt", and the difference was measured rather than

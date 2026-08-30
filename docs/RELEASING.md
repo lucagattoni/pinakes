@@ -105,10 +105,15 @@ extended on 20260823 when it crossed it again. Nothing was dropped in either mov
    > **not** in `check.sh`: `HEAD` carries no release tag on an ordinary commit, so leg 1 would be
    > red on every commit in the repository.
    >
-   > **The step numbers below are deliberately unmoved.** Five live citations name *"`docs/RELEASING.md`
-   > step 8"* — `CHANGELOG.md`, `docs/STATUS.md`, `docs/ROADMAP.md`, `.github/workflows/release.yml`
-   > and `tests/test_check_script.py` — and renumbering would leave every one of them off by one,
-   > silently.
+   > **The step numbers below are deliberately unmoved.** **Six** live citations name
+   > *"`docs/RELEASING.md` step 8"* — `CHANGELOG.md`, `docs/STATUS.md`, `docs/ROADMAP.md`,
+   > `.github/workflows/release.yml`, `tests/test_check_script.py` **and
+   > `plans/20260811_0720-decisions-gates-and-corrections.md:142`** — and renumbering would leave
+   > every one of them off by one, silently. **The sixth was missed twice**: by this note and by
+   > the retrospective that repeats its count, both of which said five. Re-counted 20260830 with
+   > `grep -rn "step 8" --include=*.md --include=*.yml --include=*.py .` minus `site/`; two further
+   > hits (`plans/20260729_0256`, `plans/20260801_0749`) name a *different* step 8 and are excluded
+   > deliberately, which is the distinction the original count never wrote down.
 8. **The GitHub release is created by the workflow as of 0.22.0** — `gh release create
    --verify-tag --notes-from-tag`, after the PyPI upload so a failure there can never cost the
    release its version number. **Verify it exists anyway** (see below); that is this file's rule

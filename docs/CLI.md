@@ -41,7 +41,7 @@ Stamps a new KB and mints its **permanent** KB ULID.
 | `path` | — | Directory to create the KB in |
 | `--name NAME` | the directory name | Human-facing only; rename freely |
 | `--template TEMPLATE` | `notes` | The blueprint. `notes` is the only one shipped. **A single path component** — `[A-Za-z0-9][A-Za-z0-9_-]*` — refused before any directory is created, so `notes/../notes` and `notes/_versions/1.1` both print `no template named` and write nothing |
-| `--backend st\|light` | `st` | Which install extra's models to stamp, in **both** `[embedding]` and `[rerank]`. `st` is `sentence-transformers`, `light` is `fastembed`; the model ids are identical, so only `provider` differs. **A flag, never detection** — `pinakes.toml` is portable and committed, so stamping whatever the machine has bakes one author's install into a file their collaborators read |
+| `--backend` (`st` or `light`) | `st` | Which install extra's models to stamp, in **both** `[embedding]` and `[rerank]`. `st` is `sentence-transformers`, `light` is `fastembed`; the model ids are identical, so only `provider` differs. **A flag, never detection** — `pinakes.toml` is portable and committed, so stamping whatever the machine has bakes one author's install into a file their collaborators read |
 | `--ci` | off | Also write `.github/workflows/pinakes.yml`, which syncs and caches `.pinakes/`. Refuses to overwrite an existing one |
 
 Writes `pinakes.toml`, `docs/`, a `.gitignore` covering `.pinakes/`, and **the files the template
