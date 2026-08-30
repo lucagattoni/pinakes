@@ -19,9 +19,10 @@ precision nobody measured.
 
 ## Where things stand right now — 20260830 14:46 UTC
 
-- **56 releases in 36 days**, and **two** landed without reaching PyPI.
+- **57 releases in 36 days**, and **one** landed without ever reaching PyPI.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.31.0`](#0310--the-gates-that-could-not-fail--20260830-1446) is on `main` as of 20260830 and **is not yet on PyPI**.
+  [`0.31.0`](#0310--the-gates-that-could-not-fail--20260830-1446) is on `main` and **on PyPI as of
+  20260830 14:54**, verified by installing it from the index.
   [`0.30.3`](#0303--the-question-the-probes-could-not-ask--20260825-0827) never will be — it was
   prepared on 20260825, never tagged, and **its fix ships inside `0.31.0`**; its entry is kept
   rather than folded away, because the record was written honestly and deleting it would erase the

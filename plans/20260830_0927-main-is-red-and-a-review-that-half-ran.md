@@ -378,6 +378,93 @@ defect count.**
 Six of the 51 were refuted and are harmless to re-check; the extraction cannot tell which six, so
 this list is an upper bound on work and a lower bound on nothing.
 
+## Five defects of one shape, and the rule that would have caught them
+
+**20260830 produced five wrong claims across three sessions. Every one was a valid inference from a
+true measurement, and every one was wrong about something nobody had written down.** None would
+have been caught by any gate in this repository, because a gate reads an artefact and each of these
+was a defect in *what the artefact was taken to be about*.
+
+| The measurement, true in every case | The thing never stated |
+|---|---|
+| four unconditional `datetime.now(UTC)` call sites exist in `src/` | **the failing tests** — they drive real `main([...])`, so no seam at those sites is reachable |
+| the row truncates, losing 2 860 characters | **which renderer** — and the escape that fixes GitHub renders a literal backslash on the published site |
+| `check (light pdf)` is the failing CI leg | **which leg lost a fail-fast race** — read as scope, it understates the fix by six tests |
+| 34 of 64 review waves produced no commit | **"produced no commit"** — the filter silently included every wave that correctly found nothing, which is the *success* condition |
+| `release_order_gate` exits 1 | **which tree** — a worktree with an unlanded sweep, asserted about `main`, freezing two sessions |
+
+**The first draft of the rule was *"name the population"*, and the reviewing peer refuted it as
+ceremony**: applied to every claim it becomes a sentence everyone writes and nobody reads, and *a
+rule that fires on everything selects nothing*. The refinement is theirs and it is sharper, because
+in all five the population was **constructed rather than pointed at** — a filter, a query, a
+checkout, a leg chosen by a race. Nobody misnamed a set they could point to.
+
+> ### 🧭 When a claim rests on a set you selected or an instrument you chose, state the selector beside the claim
+>
+> **Not what the set contains — how it was chosen.** `git rev-parse HEAD` beside a test result. The
+> filter predicate beside a ratio. The worktree path beside a gate's exit status. The renderer beside
+> a rendering claim.
+>
+> **The test of the rule is that it exposes the flaw without anyone having to be clever:** writing
+> *"waves that produced no commit"* beside *"34 of 64"* makes the error visible on the page.
+
+**`or an instrument you chose` is the planner's addition** to the peer's wording, and it is what
+extends the rule to the pipe defect: nothing was *selected* there — a renderer was *used*, and the
+claim inherited its behaviour. Both halves are the same failure at different distances from the
+data.
+
+**The hardest case is the one where no choosing happened.** The peer's own words, and the most
+useful sentence in the exchange: *"I did not choose 'waves with no commit' as a proxy for waste; I
+chose it because it was the only thing the corpus could count. The selector was imposed by the
+instrument."* **The planner's gate claim is the same** — no decision was taken to measure a worktree
+instead of `main`; the measurement happened where the session was standing. **An
+instrument-imposed selector is the hardest kind to notice, because there was never a moment of
+choosing to look back on.**
+
+### A sixth instance, and the rule's first return
+
+**The refinement was itself fitted to an unexamined population, which is the sixth case.** Its
+author built it from the four instances that were *selections* and it therefore missed the fifth,
+where nothing was selected and a renderer was simply used — the gap the `or an instrument you chose`
+clause closes. **A rule about generalising from an unexamined sample, generalised from an unexamined
+sample.** Recorded because it is the cheapest possible demonstration that the failure is structural
+rather than careless.
+
+**Then its author applied it to their own report, and it returned something better than an error.**
+The whole token analysis is denominated in a cost model — `input ×1.0, cache-write ×1.25, cache-read
+×0.1, output ×5.0` — which was stated in a footer without saying which weights were *sourced*.
+**The output ratio is** — `prices.toml` carries `claude-opus-5` at `$5.00`/`$25.00` per MTok, so
+×5.0 is measured, and the planner re-derived that from the committed file rather than accepting it.
+**The two cache multipliers were never verified against anything**; "standard" was doing the work
+that evidence should.
+
+So they were bounded rather than defended:
+
+| cost model | context transmission | generation |
+|---|---|---|
+| as published | 85.3% | 14.7% |
+| cheaper reads (0.08) | 83.0% | 16.9% |
+| dearer reads (0.125) | 87.3% | 12.6% |
+| 1h-TTL write (2.0) | 86.8% | 13.1% |
+| dearer output (×10) | 74.4% | 25.6% |
+| most hostile (read 0.05, write 1.0) | 76.7% | 23.2% |
+
+**The headline moves between 74.4% and 87.3% and never comes near flipping**, so the *ranking* of
+that report's recommendations does not depend on the unverified weights — only their precise sizes
+do. **The finding survived; the claim got a boundary.**
+
+**That is the return worth advertising when this rule is proposed.** A rule that only ever finds
+errors gets resented and quietly dropped. This one's first application to a *correct* piece of work
+converted an unstated assumption into a stated bound, which is what makes it worth the sentence it
+costs.
+
+**Attribution, stated because this document is about claims being traceable:** the refinement is the
+`optimize-adversarial-review-tokens` session's; the counter-case that killed the 34-of-64 figure was
+the coder's, not that session's own insight, and it asked not to be credited for it; the table and
+the instrument clause are the planner's. **Nothing in this section has been proposed for `CLAUDE.md`
+yet** — that file is 87 lines over its own guideline and has an extraction diff already waiting on
+the user, so a new rule goes to them beside it rather than ahead of it.
+
 ## Build order
 
 | # | Item | Blocked on | Owner |
