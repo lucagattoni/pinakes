@@ -32,7 +32,7 @@ KB's `.pinakes/` can reach a remote, and `src-pinakes-pairing.toml`, which spans
 invariant in [`docs/INVARIANTS.md`](../../docs/INVARIANTS.md) has a battery of its own. The covered
 files change 1–13 times in 30 days — **except `sync.py` at 39, which was this paragraph's own example
 of high-churn code with no battery until 20260825**, and is named here so that change is visible
-rather than quietly dropped. **Of the two highest-churn modules in the repository, one has no battery and one is
+rather than quietly dropped. **Two further high-churn modules, one with no battery and one
 covered without being named** — `src/pinakes/doctor.py` at 36 commits has none, while
 `src/pinakes/cli.py` at 52 is mutated twice by `src-pinakes-init.toml` (measured 20260825 by
 `git log --since="30 days ago" --follow`, over a repository whose first commit is 2026-07-25 — so
