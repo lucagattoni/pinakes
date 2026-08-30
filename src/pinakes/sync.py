@@ -74,6 +74,7 @@ from pinakes.ids import DocId, KbId, parse_doc_id
 from pinakes.lock import LockOutcome, SyncLock
 from pinakes.manifest import Manifest
 from pinakes.pairing import (
+    CHANGED,
     Action,
     Adopt,
     Ambiguity,
@@ -1353,14 +1354,28 @@ def _apply(
             connection.commit()
             report.refreshed += 1
             return
-        case PaidExtractionRequired(path=path, recorded_backend=recorded_backend):
-            # Decision 14: neither a Reembed nor a silent Skip is honest here — the file changed
-            # under a run whose effective backend cannot honour what was paid for. Decided by
-            # pairing.py directly, not raised, so it is recorded the same way any other failure
-            # is, with no extraction ever attempted.
+        case PaidExtractionRequired(path=path, recorded_backend=recorded_backend, reason=reason):
+            # Decision 14: neither a Reembed nor a silent Skip is honest here — the paid text
+            # cannot be reproduced by a run whose effective backend cannot honour what was paid
+            # for. Decided by pairing.py directly, not raised, so it is recorded the same way any
+            # other failure is, with no extraction ever attempted.
+            #
+            # **Two reasons, and the message says which** (S18). `RETIRED` reached this branch
+            # through a file that came back *byte-identical*, so the original wording — "but its
+            # content changed" — was a false claim about the user's own file, and it asked them to
+            # pay for a change that never happened. `docs/DESIGN.md` forbids that conflation by
+            # name for the neighbouring case, and this is the same class one layer up.
+            because = (
+                "but its content changed."
+                if reason == CHANGED
+                else (
+                    "and its content is unchanged, but the document was retired and that "
+                    "extraction's text was discarded with its chunks."
+                )
+            )
             error = (
                 f"PaidExtractionRequiredError: {path} was extracted with the paid "
-                f"`{recorded_backend}` backend, but its content changed."
+                f"`{recorded_backend}` backend, {because}"
             )
             remedy = f"Run `pnk sync --extract={recorded_backend}` to pay for a fresh extraction."
             store.record_failure(
