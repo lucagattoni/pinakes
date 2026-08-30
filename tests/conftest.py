@@ -11,6 +11,7 @@ import os
 import re
 import sys
 from collections.abc import Callable, Iterator, Mapping, Sequence
+from datetime import UTC, datetime
 from importlib.util import find_spec
 from pathlib import Path
 
@@ -119,6 +120,44 @@ monthly_eur       = 30.00
 timezone          = "UTC"
 on_exceed         = "abort"
 """
+
+
+# --- the committed price table, minus the clock -------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def prices_never_age(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stamp the committed price table with today's `as_of` wherever a *command* loads it.
+
+    Staleness is a `pnk doctor` WARN and a refusal at estimate time, and **deliberately never a CI
+    gate** (docs/DESIGN.md §5; `check.sh`'s prices-toml gate says so in its own comment: "a
+    wall-clock gate would fail a quiet weekend with no code change"). The suite broke that rule by
+    accident. `tests/test_cli_ask.py`, `tests/test_extract_claude.py` and `tests/test_pdf_trace.py`
+    drive real `main([...])`, so they read `prices.toml` through the wall clock -- and 25 of them
+    went red on 20260827, when the committed table passed `max_price_age_days`, with no commit
+    anywhere near them.
+
+    **The seam is the table, not the clock.** `main([...])` takes no `now` to inject, and freezing
+    the clock would break the tests that assert a real UTC stamp (`test_sync.py`'s
+    `test_estimate_only_stamps_utc_not_local_under_a_non_utc_timezone`). So this calls the real
+    `load_prices()` and replaces exactly one field: every model price, the FX rate, and the parse
+    of the committed file stay real, and a defect in any of them still fails here.
+
+    **It reaches only callers that import `load_prices` inside a function** -- `cli.py` and
+    `sync.py`, which do that to keep a free run from paying for the import. A module that binds the
+    name at import time holds the real function and is untouched: that is where the committed
+    `as_of` is still read for real (`test_budget_core.py`, and `test_doctor.py`'s pair of
+    price-table checks), and `check.sh` gates the committed file again in a subprocess this cannot
+    reach. A test that wants the committed date through a command can `monkeypatch.setattr` it back.
+    """
+    from dataclasses import replace
+
+    from pinakes.budget import prices as prices_module
+    from pinakes.budget.estimate import TIMESTAMP_FORMAT
+
+    real = prices_module.load_prices
+    now = datetime.now(UTC).strftime(TIMESTAMP_FORMAT)
+    monkeypatch.setattr(prices_module, "load_prices", lambda: replace(real(), as_of=now))
 
 
 @pytest.fixture
