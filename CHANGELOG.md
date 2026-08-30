@@ -10,7 +10,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [0.30.3] — 20260825 08:27
+## [0.30.3] — 20260825 08:27 · ⏸ PREPARED, NEVER PUBLISHED
+
+> **There is no `v0.30.3` tag and no PyPI artifact.** The release commit
+> [`d3a8f68`](https://github.com/lucagattoni/pinakes/commit/d3a8f681afb23573a75e8299ecf112a8f158b848) bumped `__version__` and wrote
+> this entry on 20260825, and the tag was never created — so the publish workflow never ran and
+> PyPI went from `0.30.2` straight past it. **The fix below ships in the next release**, which is
+> why this heading is kept rather than folded away: the entry was written honestly at the time, and
+> deleting it would erase the record instead of correcting it. *(Recorded 20260830, when the gap was
+> found. `docs/STATUS.md` has said `0.30.3 ⏸ on main, unreleased` since it landed.)*
 
 ### Fixed
 
@@ -4009,8 +4017,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.30.3...HEAD
-[0.30.3]: https://github.com/lucagattoni/pinakes/releases/tag/v0.30.3
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.30.2...HEAD
+[0.30.3]: https://github.com/lucagattoni/pinakes/commit/d3a8f681afb23573a75e8299ecf112a8f158b848
 [0.30.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.30.2
 [0.30.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.30.1
 [0.30.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.30.0
