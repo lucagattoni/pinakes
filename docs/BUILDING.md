@@ -169,11 +169,7 @@ Never batch increments; each is a separate, bisectable landing:
 
    **A fragment is not scratch.** `tools/fragments.py` splices it into `CHANGELOG.md` and
    `docs/RETROSPECTIVES.md`, and `docs/` **publishes on every push** — so an unreviewed fragment is
-   an unreviewed published document. Measured 20260826 07:42: the changelog fragment written in `d9fe1a9`
-   carried *"wrong for twelve hours"*, a duration that had been **invented** and repeated across
-   four files, in an increment whose subject was unmeasured claims. The review pass did not catch
-   it because the pass read the plans and **never opened the fragment**; it was found while
-   re-deriving timestamps for an unrelated reason.
+   an unreviewed published document.
 
    **The same hole covers ordinary source files.** A corpus measurement over this repository's own
    transcripts found that **what a pass misses is overwhelmingly the fragments its own increment
