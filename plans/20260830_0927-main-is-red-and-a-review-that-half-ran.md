@@ -180,11 +180,47 @@ all four of the `.slice()` casualties came back.
 
 | Where | Defect |
 |---|---|
-| `docs/STATUS.md:20`, `:366`, `:1210` | **An unescaped `\|` inside a code span truncates the row on GitHub — and only on GitHub.** Rendered through GitHub's own API, `pnk sync`'s third cell ends at `` `--clear-cache[=paid `` : **`transcripts]` and everything after it is gone**, the code span left unterminated. GFM splits the row on the bare pipe and then **silently drops the overflow to match the header's column count**, so the table still shows three cells and looks intact. **The published mkdocs site renders the same line correctly, in full** — verified in `site/status/index.html`. Same source, two renderers, **one of them losing content in the place this public repo is actually browsed** |
+| `docs/STATUS.md:20`, `:366`, `:1210` | **A bare `\|` inside a code span truncates the row on GitHub — and only on GitHub.** GFM splits the row on the bare pipe *before* inline code is parsed, then **silently drops the overflow to match the header's column count**, so the table still shows the right number of cells and looks intact. **14, 286 and 2 860 characters are discarded.** The 2 860 is the whole per-release commentary from 0.22.0 down to 0.4.1 — including the 0.20.1 warning that a KB setting `vector_tier = "sqlite-vec"` **stops loading entirely**. The published mkdocs site renders all three correctly and in full. **Fixed 20260830**, with the full population and the matrix below |
 | `docs/BUILDING.md:172` | *"the changelog fragment written in `d9fe1a9` carried 'wrong for twelve hours'"* — **at `d9fe1a9` it does not.** The phrase lived only at `29856b9`; `ef1465a` corrected it *before* the merge. The sha in the sentence is wrong |
 | `plans/20260825_1240-run-pinakes-sweep.md:417` | *"the reasoning is also in `src/pinakes/pairing.py`'s docstring"* — `grep -ci cycle src/pinakes/pairing.py` is **0** on `main`. True only on the coder's **unlanded** branch |
 | `docs/VERIFICATION.md:787`, `:282` | both citations point at unrelated rows (`:787` an over-long-path row; `:282` an empty-tag/hub row) |
 | `plans/20260825_1252-plans-sweep-findings.md:87` (row 11) | **a thirteenth stale row the reconciliation missed** — says D-31/32/33 *"none taken"* and `user-decision` when they were answered 20260825 18:16. `docs/README.md:55` says the opposite about the same item |
+
+### The pipe defect is a class, and no escape fixes both renderers
+
+**Raised as three lines. Measured across every markdown file in the repository, it is fourteen, in
+two halves that break *opposite* renderers.** Both were fixed 20260830; the matrix is kept because
+the obvious fix is the wrong one.
+
+| Source, inside a code span **in a table row** | GitHub | mkdocs / the published site |
+|---|---|---|
+| `` `paid\|transcripts` `` — a bare pipe | ❌ **row truncated, text destroyed** | ✅ correct |
+| `` `paid\\|transcripts` `` — the "obvious" escape | ✅ correct | ❌ **renders a literal backslash** |
+| `` `paid&#124;transcripts` `` — an entity | ❌ literal `&#124;` | ❌ literal `&#124;` |
+| `<code>paid&#124;transcripts</code>` — raw HTML | ✅ | ✅ |
+| **No pipe in the span at all** ⭐ | ✅ | ✅ |
+
+**So the finding's own wording — *"unescaped"* — invites the fix that breaks the site.** Escaping was
+already the repo's convention in four published places, and
+[the live CLI page](https://lucagattoni.github.io/pinakes/CLI/) was serving `--backend st\|light`,
+**backslash and all, to every reader**. Half A destroys text on GitHub; half B disfigures the site.
+Both were live at once, in the same repository, under opposite conventions.
+
+**The fix taken is the last row — keep the pipe out of the code span** — rather than raw HTML, because
+it needs no `md_in_html`, and because rewriting `--clear-cache[=paid|transcripts]` to name its three
+real values corrected a **second** defect nobody had raised: `cli.py`'s `nargs="?" const="all"` makes
+`all` a valid value, and the old text omitted it.
+
+> **The distinction that makes this diagnosable: `\|` behaves differently in a table row than in
+> prose, and only the table row diverges.** GFM's *table* parser consumes the backslash before inline
+> parsing; there is no table parser in prose, so both renderers leave `\|` alone. That is why
+> `docs/RELEASING.md:187` and `docs/STATUS.md:1140` — `grep` commands where `\|` is **correct BRE
+> alternation** — are right as they stand and must not be "fixed". **The same three characters are a
+> defect in one context and required syntax in the other.**
+
+**And this document exhibited the defect while documenting it.** The 22-row table above was generated
+with pipe-escaping but not backtick-balancing, so a truncated locator left a code span open — the
+same class, self-inflicted, inside the section describing it. Regenerated.
 
 **And the `STATUS.md` one nearly went into this file backwards.** It was first written here as *"a
 rendering defect on the published site, and `mkdocs --strict` exits 0 on it"*. **Both halves were
