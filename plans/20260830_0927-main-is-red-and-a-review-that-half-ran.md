@@ -50,8 +50,20 @@ has since been measured, and it was wrong in every particular except the cause.*
 09:39:07Z — *not* the `[light,pdf,claude]` leg this file named — while `check (light pdf claude)`
 and `check (light)` were **cancelled by fail-fast** rather than finishing, so the predicted "green
 `docs` job beside one green and one red matrix leg" did not happen either. Every failing assertion
-in that log is the `prices.toml` refusal, verbatim, which is the half that held. **A green run is a
-claim about the moment it ran** — this repository has written that sentence before and had not yet
+in that log is the `prices.toml` refusal, verbatim, which is the half that held.
+
+**Settled 20260830 14:18 by a second red run — every matrix leg fails, and which one *reports* is a
+race.** Run `33316335921` (merge of the planner's document work) failed on **`check (light)`**, while
+`check (light pdf)` and `check (light pdf claude)` were the cancelled pair — the exact inverse of
+run `33304454176` an hour earlier. **So the `[light]` leg does not stay green**, and this file's
+original guess that its `skipif` guards would spare it is false: `[light]` carries **19** of the 25,
+skipping six behind the extras. **Fail-fast means the named leg identifies nothing except which
+runner lost the race**, and reading a leg name as scope would understate the fix by six tests.
+**Both runs' documentation jobs were green throughout** — `markdown-links`, `status-header`,
+`link-density`, `build`, `template-drift`, `traversal-caps` and every `eval` job — which is what
+makes the failure attributable to the calendar rather than to anything that landed.
+
+**A green run is a claim about the moment it ran** — this repository has written that sentence before and had not yet
 met a case where the tree did not change at all. It has now met one, and then guessed the shape of
 its own failure wrong while standing next to it.
 
