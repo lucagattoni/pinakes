@@ -421,6 +421,33 @@ instead of `main`; the measurement happened where the session was standing. **An
 instrument-imposed selector is the hardest kind to notice, because there was never a moment of
 choosing to look back on.**
 
+### Where the neighbourhood audit fails: inside corrections
+
+**`docs/README.md` requires auditing the neighbourhood, not the diff. It has now failed identically
+twice, and both times the failing edit was itself a correction.**
+
+| | |
+|---|---|
+| `7961b89` | fixing a row count in `docs/VERIFICATION.md`'s scope paragraph left the same number standing two paragraphs down. Its own message names the cause: *"this repo's own 'audit the neighbourhood, not the diff' rule failing inside a change that was itself a correction."* |
+| **20260830** | the planner corrected a false churn claim in `tools/batteries/README.md` and did not read three lines up, where *"Nine batteries … Seven under `tools/`"* had been wrong since 20260826. Ten and eight. |
+
+**The pattern is not carelessness and a reminder will not fix it.** The coder's sentence for it,
+which is the most useful thing anyone said about the day: **the state of mind that produces a careful
+fix is the state of mind that is done looking.** A correction arrives with its own sense of
+completion — the defect is identified, the edit is precise, the diff is small — and that feeling is
+exactly what an audit has to survive.
+
+**The strongest evidence is that the refutation was in hand and filed as housekeeping.** A stale
+proposal in an abandoned worktree held `Seven → Eight` for that same sentence — a correction written
+on 20260826 that was *already wrong when written*. It was reported as evidence the worktree was safe
+to delete. **It was evidence that restating the number is the defect**, and neither session read it
+that way until the number was measured. Its author says so plainly rather than letting it pass, and
+that is why the fix names `ls tools/batteries/*.toml` instead of writing *Ten*.
+
+**So the practical form of the rule is narrower than "audit the neighbourhood":** *when the edit you
+are making is itself a correction, read the surrounding paragraphs before you are finished, because
+that is the case where you will not want to.*
+
 ### A sixth instance, and the rule's first return
 
 **The refinement was itself fitted to an unexamined population, which is the sixth case.** Its
