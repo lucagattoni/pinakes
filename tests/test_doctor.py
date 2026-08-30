@@ -22,6 +22,7 @@ import yaml
 from conftest import pdf_extraction_runnable
 
 from pinakes import store, template
+from pinakes.budget.estimate import TIMESTAMP_FORMAT as PRICE_TIMESTAMP_FORMAT
 from pinakes.budget.prices import Prices, load_prices
 from pinakes.doctor import Check, Status, diagnose, prune
 from pinakes.embed import (
@@ -593,10 +594,34 @@ def test_every_problem_carries_a_remedy(kb: Path) -> None:
 # --- the budget checks (I6b) -----------------------------------------------------------------
 
 
-def test_the_price_table_is_reported_with_its_date(kb: Path) -> None:
+def test_the_price_table_is_reported_with_its_date(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Symmetric with the staleness check below: that one ages the *table*, this one freshens it.
+    Neither compares the wall clock against the committed `as_of`, because staleness is
+    deliberately not a CI gate.
+
+    It used to assert `Status.OK` from the committed table and the real clock, which held only for
+    as long as that table stayed inside `max_price_age_days`. It stopped holding on 20260827 --
+    30 days after the release that shipped it, with no commit anywhere near this file.
+    """
+    from datetime import UTC, datetime
+
+    import pinakes.doctor as doctor_module
+
+    current = load_prices()
+    fresh = Prices(
+        as_of=datetime.now(UTC).strftime(PRICE_TIMESTAMP_FORMAT),
+        usd_per_eur=current.usd_per_eur,
+        models=current.models,
+    )
+    monkeypatch.setattr(doctor_module, "load_prices", lambda: fresh)
+
     status, detail = checks(kb)["price table"]
     assert status is Status.OK
-    assert "dated " in detail
+    # The name of this test is a claim about *which* date is reported, so check the date and not
+    # just the word: `"dated " in detail` passed against any table at all.
+    assert f"dated {fresh.as_of}" in detail
 
 
 def test_a_stale_price_table_warns_and_names_the_setting(
@@ -605,9 +630,14 @@ def test_a_stale_price_table_warns_and_names_the_setting(
     """Staleness is a WARN here and a refusal at estimate time — deliberately never a CI gate, or
     a quiet weekend with no code change would fail the build.
 
-    The shipped table is current by construction, so the *table* is aged rather than the clock:
-    moving `max_price_age_days` cannot reach this branch (its minimum is 1 day and today's table
-    is 0 days old), and freezing the clock would test a mock rather than the comparison.
+    The *table* is aged rather than the clock, and its sibling above freshens the table for the
+    same reason: freezing the clock would test a mock rather than the comparison, and moving
+    `max_price_age_days` cannot reach this branch at all (its minimum is 1 day).
+
+    This docstring used to open "the shipped table is current by construction". It is not, and that
+    assumption is what took the suite red on 20260827: nothing refreshes `as_of` after a release,
+    so the committed table ages past `max_price_age_days` 30 days later and the WARN this test
+    pins becomes what an ordinary `pnk doctor` reports.
     """
     import pinakes.doctor as doctor_module
 
