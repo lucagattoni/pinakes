@@ -216,7 +216,7 @@ rather than relaying it, and it is sharper than either report.
 > whatever the caller supplies, which is what keeps every estimator pure and deterministic under
 > test.
 
-**The impurity is entirely in the callers, and there are four unconditional ones:**
+**The impurity is in the callers, and there are four unconditional ones:**
 
 | Call site | |
 |---|---|
@@ -224,13 +224,73 @@ rather than relaying it, and it is sharper than either report.
 | `src/pinakes/cli.py:1259` | `now=datetime.now(UTC)` — no seam |
 | `src/pinakes/extract/claude.py:649` | `now=datetime.now(UTC).strftime(...)` — no seam |
 | `src/pinakes/doctor.py:1586` | `age = (datetime.now(UTC) - as_of).days` — the WARN path |
-| **`src/pinakes/cli.py:667`** | **`now or datetime.now(UTC)` — the one that already has a seam, and the model for the other three** |
+| `src/pinakes/cli.py:667` | `now or datetime.now(UTC)` — the only one that already has a seam |
+
+> 🛑 **That table is true and it points at the wrong fix. It is kept because being wrong this way is
+> the subject of this document.** The planner established the four call sites and inferred *"so add
+> seams to them"*. The coder then falsified the inference without disputing a single fact in it:
+> **`tests/test_cli_ask.py` drives real `main([...])` — 45 times — so there is no `now` to inject.**
+> Adding a seam to all three unseamed call sites would not make **one** of its 18 failures
+> reachable. Every clause was true and the conclusion did not follow, because the population the
+> argument was over — *the failing tests* — had never been examined.
+
+**The seam has to be the price table, not the clock — and the repository already does this twice:**
+
+| Existing pattern | |
+|---|---|
+| `tests/test_deep_loop.py:152` | `Prices(as_of=NOW, usd_per_eur=…, models=load_prices().models)`, docstringed *"so staleness is never why a test fails"* |
+| `tests/test_extract_claude.py:145` | the same helper, independently |
+
+**So this is a test-side change, which is also why it needs no decision.** No production seam, no
+new parameter, no `src/` edit at all.
+
+**And the defect's own cause is written down beside it, as an assumption.**
+`tests/test_doctor.py`'s failing `test_the_price_table_is_reported_with_its_date` asserts
+`Status.OK` from the real table and the real clock. **One function below it**, its sibling
+`test_a_stale_price_table_warns_and_names_the_setting` ages the *table* rather than the clock, and
+says why:
+
+> *"**The shipped table is current by construction**, so the *table* is aged rather than the clock:
+> … freezing the clock would test a mock rather than the comparison."*
+
+**That premise is now false, in the file the fix lands in.** So the fix is symmetric: the failing
+test pins a *fresh* table exactly as its sibling pins an aged one — **and the sibling's docstring is
+corrected in the same change**, or the fix leaves behind the very assumption that produced the
+defect.
 
 **So the 25 failures are two mechanisms, not one.** `test_doctor.py`'s single failure is the
 **WARN**; the other 24 (`test_cli_ask.py` 18, `test_extract_claude.py` 5, `test_pdf_trace.py` 1) go
 through the **refusal**, which is the design working exactly as intended, seen through tests that
-assumed it never would. **One fixture cannot cover both paths.** *How* to close it is the coder's
-call, not this file's.
+assumed it never would.
+
+**The count depends on your extras, and this is why two sessions measured it differently all
+morning without either being wrong:** a worktree with the extras installed reproduces **all 25**; a
+`[light]`-only checkout shows **19** and skips the other six behind their `skipif` guards.
+
+## Nothing was watching for this, and a CI watcher would not have been
+
+**The standing guidance is to arm a background watcher over `gh run list` and emit on every terminal
+non-success.** One was armed here. **It could not have caught this**, and the reason generalises:
+
+> **A run-watcher fires on failing *runs*. It is silent about a tree that goes red without a run.**
+
+Between 20260826 11:51 and 20260830 09:35 **nothing was pushed**, so nothing ran, so there was
+nothing to fail. The repository was broken for **three days** in a state no watcher of that shape can
+observe: `main`'s last run was green, and it stayed green, and it was wrong. **The green was not
+stale in the ordinary sense of "an older commit" — it was a correct measurement of a tree that had
+since changed meaning without changing content.**
+
+**What would have caught it, in the order they would have fired:**
+
+| | |
+|---|---|
+| **A scheduled run** (cron on `main`) | would have gone red on 20260827, three days earlier. **It is also the thing `DESIGN.md:811` is wary of** — until item 1 lands. Afterwards a nightly run cannot go red on staleness, because nothing in the suite reads the clock any more, so the objection dissolves and the schedule becomes safe |
+| **The release step** (item 2) | catches it at each release, which is the path that actually reaches users |
+| **A watcher over the artefact rather than the run** | the general form of the standing rule — *verify the artefact, never the run's own status* — applied to a tree instead of a release |
+
+**Nothing automatic catches it for a user who does not upgrade, and nothing should**: the runtime
+refusal *is* the intended behaviour there. **The defect was never that Pinakes refused. It was that
+the suite asserted it never would, and that no release had ever moved the date it refuses from.**
 
 ## The 22 nobody has ever checked
 
