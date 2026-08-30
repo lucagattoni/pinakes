@@ -11,10 +11,12 @@ pattern that has stopped matching must fail rather than pass vacuously — an em
 sorted by definition, which is the one way a check like this dies quietly.
 """
 
+import importlib.util
 import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 TOOL = Path(__file__).parent.parent / "tools" / "release_order_gate.py"
 
@@ -519,8 +521,12 @@ def test_the_real_documents_are_complete_from_their_declared_starts() -> None:
     assert "complete from 0.2.0 to" in result.stdout, "STATUS's table declares a later start"
     assert "complete from 0.16.0 to" in result.stdout, "the prose list declares a later start"
     assert "declared absent: 0.11.0" in result.stdout, (
-        "the one exception must be named on a green run — an allowance nobody can see is one "
-        "nobody retires"
+        "an exception must be named on a green run — an allowance nobody can see is one nobody "
+        "retires"
+    )
+    assert result.stdout.count("declared absent: 0.30.3") == 2, (
+        "0.30.3 is declared absent from both PyPI lists and must be named on a green run, for the "
+        "same reason 0.11.0 is"
     )
 
 
@@ -1019,3 +1025,102 @@ def test_a_not_behind_naming_no_sequence_is_refused_when_the_module_is_built(
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "declared: 1" in result.stdout, result.stdout
+
+
+# --- 0.30.3: prepared, never published (20260830) ---------------------------------------------
+
+
+def _gate_module() -> Any:
+    """The tool as an importable module, so a test can read the declarations it ships with.
+
+    Same idiom as `tests/test_graph_channel.py`'s loader, `sys.modules` registration included: a
+    module executed outside it raises on `dataclass`, which resolves `sys.modules[cls.__module__]`
+    while the module is still executing.
+    """
+    spec = importlib.util.spec_from_file_location("release_order_gate", TOOL)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["release_order_gate"] = module
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        del sys.modules["release_order_gate"]
+    return module
+
+
+def test_0303_is_declared_absent_from_the_published_lists_and_from_nothing_else() -> None:
+    """**The scope is the whole claim.** 0.30.3 was prepared 20260825, never tagged, and reached no
+    index — so it is absent from what PyPI serves and present everywhere a release *document* is
+    recorded. A blanket exclusion would make the gate green by erasing that distinction, which is
+    the false claim the declaration exists to refuse, so this pins the two sequences that carry it
+    and the five that must not.
+    """
+    carried = {
+        (sequence.path, sequence.what)
+        for sequence in _gate_module().SEQUENCES
+        if (0, 30, 3) in sequence.absent
+    }
+    assert carried == {
+        ("docs/STATUS.md", "the Published on PyPI prose"),
+        ("docs/STATUS.md", "the Published versions row"),
+    }, "0.30.3 is absent from what an index serves, and from nothing else"
+
+
+def _published_but_for_0303(tmp_path: Path) -> Path:
+    """A tree in the shape `main` takes **after** the post-publish sweep: 0.31.0 present in both
+    PyPI lists, so 0.30.3 is an interior hole rather than the tail.
+
+    That shape is the whole point. Both sequences declare `newest_may_lag`, so before the sweep
+    0.30.3 is merely the newest thing missing and the gate is legitimately green — which is why
+    this control cannot be run against the real documents until the sweep lands, and is built here
+    instead.
+    """
+    versions = [f"0.{n}.0" for n in range(1, 31)] + ["0.30.3", "0.31.0"]
+    published = [v for v in versions if v != "0.30.3"]
+    return _tree(tmp_path, versions=versions, prose_versions=published, row_versions=published)
+
+
+def test_a_release_that_reached_no_index_is_declared_absent_rather_than_tolerated(
+    tmp_path: Path,
+) -> None:
+    """The green half: with the declaration, an interior hole in both PyPI lists passes **and is
+    named in the output**. A tolerated gap and a declared one look identical from an exit status."""
+    result = run(str(_published_but_for_0303(tmp_path)))
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.count("declared absent: 0.30.3") == 2
+
+
+def test_removing_that_declaration_turns_both_published_lists_red_and_nothing_else(
+    tmp_path: Path,
+) -> None:
+    """**The control, and the reason the test above is not self-satisfying.** A declared absence
+    that nothing depends on is indistinguishable from a gate that never looked: both are green.
+
+    So the same tree is run with `(0, 30, 3)` removed from every sequence that declares it, and the
+    gate must go red on exactly the two PyPI lists — never on CHANGELOG's headings or link
+    definitions, ROADMAP's table or sections, or STATUS's release roadmap, where 0.30.3 is a real
+    release document and stays expected.
+    """
+    root = _published_but_for_0303(tmp_path)
+    script = (
+        "import importlib.util, sys\n"
+        f"spec = importlib.util.spec_from_file_location('rog', {str(TOOL)!r})\n"
+        "module = importlib.util.module_from_spec(spec)\n"
+        "sys.modules['rog'] = module\n"
+        "assert spec.loader is not None\n"
+        "spec.loader.exec_module(module)\n"
+        "stripped = [s.what for s in module.SEQUENCES if s.absent.pop((0, 30, 3), None)]\n"
+        "assert len(stripped) == 2, stripped\n"
+        f"sys.exit(module.main([{str(root)!r}]))\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, check=False
+    )
+
+    assert result.returncode == 1, result.stdout
+    missing = [line for line in failures_of(result) if "missing — 0.30.3" in line]
+    assert len(missing) == 2, failures_of(result)
+    assert any("the Published on PyPI prose" in line for line in missing)
+    assert any("the Published versions row" in line for line in missing)
+    assert failures_of(result) == missing, "only the two PyPI lists may go red"
