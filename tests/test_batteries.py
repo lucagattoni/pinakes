@@ -241,13 +241,14 @@ def test_every_battery_declares_how_many_mutants_it_carries() -> None:
 def test_the_committed_batteries_cover_only_tools_and_the_readme_says_so() -> None:
     """A coverage index with a hidden denominator is the thing this repository keeps catching.
 
-    Eleven batteries over eleven primary targets. Eight are under `tools/`; **three modules under
-    `src/` have one** — `src-pinakes-init.toml` and `src-pinakes-pairing.toml` since 20260825, the latter
-    also the first battery to span two files, and `src-pinakes-serve.toml` since 20260831. **No
-    battery is *named* for an invariant** — a primary target is a file, so none can be — though two
-    mutate `docs/INVARIANTS.md` territory and say so in their own headers. That is a starting point
-    rather than a coverage claim, and the README has to say the number out loud — if this test fails
-    because a new area arrived, the sentence there needs updating too.
+    Ten batteries over ten primary targets — counted 20260831, when it read *"Seven … Five"*.
+    Eight are under `tools/`; **two are named for a module under `src/`** — `src-pinakes-init.toml`
+    since 20260825, and `src-pinakes-pairing.toml` the same day, which is also the first battery to
+    span two files. **A name is not a coverage claim, and this sentence is where that keeps being
+    forgotten**: `tools-mcp_handshake_gate.toml` mutates `src/pinakes/serve.py` and seven files
+    besides, so the count below is of batteries, never of the area they reach. That is a starting
+    point rather than a coverage claim, and the README has to say the number out loud — if this
+    test fails because a new area arrived, the sentence there needs updating too.
 
     **This docstring is itself the thing the test guards against**, and it had gone stale: it read
     *"Four batteries over four primary targets, every one under `tools/`"* while five were on disk
