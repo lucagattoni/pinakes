@@ -32,3 +32,25 @@
   to `all`**, and every subcommand prints the population it read. The direction of the default is
   the lesson: the restricted population is the one that must be asked for by name, because a
   restricted list does not announce itself — it just returns a zero.
+- **Then I did it again, in the sentence correcting it.** The retraction said the fan-out requests
+  sat "across 26 transcripts dated 20260803 and 20260821". The 26 is right — its selector is *all
+  projects, subagent and workflow transcripts only, matched on `message.model`*. **The dates are
+  wrong.** I printed the first six rows of a 26-row list and read the span off the part I could
+  see; the real span is three days, **20260709 · 20260803 · 20260821**. A truncated listing is a
+  selected population wearing different clothes, and it went into a commit message.
+- **A count is not a measurement until its selector is stated, and the selector fails in both
+  directions.** A peer scanning the same corpus got 59 files where I got 33. Neither was careless:
+  **59 is every file where the *string* `claude-fable-5` appears; 33 is every file with a line whose
+  `message.model` is `claude-fable-5`**, which is exactly the set that billed anything. The 26
+  extra files are ones that merely *discuss* it — **including the sessions doing the measuring**.
+  Measuring a model by grepping for its name counts your own analysis as data, and the more
+  carefully you write about it the larger the number gets.
+- **A split that cannot be reproduced does not get published, and the fix is a flag rather than a
+  footnote.** 316 workflow-agent and 235 subagent requests were true and unpublishable: `--scope`
+  offered `main` and `all` and nothing between, so quoting the split would have meant quoting a
+  number the committed instrument could not produce — the defect being corrected, one layer down.
+  `main`, `subagent` and `workflow` now **partition** the corpus, asserted by a test rather than by
+  arithmetic in a message: on one snapshot, 20,498 + 6,594 + 17,462 = 44,554 = `all`, file sets
+  disjoint and their union exact. Run across four invocations instead of one, the same sum is off
+  by two — the corpus grows while you measure it, which is why a figure carries the hour it was
+  taken.

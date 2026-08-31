@@ -36,11 +36,19 @@ never in this repository.
 
 Four subcommands, one per analysis:
 
-**Every subcommand names the population it read.** `--scope all` (the default) counts main-loop
-sessions, subagent runs and workflow agents; `--scope main` counts main-loop sessions only. The
-default is `all` deliberately: a main-loop-only file list is what produced the false zero above,
-because subagent transcripts live under `<session>/subagents/` and simply were not in it. The
-restricted population is the one you must ask for by name, and the header repeats which you got.
+**Every subcommand names the population it read.** `--scope` takes `all` (the default), `main`,
+`subagent` or `workflow`; the last three **partition** the corpus and `all` is their union, which a
+test asserts. The default is `all` deliberately: a main-loop-only file list is what produced the
+false zero above, because subagent transcripts live under `<session>/subagents/` and simply were
+not in it. The restricted population is the one you must ask for by name, and the header repeats
+which you got.
+
+**A count is not a measurement until its selector is stated**, and the selector is easy to get
+wrong in both directions. Scanning transcripts for the *string* `claude-fable-5` finds 59 files;
+scanning for a `message.model` of `claude-fable-5` finds 33, which is exactly the set that billed
+anything. The 26 extra are files that merely discuss it -- **including the sessions that did the
+measuring**, which is a corpus contaminated by its own analysis. This tool always reads
+`message.model`.
 
     models      requests, tokens, price-units and estimated dollars per model
     boot        the fixed context each session re-transmits on every request, over time
@@ -112,6 +120,14 @@ GAP_BUCKETS: tuple[tuple[str, float], ...] = (
 #: agent; a terminal row overwrites it. An agent left in `NO_OUTCOME` recorded no result — which is
 #: what makes a workflow resume re-run it, and is NOT by itself evidence that the agent died.
 NO_OUTCOME = "no-terminal-row"
+
+#: What each scope is called in output, so a pasted number carries its own selector.
+POPULATIONS: dict[str, str] = {
+    "all": "main loop + subagents + workflow agents",
+    "main": "main-loop sessions only",
+    "subagent": "subagent runs only",
+    "workflow": "workflow agents only",
+}
 
 
 @dataclass(frozen=True)
@@ -286,11 +302,22 @@ def read_requests(path: Path) -> list[Request]:
     ]
 
 
-def find_transcripts(root: Path, project: str | None, include_subagents: bool) -> list[Path]:
-    """Main-loop transcripts, plus subagent and workflow-agent ones when asked for.
+#: The four values `--scope` accepts. `main`, `subagent` and `workflow` **partition** the corpus and
+#: `all` is their union -- asserted by `tests/test_agent_spend.py`, because a "split" whose parts do
+#: not add up to the whole is how a population goes unstated without anybody noticing.
+SCOPES: tuple[str, ...] = ("all", "main", "subagent", "workflow")
+
+
+def find_transcripts(root: Path, project: str | None, scope: str = "all") -> list[Path]:
+    """The transcripts one scope selects.
 
     A project is a directory under `root` whose name encodes the working directory it was started
     in; `project` matches a substring of that name, so `--project Pinakes` is enough.
+
+    `journal.jsonl` is deliberately not here: it records a workflow's outcomes and carries no
+    `usage`, so including it would add files and no spend. Measured against a full recursive walk,
+    that is the **only** difference -- 58 files, 0 requests, $0.00 -- which is what makes this list
+    safe to total.
     """
     if not root.is_dir():
         return []
@@ -298,9 +325,11 @@ def find_transcripts(root: Path, project: str | None, include_subagents: bool) -
     for directory in sorted(root.iterdir()):
         if not directory.is_dir() or (project is not None and project not in directory.name):
             continue
-        found.extend(sorted(directory.glob("*.jsonl")))
-        if include_subagents:
+        if scope in ("all", "main"):
+            found.extend(sorted(directory.glob("*.jsonl")))
+        if scope in ("all", "subagent"):
             found.extend(sorted(directory.glob("*/subagents/*.jsonl")))
+        if scope in ("all", "workflow"):
             found.extend(sorted(directory.glob("*/subagents/workflows/*/agent-*.jsonl")))
     return found
 
@@ -533,12 +562,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument(
         "--scope",
-        choices=("all", "main"),
+        choices=SCOPES,
         default="all",
         help=(
-            "which transcripts to count: 'all' (default) includes subagent runs and workflow "
-            "agents; 'main' is main-loop sessions only. `boot` is always main-loop -- a subagent's "
-            "first request is not a session boot -- and says so in its output."
+            "which transcripts to count: 'all' (default) is every one; 'main', 'subagent' and "
+            "'workflow' are the three parts it is the union of. `boot` is always main-loop -- a "
+            "subagent's first request is not a session boot -- and says so in its output."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -560,19 +589,17 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     # `boot` is main-loop by definition, so it opts out rather than silently reporting a population
     # nobody asked for -- 1,088 subagent transcripts would swamp 65 sessions.
-    with_subagents = scope == "all" and command != "boot"
-    paths = find_transcripts(root, project, include_subagents=with_subagents)
+    effective = "main" if command == "boot" else scope
+    paths = find_transcripts(root, project, effective)
     if not paths:
         print(f"no transcripts under {root} (project filter: {project!r})", file=sys.stderr)
         return 1
-    population = (
-        "main loop + subagents + workflow agents" if with_subagents else "main-loop sessions only"
-    )
+    population = POPULATIONS[effective]
     if command == "models":
         return command_models(paths, population)
     if command == "boot":
-        if scope == "all":
-            print("note: `boot` reads main-loop sessions only; --scope all does not apply to it\n")
+        if scope != "main":
+            print(f"note: `boot` reads main-loop sessions only; --scope {scope} does not apply\n")
         return command_boot(paths)
     return command_rewrites(paths, population)
 
