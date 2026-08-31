@@ -17,17 +17,20 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260830 14:46 UTC
+## Where things stand right now — 20260831 23:01 UTC
 
-- **57 releases in 36 days**, and **one** landed without ever reaching PyPI.
+- **58 releases in 37 days**, and **one** landed without ever reaching PyPI.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.31.0`](#0310--the-gates-that-could-not-fail--20260830-1446) is on `main` and **on PyPI as of
+  [`0.31.1`](#0311--the-price-nobody-was-watching--20260831-2301) is on `main` as of
+  20260831 23:01 and **not yet on PyPI**; the entry below is written only once the index says so,
+  which is what STATUS's headline hold marker exists to say out loud in the meantime.
+  [`0.31.0`](#0310--the-gates-that-could-not-fail--20260830-1446) is **on PyPI as of
   20260830 14:54**, verified by installing it from the index.
   [`0.30.3`](#0303--the-question-the-probes-could-not-ask--20260825-0827) never will be — it was
   prepared on 20260825, never tagged, and **its fix ships inside `0.31.0`**; its entry is kept
   rather than folded away, because the record was written honestly and deleting it would erase the
   gap instead of correcting it.
-- **Latest on PyPI: `0.30.2`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.31.0`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
@@ -40,7 +43,7 @@ precision nobody measured.
   **0.25.1 is the sharpest case this project has had of that distinction**:
   every release from 0.22.0 on installed cleanly and reported the right version while
   `pnk ask --deep` could not make one successful call. Every release from `0.2.2` on is published —
-  **forty-nine**, counted from the index rather than from this list's previous number — and read from
+  **fifty**, counted from the index rather than from this list's previous number — and read from
   `https://pypi.org/simple/pinakes/`, the endpoint installers use, because for minutes after an
   upload the `json` endpoint and uv's cache still report the previous version while `simple/` already
   carries the files. Checking `json` first says *the upload failed*, which is this project's recorded
@@ -210,6 +213,7 @@ number belongs to a release only when it is cut
 | **[0.30.2](#0302--the-check-that-was-not-git--20260825-0045)** | 20260825 00:45 | the check that was not git | • `pnk init` asks **git** whether `.pinakes/` is ignored — the old check was a substring test, **wrong in both directions**<br>• Silent for a commented-out `#.pinakes/`, leaving the ledger and every **verbatim question** tracked<br>• Probes an **arbitrary** path under the directory, not named files<br>• **The first fix was itself a regression** — three named probes read `*.db`/`*.json` as protection while `index.db-wal` stayed tracked<br>• Caught by adversarial review, **not by any gate**; the reviewer's own fix was insufficient too, and only measurement showed it<br>• The remedy no longer says *"add this line"* to someone whose line is already there and negated<br>• Outside a repository the same probes run in a throwaway repo — one definition of the answer<br>• `pnk doctor` re-checking, and WARN-vs-note, **still undecided**<br>• ships in the wheel |
 | **[0.30.3](#0303--the-question-the-probes-could-not-ask--20260825-0827)** | 20260825 08:27 | the question the probes could not ask | • `pnk init` reports a `.pinakes/` git is already **tracking** — 0.30.2's check could not see it<br>• `check-ignore` consults the index, and the opaque probes are never *in* it, so it answered only *would a new file be ignored*<br>• A KB committed before its ignore rule reads as **protected** while `git commit -a` republishes the **verbatim questions**<br>• A second **question** (`git ls-files`), asked whether or not the `.gitignore` was adopted<br>• **Remedy order is load-bearing** — ignore line first, or the next `git add -A` re-adds; absolute path, or it fails from the repo root<br>• Says index-not-disk, and claims nothing about pushed history<br>• **Two of three specified constraints were corrections to the plan**: the prescribed test could not fail (68/69 survived the mutant), and `rc=128` needed asserting below a `bool`<br>• `pnk doctor` re-checking, and WARN-vs-note, **still undecided** (D-31 to D-33)<br>• ships in the wheel |
 | **[0.31.0](#0310--the-gates-that-could-not-fail--20260830-1446)** | 20260830 14:46 | the gates that could not fail | • `make release-check` was **three `echo`s** — it now refuses a missing, duplicated, lightweight, empty, disagreeing or **already-pushed** tag<br>• The tag is created **before** the gate and pushed **after** — the push is the irreversible half<br>• A review fan-out that **lost agents reported success**; `review_pass_gate.py` exits 1 on an unfinished pass<br>• `review_ledger.py` — a later review pass no longer starts from zero<br>• STATUS's headline could claim a hold that was over, or hide one that was not — **the *removal* was the uncatchable half**<br>• The procedure never asked for the hold marker, which is why it had **never once been written**<br>• The suite read the **wall clock** against the committed price table — 25 tests red on the calendar, no commit involved<br>• `docs/RELEASING.md` gains the price-refresh step; `as_of` had **never been refreshed since the file was created**<br>• A sidecar whose id no longer matches its path **stops wedging the index** — `doctor` had reported healthy at exit 0<br>• No plan places one id at two paths; **renaming past each other still fails**, but now costs nothing<br>• `pnk doctor` gains a **retired documents** check<br>• no `schema_version`, no rebuild |
+| **[0.31.1](#0311--the-price-nobody-was-watching--20260831-2301)** | 20260831 23:01 | the price nobody was watching | • `usd_per_eur` held its **seed value `1.08`** from 20260728 to 20260831 while `as_of` was re-stamped over it at 0.31.0<br>• The falsification `docs/RELEASING.md` step 3 names — and step 3 was written **five hours earlier the same day**<br>• ECB reference rate for 20260831 is **1.1596**; every EUR figure was **over-stated by 7.4%** and every EUR cap bit early<br>• Nothing overspent — but ledger lines since 20260728 carry a rate that was never true, and re-deriving euros from them is faithful to a wrong record<br>• **The staleness guard was healthy and guarded the wrong thing**: `max_price_age_days` and `pnk doctor` both key on `as_of`<br>• `prices.toml` now **names its FX source**, in the file — an unnamed source is not re-checkable by the next release<br>• **Nothing in the suite asserted the committed rate**; one literal was its alarm **by accident**, and it fires on *movement*, never on *staleness*<br>• Rowed as two parts on purpose — decoupling it alone would delete the only alarm the rate has ever had<br>• Two `retro.d/` fragments would have spliced malformed; one carried **no `##` heading** and the stream synthesises none<br>• no `schema_version`, no rebuild; `prices.toml` ships in the wheel |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -2313,6 +2317,87 @@ count and the active-document count on adjacent lines and compared them to nothi
 
 **No `schema_version` bump and no rebuild.** The `doctor` check and both `sync` fixes ship in the
 wheel; the gates do not.
+
+## 0.31.1 — the price nobody was watching · 20260831 23:01
+
+**A shipped number was wrong for a month, every instrument that could have said so was green, and
+the thing that finally caught it was a procedure step being *executed* rather than audited.**
+
+**The defect.** `usd_per_eur` in `src/pinakes/budget/prices.toml` held the value it was seeded with
+on 20260728 — `1.08` — until 20260831. On 20260830 the 0.31.0 release moved `as_of` forward to
+`20260830 14:46` and changed nothing else in the file. The ECB euro reference rate for 20260831 is
+**1.1596**, 7.4% away.
+
+**Every EUR figure this project prints is `cost_usd / usd_per_eur`**, so all of them were
+over-stated by 7.4%: `pnk ask --deep` estimates, the reservations written to the ledger, `pnk budget`
+totals. A EUR cap therefore bit 7.4% early. **The direction is why it was survivable, not why it was
+harmless** — nothing overspent, but the ledger records `cost_usd` and the rate on every line
+precisely so euros can be re-derived later, and every line written since 20260728 carries a rate that
+was never true. The re-derivation is faithful to the record; the record is wrong.
+
+**The rule and its violation are five hours apart in the same day's history.** `a2cc944`
+(20260830 10:57) added `docs/RELEASING.md` § *Before you start* step 3, including the warning that
+*"re-stamping `as_of` without re-verifying the numbers is not a refresh — it is falsifying a
+measurement"*, and a table whose `usd_per_eur` row reads **"this is the field that actually moves"**.
+`c7b0bd9` (20260830 15:53) cut 0.31.0 and changed exactly one line of that file: `as_of`. **A step's
+first run is where it is weakest**, because the person running it is the person who just wrote it,
+checking their own text against their own memory of it.
+
+**The other row in that table is the one that invites the skip.** It says of the model prices
+*"unchanged is the normal outcome"* — and they were unchanged; `claude-opus-5` is still
+`5.00`/`25.00`, re-confirmed against Anthropic's published pricing again for this release. Verifying
+the field that will not have moved feels like performing the step, and it is the half that carries
+no information.
+
+**The staleness guard was healthy the whole time, and guarded the wrong thing.**
+`max_price_age_days` and `pnk doctor`'s WARN both key on `as_of`, so a re-stamped table is maximally
+fresh by every instrument this project owns — which is precisely how a wrong number survives. **An
+instrument that reads the claim cannot check the claim.** The only detector is going back to the
+source, which is why step 3 asks for a *named* one, and why `prices.toml` now names
+`api.frankfurter.dev` (which republishes the ECB series) **in the file** rather than in a commit
+message nobody re-reads. Two independent sources were taken, because being wrong here would have
+looked exactly like being right: the ECB reference rate for the day is 1.1596 and a market quote is
+1.1617 — the difference between a daily fix and an intraday spot, and either would have refuted 1.08.
+
+**And nothing in the test suite ever asserted the committed rate.** Measured exhaustively rather
+than by sampling: every EUR literal under `tests/`, seven candidates, each opened. Six are immune,
+all six for the same reason — they pin the rate where the test controls the input (a local
+constructor default, a module `RATE`, a per-call `rate=`, a fixture deliberately at `1.00`, a value
+put in and read straight back). The seventh, in `tests/test_cli_ask.py`, reaches the shipped rate
+only because `conftest.py`'s `prices_never_age` replaces `as_of` alone — and it exists to
+discriminate €0.21 from €0.26, not to watch FX. `tests/test_budget_core.py` asserts the committed
+rate is a string that parses as a `Decimal`, never its value; `check.sh`'s prices gate checks only
+that `as_of` parses, and explains at length why it is deliberately not a staleness check. **So the
+shipped rate's sole guard was a literal nobody wrote for the purpose**, and it fires when the rate
+*moves*, never when it is *stale* — the wrong half of the property. A month of `1.08` produced no
+signal from anything.
+
+**Which makes the obvious follow-up a trap.** Decoupling that literal from the shipped table would
+delete the only alarm the rate has ever had, and would read as tidying. It is queued as two parts,
+not one: pin the rate at that call site, *and* separately assert the committed rate is plausible.
+**A bound is wrong in one place and right in the other**, which is why one change cannot do both — a
+bound at the call site would admit €0.26 and destroy the discrimination the test is *for*, while a
+bound on the rate is right, because the property there is *"somebody refreshed this"* rather than
+*"it equals X"*. The limit is stated rather than sold: a bound cannot catch stale-but-plausible, and
+**1.08 was plausible for the whole month it was wrong**. Step 3 is the mechanism; the bound is a
+backstop against a typo or a seed value left in place.
+
+**Two retrospective fragments would have spliced malformed**, found while preparing this release
+rather than by any gate. One carried **no `##` heading at all**, and `tools/fragments.py`'s
+retrospectives stream synthesises none — it joins fragment bodies — so its five bullets would have
+landed in `docs/RETROSPECTIVES.md` under the previous fragment's heading, which is a different
+incident. Nothing catches that: the assembled-document checker forbids *adjacent duplicate* headings,
+and the rule that a section must open with a bullet is changelog-only by construction, the
+retrospectives stream carrying no category vocabulary to reach it. The other carried a date-only
+heading stamp where the rule is that the stamp is a *copy* of the filename's `HH:MM`. A gate for the
+first is queued.
+
+**The find came from executing the procedure, not from auditing it.** Step 3 was read for this
+release in order to *run* it, and the defect surfaced in the first thirty seconds. Two days of
+document audits over the same tree had not looked at the value.
+
+**No `schema_version` bump and no rebuild.** `prices.toml` ships in the wheel, so an installed copy
+gets the corrected rate; nothing about any KB changes.
 
 # Part 5 · What is not built
 

@@ -9,8 +9,14 @@
 # usd_per_eur carries the same as_of as the model prices below: every EUR figure this project
 # computes depends on it, and a rate with its own, different staleness would make "the prices are
 # fresh" a claim about only half of what an estimate actually uses.
-as_of = "20260830 14:46"
-usd_per_eur = "1.08"
+#
+# The rate is the ECB euro foreign-exchange reference rate for the stamp date, read from
+# api.frankfurter.dev (which republishes the ECB series). Named here because docs/RELEASING.md's
+# re-verification step asks for "a named FX source, on the day you stamp", and an unnamed source is
+# not re-checkable by the next release. It sat at the seed value 1.08 from 20260728 to
+# 20260831 22:52 while as_of moved once beneath it -- the exact falsification that step warns about.
+as_of = "20260831 22:52"
+usd_per_eur = "1.1596"
 
 # Measured against the live API on 20260729 03:17 with claude-opus-5, over the synthetic corpus
 # (docs/MEASUREMENT-RUN.md). Recorded here rather than only in a retrospective because the next
