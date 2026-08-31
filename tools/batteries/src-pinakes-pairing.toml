@@ -17,7 +17,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 18
+mutants = 22
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -364,3 +364,72 @@ file = "src/pinakes/pairing.py"
 old = '''                        reason=CHANGED if content_changed else RETIRED,'''
 new = '''                        reason=RETIRED if retired else CHANGED,'''
 kills = "tests/test_pairing.py::test_a_retired_paid_row_whose_file_returns_changed_still_says_changed"
+
+# --------------------------------------------------------------------------------------------
+# unreleased, 20260831 - S16's residue: a path collision is recorded, and ONLY a path collision
+# --------------------------------------------------------------------------------------------
+#
+# Ordering a chain makes action N+1 depend on action N; `_apply` catches a per-document failure and
+# continues, and a caught failure rolls back, so the failed row keeps its path and the next action
+# collides. That raised a raw `sqlite3.IntegrityError` past every handler in the stack.
+#
+# **The decision this section pins is the NARROW half, and it is the half a future edit will get
+# wrong.** The obvious repair -- add `sqlite3.IntegrityError` to the except tuple -- is one line and
+# swallows every other constraint in `store.py` with it, filing a Pinakes bug as one document's
+# failure while the run reports success around it. Row 2 below is that exact edit, and it is why
+# this section exists: without it, the bare catch passes the whole suite.
+#
+# Rows 3 and 4 split the predicate's two clauses, and are separate rows because neither case covers
+# the other: three of the four negative cases in the witness fail on the column substring alone, so
+# the `sqlite_errorname` clause went unexercised until a `NOT NULL constraint failed: documents.path`
+# was added -- the one breach whose message names the right column under the wrong error code.
+
+[[mutant]]
+name = "CONTROL - the narrow catch is removed and the collision escapes again"
+file = "src/pinakes/sync.py"
+# The whole fix reverted, which is the shipped behaviour S16 was filed for: `pnk sync` exits 1 on a
+# raw traceback, and `pnk doctor` still answers `failures: none recorded`.
+old = """    except (PinakesError, OSError, ValueError, sqlite3.IntegrityError) as caught:
+        if isinstance(caught, sqlite3.IntegrityError):
+            if not _is_path_still_held(caught):
+                raise
+            exc: Exception = PathStillHeldError(path)
+        else:
+            exc = caught"""
+new = """    except (PinakesError, OSError, ValueError) as exc:"""
+kills = "tests/test_sync.py::test_a_rename_chain_whose_middle_document_fails_records_the_collision_instead_of_crashing"
+
+[[mutant]]
+name = "THE REJECTED OPTION - a bare sqlite3.IntegrityError swallows every constraint"
+file = "src/pinakes/sync.py"
+# The review's own proposed containment ("one line"), and the option the user declined 20260831. A
+# CHECK or PK breach becomes a recorded per-document failure and the run continues around it.
+old = """    except (PinakesError, OSError, ValueError, sqlite3.IntegrityError) as caught:
+        if isinstance(caught, sqlite3.IntegrityError):
+            if not _is_path_still_held(caught):
+                raise
+            exc: Exception = PathStillHeldError(path)
+        else:
+            exc = caught"""
+new = """    except (PinakesError, OSError, ValueError, sqlite3.IntegrityError) as caught:
+        exc: Exception = (
+            PathStillHeldError(path) if isinstance(caught, sqlite3.IntegrityError) else caught
+        )"""
+kills = "tests/test_sync.py::test_an_integrity_error_from_another_constraint_still_escapes_apply"
+
+[[mutant]]
+name = "the error-code clause goes, so a NOT NULL breach on documents.path reads as a collision"
+file = "src/pinakes/sync.py"
+# Leaves the column substring alone. `NOT NULL constraint failed: documents.path` then matches, and
+# a genuine invariant breach is recorded as an ordinary rename collision.
+old = """    return exc.sqlite_errorname == "SQLITE_CONSTRAINT_UNIQUE" and "documents.path" in str(exc)"""
+new = """    return "documents.path" in str(exc)"""
+kills = "tests/test_sync.py::test_only_the_documents_path_collision_is_caught_and_every_other_constraint_escapes"
+
+[[mutant]]
+name = "the column clause goes, so any UNIQUE collision anywhere in the schema reads as a rename"
+file = "src/pinakes/sync.py"
+# `chunks(doc_id, ordinal)` and `nodes(kind, key)` are both UNIQUE, and both mean Pinakes is wrong.
+old = """    return exc.sqlite_errorname == "SQLITE_CONSTRAINT_UNIQUE" and "documents.path" in str(exc)"""
+new = """    return exc.sqlite_errorname == "SQLITE_CONSTRAINT_UNIQUE\""""
+kills = "tests/test_sync.py::test_only_the_documents_path_collision_is_caught_and_every_other_constraint_escapes"

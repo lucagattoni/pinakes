@@ -36,7 +36,7 @@ from pinakes.sync import (
     MAX_PROBED_PER_ROOT,
     SyncOptions,
     SyncReport,
-    _is_path_still_held,
+    _is_path_still_held,  # pyright: ignore[reportPrivateUsage]
     sync,
     walk_document_paths,
 )
@@ -2708,9 +2708,12 @@ def test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row(kb: Path) -
     `docs/b.md` sits on disk with its sidecar and **no row at all**, and because there is no
     retired row to find, `pnk doctor`'s own check for this cannot see it either.
 
-    **The sync's own outcome is deliberately not asserted.** The collision it raises on belongs to
-    a separate defect with its own fix; what this test pins is that no live document loses its row,
-    which must hold however that defect is settled.
+    **The sync's own outcome is deliberately not asserted here.** The collision it raises on
+    belonged to a separate defect, settled 20260831 by catching it narrowly in `_apply` — so the
+    `contextlib.suppress` below now has nothing to suppress, and
+    `test_a_rename_cycle_is_a_recorded_failure_with_a_remedy_rather_than_a_traceback` is what pins
+    that. What this test pins is the older and wider claim: no live document loses its row, which
+    had to hold however that defect was settled, and still has to.
     """
     write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
     write(kb, "b.md", "# Beta\n\nBeta body here.\n")
@@ -2903,10 +2906,19 @@ def test_only_the_documents_path_collision_is_caught_and_every_other_constraint_
     collision = raised("INSERT INTO documents VALUES ('two', 'docs/a.md', 'active')")
     assert _is_path_still_held(collision), "the one case a rename can legitimately produce"
 
+    # The NOT NULL case earns its place: its message *does* contain `documents.path`, so it is the
+    # only one of the four that the column substring alone lets through, and therefore the only one
+    # that actually exercises the `sqlite_errorname` clause. Written after noticing that the other
+    # three all fail on the column and would stay green with that clause deleted. `store.py`
+    # declares `path TEXT NOT NULL UNIQUE`, so it is reachable on the real table, not a contrivance.
     for sql, why in (
         ("INSERT INTO documents VALUES ('one', 'docs/z.md', 'active')", "a duplicate primary key"),
         ("INSERT INTO documents VALUES ('three', 'docs/z.md', 'bogus')", "a CHECK breach"),
         ("INSERT INTO chunks VALUES ('one', 0)", "a chunks(doc_id, ordinal) collision"),
+        (
+            "INSERT INTO documents VALUES ('four', NULL, 'active')",
+            "a NOT NULL breach on that very column",
+        ),
     ):
         assert not _is_path_still_held(raised(sql)), (
             f"{why} means Pinakes is wrong; recording it as one document's failure hides a bug"

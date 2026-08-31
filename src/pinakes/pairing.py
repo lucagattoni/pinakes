@@ -552,7 +552,11 @@ def _order_for_path_availability(
     exactly as it was.** Swapping two names has no applicable order at all — whichever moves first
     writes onto a path the other still holds — and resolving it needs a temporary path this pure
     function has no way to create. So the cyclic actions keep their order **relative to each other**
-    and still fail at the first write, exactly as they do on 0.30.2 — the *outcome* is untouched.
+    and still fail at the first write, exactly as they do on 0.30.2 — the *plan* is untouched.
+    What the user is told about that failure is **not**: since 20260831 the collision is caught
+    narrowly in `sync._apply` and recorded as a `PathStillHeldError` naming the temporary-name
+    remedy, where it used to escape as a raw `sqlite3.IntegrityError`. The cycle is still not
+    applied; it is merely no longer a traceback.
     They are appended after the actions that could be ordered rather than left where they were,
     which is the one thing about a mixed plan that does change, and is stated because an earlier
     version of this sentence claimed otherwise.
@@ -632,9 +636,10 @@ def _order_for_path_availability(
     #
     # **They are NOT left in place, and an earlier version of this comment said they were.** Two
     # reviewers found it separately. The distinction matters only for a plan holding a cycle *and*
-    # other actions: those others now come first. It changes nothing about the outcome — a swap
-    # still fails at its first write, as it does in 0.30.2 — but "unchanged behaviour" was a claim
-    # about the list, and the list does change.
+    # other actions: those others now come first. It changes nothing about which write fails — a
+    # swap still fails at its first — but "unchanged behaviour" was a claim about the list, and the
+    # list does change. Nor is the *reported* outcome unchanged any more: `sync._apply` catches that
+    # collision since 20260831 and records it with a remedy instead of letting it escape.
     ordered.extend(actions[index] for index in sorted(remaining))
     return ordered
 
