@@ -716,6 +716,24 @@ stopped in a message, which is what the other six were. Both are the same shape:
   however much the aggregate happens to swallow — here, five errors in six. **An aggregate is an
   instrument, and it has a selector of its own.**
 
+  **And the *"one file apart"* sentence was written by this section's own author, in the paragraph
+  correcting the population failure, one turn after describing it.** The check was: compare mtime
+  against the union, see the two agree to within a day, write that down as the instrument's error
+  rate. That is a claim resting on a set nobody named — the set being *"the union"*, chosen because
+  it was the number already on screen. **The rule caught its author for the second time in one
+  night, in the document about the rule, while the previous instance was still being typed.** Which
+  is the argument against treating any of these as carelessness: three sessions, each holding the
+  rule explicitly, each broke it within an hour of writing it down.
+
+  **The durable home of this lesson is not here.** It is a bullet in
+  `retro.d/20260831_2259-a-population-that-could-not-contain-the-thing-i-looked-for.md`, which
+  splices into `docs/RETROSPECTIVES.md` at the next release. **This section is the incident
+  register and that is the lesson** — a deliberate second copy, because a plan closes and the
+  retrospective does not. **If one is ever corrected, correct both**: two registers of the same
+  facts drifting apart is a failure this repository has already recorded once, in
+  [`20260825_1252-plans-sweep-findings.md`](20260825_1252-plans-sweep-findings.md), where twelve of
+  27 rows stopped describing the tree while the bullets above them were kept current.
+
 **All four of the night's errors were caught by re-running a measurement and none by re-reading a
 sentence** — including the two that had already been reviewed, committed, and merged. That is the
 practical form of the rule: *state the selector* is what makes a claim re-runnable, and re-running
