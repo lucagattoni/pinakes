@@ -278,11 +278,26 @@ only wrong because the behaviour it promises does not exist. Fixing only the str
 S16 and needs its own increment. Each failed sync appends another identical failure row (4 after four
 runs), so the ledger grows without bound while the state never changes.
 
-### S18 † — a restored paid document is refused forever, and the reason it prints is false
+### S18 ✅ **FIXED on `main`** — a restored paid document was refused forever, and the reason it printed was false
 
-**Found by the coder 20260826 while adversarially reviewing S2. Severity **MEDIUM**. STILL OPEN —
-re-checked by the planner 20260826 04:40 on `main` at `325ab9e`**, after S17 turned out to have been fixed by
-an unrelated increment: the disjunct is still there, so this one did not go the same way.
+> ### ✅ FIXED 20260830 (`a2f5b86`), and this heading read `†` OPEN for a day after it shipped
+>
+> **Caught 20260831 by the coder's entry-point audit, not by any gate.** `pnk sync` no longer tells
+> a restored, byte-identical paid document that its content changed: the outcome is a `failures`
+> row naming **`RETIRED`**, which [`docs/DESIGN.md`](../docs/DESIGN.md)'s paid-drift table now
+> specifies rather than leaving to the code. The fuller answer — reviving it free from a warm
+> extraction cache — is **deliberately not taken**: `_paid_survivor_in_current_index` requires
+> `state = 'active'` and `WalkedSidecar` carries no provenance, so `pair()` can see neither fact it
+> would need. **The cost is recorded rather than hidden: a warm cache still pays.**
+>
+> **This is the third time a section in this file outlived its own fix** — S17 and S2 were both
+> closed-but-reading-live before it. **A heading is not a gate**, and `plans/` has none.
+
+**Found by the coder 20260826 while adversarially reviewing S2. Severity **MEDIUM**.** The
+diagnosis that closed it was a *static reading of six sites* — `pairing.py:298`, `sync.py:1322`,
+`:1363`, `:2190-2208`, `DESIGN.md:1036`, `errors.py:380` — and it found that `pairing.py:298`
+**pre-empts a decision `sync.py:2190` already makes correctly**, one layer up and with less
+information. `DESIGN.md:1036` had forbidden by name the exact string the tool printed.
 
 **⚠️ Cite it by symbol, not by line.** It was `pairing.py:244` when first recorded and is
 **`pairing.py:298`** now — the S2 rework moved it four hours later. Find it with
