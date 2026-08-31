@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -323,3 +325,53 @@ def test_each_narrow_scope_names_itself_in_the_output(
         assert expected in out
         assert "1 transcripts" in out, f"--scope {scope} must select exactly its own kind"
         assert "claude-fable-5" in out, "the fixture's fan-out transcripts are fable"
+
+
+def _journal(root: Path, run_name: str, rows: list[dict[str, Any]], age_minutes: float) -> Path:
+    """A workflow journal whose mtime is `age_minutes` in the past."""
+    import os
+    import time
+
+    run = root / "proj" / "session" / "subagents" / "workflows" / run_name
+    run.mkdir(parents=True)
+    journal = _write(run / "journal.jsonl", [json.dumps(row) for row in rows])
+    stamp = time.time() - age_minutes * 60
+    os.utime(journal, (stamp, stamp))
+    return journal
+
+
+def test_a_run_still_writing_is_not_counted_as_having_lost_its_agents(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The confound that turned a healthy run into a finding on 20260831.
+
+    A workflow read mid-flight shows every agent that has not returned yet as having no terminal
+    row, and that reading is indistinguishable from a run that was killed. One was reported as a
+    loss and completed 9-of-9 minutes later. Journal rows carry no timestamp of their own, so the
+    guard is the file's mtime.
+    """
+    started_only = [
+        {"type": "started", "agentId": "a1"},
+        {"type": "started", "agentId": "a2"},
+        {"type": "result", "agentId": "a1"},
+    ]
+    _journal(tmp_path, "wf_live", started_only, age_minutes=1)
+    _journal(tmp_path, "wf_old", list(started_only), age_minutes=600)
+
+    assert agent_spend.command_workflows(tmp_path, None, 60.0) == 0
+    guarded = capsys.readouterr().out
+    assert "1 settled workflow runs" in guarded, "the live run must not be in the population"
+    assert "1 run(s) excluded" in guarded, "and its exclusion must be stated, not silent"
+    assert re.search(r"NO terminal row\s+1\b", guarded), "only the settled run's orphan counts"
+
+    assert agent_spend.command_workflows(tmp_path, None, 0.0) == 0
+    unguarded = capsys.readouterr().out
+    assert "2 settled workflow runs" in unguarded, "--settle-minutes 0 disables the guard"
+    assert re.search(r"NO terminal row\s+2\b", unguarded), "the live run's agent is counted too"
+
+
+def test_a_journal_with_no_readable_mtime_is_treated_as_settled(tmp_path: Path) -> None:
+    """An unknown age must not silently drop a run from the population — the guard excludes what it
+    can prove is recent, never what it merely cannot date."""
+    run = agent_spend._RunOutcomes(agents={"a1": agent_spend.NO_OUTCOME}, last_written=None)
+    assert run.is_settled(datetime.now(UTC))
