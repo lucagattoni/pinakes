@@ -2837,6 +2837,10 @@ def test_a_rename_chain_whose_middle_document_fails_records_the_collision_instea
     recorded = {str(row["path"]) for row in failures(kb)}
     assert recorded, "nothing in the failures table means `pnk doctor` still reports OK"
     assert "docs/d.md" in recorded, "the document that actually broke must be named too"
+    # `cli` returns EXIT_FAILURE on `not report.ok`, and `ok` is `not self.failures`. Asserted
+    # because the danger in catching an exception is trading a loud crash for a quiet success:
+    # `pnk sync` must still exit non-zero here, and nothing else pins that it does.
+    assert not report.ok, "a recorded collision that still exits 0 is worse than the traceback"
 
 
 def test_a_rename_cycle_is_a_recorded_failure_with_a_remedy_rather_than_a_traceback(
@@ -2869,6 +2873,7 @@ def test_a_rename_cycle_is_a_recorded_failure_with_a_remedy_rather_than_a_traceb
         f"the cycle still surfaced as something other than a recorded failure: {report.failures}"
     )
     assert failures(kb), "a cycle `pnk doctor` cannot see is the symptom this closes"
+    assert not report.ok, "the cycle is contained, not resolved — `pnk sync` still exits non-zero"
     surviving = {Path(str(row["path"])).name for row in index(kb) if row["state"] == "active"}
     assert surviving == {"a.md", "b.md"}, "no live document may lose its row to a refused cycle"
 
