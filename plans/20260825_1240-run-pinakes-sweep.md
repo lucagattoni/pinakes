@@ -518,7 +518,7 @@ until this pass at **06:19**.
 | 4 | **S1** — `PermissionError` aborts the whole walk | nothing | coder |
 | 5 | **S4** — escape at render in `template.py` | nothing | coder |
 | 6 | **S5–S9** — the accept-then-mishandle batch. **D-37 is what was stopping it**, at S6, and D-37 is answered | nothing | coder |
-| 7 | **S18** — a restored paid document is refused forever, and the reason it prints is false | nothing | coder |
+| 7 | ~~**S18** — a restored paid document is refused forever, and the reason it prints is false~~ **✅ BUILT 20260830 `a2f5b86`**, with its `docs/DESIGN.md` row in `8bb4be0`. **This row outlived the section heading's fix by a day** — the heading was ticked and the queue was not, and the queue is the register that wins | — | done |
 | 8 | **D-36's build** — **ANSWERED 20260825 18:16, option E** (derive the bound from a generative round-trip corpus; set the free `ruamel` options). *This row used to name two options; option E replaced both, and **the adversarial pass invented it** — read the decision, never a memory of the options.* **Scheduled here as of 20260826**; until then this row read *build unscheduled*, which is an owner with no queue position | nothing — answered | coder |
 | 9 | **D-37's build** — **ANSWERED 20260825 18:16, option E**: gate the move hint on the **orphaned sidecar**, not the mint count. Also invented by the adversarial pass | nothing — answered | coder |
 | 10 | The Low section's findings (**four classes; the count of five is retracted in this file's header**) | S1–S9 | coder |

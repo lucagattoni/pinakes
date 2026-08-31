@@ -162,7 +162,7 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   must state the selector**, and the record of **six** wrong claims in one day, each a valid
   inference over a population nobody named. **`prices.toml` is refreshed at every release
   now** — `docs/RELEASING.md` § *Before you start* step 3, which had never existed.
-- **🛑 Two plans have scheduled work, and it is now all coder work — every decision is taken.**
+- **🛑 Two plans have scheduled work. Most of it is coder work; two things are not.** **The S16 branch's HIGH is a live *user* decision holding a landing**, and rows 3–5 of the red-main plan are owner **planner**. *(This bullet read "it is now all coder work — every decision is taken" until 20260831, which was false in both directions.)*
   The **eight decisions and fifteen questions** in
   [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md) were **ANSWERED by
   the user 20260825 18:16**, and the planner's half of them landed **20260825 18:39–18:56 UTC**, with later records and corrections through 20260826: D-34 closed
@@ -192,7 +192,7 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   it had been cured.
   **S17 is ✅ FIXED** (it printed a remedy that never worked and left the document unindexed): the
   moved-sidecar guard from S2's second review fixed it as a side effect, **verified with a control**.
-  **S2 is ✅ BUILT** (landed `3876b57`, 20260826 04:06 UTC). **S18 is open. S19 is open and now *measured*** — its non-cyclic half reproduces, run independently by both sessions 20260826 07:19 UTC, so S16's scope is settled: ordering the applicable plans fixes the whole chain class, **cycles are a separate mechanism**, and the pinning case is a chain of three rather than a two-file swap. **D-36 and D-37 are now answered**. Every
+  **S2 is ✅ BUILT** (landed `3876b57`, 20260826 04:06 UTC). **S18 is ✅ BUILT** (20260830, `a2f5b86` + `8bb4be0`; this file was the last register still calling it open). **S19 is open and now *measured*** — its non-cyclic half reproduces, run independently by both sessions 20260826 07:19 UTC, so S16's scope is settled: ordering the applicable plans fixes the whole chain class, **cycles are a separate mechanism**, and the pinning case is a chain of three rather than a two-file swap. **D-36 and D-37 are now answered**. Every
   other file in `plans/` is closed, answered, deferred or proposed-unscheduled — and **an
   empty-looking list still means *the next thing to build has not been planned yet*, never *nothing
   to do***. `docs/ROADMAP.md` Part 5 holds what comes after.
