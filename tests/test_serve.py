@@ -1,6 +1,8 @@
 """The MCP surface: what it will answer, what it refuses, and what it calls its answers."""
 
-from collections.abc import Iterator, Sequence
+import sqlite3
+import threading
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 
 import numpy as np
@@ -17,6 +19,31 @@ from pinakes.sync import SyncOptions, sync
 
 DIM = 3
 VOCABULARY = ("retrieval", "ranking", "sourdough")
+
+
+def on_a_new_thread[T](work: Callable[[], T]) -> T:
+    """Run `work` on a thread that is genuinely not this one, and re-raise whatever it raised.
+
+    A thread id is reused by the OS the moment its thread is reclaimed -- three successive `anyio`
+    workers reported one identical id when this was measured -- so *starting a thread* is the only
+    reliable way to be somewhere else. Re-raising matters as much as running: swallowing the
+    exception would turn the defect under test into a silent pass.
+    """
+    returned: list[T] = []
+    raised: list[BaseException] = []
+
+    def run() -> None:
+        try:
+            returned.append(work())
+        except BaseException as exc:  # noqa: BLE001 - re-raised on the calling thread below
+            raised.append(exc)
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    thread.join()
+    if raised:
+        raise raised[0]
+    return returned[0]
 
 
 class FakeBackend:
@@ -187,6 +214,104 @@ def test_an_index_swapped_underneath_is_picked_up(kb: Path, server: Server) -> N
 
     _, after = server.search("sourdough", k=None)
     assert {p.path for p in after.passages} > {p.path for p in before.passages}
+
+
+def test_a_search_from_a_second_thread_answers_instead_of_raising(server: Server) -> None:
+    """S3: one cached `sqlite3.Connection` was handed to whichever thread asked next.
+
+    `serve.py` starts no threads, so this looked single-threaded from inside the file. The MCP
+    transport supplies them: a sync tool runs under `anyio.to_thread.run_sync`, on a pooled worker
+    retired after ten idle seconds, so a burst of calls shares one thread and the call after a pause
+    gets a new one. That is why `pnk serve` worked in every test and failed for anyone who left it
+    alone for a moment -- `sqlite3` refuses a connection used off the thread that opened it.
+
+    **The seam, named:** this drives real `threading.Thread`s instead of waiting out `anyio`'s idle
+    timer, so it proves the handler is per-thread but not that the transport ever uses a second
+    thread. That half is the premise, and it is asserted separately against the library in
+    `test_the_mcp_transport_runs_a_sync_tool_off_the_calling_thread` rather than assumed.
+    """
+    _, first = server.search("sourdough", k=None)
+    assert first.passages
+
+    _, second = on_a_new_thread(lambda: server.search("sourdough", k=None))
+    assert [p.path for p in second.passages] == [p.path for p in first.passages]
+
+
+def test_the_mcp_transport_runs_a_sync_tool_off_the_calling_thread() -> None:
+    """The premise the per-thread connection rests on, measured against `mcp` rather than assumed.
+
+    If the library ever stopped offloading sync tools this goes red, which is the point: the fix
+    above is only necessary while this is true, and nothing else in the suite would notice.
+    """
+    import asyncio
+
+    from mcp.server.mcpserver import MCPServer
+
+    probe = MCPServer("probe", version="0")
+    ran_on: list[int] = []
+
+    def where_did_this_run() -> str:
+        ran_on.append(threading.get_ident())
+        return "recorded"
+
+    probe.tool()(where_did_this_run)
+    asyncio.run(probe.call_tool("where_did_this_run", {}))
+
+    assert ran_on and ran_on[0] != threading.get_ident()
+
+
+def test_a_rebuilt_index_is_picked_up_by_a_thread_that_did_not_open_it(
+    kb: Path, server: Server
+) -> None:
+    """Per-thread handles must not cost the §6.5 reopen: every thread checks the file itself.
+
+    **The opener is the main thread deliberately.** Written first as two successive worker threads,
+    where it passed against the unfixed code: the first had exited, macOS had already handed its id
+    to the second, and `sqlite3` -- which compares ids, not threads -- saw one thread. A test whose
+    trigger depends on whether the OS recycled an id yet is a coin toss, so the opener here is a
+    thread that is still running when the reader starts.
+    """
+    server.search("sourdough", k=None)
+
+    (kb / "docs" / "c.md").write_text("# More\n\nMore sourdough notes.\n", encoding="utf-8")
+    sync(load(kb), options=SyncOptions(rebuild=True), now="20260725 18:10")
+
+    _, after = on_a_new_thread(lambda: server.search("sourdough", k=None))
+    assert "docs/c.md" in {p.path for p in after.passages}
+
+
+def test_close_reaps_a_handle_opened_on_a_thread_that_has_since_exited(server: Server) -> None:
+    """Shutdown runs on the main thread, and the handles it must close belong to worker threads.
+
+    This is what `owning_thread_only=False` buys: with `sqlite3`'s check left on, closing another
+    thread's connection raises, so a per-thread cache would be a per-thread *leak* -- correct until
+    shutdown, and then unable to release a single descriptor it opened.
+    """
+    served = server._kbs[0]  # pyright: ignore[reportPrivateUsage]
+    opened = on_a_new_thread(served.connection)
+
+    server.close()
+
+    assert not served._open  # pyright: ignore[reportPrivateUsage]
+    with pytest.raises(sqlite3.ProgrammingError):
+        opened.execute("SELECT 1")
+
+
+def test_handles_do_not_accumulate_one_per_thread_across_a_long_run(server: Server) -> None:
+    """A pooled worker is retired every ten idle seconds, so a day's threads would be a day's fds.
+
+    Dead entries are dropped at the next open. The bound asserted is *small*, not exact: the main
+    thread may hold one of its own alongside the live worker's.
+
+    Unlike the tests above this one does not pin the *fix* -- the design it replaces held a single
+    connection and satisfies any bound trivially. It pins `_reap_dead_threads`, and was checked by
+    deleting that call rather than by reverting the fix.
+    """
+    served = server._kbs[0]  # pyright: ignore[reportPrivateUsage]
+    for _ in range(12):
+        on_a_new_thread(lambda: server.search("sourdough", k=None))
+
+    assert len(served._open) <= 2  # pyright: ignore[reportPrivateUsage]
 
 
 def test_the_tools_are_namespaced(kb: Path) -> None:

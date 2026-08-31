@@ -212,7 +212,7 @@ def create(path: Path) -> sqlite3.Connection:
     return connection
 
 
-def _open(path: Path, *, writable: bool) -> sqlite3.Connection:
+def _open(path: Path, *, writable: bool, owning_thread_only: bool = True) -> sqlite3.Connection:
     """Open an existing index, turning sqlite's own errors into ones that carry a remedy.
 
     `PRAGMA journal_mode` is the first statement to touch the file, so a non-database file fails
@@ -222,7 +222,7 @@ def _open(path: Path, *, writable: bool) -> sqlite3.Connection:
     if not path.exists():
         raise StoreError(f"no index at {path}.", remedy="Build one with `pnk sync`.")
     target = str(path) if writable else f"file:{path}?mode=ro"
-    connection = sqlite3.connect(target, uri=not writable)
+    connection = sqlite3.connect(target, uri=not writable, check_same_thread=owning_thread_only)
     try:
         _configure(connection, writable=writable)
         _check_schema_version(connection, path)
@@ -242,9 +242,18 @@ def connect_rw(path: Path) -> sqlite3.Connection:
     return _open(path, writable=True)
 
 
-def connect_ro(path: Path) -> sqlite3.Connection:
-    """Open read-only. The MCP server uses this: it cannot write even by mistake (§6.5)."""
-    return _open(path, writable=False)
+def connect_ro(path: Path, *, owning_thread_only: bool = True) -> sqlite3.Connection:
+    """Open read-only. The MCP server uses this: it cannot write even by mistake (§6.5).
+
+    `owning_thread_only=False` clears sqlite3's `check_same_thread` assertion. It does **not** mean
+    the connection may be shared: `pnk serve` keeps one connection per thread and so never touches
+    one from two threads at once. What the assertion actually blocks is the *reaping* -- a worker
+    thread's connection has to be closed by whoever shuts the server down, which is a different
+    thread, and with the assertion on that raises instead of closing (S3). Callers that keep a
+    connection on the thread that opened it leave the default alone.
+    """
+    connection = _open(path, writable=False, owning_thread_only=owning_thread_only)
+    return connection
 
 
 def _check_schema_version(connection: sqlite3.Connection, path: Path) -> None:

@@ -18,7 +18,8 @@ Tools are namespaced `pinakes_*`, never `kb_*` — an agent usually has several 
 """
 
 import sqlite3
-from dataclasses import dataclass
+import threading
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -102,12 +103,22 @@ def _paged(
 
 
 @dataclass(slots=True)
+class _ThreadConnection:
+    """One thread's handle on one index, and the file signature it was opened against."""
+
+    connection: sqlite3.Connection
+    signature: tuple[int, int, float]
+
+
+@dataclass(slots=True)
 class ServedKb:
-    """One KB the server is willing to answer about, plus its cached open handles."""
+    """One KB the server is willing to answer about, plus its per-thread open handles."""
 
     manifest: Manifest
-    _connection: sqlite3.Connection | None = None
-    _signature: tuple[int, int, float] | None = None
+    _open: dict[threading.Thread, _ThreadConnection] = field(
+        default_factory=dict[threading.Thread, _ThreadConnection], init=False, repr=False
+    )
+    _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     @property
     def name(self) -> str:
@@ -122,24 +133,63 @@ class ServedKb:
         return (stat.st_ino, stat.st_size, stat.st_mtime)
 
     def connection(self) -> sqlite3.Connection:
-        """Reopen when the file underneath has changed — a rebuild swaps the whole inode (§6.5)."""
+        """One connection per thread, reopened when the file underneath changes (§6.5).
+
+        Two separate reasons to hold more than one handle, and they compose rather than conflict:
+
+        * **Per thread**, because a `sqlite3.Connection` may only be used by the thread that opened
+          it. Nothing in this file starts a thread — the MCP transport does: every sync tool runs
+          under `anyio.to_thread.run_sync`, on a pooled worker that is retired after ten idle
+          seconds. So back-to-back calls land on one thread and any pause past that window lands on
+          a new one, which is why this failed only for users who left the server alone for a moment
+          and never in a burst (S3).
+        * **Re-opened on change**, because a `--rebuild` swaps the whole inode and an open handle
+          keeps the old one alive, reporting a stale `meta.build_id` forever.
+
+        Handles are reaped two ways so a long-lived server does not accumulate file descriptors for
+        threads that no longer exist: `close()` takes the live ones at shutdown, and each open first
+        drops the entries whose thread has died.
+
+        **Keyed by the thread object, never by `get_ident()`.** The operating system reuses a thread
+        id as soon as the thread holding it is reclaimed — measured here on macOS, where three
+        successive `anyio` worker threads reported one identical id — so an id is a slot, not an
+        identity: keying on it hands a new thread the handle of a dead one and makes a dead entry
+        indistinguishable from a live one, which is exactly the entry reaping exists to find.
+        `current_thread()` also registers a thread this process did not start, so that `is_alive()`
+        has an answer for it.
+        """
         if not self.manifest.index_path.exists():
             raise ServeError(
                 f"{self.name} has no index.",
                 remedy="Run `pnk sync` in that KB, then retry.",
             )
         signature = self._stat_signature()
-        if self._connection is None or signature != self._signature:
-            if self._connection is not None:
-                self._connection.close()
-            self._connection = store.connect_ro(self.manifest.index_path)
-            self._signature = signature
-        return self._connection
+        current = threading.current_thread()
+        with self._lock:
+            held = self._open.get(current)
+            if held is not None and held.signature == signature:
+                return held.connection
+            if held is not None:
+                held.connection.close()
+                del self._open[current]
+            self._reap_dead_threads()
+            # `owning_thread_only=False` is what lets `close()` reap these from the shutting-down
+            # thread. It does not make the connection shared: one thread owns each, by construction
+            # of this dict.
+            opened = store.connect_ro(self.manifest.index_path, owning_thread_only=False)
+            self._open[current] = _ThreadConnection(opened, signature)
+            return opened
+
+    def _reap_dead_threads(self) -> None:
+        """Close the handles left behind by threads that have since exited. Call under the lock."""
+        for thread in [thread for thread in self._open if not thread.is_alive()]:
+            self._open.pop(thread).connection.close()
 
     def close(self) -> None:
-        if self._connection is not None:
-            self._connection.close()
-            self._connection = None
+        with self._lock:
+            for held in self._open.values():
+                held.connection.close()
+            self._open.clear()
 
 
 class Server:
