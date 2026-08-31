@@ -402,6 +402,32 @@ class PaidExtractionUnavailableError(PinakesError):
         self.recorded_backend = recorded_backend
 
 
+class PathStillHeldError(PinakesError):
+    """A document could not be written to its path because another row still holds it.
+
+    `documents.path` is `UNIQUE`, so a rename is only applicable once the path it targets is free.
+    `pairing._order_for_path_availability` orders a chain so that each move lands on a path already
+    vacated — but ordering cannot help two documents exchanging names (no order works), and it is
+    undone at runtime when an earlier move in the chain fails to index and its row is rolled back
+    to the path it started from.
+
+    Raised in place of the raw `sqlite3.IntegrityError` those cases used to surface as, so the
+    outcome is a recorded failure with a remedy rather than a traceback (S16).
+    """
+
+    def __init__(self, path: str) -> None:
+        super().__init__(
+            f"{path} could not be written: another document still holds that path.",
+            remedy=(
+                "Two documents are exchanging names -- a cycle no single sync can apply -- or an "
+                "earlier document in the same rename chain failed to index and kept its old path; "
+                "`pnk doctor` lists what was recorded. Move one of them to a temporary name, run "
+                "`pnk sync`, then rename it to its final name and sync again."
+            ),
+        )
+        self.path = path
+
+
 class FloorsMissingError(PinakesError):
     """`extract/floors.toml` is missing or unreadable. Never a single document's fault — every
     pypdfium2 extraction needs the fitted running-head threshold *T* it carries, so this is an
