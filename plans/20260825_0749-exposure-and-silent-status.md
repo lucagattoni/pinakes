@@ -606,7 +606,7 @@ read its section above for the decided three-layer shape, which is *not* what th
 
 | # | Item | Blocked on | Owner |
 |---|---|---|---|
-| 1 | **X1** — the tracked-KB question, its own state and its own remedy, in `init` | nothing | coder |
+| 1 | ~~**X1** — the tracked-KB question, its own state and its own remedy, in `init`~~ — **✅ BUILT and on `main`, `35cdc79`.** § *X1* in this file has said so since it landed; **this row did not, until 20260831 22:36.** Two registers one file apart, and `CLAUDE.md` says the build order wins — so this row was the one a coder would act on | done | coder |
 | 2 | ~~**X2** — the open-corrections restructure~~ — **BUILT 20260825 13:20.** X3's 53 dispositions, expanded to **100 heading edits across 17 files**, each re-read and then checked by two adversaries. **20 named the wrong file and 5 `old_line` strings are not unique across `plans/`** — a repo-wide replace would have corrupted two of them — so the apply keys on (file, line). **7 dispositions were overturned for writing a false claim.** Residual in [`20260825_1252-plans-sweep-findings.md`](20260825_1252-plans-sweep-findings.md) | — | planner |
 | 3 | ~~**X3** — read the nine unread `plans/` files~~ — **BUILT 20260825 12:52.** All **twenty** read, not nine: the dropped nine could not be identified after the fact. **317 sections classified by body, 93 heading/body mismatches.** Findings: [`20260825_1252-plans-sweep-findings.md`](20260825_1252-plans-sweep-findings.md) | — | planner |
 | 4 | ~~**X4** (stale paragraph only)~~ — **BUILT 20260825 12:49.** Rewritten to the measured state; `test_init.py` moved out of the unrepresented list (27 rows), and the release-count claim removed rather than restated | — | planner |

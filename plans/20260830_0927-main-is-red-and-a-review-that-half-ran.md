@@ -1,4 +1,12 @@
-# `main` is red on the clock, and a review that reported less than it found
+# A review that reported less than it found — the 20260830 red-`main` incident, closed
+
+**`main` is green and every row of this file's build order is ✅ done** (the last, 20260831 22:17
+UTC). The H1 read *"`main` is red on the clock"* until 20260831 22:36 — an unqualified
+present-tense status claim, first line of a file `CLAUDE.md` and `docs/README.md` both route a
+cleared session to. **The filename keeps its original words on purpose**: both entry points link
+it, and renaming a file to fix a sentence breaks the links that make the sentence findable.
+**Read on for what this file carries** — the 22 findings and their verdicts, the selector rule,
+and the six wrong claims of one day — not for the incident it is named after.
 
 **Written 20260830 09:27 UTC against `main` at `3712a7f`.** Two things happened while nobody was
 looking, four days apart, and neither is visible from a commit. **This file exists because the only
@@ -195,12 +203,18 @@ all four of the `.slice()` casualties came back.
 
 ### Confirmed by hand on 20260830, and none of them a typo
 
+**Four of the five rows below carried no disposition until 20260831 22:36**, so only row 1 read as
+fixed and the rest read as live. **All five are fixed and landed** — build-order row 3 records the
+per-row evidence — **except `docs/VERIFICATION.md:198`, which is genuinely still open.** This is
+the two-register shape `CLAUDE.md` names, one level in: the heading is an accurate dated record,
+and the rows under it were the register nobody updated.
+
 | Where | Defect |
 |---|---|
 | `docs/STATUS.md:20`, `:366`, `:1210` | **A bare `\|` inside a code span truncates the row on GitHub — and only on GitHub.** GFM splits the row on the bare pipe *before* inline code is parsed, then **silently drops the overflow to match the header's column count**, so the table still shows the right number of cells and looks intact. **14, 286 and 2 860 characters are discarded.** The 2 860 is the whole per-release commentary from 0.22.0 down to 0.4.1 — including the 0.20.1 warning that a KB setting `vector_tier = "sqlite-vec"` **stops loading entirely**. The published mkdocs site renders all three correctly and in full. **Fixed 20260830**, with the full population and the matrix below |
 | `docs/BUILDING.md:172` | *"the changelog fragment written in `d9fe1a9` carried 'wrong for twelve hours'"* — **at `d9fe1a9` it does not.** The phrase lived only at `29856b9`; `ef1465a` corrected it *before* the merge. The sha in the sentence is wrong |
 | `plans/20260825_1240-run-pinakes-sweep.md:417` | *"the reasoning is also in `src/pinakes/pairing.py`'s docstring"* — `grep -ci cycle src/pinakes/pairing.py` is **0** on `main`. True only on the coder's **unlanded** branch |
-| `docs/VERIFICATION.md:787`, `:282` | both citations point at unrelated rows (`:787` an over-long-path row; `:282` an empty-tag/hub row) |
+| `docs/VERIFICATION.md:787`, `:282` | **✅ Fixed 20260831 22:36 — both, and the fix is to stop citing lines.** `:282` is cited by `plans/20260825_1240` for *"comments survive a rewrite"*; on `main` that row is *"unknown keys inside a link entry survive it"*, and the promise wanted lives one row above. It now cites the **row text and its test**, so nothing below it can move it again. `:787` was already discharged by layer 2 (`plans/20260825_0749` build-order row 10). **The pairing recorded in this cell was itself wrong** — `:282` was never the empty-tag/hub row, and the over-long-path row is `:299` today, not `:787`. A locator-rot finding whose own locators had rotted |
 | `plans/20260825_1252-plans-sweep-findings.md:87` (row 11) | **a thirteenth stale row the reconciliation missed** — says D-31/32/33 *"none taken"* and `user-decision` when they were answered 20260825 18:16. `docs/README.md:55` says the opposite about the same item |
 
 ### The pipe defect is a class, and no escape fixes both renderers
@@ -297,8 +311,9 @@ rather than relaying it, and it is sharper than either report.
 **So this is a test-side change, which is also why it needs no decision.** No production seam, no
 new parameter, no `src/` edit at all.
 
-**And the defect's own cause is written down beside it, as an assumption.**
-`tests/test_doctor.py`'s failing `test_the_price_table_is_reported_with_its_date` asserts
+**And the defect's own cause was written down beside it, as an assumption.**
+**[Discharged 20260830 by `240e121`/`b59e58f`; the tense below is that of the incident.]** `test_the_price_table_is_reported_with_its_date` no longer reads the wall clock — it builds a fresh `Prices` and monkeypatches `doctor_module.load_prices`, and its docstring now says *"Neither compares the wall clock against the committed `as_of`, because staleness is deliberately not a CI gate."* Its sibling was corrected in the same change. **Read this section as the reasoning behind build-order row 1, which is ✅ BUILT — not as work owed.** At the time:
+`tests/test_doctor.py`'s failing `test_the_price_table_is_reported_with_its_date` asserted
 `Status.OK` from the real table and the real clock. **One function below it**, its sibling
 `test_a_stale_price_table_warns_and_names_the_setting` ages the *table* rather than the clock, and
 says why:

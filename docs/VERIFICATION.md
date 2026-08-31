@@ -62,10 +62,11 @@ test, or write **none** and say why in the same commit.
   correction was found by counting, never by reading. **Do not restate a release count here at all.**
 * **Two gaps remain, and they are different in kind.** **Five modules carry zero rows** —
   `test_chunk.py`, `test_ids.py`, `test_lock.py`, `test_uri.py`, `test_embed.py`.
-  They predate the table and are not unowned. **Six more are named by no row at all** —
+  They predate the table and are not unowned. **Five more are named by no row at all** —
   `test_build_rfc_corpus.py`, `test_deep_reservation.py`, `test_measure_sync_cpu.py`,
-  `test_rfc_golden_set.py`, `test_two_leg_gate.py`, and **`test_review_pass_gate.py`, which landed in
-  `a36f0e6` and is owed rows under D-34** — a gate's own correctness is a promise. **`test_init.py` is no longer among them: it
+  `test_rfc_golden_set.py`, `test_two_leg_gate.py`. **`test_review_pass_gate.py` left that list on
+  20260831**: it landed in `a36f0e6` carrying no rows and was owed them under D-34 — a gate's own
+  correctness is a promise — and it now has a section of its own at the end of this file. **`test_init.py` is no longer among them: it
   carries 27 rows**, and `test_eval.py` carries 32 throughout *The golden set, per question (G2)* —
   both were once listed here as absent, in error, and each correction was found by counting rather
   than by reading.
@@ -342,6 +343,15 @@ until 20260825, so the boundary itself — what a tool argument may be, and what
 about the text it carries — was held by tests that **no section owned**. Found by the bounded audit
 D-34 licensed, not by a failure. Two of these are security boundaries and are marked as such.
 
+**The last six rows are about the thread a request is answered on (S3, 20260831).** They exist
+because nothing in `src/pinakes/serve.py` starts a thread — the MCP transport does, under
+`anyio.to_thread.run_sync` — so the file reads as single-threaded and every test in the module
+encoded that reading. **Measured through the real dispatch, the trigger is contention, not idle
+time**: six concurrent calls left two answering and four raising `sqlite3.ProgrammingError`, while
+an eleven-second pause reproduced nothing, because the retired worker's thread id had already been
+reused by its replacement and `sqlite3` compares ids. The one symptom that reproduced on every
+attempt was shutdown.
+
 | What must be true | Increment | Where it is checked |
 |---|---|---|
 | **a tool argument is never a path.** `pinakes_get` refuses `../../etc/passwd`, a repo-relative path, and a well-formed but unknown ULID alike, each with a remedy naming `pinakes_search` | I13 | `tests/test_serve.py::test_get_refuses_anything_that_is_not_a_known_id` |
@@ -355,6 +365,12 @@ D-34 licensed, not by a failure. Two of these are security boundaries and are ma
 | a ULID resolves through the index to its document | I13 | `tests/test_serve.py::test_get_resolves_a_ulid_through_the_index` |
 | a KB is selectable by name or by ULID, and the first configured KB is the default | I13 | `tests/test_serve.py::test_a_kb_can_be_selected_by_name_or_ulid` |
 | `pinakes_list_kbs` reports each KB's name, id and document count | I13 | `tests/test_serve.py::test_list_kbs_reports_document_counts` |
+| a search from a **second thread** is answered rather than refused. **The opener is the main thread deliberately** — written as two successive workers it passed against the unfixed code, because macOS hands a retired thread's id straight to its replacement | S3 | `tests/test_serve.py::test_a_search_from_a_second_thread_answers_instead_of_raising` |
+| the transport really does run a sync tool **off** the calling thread — the premise the whole section rests on, asserted against `mcp` rather than assumed | S3 | `tests/test_serve.py::test_the_mcp_transport_runs_a_sync_tool_off_the_calling_thread` |
+| shutdown closes the handles worker threads opened, including a thread that has since exited — the deterministic half of the defect, and why `connect_ro` gained `owning_thread_only` | S3 | `tests/test_serve.py::test_close_reaps_a_handle_opened_on_a_thread_that_has_since_exited` |
+| no connection is opened and then abandoned still open — the second, unnamed defect: a test-and-assign on one shared slot with no lock, so threads arriving together each opened one and only the last was kept. **The leak was hiding the failure** | S3 | `tests/test_serve.py::test_no_connection_is_opened_and_then_abandoned_still_open` |
+| handles do not accumulate one per retired worker across a long run. **This row pins the reaping, not the fix** — the old one-connection design satisfies any such bound trivially, so its control was deleting `_reap_dead_threads()` rather than reverting | S3 | `tests/test_serve.py::test_handles_do_not_accumulate_one_per_thread_across_a_long_run` |
+| a rebuilt index is picked up by a thread that did not open the handle | S3 | `tests/test_serve.py::test_a_rebuilt_index_is_picked_up_by_a_thread_that_did_not_open_it` |
 
 ## The sidecar round-trip (L5b)
 
@@ -1287,3 +1303,35 @@ could print a plausible brief and exit `0` while being wrong.
 | a probe too long to print is marked `[CUT]` and carried whole in `--json` — a truncated shell command can succeed at doing something other than what it shows | — | `tests/test_review_ledger.py::test_a_truncated_probe_is_marked_as_not_runnable` |
 | every share is divided by **the same total the brief prints** for that pass, context plus output — one denominator, the defect this tool's own retrospective rated HIGH | — | `tests/test_review_ledger.py::test_the_share_is_measured_against_the_total_the_brief_prints` |
 | a pass killed in its first turns is still counted — the floor that drops runs which did nothing must not be able to shrink the numerator and denominator of the incomplete count together | — | `tests/test_review_ledger.py::test_a_pass_killed_in_its_first_turns_is_still_counted` |
+
+## The review-pass gate — a fan-out that reports success and reviewed nothing
+
+[`tools/review_pass_gate.py`](https://github.com/lucagattoni/pinakes/blob/main/tools/review_pass_gate.py)
+reads a fan-out's journal and answers one question: did the review pass this repository just ran
+actually happen? **It owes rows for the same reason `review_ledger.py` does, one step earlier in the
+chain** — the ledger carries a finished pass forward, and this gate decides whether there was one.
+Both fail in the direction that looks like success. It landed in `a36f0e6` carrying no rows at all,
+which is the shape D-34 names: *a gate's own correctness is a promise*.
+
+**The defect every row below exists to catch is a gate that counts and never compares** — one that
+reads the journal, prints a plausible summary and exits `0` regardless. That passes any test
+asserting only *exit 0 on a good run*, so each failing branch asserts the **stated reason** as well
+as the status.
+
+| What must be true | Increment | Where it is checked |
+|---|---|---|
+| a complete pass — every agent started, returned, and returned *content* — is the only shape that earns exit `0` | — | `tests/test_review_pass_gate.py::test_a_complete_pass_is_green` |
+| the gate can still fail, and names why — a gate never shown to fail is a claim, not a check | — | `tests/test_review_pass_gate.py::test_the_gate_can_still_fail` |
+| a dead agent is **named**, not counted — a count says the pass is broken, a name says what to resume | — | `tests/test_review_pass_gate.py::test_a_dead_agent_is_named` |
+| an agent that completed and returned nothing fails too — the quieter death, which resuming replays from cache as a clean pass | — | `tests/test_review_pass_gate.py::test_an_empty_result_fails_even_though_the_agent_returned` |
+| `0` and `False` are answers while `[]` and `""` are silence — the discriminating case, without which the gate either fails every honest zero or passes every silent one | — | `tests/test_review_pass_gate.py::test_a_present_but_falsy_result_is_not_empty` |
+| emptiness is recognised through nesting — a schema result is a container of containers, and `{"confirmed": [], "unverified": []}` returned nothing | — | `tests/test_review_pass_gate.py::test_emptiness_is_recognised_through_nesting` |
+| a truncated journal cannot hide a death — an agent killed mid-write is precisely the situation the gate is for | — | `tests/test_review_pass_gate.py::test_a_malformed_line_does_not_hide_a_death` |
+| an empty journal is a broken harness, never a clean bill, and must not share an exit status with a pass | — | `tests/test_review_pass_gate.py::test_an_empty_journal_is_not_a_clean_bill` |
+| artifacts are split by whether `land.py --cleanup` destroys them — 58% of measured redirect targets are relative paths that it does | — | `tests/test_review_pass_gate.py::test_artifacts_are_split_by_whether_cleanup_destroys_them` |
+| an agent that left nothing on disk says so — 13% of review agents do, and silence there reads as *no artifacts listed* | — | `tests/test_review_pass_gate.py::test_an_agent_that_left_nothing_says_so` |
+| the resume hint appears only when an agent **died**, since resuming replays completed agents from cache and is the wrong remedy for anything else | — | `tests/test_review_pass_gate.py::test_the_resume_hint_appears_only_when_an_agent_died` |
+| `--json` carries the verdict — a script gating on the pass reads `pass_is_valid`, and it is false when the pass is not valid | — | `tests/test_review_pass_gate.py::test_json_output_carries_the_verdict` |
+| a fan-out **still in flight** is not reported as dead, and the override that allows outstanding agents stops applying once the run has ended | — | `tests/test_review_pass_gate.py::test_a_running_fan_out_is_not_reported_as_dead`, `tests/test_review_pass_gate.py::test_a_quiet_fan_out_is_judged_without_the_override` |
+| a dead agent is not *also* reported as empty — the two states carry opposite remedies (a dead agent is **resumed** from cache, an empty one must be **re-run**), so double-reporting prints the wrong instruction beside the right one. Found by mutation; the mutant survived the whole suite | — | `tests/test_review_pass_gate.py::test_a_dead_agent_is_not_also_reported_as_empty` |
+| a bare word after a redirect is not reported as a file — also mutation-found. Against a real fan-out the redirect scan called `0`, `c` and `15,}` recoverable artifacts, picked out of `head -c`, a `2>&1` and a dict literal in a heredoc; the filter that removed them had no test and could have been deleted in silence | — | `tests/test_review_pass_gate.py::test_a_bare_word_after_a_redirect_is_not_reported_as_a_file` |
