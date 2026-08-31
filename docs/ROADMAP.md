@@ -17,20 +17,25 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260831 23:01 UTC
+## Where things stand right now — 20260831 23:14 UTC
 
 - **58 releases in 37 days**, and **one** landed without ever reaching PyPI.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.31.1`](#0311--the-price-nobody-was-watching--20260831-2301) is on `main` as of
-  20260831 23:01 and **not yet on PyPI**; the entry below is written only once the index says so,
-  which is what STATUS's headline hold marker exists to say out loud in the meantime.
+  [`0.31.1`](#0311--the-price-nobody-was-watching--20260831-2301) is **on PyPI as of
+  20260831 23:10** — landed on `main` at 23:01 and published nine minutes later, with STATUS's
+  headline hold marker covering that window and removed only once the index had been read.
+  **That is the second consecutive
+  release to produce it, not the first**: `c7b0bd9` carried the same marker for five minutes on
+  20260830, which is what closes out *"produced by the release procedure zero times out of two"* in
+  [STATUS § Published on PyPI](STATUS.md#published-on-pypi). The gate that made it happen shipped in
+  0.31.0 itself, so 0.31.0 was its own first customer and 0.31.1 is the first release to inherit it.
   [`0.31.0`](#0310--the-gates-that-could-not-fail--20260830-1446) is **on PyPI as of
   20260830 14:54**, verified by installing it from the index.
   [`0.30.3`](#0303--the-question-the-probes-could-not-ask--20260825-0827) never will be — it was
   prepared on 20260825, never tagged, and **its fix ships inside `0.31.0`**; its entry is kept
   rather than folded away, because the record was written honestly and deleting it would erase the
   gap instead of correcting it.
-- **Latest on PyPI: `0.31.0`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.31.1`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
@@ -43,7 +48,7 @@ precision nobody measured.
   **0.25.1 is the sharpest case this project has had of that distinction**:
   every release from 0.22.0 on installed cleanly and reported the right version while
   `pnk ask --deep` could not make one successful call. Every release from `0.2.2` on is published —
-  **fifty**, counted from the index rather than from this list's previous number — and read from
+  **fifty-one**, counted from the index rather than from this list's previous number — and read from
   `https://pypi.org/simple/pinakes/`, the endpoint installers use, because for minutes after an
   upload the `json` endpoint and uv's cache still report the previous version while `simple/` already
   carries the files. Checking `json` first says *the upload failed*, which is this project's recorded
