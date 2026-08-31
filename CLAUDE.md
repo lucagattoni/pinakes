@@ -153,17 +153,15 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
 **What is live right now** — the full routing table, with what each closed plan still binds, is
 [`docs/README.md`](docs/README.md):
 
-- **🛑🛑 `./check.sh` IS RED ON `main` AND NO COMMIT DID IT — read
+- **✅ `main` is green and 0.31.0 is published** (20260830). The red build, the release and the
+  fourteen document defects are all **closed** — but read
   [`plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md`](plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md)
-  before anything else.** `prices.toml` aged past `max_price_age_days` (30) on 20260827 and **25
-  tests fail**; every other gate passes. **CI's green is dated 20260826 and nothing has run since.**
-  **Unblocking it needs no decision** — `DESIGN.md:811` says staleness is *deliberately not a CI
-  gate*, so the wall-clock assertion in `tests/test_doctor.py` is the defect and
-  `tests/test_deep_loop.py:153` already carries the cure. **What needs the user is the shipped half**:
-  `as_of` has never been refreshed and `RELEASING.md` has no step that would. That file also holds a
-  self-review that **lost 26 of 52 agents to a session limit** — 30 of 51 findings never verified —
-  and five confirmed defects, including an unescaped `|` in a code span that **truncates the row on
-  GitHub while the published site renders it correctly**.
+  anyway, because what it now carries is not that incident. It holds **22 findings nobody has ever
+  checked** (§ *The 22 nobody has ever checked* — severity as *raised*, by agents whose claims were
+  never tested), the rule that **a claim resting on a set you selected or an instrument you chose
+  must state the selector**, and the record of **six** wrong claims in one day, each a valid
+  inference over a population nobody named. **`prices.toml` is refreshed at every release
+  now** — `docs/RELEASING.md` § *Before you start* step 3, which had never existed.
 - **🛑 Two plans have scheduled work, and it is now all coder work — every decision is taken.**
   The **eight decisions and fifteen questions** in
   [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md) were **ANSWERED by
