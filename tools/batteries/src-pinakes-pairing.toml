@@ -17,7 +17,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 12
+mutants = 22
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -52,20 +52,43 @@ new = '''            actions.append(SoftDelete(doc_id=document.id, path=path))
 kills = "tests/test_pairing.py::test_a_name_swap_never_retires_an_id_the_same_plan_adopts"
 
 [[mutant]]
-name = "the guard is inverted, so an ordinary in-place id change stops retiring the row it replaces"
+name = "the guard is inverted, so a swap retires an id the same plan adopts"
 file = "src/pinakes/pairing.py"
+# **Renamed and repointed 20260826, and the reason is a finding rather than housekeeping.** This
+# row read *"an ordinary in-place id change stops retiring the row it replaces"* and died to
+# `test_a_replaced_row_is_always_retired_before_its_replacement_is_adopted`, an **ordering**
+# assertion. S16's ordering pass now repairs that order globally, so the in-place half of this edit
+# stopped being observable — and the mutant was run against all 2 212 tests to check that claim
+# rather than assume it. What still dies, loudly, is the other branch: inverted, the guard retires
+# an id the plan is adopting, which is the shipped defect one row above reached from the opposite
+# direction. Eleven tests catch it; the most on-point is named.
+#
+# **The lesson the rename records: a fix that enforces a property globally silently unpins every
+# test that asserted that property locally.** Two rows in this battery lost their witness to one
+# ordering pass, and neither `--check-anchors` nor `tests/test_batteries.py` can see that — both
+# halves still resolve.
 old = "            if document.id not in claimed_by_id:"
 new = "            if document.id in claimed_by_id:"
-kills = "tests/test_pairing.py::test_a_replaced_row_is_always_retired_before_its_replacement_is_adopted"
+kills = "tests/test_pairing.py::test_a_name_swap_never_retires_an_id_the_same_plan_adopts"
 
 [[mutant]]
-name = "an orphaned sidecar counts as a claim, so the row is retired AFTER its replacement is adopted"
+name = "an orphaned sidecar counts as a claim, so a live document is re-minted under a new id"
 file = "src/pinakes/pairing.py"
 old = '''    claimed_by_id = frozenset(
         sidecar.id for sidecar in after.sidecars if sidecar.document_path in after_by_path
     )'''
 new = "    claimed_by_id = frozenset(sidecar.id for sidecar in after.sidecars)"
-kills = "tests/test_pairing.py::test_a_replaced_row_is_always_retired_before_its_replacement_is_adopted"
+# **Repointed 20260826, and this one uncovered something worse than the row it replaced.** It also
+# died to an ordering assertion, which S16's ordering pass now repairs — and running it against all
+# 2 212 tests found **nothing else that saw it**, so the widening was genuinely unwitnessed. What
+# it actually breaks is `claimed_by_id`'s *second* reader: a file with no sidecar of its own whose
+# index id turns up claimed elsewhere is read as "this row's identity has moved", so the path is
+# left to be minted fresh. Let an orphan count and that fires on an untouched document sitting
+# beside a stale `.pnk.yaml` — re-minted under a new id, old id retired, every inbound `pnk://`
+# link dead. That is `docs/INVARIANTS.md`'s ULID permanence, broken by a leftover file. The new
+# witness asserts the action KIND rather than the order, which is what the ordering pass cannot
+# repair: measured, the mutant turns `Skip` into `Rename`.
+kills = "tests/test_pairing.py::test_an_orphaned_sidecar_does_not_cost_a_live_document_its_id"
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · the retiring DELETE, and why its scope is the load-bearing half
@@ -210,6 +233,106 @@ new = """    for root_name in manifest.sources.roots:
 """
 kills = "tests/test_sync.py::test_the_population_walk_never_opens_a_document"
 
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260826 · S16/S19 — ordering a rename chain so the database will accept it
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# `documents.path` is `UNIQUE`, so *when* an action writes decides whether it can write at all, and
+# `pair()` built its list in path order — fine for deciding what each file is, arbitrary for
+# deciding when to write it. Renaming three notes forward emitted the plan in exactly reverse of
+# the only applicable order.
+#
+# **Every mutant here changes an ORDER and nothing else.** `describe()` returns the same census for
+# all of them, every id is placed at the same path, and `retires_before_adopting` holds — the
+# properties this battery already carried cannot see any of it. That is the point: this is the
+# blindness the 20260825 pass recorded on this same file ("a census is not a plan"), reached from
+# the other side.
+
+[[mutant]]
+name = "CONTROL — the ordering pass is computed and then not applied"
+file = "src/pinakes/pairing.py"
+# The whole fix removed in one line, with a plan that still passes every pre-existing assertion.
+old = '''        actions=tuple(_order_for_path_availability(actions, before_by_path)),'''
+new = '''        actions=tuple(actions),'''
+kills = "tests/test_pairing.py::test_a_rename_chain_of_three_is_ordered_so_every_move_lands_on_a_free_path"
+
+[[mutant]]
+name = "the ordering pass runs but its result is discarded end to end"
+file = "src/pinakes/pairing.py"
+# The same edit, witnessed by the end-to-end test instead of the unit one: `pnk sync` exits 1 on a
+# raw `sqlite3.IntegrityError` at `sync.py`'s INSERT, which is the shipped 0.30.2 behaviour.
+old = '''    return PairingResult(
+        actions=tuple(_order_for_path_availability(actions, before_by_path)),'''
+new = '''    return PairingResult(
+        actions=tuple(actions),'''
+kills = "tests/test_sync.py::test_a_rename_chain_syncs_and_every_document_keeps_its_id"
+
+[[mutant]]
+name = "a move stops being recorded as freeing the path it came from"
+file = "src/pinakes/pairing.py"
+# With no path ever recorded as freed, every dependency resolves to "nothing frees this" and the
+# pass becomes a no-op that still looks like it ran.
+old = '''        case Adopt(old_path=old) | Rename(old_path=old):
+            return old'''
+new = '''        case Adopt(old_path=old) | Rename(old_path=old):
+            return None'''
+kills = "tests/test_pairing.py::test_a_rename_chain_of_three_is_ordered_so_every_move_lands_on_a_free_path"
+
+[[mutant]]
+name = "a retired row stops imposing an order, so a DELETED holder is treated as live"
+file = "src/pinakes/pairing.py"
+# The inverse of the real rule. `sync`'s write guard clears a *retired* row out of a writer's way,
+# so a DELETED holder needs no ordering; treating it as live invents dependencies on actions that
+# may not exist, and treating a LIVE one as retired removes the dependency that matters.
+old = '''        if held is None or held.state != ACTIVE:'''
+new = '''        if held is None or held.state == ACTIVE:'''
+kills = "tests/test_pairing.py::test_a_rename_chain_of_three_is_ordered_so_every_move_lands_on_a_free_path"
+
+[[mutant]]
+name = "the topological sort takes actions in arbitrary set order rather than lowest index first"
+file = "src/pinakes/pairing.py"
+# Stability is a property, not a nicety: without it every unrelated plan is reordered too, and the
+# diff of a future fix stops being readable. `sorted` on the ready list is the whole of it.
+#
+# **This one SURVIVED its first run and the finding was mine, not the code's.** The stability test
+# it originally named used a plan with **no constraints**, and such a plan never reaches the sort —
+# the pass returns the list untouched before it starts. So the mutant changed the output of every
+# constrained plan and survived that test, and then survived the whole suite: 2 221 tests, one
+# apparent kill, and that kill was `tests/test_batteries.py`'s own anchor check noticing the file
+# had been edited. **An artifact of mutating a file this battery anchors into, not a behaviour
+# test** — worth knowing before reading any whole-suite run of a mutant against a battery target.
+# Re-witnessed by a test whose plan has a constraint AND untouched actions beside it.
+# **Anchor and `new` both repaired 20260826** when the quadratic queue became a heap. The old pair
+# mutated `ready = sorted(...)`, a line that no longer exists; `heappop` is where "lowest index
+# first" now lives, and popping the raw list end instead gives the arbitrary order this row is
+# about. Repairing only `old` is the recorded way to produce a mutant that changes two things under
+# a name promising one.
+old = '''        index = heapq.heappop(ready)'''
+new = '''        index = ready.pop()'''
+kills = "tests/test_pairing.py::test_actions_under_no_constraint_keep_their_order_inside_a_plan_that_has_one"
+
+[[mutant]]
+name = "a SoftDelete stops being recorded as freeing the path it retires"
+file = "src/pinakes/pairing.py"
+# **This row said "expected to SURVIVE" in prose while declaring a `kills` selector, and the format
+# has no way to say the first.** `tools/mutate.py` requires `file`, `old`, `new`, `kills`, and
+# `tests/test_batteries.py` gates only that the selector RESOLVES — so the row asserted, in the only
+# field a machine reads, the opposite of what its comment said. Found by a review of this increment.
+#
+# **Resolved by making the claim true rather than by softening the prose.** The branch models the
+# database's rule completely: `sync`'s write guard deletes a *retired* row holding a path a
+# different id now wants, so the retirement genuinely has to happen first. No plan `pair()` can
+# currently produce puts a writer *before* the SoftDelete of its path's holder — the same-path loop
+# emits that pair adjacently and in the right order already — which is why no end-to-end fixture
+# reaches it. So the witness tests `_vacates` **directly**, at the level the contract lives, and the
+# row is now an ordinary killed mutant instead of a contradiction. It was load-bearing in the
+# cycle-refusal draft that was backed out, and becomes load-bearing again the moment the cycle is
+# settled; that is why it is modelled rather than trimmed to what is reachable today.
+old = '''        case SoftDelete(path=path):
+            return path'''
+new = '''        case SoftDelete(path=path):
+            return None'''
+kills = "tests/test_pairing.py::test_vacates_reports_every_way_a_path_is_freed"
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260830 · S18 — a retired row is not a changed file
@@ -241,3 +364,72 @@ file = "src/pinakes/pairing.py"
 old = '''                        reason=CHANGED if content_changed else RETIRED,'''
 new = '''                        reason=RETIRED if retired else CHANGED,'''
 kills = "tests/test_pairing.py::test_a_retired_paid_row_whose_file_returns_changed_still_says_changed"
+
+# --------------------------------------------------------------------------------------------
+# unreleased, 20260831 - S16's residue: a path collision is recorded, and ONLY a path collision
+# --------------------------------------------------------------------------------------------
+#
+# Ordering a chain makes action N+1 depend on action N; `_apply` catches a per-document failure and
+# continues, and a caught failure rolls back, so the failed row keeps its path and the next action
+# collides. That raised a raw `sqlite3.IntegrityError` past every handler in the stack.
+#
+# **The decision this section pins is the NARROW half, and it is the half a future edit will get
+# wrong.** The obvious repair -- add `sqlite3.IntegrityError` to the except tuple -- is one line and
+# swallows every other constraint in `store.py` with it, filing a Pinakes bug as one document's
+# failure while the run reports success around it. Row 2 below is that exact edit, and it is why
+# this section exists: without it, the bare catch passes the whole suite.
+#
+# Rows 3 and 4 split the predicate's two clauses, and are separate rows because neither case covers
+# the other: three of the four negative cases in the witness fail on the column substring alone, so
+# the `sqlite_errorname` clause went unexercised until a `NOT NULL constraint failed: documents.path`
+# was added -- the one breach whose message names the right column under the wrong error code.
+
+[[mutant]]
+name = "CONTROL - the narrow catch is removed and the collision escapes again"
+file = "src/pinakes/sync.py"
+# The whole fix reverted, which is the shipped behaviour S16 was filed for: `pnk sync` exits 1 on a
+# raw traceback, and `pnk doctor` still answers `failures: none recorded`.
+old = """    except (PinakesError, OSError, ValueError, sqlite3.IntegrityError) as caught:
+        if isinstance(caught, sqlite3.IntegrityError):
+            if not _is_path_still_held(caught):
+                raise
+            exc: Exception = PathStillHeldError(path)
+        else:
+            exc = caught"""
+new = """    except (PinakesError, OSError, ValueError) as exc:"""
+kills = "tests/test_sync.py::test_a_rename_chain_whose_middle_document_fails_records_the_collision_instead_of_crashing"
+
+[[mutant]]
+name = "THE REJECTED OPTION - a bare sqlite3.IntegrityError swallows every constraint"
+file = "src/pinakes/sync.py"
+# The review's own proposed containment ("one line"), and the option the user declined 20260831. A
+# CHECK or PK breach becomes a recorded per-document failure and the run continues around it.
+old = """    except (PinakesError, OSError, ValueError, sqlite3.IntegrityError) as caught:
+        if isinstance(caught, sqlite3.IntegrityError):
+            if not _is_path_still_held(caught):
+                raise
+            exc: Exception = PathStillHeldError(path)
+        else:
+            exc = caught"""
+new = """    except (PinakesError, OSError, ValueError, sqlite3.IntegrityError) as caught:
+        exc: Exception = (
+            PathStillHeldError(path) if isinstance(caught, sqlite3.IntegrityError) else caught
+        )"""
+kills = "tests/test_sync.py::test_an_integrity_error_from_another_constraint_still_escapes_apply"
+
+[[mutant]]
+name = "the error-code clause goes, so a NOT NULL breach on documents.path reads as a collision"
+file = "src/pinakes/sync.py"
+# Leaves the column substring alone. `NOT NULL constraint failed: documents.path` then matches, and
+# a genuine invariant breach is recorded as an ordinary rename collision.
+old = """    return exc.sqlite_errorname == "SQLITE_CONSTRAINT_UNIQUE" and "documents.path" in str(exc)"""
+new = """    return "documents.path" in str(exc)"""
+kills = "tests/test_sync.py::test_only_the_documents_path_collision_is_caught_and_every_other_constraint_escapes"
+
+[[mutant]]
+name = "the column clause goes, so any UNIQUE collision anywhere in the schema reads as a rename"
+file = "src/pinakes/sync.py"
+# `chunks(doc_id, ordinal)` and `nodes(kind, key)` are both UNIQUE, and both mean Pinakes is wrong.
+old = """    return exc.sqlite_errorname == "SQLITE_CONSTRAINT_UNIQUE" and "documents.path" in str(exc)"""
+new = """    return exc.sqlite_errorname == "SQLITE_CONSTRAINT_UNIQUE\""""
+kills = "tests/test_sync.py::test_only_the_documents_path_collision_is_caught_and_every_other_constraint_escapes"

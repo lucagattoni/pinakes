@@ -37,6 +37,7 @@ Two consequences worth stating, because both are ways a KB quietly rots:
   answered here, once, and never at execution time.
 """
 
+import heapq
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
@@ -488,13 +489,159 @@ def pair(
         actions.append(Mint(path=path, content_hash=file.content_hash))
 
     return PairingResult(
-        actions=tuple(actions),
+        actions=tuple(_order_for_path_availability(actions, before_by_path)),
         ambiguities=tuple(ambiguities),
         orphaned_sidecars=_orphans(after),
         moved_without_sidecar=tuple(sorted(moved_without_sidecar)),
         paid_extraction_protected=tuple(sorted(paid_extraction_protected)),
         paid_extraction_overwritten=tuple(sorted(paid_extraction_overwritten)),
     )
+
+
+#: The actions that write `documents.path`, and therefore the ones a `UNIQUE` violation can reach.
+#: `Skip`, `RefreshMetadata` and `Reembed` update a row at the path it already has, so they can
+#: never collide and are never reordered.
+_WRITERS = (Adopt, Rename, Mint)
+
+
+def _target(action: Action) -> str | None:
+    """The path this action writes a row at, or `None` if it writes no path."""
+    return action.path if isinstance(action, _WRITERS) else None
+
+
+def _vacates(action: Action) -> str | None:
+    """The path this action frees for someone else, or `None`.
+
+    A move frees the path it came from. A `SoftDelete` frees the path it retires — not because the
+    row goes away (it keeps its path, marked `deleted`) but because `sync`'s write guard deletes a
+    *retired* row holding a path a different id now wants. That guard is scoped to
+    `state = 'deleted'` deliberately, so the retirement genuinely has to happen first.
+
+    **Omitting `SoftDelete` here was the first draft and it was wrong in the dangerous direction.**
+    The same-path loop above emits `SoftDelete(old id)` then `Adopt(sidecar id)` at one path; with
+    nothing recorded as freeing it, that pair reads as a dependency on an action that does not
+    exist, and the ordering pass would have reported an already-working plan as unorderable.
+    """
+    match action:
+        case Adopt(old_path=old) | Rename(old_path=old):
+            return old
+        case SoftDelete(path=path):
+            return path
+        case _:
+            return None
+
+
+def _order_for_path_availability(
+    actions: list[Action], before_by_path: Mapping[str, IndexedDocument]
+) -> list[Action]:
+    """Reorder so no action writes a path an *active* row still holds — S16/S19.
+
+    **`documents.path` is `UNIQUE`, and this function is the only thing that makes a rename chain
+    applicable.** `pair()` builds its list by walking paths in sorted order, which is a fine order
+    for deciding *what* each file is and an arbitrary one for deciding *when* to write it. Renaming
+    `a → b` while `b → c` therefore emitted `Adopt(b)` before the `Adopt(c)` that frees `b`: an
+    order the database rejects, for a walk where a valid order plainly exists. A chain of three
+    came out in exactly reverse.
+
+    What that cost, measured on 0.30.2 and reproduced on `main` 20260826: `pnk sync` exiting 1 on a
+    raw `sqlite3.IntegrityError` traceback with no remedy and no ledger row, `pnk search` answering
+    from a path that no longer exists on disk, and `pnk doctor` reporting every row `OK` — including
+    `failures: none recorded`.
+
+    **A cycle is a different class, it is deferred, and this function deliberately leaves it
+    exactly as it was.** Swapping two names has no applicable order at all — whichever moves first
+    writes onto a path the other still holds — and resolving it needs a temporary path this pure
+    function has no way to create. So the cyclic actions keep their order **relative to each other**
+    and still fail at the first write, exactly as they do on 0.30.2 — the *plan* is untouched.
+    What the user is told about that failure is **not**: since 20260831 the collision is caught
+    narrowly in `sync._apply` and recorded as a `PathStillHeldError` naming the temporary-name
+    remedy, where it used to escape as a raw `sqlite3.IntegrityError`. The cycle is still not
+    applied; it is merely no longer a traceback.
+    They are appended after the actions that could be ordered rather than left where they were,
+    which is the one thing about a mixed plan that does change, and is stated because an earlier
+    version of this sentence claimed otherwise.
+
+    **Refusing the cycle here was written, tested and backed out, and the reason is worth keeping.**
+    Raising from `pair()` would be tidier — nothing is applied, so nothing is half-applied — but it
+    deletes three committed guards that only exist while a cycle still produces a plan:
+    `test_a_name_swap_never_retires_an_id_the_same_plan_adopts`,
+    `test_a_three_way_rename_cycle_adopts_every_id_and_retires_none` and
+    `tests/test_sync.py::test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row`. That
+    last one pins the silent-loss shape S2 exists to prevent — *no live document loses its row* —
+    and it can only observe that by watching the plan be applied and fail. Whether the cycle should
+    refuse cleanly is a decision about behaviour, not an implementation detail of this ordering fix.
+
+    Stable: an action moves only when something forces it to, so every plan that was already
+    applicable comes out in the order `pair()` built it.
+    """
+    frees: dict[str, int] = {}
+    for index, action in enumerate(actions):
+        vacated = _vacates(action)
+        if vacated is not None:
+            frees.setdefault(vacated, index)
+
+    blocked_by: dict[int, set[int]] = {}
+    blocks: dict[int, set[int]] = {}
+    for index, action in enumerate(actions):
+        target = _target(action)
+        if target is None:
+            continue
+        held = before_by_path.get(target)
+        # `DELETED` rows impose no order: `sync`'s write guard removes a retired row holding the
+        # path. Only a live row under another id has to move out of the way first.
+        if held is None or held.state != ACTIVE:
+            continue
+        if getattr(action, "doc_id", None) == held.id:
+            continue
+        freed_by = frees.get(target)
+        # Nothing in this plan frees the path. That is a genuine collision rather than an ordering
+        # problem, and reordering cannot help — it is left to fail where it already did, because
+        # inventing a refusal here would be a claim about a state no walk has been shown to produce.
+        if freed_by is None or freed_by == index:
+            continue
+        blocked_by.setdefault(index, set()).add(freed_by)
+        blocks.setdefault(freed_by, set()).add(index)
+
+    if not blocked_by:
+        return actions
+
+    # Kahn's algorithm, always taking the lowest original index among the ready actions, so the
+    # result is the input order with the minimum disturbance the constraints require.
+    #
+    # **A heap, because the obvious list is quadratic.** The first version kept `ready` as a list
+    # and did `ready.pop(0)` plus `ready = sorted([*ready, *newly])` every iteration — both O(n) per
+    # emitted action, so O(n²) over the plan, and the whole plan goes through here as soon as *one*
+    # action is constrained. Measured before the change: 0.08 s for 5 000 actions, 4.9 s for 40 000,
+    # 46 s for 120 000. `heapq` pops the same lowest index and yields the same order, so this is the
+    # queue and not the algorithm.
+    remaining = {index: set(deps) for index, deps in blocked_by.items()}
+    ordered: list[Action] = []
+    ready = [index for index in range(len(actions)) if index not in remaining]
+    heapq.heapify(ready)
+    while ready:
+        index = heapq.heappop(ready)
+        ordered.append(actions[index])
+        for dependent in sorted(blocks.get(index, ())):
+            deps = remaining.get(dependent)
+            if deps is None:
+                continue
+            deps.discard(index)
+            if not deps:
+                del remaining[dependent]
+                heapq.heappush(ready, dependent)
+
+    # Whatever is left could not be emitted: every one of them is still waiting on another one of
+    # them, which is a cycle. They keep their order **relative to each other** and are appended
+    # after everything that could be ordered.
+    #
+    # **They are NOT left in place, and an earlier version of this comment said they were.** Two
+    # reviewers found it separately. The distinction matters only for a plan holding a cycle *and*
+    # other actions: those others now come first. It changes nothing about which write fails — a
+    # swap still fails at its first — but "unchanged behaviour" was a claim about the list, and the
+    # list does change. Nor is the *reported* outcome unchanged any more: `sync._apply` catches that
+    # collision since 20260831 and records it with a remedy instead of letting it escape.
+    ordered.extend(actions[index] for index in sorted(remaining))
+    return ordered
 
 
 def _orphans(after: WalkSnapshot) -> tuple[str, ...]:

@@ -54,6 +54,7 @@ from pinakes.errors import (
     ExtractorMissingError,
     PaidExtractionRequiredError,
     PaidExtractionUnavailableError,
+    PathStillHeldError,
     PinakesError,
     SidecarError,
     SyncError,
@@ -1473,7 +1474,13 @@ def _apply(
                 report=report,
             )
         connection.commit()
-    except (PinakesError, OSError, ValueError) as exc:
+    except (PinakesError, OSError, ValueError, sqlite3.IntegrityError) as caught:
+        if isinstance(caught, sqlite3.IntegrityError):
+            if not _is_path_still_held(caught):
+                raise
+            exc: Exception = PathStillHeldError(path)
+        else:
+            exc = caught
         connection.rollback()
         extract_stage = (
             ExtractionError
@@ -1497,6 +1504,29 @@ def _apply(
         report.renamed += 1
     else:
         report.embedded += 1
+
+
+def _is_path_still_held(exc: sqlite3.IntegrityError) -> bool:
+    """Whether this is the `documents.path` UNIQUE collision, and not some other constraint.
+
+    `_apply` records a per-document failure and lets the run continue -- right for a broken
+    document, wrong for a broken invariant. So exactly one integrity error may be caught: the
+    database refusing a write whose path another row still holds, which is a fact about the user's
+    tree rather than about this code. Every other constraint in `store.py` -- the
+    `chunks(doc_id, ordinal)` and `nodes(kind, key)` UNIQUEs, the `links` and `edges` primary keys,
+    the CHECKs on `documents.state`, `links.origin` and `nodes.kind` -- fires only when this code is
+    wrong, and a bug filed as one document's failure is the silent shape `docs/INVARIANTS.md`
+    exists to prevent.
+
+    The *kind* is read from `sqlite_errorname`, not from prose: `SQLITE_CONSTRAINT_UNIQUE` (2067)
+    is a distinct extended code from `SQLITE_CONSTRAINT_CHECK` (275) and
+    `SQLITE_CONSTRAINT_PRIMARYKEY` (1555), so no PK or CHECK breach can reach this branch whatever
+    its message says. Only the *column* is prose, because sqlite reports it nowhere else -- which
+    narrows `_is_budget_refusal`'s "never by matching the message" rule rather than breaking it:
+    if that text ever changes this returns False and the error escapes loudly, which is the safe
+    direction to fail in.
+    """
+    return exc.sqlite_errorname == "SQLITE_CONSTRAINT_UNIQUE" and "documents.path" in str(exc)
 
 
 def _is_budget_refusal(exc: PinakesError) -> bool:

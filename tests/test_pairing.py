@@ -23,6 +23,7 @@ from pinakes.pairing import (
     WalkedFile,
     WalkedSidecar,
     WalkSnapshot,
+    _vacates,  # pyright: ignore[reportPrivateUsage]
     actions_of,
     describe,
     pair,
@@ -91,6 +92,56 @@ def places_each_id_once(result: PairingResult) -> bool:
             continue
         if placed.setdefault(action.doc_id, action.path) != action.path:
             return False
+    return True
+
+
+def every_write_lands_on_a_free_path(result: PairingResult, before: IndexSnapshot) -> bool:
+    """Apply the plan against a model of `documents.path` and see whether SQLite would accept it.
+
+    **The property `describe()` and every ordering-free assertion are blind to, and the one S16 is
+    about.** `documents.path` is `UNIQUE`, so a plan is applicable only if, at the moment each
+    action writes, nothing else still holds the path it wants. That is a fact about the *sequence*,
+    not about its contents: a chain of renames emitted forwards and the same chain emitted
+    backwards have an identical census, identical ids, identical paths — and one of them is
+    rejected by the database at its first write.
+
+    The model is deliberately the database's rule and not the code's: a live row occupies its path
+    until something moves it or retires it, and `sync`'s write guard clears a *retired* row out of
+    the way. Written from `sync.py`'s behaviour rather than from `pairing`'s, so a bug shared by
+    both cannot make this agree with itself.
+
+    Returns `False` for a genuine cycle, which has no applicable order at all — that is the
+    deferred half of S16 and is asserted as such rather than smoothed over.
+    """
+    occupied: dict[str, DocId | None] = {
+        document.path: document.id for document in before.documents if document.state == ACTIVE
+    }
+    for action in result.actions:
+        match action:
+            case Adopt(old_path=old) | Rename(old_path=old):
+                if old is not None:
+                    occupied.pop(old, None)
+            case SoftDelete(path=path, doc_id=doc_id):
+                # Retired in place: the row keeps its path, and `sync`'s write guard is then free
+                # to delete it when a different id writes there.
+                if occupied.get(path) == doc_id:
+                    del occupied[path]
+            case _:
+                pass
+        # `Mint` writes a row with no id yet, which is why the mapping's value is optional: a
+        # freshly minted row occupies its path exactly as a known one does, and a plan that mints
+        # onto a path someone is still leaving is rejected by SQLite just the same.
+        match action:
+            case Adopt(path=target, doc_id=writer) | Rename(path=target, doc_id=writer):
+                pass
+            case Mint(path=target):
+                writer = None
+            case _:
+                continue
+        holder = occupied.get(target)
+        if holder is not None and holder != writer:
+            return False
+        occupied[target] = writer
     return True
 
 
@@ -669,3 +720,368 @@ def test_no_plan_in_this_file_ever_places_one_id_at_two_paths() -> None:
         )
         assert places_each_id_once(result), f"world {number}: one id at two paths"
         assert retires_before_adopting(result), f"world {number}: adopted before retiring"
+
+
+# --- Row: ordering, so a plan the database will accept -----------------------------------------
+#
+# S16/S19. `documents.path` is `UNIQUE`, so *when* an action writes decides whether it can write at
+# all — and `pair()` built its list by walking paths in sorted order, which is a fine order for
+# deciding what each file is and an arbitrary one for deciding when to write it. Reproduced end to
+# end on `main` 20260826: `pnk sync` exit 1 on a raw `sqlite3.IntegrityError`, `pnk search`
+# answering from a path no longer on disk, and `pnk doctor` reporting every row `OK` including
+# `failures: none recorded`.
+
+
+def test_a_rename_chain_of_three_is_ordered_so_every_move_lands_on_a_free_path() -> None:
+    """**The pinning case, and it is three long on purpose.**
+
+    `a → b`, `b → c`, `c → d`. The only applicable order is *strictly reverse* of the order the
+    paths sort in, so no accident of sorting can produce it and **a fix that merely swaps two
+    adjacent actions passes the two-file case below while failing this one**. That is the whole
+    reason this is the pinning case rather than the shift: a control is worth writing when it kills
+    the plausible-but-wrong fix.
+
+    Asserted as an exact sequence rather than through `every_write_lands_on_a_free_path` alone —
+    the property says *some* applicable order was reached, this says *which*, and the two together
+    are what stop a later refactor from satisfying the property by luck.
+    """
+    a, b, c = mint_doc_id(), mint_doc_id(), mint_doc_id()
+    before = IndexSnapshot(
+        (
+            indexed(a, "docs/a.md", "ha"),
+            indexed(b, "docs/b.md", "hb"),
+            indexed(c, "docs/c.md", "hc"),
+        )
+    )
+    result = pair(
+        before,
+        WalkSnapshot(
+            (walked("docs/b.md", "ha"), walked("docs/c.md", "hb"), walked("docs/d.md", "hc")),
+            (sidecar("docs/b.md", a), sidecar("docs/c.md", b), sidecar("docs/d.md", c)),
+        ),
+    )
+    assert [(action.doc_id, action.path) for action in actions_of(result, Adopt)] == [
+        (c, "docs/d.md"),
+        (b, "docs/c.md"),
+        (a, "docs/b.md"),
+    ]
+    assert every_write_lands_on_a_free_path(result, before)
+    assert places_each_id_once(result)
+
+
+def test_a_two_file_rename_shift_is_ordered_too() -> None:
+    """`b → c` and `a → b`: not a cycle, and a valid order exists — free `docs/b.md` first.
+
+    Kept beside the chain because it is the shape a person actually produces (`git mv` twice), and
+    it is the case the end-to-end reproduction used. It is **not** the pinning case: reversing two
+    adjacent actions satisfies it, and a fix that does only that leaves the chain above broken.
+    """
+    a, b = mint_doc_id(), mint_doc_id()
+    before = IndexSnapshot((indexed(a, "docs/a.md", "ha"), indexed(b, "docs/b.md", "hb")))
+    result = pair(
+        before,
+        WalkSnapshot(
+            (walked("docs/b.md", "ha"), walked("docs/c.md", "hb")),
+            (sidecar("docs/b.md", a), sidecar("docs/c.md", b)),
+        ),
+    )
+    assert [(action.doc_id, action.path) for action in actions_of(result, Adopt)] == [
+        (b, "docs/c.md"),
+        (a, "docs/b.md"),
+    ]
+    assert every_write_lands_on_a_free_path(result, before)
+
+
+def test_a_move_onto_a_name_nobody_holds_is_not_reordered() -> None:
+    """Stability. An action moves only when a constraint forces it, so a plan that was already
+    applicable comes out exactly as `pair()` built it — otherwise every unrelated reordering
+    becomes a behaviour change nothing asked for, and the diff of a future fix stops being
+    readable."""
+    a, b = mint_doc_id(), mint_doc_id()
+    before = IndexSnapshot((indexed(a, "docs/a.md", "ha"), indexed(b, "docs/b.md", "hb")))
+    result = pair(
+        before,
+        WalkSnapshot(
+            (walked("docs/a.md", "ha"), walked("docs/z.md", "hb")),
+            (sidecar("docs/a.md", a), sidecar("docs/z.md", b)),
+        ),
+    )
+    assert [type(action).__name__ for action in result.actions] == ["RefreshMetadata", "Adopt"]
+    assert every_write_lands_on_a_free_path(result, before)
+
+
+def test_a_name_swap_is_left_in_its_original_order_because_no_order_works() -> None:
+    """**The deferred half of S16, pinned as deferred.**
+
+    A swap is a cycle: whichever document moves first writes onto a path the other still holds, and
+    resolving it needs a temporary path `pair()` has no way to create. So the ordering pass leaves
+    the cyclic actions exactly where it found them and the sync still fails at the first write, as
+    it does in 0.30.2 today.
+
+    **This test exists so that "the chain class is fixed" cannot quietly become "renames are
+    fixed".** That is the S17 shape — a defect recorded as open after it had been cured, and here
+    the same shape in the other direction. If someone makes swaps work, this test goes red and the
+    record has to be updated deliberately rather than by omission.
+    """
+    a, b = mint_doc_id(), mint_doc_id()
+    before = IndexSnapshot((indexed(a, "docs/a.md", "ha"), indexed(b, "docs/b.md", "hb")))
+    result = pair(
+        before,
+        WalkSnapshot(
+            (walked("docs/a.md", "hb"), walked("docs/b.md", "ha")),
+            (sidecar("docs/a.md", b), sidecar("docs/b.md", a)),
+        ),
+    )
+    assert [(action.doc_id, action.path) for action in actions_of(result, Adopt)] == [
+        (b, "docs/a.md"),
+        (a, "docs/b.md"),
+    ]
+    assert not every_write_lands_on_a_free_path(result, before), (
+        "a swap has become applicable — the deferred half of S16 has been fixed, or this model of "
+        "the UNIQUE constraint has stopped matching the database"
+    )
+    # The S2 guarantees still hold on a plan that cannot be applied, which is the point of them.
+    assert places_each_id_once(result)
+    assert retires_before_adopting(result)
+
+
+def test_a_retire_and_an_adopt_at_one_path_keep_their_order() -> None:
+    """The trap the ordering pass fell into on its first draft, kept as a test rather than a memory.
+
+    When a file's sidecar carries a different id from the index row, the same-path loop emits
+    `SoftDelete(old id)` then `Adopt(sidecar id)` **at the same path**. The adopt is writing onto a
+    path a live row holds, so it depends on that row moving out of the way — and the thing that
+    moves it is the `SoftDelete`, not a rename. A first draft recorded only renames as freeing a
+    path, so this already-correct pair read as depending on an action that did not exist, and would
+    have been reported as unorderable.
+    """
+    old, new = mint_doc_id(), mint_doc_id()
+    before = IndexSnapshot((indexed(old, "docs/a.md", "ha"),))
+    result = pair(
+        before,
+        WalkSnapshot((walked("docs/a.md", "ha"),), (sidecar("docs/a.md", new),)),
+    )
+    assert [type(action).__name__ for action in result.actions] == ["SoftDelete", "Adopt"]
+    assert every_write_lands_on_a_free_path(result, before)
+    assert retires_before_adopting(result)
+
+
+def test_every_plan_in_this_file_is_applicable_except_the_cycle() -> None:
+    """The property over every shape, not only the one that broke it — the same reasoning as
+    `test_no_plan_in_this_file_ever_places_one_id_at_two_paths`, which this deliberately mirrors.
+
+    **The cycle is listed as expected-inapplicable rather than omitted.** A sweep that quietly
+    skipped it would be green both before and after someone fixed swaps, and green is exactly what
+    the record must not say while that half is open.
+    """
+    first, second, third = mint_doc_id(), mint_doc_id(), mint_doc_id()
+    worlds = (
+        # a rename shift: b → c, a → b. Applicable, in one order only.
+        (
+            "shift",
+            True,
+            ((first, "docs/a.md", "ha"), (second, "docs/b.md", "hb")),
+            (("docs/b.md", "ha"), ("docs/c.md", "hb")),
+            (("docs/b.md", first), ("docs/c.md", second)),
+        ),
+        # a chain of three: the applicable order is strictly reverse.
+        (
+            "chain of three",
+            True,
+            (
+                (first, "docs/a.md", "ha"),
+                (second, "docs/b.md", "hb"),
+                (third, "docs/c.md", "hc"),
+            ),
+            (("docs/b.md", "ha"), ("docs/c.md", "hb"), ("docs/d.md", "hc")),
+            (("docs/b.md", first), ("docs/c.md", second), ("docs/d.md", third)),
+        ),
+        # a sidecar moved off one document onto another
+        (
+            "sidecar moved",
+            True,
+            ((first, "docs/a.md", "ha"), (second, "docs/b.md", "hb")),
+            (("docs/a.md", "ha"), ("docs/b.md", "hb")),
+            (("docs/b.md", first),),
+        ),
+        # an in-place id change: retire, then adopt, at one path
+        (
+            "in-place id change",
+            True,
+            ((first, "docs/a.md", "ha"),),
+            (("docs/a.md", "ha"),),
+            (("docs/a.md", second),),
+        ),
+        # two documents renamed past each other — no order works, and that is still true
+        (
+            "cycle",
+            False,
+            ((first, "docs/a.md", "ha"), (second, "docs/b.md", "hb")),
+            (("docs/a.md", "hb"), ("docs/b.md", "ha")),
+            (("docs/a.md", second), ("docs/b.md", first)),
+        ),
+    )
+    for name, applicable, rows, files, sidecars in worlds:
+        before = IndexSnapshot(tuple(indexed(i, p, h) for i, p, h in rows))
+        result = pair(
+            before,
+            WalkSnapshot(
+                tuple(walked(p, h) for p, h in files),
+                tuple(sidecar(p, i) for p, i in sidecars),
+            ),
+        )
+        assert every_write_lands_on_a_free_path(result, before) is applicable, (
+            f"{name}: expected applicable={applicable}"
+        )
+        assert places_each_id_once(result), f"{name}: one id at two paths"
+        assert retires_before_adopting(result), f"{name}: adopted before retiring"
+
+
+def test_actions_under_no_constraint_keep_their_order_inside_a_plan_that_has_one() -> None:
+    """Stability **where it can actually be observed** — and this test exists because the one above
+    it could not observe it.
+
+    `test_a_move_onto_a_name_nobody_holds_is_not_reordered` uses a plan with no constraints at all,
+    and a plan with no constraints never reaches the topological sort: the pass returns the list
+    untouched before it starts. So a mutant that made the sort emit ready actions in arbitrary
+    order **survived that test, and survived the entire suite** — 2 221 tests — while changing the
+    output of every plan that does have a constraint. Found by running the battery, not by reading.
+
+    Here a rename shift (`b → c`, `a → b`, which must be reordered) shares a plan with two
+    untouched documents (which must not be). The whole sequence is asserted, because the property
+    is about the actions the constraint does **not** name: they are the ones a re-sort silently
+    moves, and the ones whose relative order a reader of a future diff will assume is preserved.
+    """
+    a, b, d, e = mint_doc_id(), mint_doc_id(), mint_doc_id(), mint_doc_id()
+    before = IndexSnapshot(
+        (
+            indexed(a, "docs/a.md", "ha"),
+            indexed(b, "docs/b.md", "hb"),
+            indexed(d, "docs/d.md", "hd"),
+            indexed(e, "docs/e.md", "he"),
+        )
+    )
+    result = pair(
+        before,
+        WalkSnapshot(
+            (
+                walked("docs/b.md", "ha"),
+                walked("docs/c.md", "hb"),
+                walked("docs/d.md", "hd"),
+                walked("docs/e.md", "he"),
+            ),
+            (sidecar("docs/b.md", a), sidecar("docs/c.md", b)),
+        ),
+    )
+    assert [(type(action).__name__, action.path) for action in result.actions] == [
+        ("Skip", "docs/d.md"),
+        ("Skip", "docs/e.md"),
+        ("Adopt", "docs/c.md"),
+        ("Adopt", "docs/b.md"),
+    ], "the two untouched documents changed places, so the pass is re-sorting rather than ordering"
+    assert every_write_lands_on_a_free_path(result, before)
+
+
+def test_an_orphaned_sidecar_does_not_cost_a_live_document_its_id() -> None:
+    """A sidecar whose document is gone claims an id for nothing, and must not be read as a claim.
+
+    **Found by the battery, and only because an unrelated fix took its old witness away.** The
+    mutant that widens `claimed_by_id` to include orphans used to die to an *ordering* assertion:
+    it moved a `SoftDelete` after the `Adopt` it belongs before. S16's ordering pass now repairs
+    that order globally, so the mutant became invisible — **and running it against all 2 212 tests
+    found nothing else that saw it.** A fix that enforces a property globally silently unpins every
+    test that asserted that property locally, and this is what was underneath.
+
+    What is underneath is worse than the ordering it was hiding behind. `claimed_by_id` has a
+    second reader: a file with **no sidecar of its own** whose index id turns up claimed elsewhere
+    is read as *"this row's identity has moved"*, so the path is left to be minted fresh. Let an
+    orphan count as a claim and that fires on an ordinary document sitting untouched beside a
+    stale `.pnk.yaml` — the document is re-minted under a new id while its old one is retired.
+    **That is `docs/INVARIANTS.md`'s ULID permanence**, broken by a leftover file, and every
+    inbound `pnk://` link to it dies.
+
+    So the assertion is the action *kind*, not the order: an untouched document is `Skip`ped.
+    """
+    live, orphan_claim = mint_doc_id(), mint_doc_id()
+    result = pair(
+        IndexSnapshot((indexed(live, "docs/a.md", "ha"),)),
+        WalkSnapshot(
+            (walked("docs/a.md", "ha"),),
+            # The sidecar names a document this walk did not find, and it claims the live id.
+            (sidecar("docs/gone.md", live), sidecar("docs/also-gone.md", orphan_claim)),
+        ),
+    )
+    # The action *kind* is the assertion, and it is read without touching `doc_id` on the union:
+    # `Mint` carries none, and the mutant's own outcome is a `Mint` in some walks. Asking for an
+    # attribute one member does not have would make this test unable to run on the very output it
+    # exists to reject.
+    assert [type(action).__name__ for action in result.actions] == ["Skip"], (
+        "an untouched document was re-identified because a stale sidecar elsewhere named its id"
+    )
+    skipped = actions_of(result, Skip)
+    assert [action.doc_id for action in skipped] == [live], (
+        "the surviving row is not the one that was there — the id did not survive the walk"
+    )
+    assert result.orphaned_sidecars == ("docs/also-gone.md.pnk.yaml", "docs/gone.md.pnk.yaml"), (
+        "the orphans must still be reported — they are the evidence for the user, and reporting "
+        "them is what makes ignoring them for identity safe"
+    )
+
+
+def test_vacates_reports_every_way_a_path_is_freed() -> None:
+    """`_vacates` is the ordering pass's model of *what makes a path available*, and it must match
+    the database's rule rather than the subset of it today's plans happen to exercise.
+
+    **Three ways a path stops being held, and a `SoftDelete` is the one no fixture reaches.** A move
+    frees the path it came from; a retirement frees the path it retires, because `sync`'s write
+    guard deletes a *retired* row holding a path a different id now wants. That third case is
+    unreachable through `pair()` — the same-path loop already emits `SoftDelete` then `Adopt`
+    adjacently and in the right order — so the only honest way to pin it is at the level the
+    contract lives, on the helper itself.
+
+    Written because the battery row for that branch said *"expected to SURVIVE"* in prose while
+    declaring a `kills` selector, and the format has no key for the first: the row asserted, in the
+    only field a machine reads, the opposite of its own comment. Testing the helper makes the claim
+    true instead of softening it — and the branch becomes load-bearing again the moment the deferred
+    cycle case is settled.
+    """
+    doc = mint_doc_id()
+    assert (
+        _vacates(
+            Adopt(
+                doc_id=doc,
+                path="docs/b.md",
+                content_hash="h",
+                sidecar_hash=None,
+                old_path="docs/a.md",
+            )
+        )
+        == "docs/a.md"
+    )
+    assert (
+        _vacates(
+            Rename(
+                doc_id=doc,
+                old_path="docs/a.md",
+                path="docs/b.md",
+                content_hash="h",
+                sidecar_hash=None,
+            )
+        )
+        == "docs/a.md"
+    )
+    assert _vacates(SoftDelete(doc_id=doc, path="docs/a.md")) == "docs/a.md", (
+        "a retirement frees its path for a different id, because sync's write guard clears a "
+        "retired row out of the way — drop this and the ordering pass stops modelling the rule"
+    )
+    # An adoption that is a first ingest rather than a move frees nothing, and neither does any
+    # action that leaves a row where it is. A model that over-reports would invent dependencies on
+    # actions that never come.
+    assert (
+        _vacates(
+            Adopt(doc_id=doc, path="docs/n.md", content_hash="h", sidecar_hash=None, old_path=None)
+        )
+        is None
+    )
+    assert _vacates(Mint(path="docs/n.md", content_hash="h")) is None
+    assert _vacates(Skip(doc_id=doc, path="docs/a.md")) is None

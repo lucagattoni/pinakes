@@ -36,6 +36,7 @@ from pinakes.sync import (
     MAX_PROBED_PER_ROOT,
     SyncOptions,
     SyncReport,
+    _is_path_still_held,  # pyright: ignore[reportPrivateUsage]
     sync,
     walk_document_paths,
 )
@@ -2707,9 +2708,12 @@ def test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row(kb: Path) -
     `docs/b.md` sits on disk with its sidecar and **no row at all**, and because there is no
     retired row to find, `pnk doctor`'s own check for this cannot see it either.
 
-    **The sync's own outcome is deliberately not asserted.** The collision it raises on belongs to
-    a separate defect with its own fix; what this test pins is that no live document loses its row,
-    which must hold however that defect is settled.
+    **The sync's own outcome is deliberately not asserted here.** The collision it raises on
+    belonged to a separate defect, settled 20260831 by catching it narrowly in `_apply` — so the
+    `contextlib.suppress` below now has nothing to suppress, and
+    `test_a_rename_cycle_is_a_recorded_failure_with_a_remedy_rather_than_a_traceback` is what pins
+    that. What this test pins is the older and wider claim: no live document loses its row, which
+    had to hold however that defect was settled, and still has to.
     """
     write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
     write(kb, "b.md", "# Beta\n\nBeta body here.\n")
@@ -2729,6 +2733,239 @@ def test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row(kb: Path) -
     # this whole increment is about. The state is the assertion.
     surviving = {Path(str(row["path"])).name for row in index(kb) if row["state"] == "active"}
     assert surviving == {"a.md", "b.md"}
+
+
+def test_a_rename_chain_syncs_and_every_document_keeps_its_id(kb: Path) -> None:
+    """S16/S19, end to end: a rename chain now applies, and nothing is re-minted.
+
+    `a → b`, `b → c`, `c → d` — **not** a cycle, and an applicable order plainly exists: move the
+    last one first. `pairing` used to emit them in path order, so the first write landed on a path
+    the next document still held, and `documents.path` being `UNIQUE` turned an ordinary `git mv`
+    of three notes into `pnk sync` exiting 1 on a raw `sqlite3.IntegrityError` — after which
+    `pnk search` answered from a path no longer on disk and `pnk doctor` reported every row `OK`,
+    including `failures: none recorded`.
+
+    **Ids are the assertion, not just the exit code.** A plan that dropped the rows and re-minted
+    them would also sync cleanly and would destroy every inbound `pnk://` link — ULID permanence is
+    the invariant here, and the counts `pnk sync` prints — `renamed`, with `minted` and
+    `deleted` both zero — are what say
+    which happened.
+    """
+    for name, body in (("a.md", "Alpha"), ("b.md", "Beta"), ("c.md", "Gamma")):
+        write(kb, name, f"# {body}\n\n{body} body here.\n")
+    run(kb)
+    before = {Path(str(row["path"])).name: row["id"] for row in index(kb)}
+    assert set(before) == {"a.md", "b.md", "c.md"}
+
+    docs = kb / "docs"
+    # Applied last-first on disk, which is the only way a person can do it without a temporary
+    # name — and leaves exactly the walk `pairing` used to mis-order.
+    for source, target in (("c.md", "d.md"), ("b.md", "c.md"), ("a.md", "b.md")):
+        (docs / source).rename(docs / target)
+        (docs / f"{source}{SIDECAR_SUFFIX}").rename(docs / f"{target}{SIDECAR_SUFFIX}")
+
+    report = run(kb)
+
+    assert report.renamed == 3, f"expected three renames, got {report}"
+    assert report.minted == 0, "a re-mint would look like a clean sync and destroy every link"
+    assert report.deleted == 0, "a retire-and-re-adopt would pass the id check by luck otherwise"
+    after = {
+        Path(str(row["path"])).name: row["id"] for row in index(kb) if row["state"] == "active"
+    }
+    assert after == {
+        "b.md": before["a.md"],
+        "c.md": before["b.md"],
+        "d.md": before["c.md"],
+    }
+
+
+def failures(kb: Path) -> list[dict[str, object]]:
+    """The `failures` table, which is what `pnk doctor` reads to decide whether to say `OK`."""
+    connection = store.connect_ro(kb / ".pinakes" / "index.db")
+    try:
+        return [dict(row) for row in connection.execute("SELECT * FROM failures ORDER BY id")]
+    finally:
+        connection.close()
+
+
+def test_a_rename_chain_whose_middle_document_fails_records_the_collision_instead_of_crashing(
+    kb: Path,
+) -> None:
+    """S16's residue: ordering a chain only helps while every action in it succeeds.
+
+    `_order_for_path_availability` makes action N+1 depend on action N having vacated a path, and
+    the executor has no notion of that dependency. `_apply` catches a per-document failure and
+    continues -- deliberately, so one broken file cannot block a thousand good ones -- but a caught
+    failure **rolls back**, so the failed document keeps its old path and the next action in the
+    chain writes straight onto it. `documents.path` is `UNIQUE`, so that raised a raw
+    `sqlite3.IntegrityError` which escaped `_apply`, `_run`, `sync()` and `cli.main`'s
+    `except PinakesError` alike: S16's whole symptom set again, now reached through the module's
+    own first-class "failures are recorded, the run continues" path, and now landing *after*
+    partial commits rather than before any.
+
+    The chain here is the review's exact failing input: `a -> b`, `b -> c`, `c -> d` renamed
+    last-first, with `d.md` saved in a non-UTF-8 encoding so the first ordered action fails at
+    index time. Any caught class reaches this -- `OSError` from a file replaced between the walk
+    and the write, a missing extractor, a budget refusal.
+
+    **What this pins is the outcome, not the repair.** Rows are still left at paths that no longer
+    exist on disk; the user has to act. The change is that `pnk sync` says so -- a `failures` row,
+    a remedy, and a `pnk doctor` that no longer answers `failures: none recorded` -- instead of
+    dying on a traceback that named nothing.
+    """
+    for name, body in (("a.md", "Alpha"), ("b.md", "Beta"), ("c.md", "Gamma")):
+        write(kb, name, f"# {body}\n\n{body} body here.\n")
+    run(kb)
+
+    docs = kb / "docs"
+    for source, target in (("c.md", "d.md"), ("b.md", "c.md"), ("a.md", "b.md")):
+        (docs / source).rename(docs / target)
+        (docs / f"{source}{SIDECAR_SUFFIX}").rename(docs / f"{target}{SIDECAR_SUFFIX}")
+    (docs / "d.md").write_bytes(b"# Gamma\n\n\xff\xfe legacy encoding\n")
+
+    report = run(kb)
+
+    collisions = [
+        (path, error, remedy)
+        for path, error, remedy in report.failures
+        if "PathStillHeldError" in error
+    ]
+    assert collisions, f"the collision was not recorded as a failure: {report.failures}"
+    assert all("temporary name" in remedy for _, _, remedy in collisions), (
+        "a recorded collision without a remedy is the traceback again, one layer up"
+    )
+    recorded = {str(row["path"]) for row in failures(kb)}
+    assert recorded, "nothing in the failures table means `pnk doctor` still reports OK"
+    assert "docs/d.md" in recorded, "the document that actually broke must be named too"
+    # `cli` returns EXIT_FAILURE on `not report.ok`, and `ok` is `not self.failures`. Asserted
+    # because the danger in catching an exception is trading a loud crash for a quiet success:
+    # `pnk sync` must still exit non-zero here, and nothing else pins that it does.
+    assert not report.ok, "a recorded collision that still exits 0 is worse than the traceback"
+
+
+def test_a_rename_cycle_is_a_recorded_failure_with_a_remedy_rather_than_a_traceback(
+    kb: Path,
+) -> None:
+    """The deferred half of S16/S19: two documents exchanging names, which no order can apply.
+
+    `_order_for_path_availability` resolves a chain and cannot resolve a cycle -- correctly, since
+    none of its orders is applicable. What changes here is only what the user is told when it
+    happens: the collision is the database stating a fact about their tree, so it becomes a
+    recorded failure naming the temporary-name remedy, where before it was
+    `sqlite3.IntegrityError: UNIQUE constraint failed: documents.path` on stderr with no remedy and
+    no `failures` row.
+
+    **The cycle itself is still not applied, and that is deliberate** -- see
+    `pairing._order_for_path_availability`. This is containment, not a fix for cycles.
+    """
+    write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
+    write(kb, "b.md", "# Beta\n\nBeta body here.\n")
+    run(kb)
+    docs = kb / "docs"
+    for one, two in (("a.md", "b.md"), (f"a.md{SIDECAR_SUFFIX}", f"b.md{SIDECAR_SUFFIX}")):
+        (docs / one).rename(docs / "_swap")
+        (docs / two).rename(docs / one)
+        (docs / "_swap").rename(docs / two)
+
+    report = run(kb)
+
+    assert any("PathStillHeldError" in error for _, error, _ in report.failures), (
+        f"the cycle still surfaced as something other than a recorded failure: {report.failures}"
+    )
+    assert failures(kb), "a cycle `pnk doctor` cannot see is the symptom this closes"
+    assert not report.ok, "the cycle is contained, not resolved — `pnk sync` still exits non-zero"
+    surviving = {Path(str(row["path"])).name for row in index(kb) if row["state"] == "active"}
+    assert surviving == {"a.md", "b.md"}, "no live document may lose its row to a refused cycle"
+
+
+def test_only_the_documents_path_collision_is_caught_and_every_other_constraint_escapes(
+    kb: Path,
+) -> None:
+    """The narrow half of the decision, tested where the contract lives.
+
+    `_apply` records a failure and continues. That is right for a broken *document* and wrong for a
+    broken *invariant*, so exactly one integrity error may be caught. `store.py` carries several
+    others -- `chunks(doc_id, ordinal)` and `nodes(kind, key)` UNIQUEs, the `links`/`edges` primary
+    keys, CHECKs on `documents.state`, `links.origin` and `nodes.kind` -- and each of those fires
+    only when Pinakes itself is wrong. Swallowing one would file a bug as a document's failure and
+    let the run report success around it, which is the silent shape `docs/INVARIANTS.md` exists to
+    prevent.
+
+    Every exception here is raised by sqlite rather than constructed, because the discriminator
+    reads `sqlite_errorname` and a hand-built `IntegrityError` carries none.
+    """
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        "CREATE TABLE documents (id TEXT PRIMARY KEY, path TEXT NOT NULL UNIQUE, "
+        "state TEXT NOT NULL CHECK (state IN ('active', 'deleted')))"
+    )
+    connection.execute("CREATE TABLE chunks (doc_id TEXT, ordinal INT, UNIQUE (doc_id, ordinal))")
+    connection.execute("INSERT INTO documents VALUES ('one', 'docs/a.md', 'active')")
+    connection.execute("INSERT INTO chunks VALUES ('one', 0)")
+
+    def raised(sql: str) -> sqlite3.IntegrityError:
+        with pytest.raises(sqlite3.IntegrityError) as caught:
+            connection.execute(sql)
+        return caught.value
+
+    collision = raised("INSERT INTO documents VALUES ('two', 'docs/a.md', 'active')")
+    assert _is_path_still_held(collision), "the one case a rename can legitimately produce"
+
+    # The NOT NULL case earns its place: its message *does* contain `documents.path`, so it is the
+    # only one of the four that the column substring alone lets through, and therefore the only one
+    # that actually exercises the `sqlite_errorname` clause. Written after noticing that the other
+    # three all fail on the column and would stay green with that clause deleted. `store.py`
+    # declares `path TEXT NOT NULL UNIQUE`, so it is reachable on the real table, not a contrivance.
+    for sql, why in (
+        ("INSERT INTO documents VALUES ('one', 'docs/z.md', 'active')", "a duplicate primary key"),
+        ("INSERT INTO documents VALUES ('three', 'docs/z.md', 'bogus')", "a CHECK breach"),
+        ("INSERT INTO chunks VALUES ('one', 0)", "a chunks(doc_id, ordinal) collision"),
+        (
+            "INSERT INTO documents VALUES ('four', NULL, 'active')",
+            "a NOT NULL breach on that very column",
+        ),
+    ):
+        assert not _is_path_still_held(raised(sql)), (
+            f"{why} means Pinakes is wrong; recording it as one document's failure hides a bug"
+        )
+    connection.close()
+
+
+def test_an_integrity_error_from_another_constraint_still_escapes_apply(
+    kb: Path, monkeypatch: Any
+) -> None:
+    """The same narrowing, witnessed through `_apply` rather than through the discriminator alone.
+
+    `_is_path_still_held` returning False is only half the claim; the other half is that `_apply`
+    re-raises on it instead of recording it. No fixture can reach a CHECK breach from a KB on disk
+    -- that is the point of an invariant -- so the error is injected at `_index_document`.
+
+    **The seam and what it leaves uncovered, named:** injecting the exception means this test never
+    exercises the sqlite call that would really raise it, so it proves the *handler's* behaviour
+    and not that any particular constraint is reachable. The exception is nonetheless a genuine one
+    raised by sqlite, so its `sqlite_errorname` is real rather than asserted; and the reachable
+    half -- the collision that a rename does produce -- is covered end to end by the two tests
+    above.
+    """
+    probe = sqlite3.connect(":memory:")
+    probe.execute("CREATE TABLE t (state TEXT CHECK (state IN ('active')))")
+    with pytest.raises(sqlite3.IntegrityError) as caught:
+        probe.execute("INSERT INTO t VALUES ('bogus')")
+    breach = caught.value
+    probe.close()
+    assert breach.sqlite_errorname == "SQLITE_CONSTRAINT_CHECK"
+
+    def explode(**_: Any) -> None:
+        raise breach
+
+    write(kb, "a.md", "# Alpha\n\nAlpha body here.\n")
+    monkeypatch.setattr("pinakes.sync._index_document", explode)
+
+    with pytest.raises(sqlite3.IntegrityError) as escaped:
+        run(kb)
+
+    assert escaped.value is breach, "an invariant breach must reach the top, not a failures row"
+    assert not failures(kb), "recording it would let the run report success around a bug"
 
 
 def test_the_population_walk_never_opens_a_document(kb: Path, monkeypatch: Any) -> None:
