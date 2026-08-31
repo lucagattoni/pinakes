@@ -10,8 +10,10 @@ tell anyone it exists.**
 > **This banner read *"one decision is the user's and it blocks everything … nothing lands"* until
 > 20260831.** It was wrong by 20260830: the suite went green in `b59e58f`, **0.31.0 published**, and
 > twelve merges landed after it. `./check.sh` exits 0 and the four once-failing files give
-> **249 passed, 1 skipped, 0 failed**. **Read this file for §§ *The 22 nobody has ever checked*,
-> *Five defects of one shape* and the `TZ=UTC` trap — not for the incident it is named after.**
+> **249 passed, 1 skipped, 0 failed**. **Read this file for §§ *The 22 nobody has ever checked*
+> — now **CHECKED**, 20260831: four confirmed, eight pointing at files that no longer exist, one
+> still open, and the ratio is the lesson — *Five defects of one shape* and the `TZ=UTC` trap.
+> Not for the incident it is named after. **Build order row 5, the last open row, is closed.**
 
 ## 1. ✅ CLOSED — `main`'s test suite was red, and no commit did it
 
@@ -381,6 +383,54 @@ defect count.**
 Six of the 51 were refuted and are harmless to re-check; the extraction cannot tell which six, so
 this list is an upper bound on work and a lower bound on nothing.
 
+### ✅ CHECKED 20260831 22:17 UTC — 21 of the 22, one by one
+
+**Four are real. Eight point at files that no longer exist.** The severities above are *as raised*,
+by agents whose claims were never tested; measured against the tree they ran about **5:1 against**.
+The section's own caveat — *an upper bound on work and a lower bound on nothing* — was right, and
+this is what the bound was hiding.
+
+**The single largest class is not a defect class at all.** Every cited `retro.d/2026082x-*.md`
+fragment was consumed into `docs/RETROSPECTIVES.md` at a release, so **eight of the 22 were
+unverifiable at their stated locator from the day the list was written**. `retro.d/` holds three
+files, all 20260830. **A locator into a fragment directory has a shelf life of one release** — the
+next list like this one should cite `docs/RETROSPECTIVES.md` and a quoted phrase, never a
+`retro.d/` path and a line number.
+
+| # | Locator as raised | Verdict |
+|---|---|---|
+| 1 | `20260825_1252` :81, Actionable row 5 — X7 | **CONFIRMED.** Layers 1 and 2 *are* built — `status_header_gate.py` `_check_hold_marker`, `PUBLISHED_ROW`, the `SEQUENCES` import. **Layer 3 is not**: nothing in `ci.yml` or `release.yml` queries the index. The row still reads *"Build the decided three-layer gate … LIVE"*, which sends a coder to rebuild layers 1–2 |
+| 2, 5 | `retro.d/20260826_0632` :47 and :47–53 — *"fourteen hours"* | **ONE finding, not two, and already discharged.** Dead locator; the text lives at `docs/RETROSPECTIVES.md:8039` and **self-corrects there**: two hours for S2, twelve for the eleven decision rows, plus why the figure is not re-derivable |
+| 3, 8, 11 | `retro.d/20260826_0702` :1, :3, :18 | **Dead locator** ×3 |
+| 4 | `20260731_1202` :118 — *"D-35 layer 2 is in build"* | **CONFIRMED.** It is **built**, `6a77f3c`. The same sentence's *"the 0.30.3 tag is taken and still pending"* is stale twice over — 0.30.3 was never published and 0.31.0 was |
+| 6 | `tools/batteries/README.md` :33 | **PARTLY CONFIRMED.** The *1–13* range still holds for covered files. The three named exceptions are rolling-window figures that have rolled: `sync.py` 39→**17**, `cli.py` 52→**29**, `doctor.py` 36→**23** (measured 20260831). **Freeze them as dated rather than re-measuring** — otherwise the paragraph is stale again next month |
+| 7 | `20260825_0749` :617, row 9 — *"54 mutants, 0 survived"* | **REFUTED, and re-derivable.** At `6a77f3c` the two batteries that commit touched held **12 + 42 = 54**. They hold 12 + 45 = 57 today, which is why it read as unverifiable: the claim is true of the tree it was made against, not of this one |
+| 9 | `20260825_1252` :65–68 — the eight rows with no build-order row | **PARTLY DISCHARGED, and the only one still open.** Four are now parked in the sweep plan's § *Decided work with an owner and no build order*, and `CLAUDE.md` records three more gaining build-order rows. Settling which of *12, 13, 14, 17, 22, 24, 26, 27* remain needs each row's body |
+| 10, 15, 16 | `retro.d/20260826_1130` :44, `…_0638` :33, `…_0659` :24 | **Dead locator** ×3 |
+| 12 | `20260825_0749` :618, row 10 — *"BUILT 20260826 07:24 UTC"* | **REFUTED.** `docs/RELEASING.md:170`'s line-3 sweep row does ask for the marker, with `R`, the naming rule and layer 2's four outcomes |
+| 13 | `docs/BUILDING.md` :179–180 | **Already discharged.** `tools/review_ledger.py:818` prints *CHANGED BY THIS INCREMENT, OPENED BY NOBODY*, and the *"landing separately"* phrasing the finding quoted is gone |
+| 14 | `20260825_1252` :83 — *"VERIFICATION.md:282 pins it"* | **Locator drift; the claim holds.** :282 is a symlink-link row now. The comment pins are at **:264** and **:347** |
+| 17 | `20260825_1240` :449/:460 — *"MANIFEST.md:307–319 lists ten exclusions"* | **REFUTED.** Counted: still exactly **ten** |
+| 18 | `docs/README.md` :61 — *"`docs/STATUS.md:303`, the `0.15.1` row"* | **Locator drift, inside a note recording a 20260811 fix.** `STATUS.md:303` is a `---` now. Cosmetic |
+| 19 | `20260825_1803` :592 — *"`docs/GUIDE.md:797` … IS this case"* | **Locator drift; the claim holds.** The row is at **:804** and reads as quoted |
+| 20 | `20260825_1803` :150 — *"the hold's public description is ACCURATE and live"* | **CONFIRMED stale.** The published site serves **`Latest release: 0.31.0`** (curled 20260831). It served 0.30.3 with the ⏸ qualifier when the bullet was written |
+| 21 | `20260825_1803` :146 — the 0.18.0 correction | **REFUTED.** The correction is right: 0.18.0's `### Changed` opens with *"`pnk doctor` now says how far your template has drifted"* |
+| 22 | `docs/STATUS.md` :308 | **Not actionable as recorded.** The line matches verbatim, so the locator is live — but the table truncated the raise, and what was alleged is unrecoverable. **A register that truncates the claim keeps the finding and loses the finding** |
+
+**A near-miss worth keeping, because the instrument was mine.** The published `STATUS` page shows
+**two** different *Latest release* strings. The second is inside a quoted incident narrative at
+`docs/STATUS.md:1131`, not a competing claim — checked before reporting it. A `grep -o` over a
+rendered page is a claim about a string, never about a page.
+
+**And one the tool said itself**, unprompted, when asked whether the batteries still hold:
+*"Every anchor resolves. That is not a green run: a `kills` selector renamed away is caught by the
+baseline, which needs pytest, and an anchor that still matches while the code around it moved is
+caught by nothing."*
+
+**What is owed from this pass**, none of it re-raising anything above: item 1's row rewritten to
+*layers 1–2 built, layer 3 outstanding*; item 4's two stale sentences; item 6's three figures frozen
+as dated; item 20's bullet restamped; and item 9 finished.
+
 ## Five defects of one shape, and the rule that would have caught them
 
 **20260830 produced five wrong claims across three sessions. Every one was a valid inference from a
@@ -532,7 +582,7 @@ the user, so a new rule goes to them beside it rather than ahead of it.
 | 2 | ✅ **BUILT 20260830**, `docs/RELEASING.md` § *Before you start* step 3, and first applied in 0.31.0. ~~The release step that refreshes `prices.toml`~~ — it has never existed, so every install refuses paid estimates 30 days after each release. Doc half `docs/RELEASING.md` (planner); the numbers need re-measuring (**user**) | **the user**, for the numbers | planner + user |
 | 3 | ✅ **DONE 20260830** — all five fixed and landed. ~~The five confirmed defects above~~ | nothing — but `check.sh` is red until **item 1** (this row used to say item 2, which was wrong: item 2 is the recurrence cure, not the unblock) | planner (all five are planner-owned documents) |
 | 4 | ✅ **DONE 20260830** — 14 verified, adversarially refuted, 12 fixed, 1 already fixed, 1 fix killed by its own skeptic. ~~The other 14 unfixed survivors in `SURVIVED.md`~~ | nothing, same caveat | planner |
-| 5 | 🔻 **THE ONLY ROW STILL OPEN.** A **targeted** verification pass over the never-verified findings — **not** `resumeFromRunId`, which is same-session-only. **30 raises were never verified; deduplicated against the 14 that item 4 covers, 22 distinct items remain**, enumerated in § *The 22 nobody has ever checked* | items 3-4, so it does not re-raise what is already fixed | planner |
+| 5 | ✅ **DONE 20260831 22:17 UTC — 21 of 22 dispositioned, 4 confirmed, 8 dead locators, 1 still open** (the eight-rows list). Verdicts per finding in § *CHECKED 20260831*, with what each one now owes. ~~A **targeted** verification pass over the never-verified findings — **not** `resumeFromRunId`, which is same-session-only. **30 raises were never verified; deduplicated against the 14 that item 4 covers, 22 distinct items remain**, enumerated in § *The 22 nobody has ever checked*~~ | — | planner |
 
 **The corpus rule does not apply.** Nothing here touches chunking, fusion, reranking or the
 confidence signal.
