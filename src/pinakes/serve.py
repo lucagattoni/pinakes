@@ -139,10 +139,13 @@ class ServedKb:
 
         * **Per thread**, because a `sqlite3.Connection` may only be used by the thread that opened
           it. Nothing in this file starts a thread — the MCP transport does: every sync tool runs
-          under `anyio.to_thread.run_sync`, on a pooled worker that is retired after ten idle
-          seconds. So back-to-back calls land on one thread and any pause past that window lands on
-          a new one, which is why this failed only for users who left the server alone for a moment
-          and never in a burst (S3).
+          under `anyio.to_thread.run_sync`, on a pooled worker retired after ten idle seconds. The
+          previous design cached one connection per KB and handed it to whichever worker asked next
+          (S3). **Measured end to end through `mcp.call_tool`, the trigger is concurrent calls, not
+          idle time**: six at once left two answering and four raising `ProgrammingError`, while an
+          eleven-second pause did *not* reproduce it, because the retired worker's thread id had
+          already been reused by its replacement and `sqlite3` compares ids. What the pause did
+          break, every time, is `close()` — see below.
         * **Re-opened on change**, because a `--rebuild` swaps the whole inode and an open handle
           keeps the old one alive, reporting a stale `meta.build_id` forever.
 
@@ -175,7 +178,9 @@ class ServedKb:
             self._reap_dead_threads()
             # `owning_thread_only=False` is what lets `close()` reap these from the shutting-down
             # thread. It does not make the connection shared: one thread owns each, by construction
-            # of this dict.
+            # of this dict. Opening under the lock also matters: unsynchronised, two threads racing
+            # the same first call both opened one and the loser's was dropped on the floor, which is
+            # the accident that let some of those concurrent searches answer at all.
             opened = store.connect_ro(self.manifest.index_path, owning_thread_only=False)
             self._open[current] = _ThreadConnection(opened, signature)
             return opened
@@ -186,6 +191,12 @@ class ServedKb:
             self._open.pop(thread).connection.close()
 
     def close(self) -> None:
+        """Close every live handle. Reached from `cli.py`'s `finally`, on the main thread.
+
+        The deterministic half of S3: this ran on a thread that had opened nothing, so with
+        `sqlite3`'s check on it raised out of `pnk serve`'s shutdown after any request at all — the
+        one symptom that reproduced on every attempt, pause or no pause.
+        """
         with self._lock:
             for held in self._open.values():
                 held.connection.close()

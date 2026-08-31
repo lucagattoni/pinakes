@@ -2,6 +2,7 @@
 
 import sqlite3
 import threading
+import time
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from conftest import pdf_extraction_runnable
 from pinakes.embed import ModelInfo, Vectors, register_embedding_backend, register_reranker
 from pinakes.errors import ServeError
 from pinakes.ids import mint_doc_id
+from pinakes import store
 from pinakes.init import init
 from pinakes.manifest import load
 from pinakes.serve import EVIDENCE_HEADER, Server, as_payload, build
@@ -235,6 +237,54 @@ def test_a_search_from_a_second_thread_answers_instead_of_raising(server: Server
 
     _, second = on_a_new_thread(lambda: server.search("sourdough", k=None))
     assert [p.path for p in second.passages] == [p.path for p in first.passages]
+
+
+def test_no_connection_is_opened_and_then_abandoned_still_open(
+    server: Server, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Threads arriving together must not leave open handles nobody holds a reference to.
+
+    The previous `connection()` read `self._connection is None` and assigned it with no lock, over
+    one slot shared by every thread: arriving together, each opened a connection and the last
+    assignment won. The losers stayed **open**, unreferenced and unclosable -- and that accident is
+    also why some concurrent searches kept answering, since a thread that won the race was using a
+    connection it had opened itself.
+
+    Asserted through the public surface only -- open some, shut the server down, and no connection
+    that was ever opened is still usable -- so it discriminates against the old design rather than
+    against a missing attribute. The sleep inside the counting wrapper holds each opener where the
+    old race happened, which is what makes the outcome the same on every run instead of depending
+    on where the interpreter chose to switch.
+    """
+    served = server._kbs[0]  # pyright: ignore[reportPrivateUsage]
+    opened: list[sqlite3.Connection] = []
+    real = store.connect_ro
+
+    def counting(path: Path, **kwargs: bool) -> sqlite3.Connection:
+        connection = real(path, **kwargs)
+        time.sleep(0.05)
+        opened.append(connection)
+        return connection
+
+    monkeypatch.setattr("pinakes.serve.store.connect_ro", counting)
+
+    together = threading.Barrier(4)
+
+    def open_one() -> None:
+        together.wait(timeout=5)
+        served.connection()
+
+    threads = [threading.Thread(target=open_one) for _ in range(4)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert len(opened) == 4
+    server.close()
+    for connection in opened:
+        with pytest.raises(sqlite3.ProgrammingError):
+            connection.execute("SELECT 1")
 
 
 def test_the_mcp_transport_runs_a_sync_tool_off_the_calling_thread() -> None:

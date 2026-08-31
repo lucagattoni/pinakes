@@ -1,10 +1,18 @@
-- **A defect that only appears after a pause is invisible to a suite that never pauses.** Every
-  `pnk serve` test called back to back, so every one of them ran on a single `anyio` worker and the
-  cross-thread reuse never happened. `tests/test_serve.py` had no test that started a thread at all.
-  The bug was not missed by a weak assertion; it was outside the shape of every test in the file.
-  **The trigger was a property of the transport, and the transport was the part nobody was
-  testing** — `serve.py` starts no threads, so reading it end to end tells you it is single-threaded
-  and that reading is what the tests encoded.
+- **A defect in how threads share a handle is invisible to a suite that never starts a thread.**
+  `tests/test_serve.py` had no thread anywhere in it. The bug was not missed by a weak assertion; it
+  was outside the shape of every test in the file. **The trigger was a property of the transport,
+  and the transport was the part nobody was testing** — `serve.py` starts no threads, so reading it
+  end to end tells you it is single-threaded, and that reading is what the tests encoded.
+- **The inherited explanation of *when* it fires was wrong, and only running it said so.** The
+  finding came with a mechanism — a worker retired after ten idle seconds, so the first call after
+  a pause gets a new thread — and it is a correct account of `anyio`. It is not what fails. Driven
+  through the real `mcp.call_tool`, an eleven-second pause reproduced **nothing**: the retired
+  worker's thread id had already been reused by its replacement, and `sqlite3` compares ids, so it
+  saw one thread. What did reproduce, on every attempt, was `close()` — shutdown runs on a thread
+  that opened nothing — and, under six concurrent calls, four of six raising `ProgrammingError`.
+  **The trigger is contention, not idleness.** The mechanism was sound, the population was never
+  checked, and the first commit message asserted the pause as though it had been measured; it is
+  corrected in the follow-up rather than left to read as evidence.
 - **A thread id is a slot the OS reuses, not an identity — and it faked a passing test.** The first
   version of the rebuild test ran two worker threads in succession and **passed against the unfixed
   code**. macOS had handed the second thread the id of the first the moment the first was reclaimed;
@@ -25,3 +33,10 @@
   whole premise of the fix, so it is asserted against `mcp` directly rather than assumed — a probe
   tool that records the thread it ran on. If the library stops offloading sync tools, that test goes
   red and says so, and nothing else in the suite would have noticed.
+- **The measurement that corrected it also found a second defect nobody had named.** Counting the
+  connections actually opened showed the old `connection()` testing and assigning one shared slot
+  with no lock: threads arriving together each opened one, the last assignment won, and the losers
+  stayed open, unreferenced and unclosable. That race is why *some* concurrent calls answered — a
+  thread that won it was using a connection it had opened itself — so the leak was also the thing
+  hiding the failure. Neither would have been found by reasoning about the fix; both came from
+  instrumenting the run and asking how many, rather than whether.

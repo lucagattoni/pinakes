@@ -29,17 +29,28 @@ survivor count. `tests/test_batteries.py` is a **resolvability gate**, not a reg
 tools/batteries/*.toml` is the count — **do not restate it here**, because nothing turns red when it
 moves: `tests/test_batteries.py` checks anchors and `kills` selectors, never this prose. It said
 *"Nine … Seven"* from 20260826, when three batteries landed in one day and one was never added to
-the total, until 20260830. **Two modules under `src/` have one** — `src-pinakes-init.toml`, over the
-check that decides whether a KB's `.pinakes/` can reach a remote, and `src-pinakes-pairing.toml`, which spans **two** files,
-`src/pinakes/pairing.py` and `src/pinakes/sync.py`, because the guarantee it mutates spans both. No
-invariant in [`docs/INVARIANTS.md`](../../docs/INVARIANTS.md) has a battery of its own. The covered
-files change 1–13 times in 30 days — **except `sync.py` at 39, which was this paragraph's own example
-of high-churn code with no battery until 20260825**, and is named here so that change is visible
-rather than quietly dropped. **Two further high-churn modules, one with no battery and one
-covered without being named** — `src/pinakes/doctor.py` at 36 commits has none, while
-`src/pinakes/cli.py` at 52 is mutated twice by `src-pinakes-init.toml` (measured 20260825 by
-`git log --since="30 days ago" --follow`, over a repository whose first commit is 2026-07-25 — so
-these are close to lifetime counts, not a steady-state rate; the `cli.py` correction is 20260826).
+the total, until 20260830. **Three modules under `src/` have one** — `src-pinakes-init.toml`, over the check that decides
+whether a KB's `.pinakes/` can reach a remote; `src-pinakes-pairing.toml`, which spans **two**
+files, `src/pinakes/pairing.py` and `src/pinakes/sync.py`, because the guarantee it mutates spans
+both; and `src-pinakes-serve.toml`, over the identity a concurrent request is answered under. **No
+battery is *named* for an invariant** — a battery's primary target is a file, so none can be — but
+two of them mutate [`docs/INVARIANTS.md`](../../docs/INVARIANTS.md) territory and say so in their
+own headers: `src-pinakes-init.toml` over whether `.pinakes/` can leave the machine,
+`src-pinakes-pairing.toml` over ULID permanence. **This sentence read *"No invariant … has a
+battery of its own"* until 20260831 — true of the filenames, false of the coverage.**
+
+**The churn figures here are frozen to a stated window, not rolling.** Over 20260801–20260901 the
+covered files change 2–29 times. The two that stand out are the two this paragraph has always
+argued about: `src/pinakes/cli.py` at 29, mutated twice by `src-pinakes-init.toml` without
+appearing in its name, and `src/pinakes/doctor.py` at 23, which still has no battery. The
+highest-churn file whose battery *is* named for it is `tools/release_order_gate.py` at 13.
+`src/pinakes/serve.py` sits at 2, **which is the point** — it earned a battery from one measured
+trap, not from churn, so churn is a prompt here and never the criterion. **Do not re-measure these
+into a rolling window.** The figures this paragraph carried before — *39*, *52*, *36*, a *1–13*
+range — were `--since="30 days ago"` read on 20260825 over a repository whose first commit is
+2026-07-25, so they were near-lifetime counts wearing a 30-day label, and they stopped describing
+the tree as the window slid off the repo's first week without a word changing. A dated window goes
+stale honestly; a rolling one rewrites its own past.
 **A battery's name is not its coverage, and reading the names is how that sentence went wrong** —
 `src-pinakes-init.toml` reaches `cli.py`, and `tools-mcp_handshake_gate.toml` reaches seven files
 including `Makefile`, `check.sh`, `pyproject.toml` and both CI workflows. To ask what is actually
