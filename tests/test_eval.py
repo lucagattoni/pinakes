@@ -1374,6 +1374,109 @@ def test_the_probe_refuses_fake_together_with_kb(tmp_path: Path) -> None:
     assert "--fake" in completed.stderr and "--kb" in completed.stderr
 
 
+#: A golden set demo-kb can actually be measured against, kept out of the tests below so the three
+#: of them differ only in *where the file is* and *what is asserted about it*. Both hops are known
+#: good on this corpus — the same pair `test_the_probe_names_the_kb_it_measured` rewrites with.
+KEPT_QUESTION: dict[str, object] = {
+    "id": "a-set-a-rebuild-replaced",
+    "question": "Why may material bought with the public grant not be sold?",
+    "kind": "multi-hop",
+    "expect": ["docs/deaccession-policy.md", "docs/funding-sources.md"],
+    "hops": [
+        {"query": "public money", "expect": "docs/deaccession-policy.md"},
+        {"query": "core funding", "expect": "docs/funding-sources.md"},
+    ],
+}
+
+
+def _kept_set(path: Path, questions: list[dict[str, object]] | None = None) -> Path:
+    """A golden set at an arbitrary path, deliberately not named `questions.yaml`.
+
+    The name matters: a flag that resolved by filename rather than by the path it was handed would
+    satisfy a test whose fixture happened to be called `questions.yaml`."""
+    path.write_text(
+        json.dumps({"questions": [KEPT_QUESTION] if questions is None else questions}),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_the_probe_measures_the_golden_set_the_flag_names(tmp_path: Path) -> None:
+    """`tools/build_rfc_corpus.py`'s `write_golden_set` copies the committed questions over
+    `<kb>/eval/questions.yaml` on *every* build, unconditionally. That is right for that corpus —
+    the questions are the instrument, not the data — but until this flag existed the probe had no
+    way past its own default, so re-measuring the set a rebuild replaced meant putting the old
+    file back into the KB, where the next build overwrote it again.
+
+    Run under `--fake`, which is also the pin on the deliberate *non*-exclusivity: `--kb` is
+    refused alongside `--fake` because `--fake` would have to discard it, and a golden set has
+    nothing to discard. Adding `--questions` to that mutually exclusive group would take this to
+    `returncode == 2` on the first assertion.
+
+    The count is what makes this discriminate. A probe that reported the flagged path but loaded
+    the default file would pass every assertion about `path` and `sha256` — those are computed
+    from `questions_path` — and fail only on `questions`, which counts what was actually read.
+    """
+    kept = _kept_set(tmp_path / "kept.yaml")
+    default_set = load_questions(DEMO / "eval" / "questions.yaml")
+
+    completed = _run_probe("--fake", "--questions", str(kept), "--json")
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+
+    assert payload["golden_set"]["path"] == str(kept.resolve())
+    assert payload["golden_set"]["sha256"] == hashlib.sha256(kept.read_bytes()).hexdigest()
+    assert payload["golden_set"]["questions"] == 1
+    assert payload["golden_set"]["multi_hop"] == 1
+    # The control, asserted rather than assumed: the file the flag displaced is a different file
+    # with a different number of questions, so `== 1` above could not have come from it. If the
+    # committed demo-kb set is ever cut to one question this test stops discriminating, and this
+    # line is what says so instead of the suite going quietly green.
+    assert len(default_set) > 1
+    assert payload["kb_root"].endswith("demo-kb")  # the corpus is still --fake's own copy
+
+
+def test_a_relative_questions_path_is_recorded_resolved(tmp_path: Path) -> None:
+    """Same property `kb_root` already has, for the same reason: two golden sets both reached as
+    `./kept.yaml` from two directories would record one path and be indistinguishable in the
+    artifact. `tmp_path` is already absolute and already resolved, so only a run whose *cwd* makes
+    the argument relative can pin it."""
+    kept = _kept_set(tmp_path / "kept.yaml")
+
+    completed = subprocess.run(
+        [sys.executable, str(PROBE), "--fake", "--questions", kept.name, "--json"],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+
+    assert Path(payload["golden_set"]["path"]).is_absolute()
+    assert payload["golden_set"]["path"] == str(kept.resolve())
+
+
+def test_a_refusal_names_the_golden_set_the_flag_named(tmp_path: Path) -> None:
+    """The refusal has to name the file it read, not the one it would have read.
+
+    `check_measurable` is handed `source=` separately from the questions themselves, so pointing
+    the loader at the flag while leaving `source` on the default is a real way to get this wrong —
+    and it fails silently in the only direction that matters: an operator fixing the *KB's* set
+    because the message named it, while the set that actually refused sits untouched elsewhere.
+    """
+    kept = _kept_set(
+        tmp_path / "kept.yaml",
+        [{**KEPT_QUESTION, "hops": [{"query": "public money", "expect": "docs/absent.md"}]}],
+    )
+
+    completed = _run_probe("--fake", "--questions", str(kept), "--json")
+
+    assert completed.returncode != 0
+    assert REFUSAL in completed.stderr
+    assert str(kept) in completed.stderr
+    assert "eval/questions.yaml" not in completed.stderr
+
+
 RUNNER = """
 import sys
 

@@ -93,10 +93,11 @@ their figures. No corpus digest is recorded, so that gap is real; it is stated r
 over, and a run whose result is quoted anywhere should be a run whose corpus stood still.
 
 Usage:
-    python3 tools/reachable_ceiling_probe.py                    # real models, the measurement
-    python3 tools/reachable_ceiling_probe.py --kb path/to/kb    # another corpus
-    python3 tools/reachable_ceiling_probe.py --fake             # offline, for tests
-    python3 tools/reachable_ceiling_probe.py --drop co-located  # prove the number moves
+    python3 tools/reachable_ceiling_probe.py                       # real models, the measurement
+    python3 tools/reachable_ceiling_probe.py --kb path/to/kb       # another corpus
+    python3 tools/reachable_ceiling_probe.py --questions kept.yaml # a golden set a rebuild replaced
+    python3 tools/reachable_ceiling_probe.py --fake                # offline, for tests
+    python3 tools/reachable_ceiling_probe.py --drop co-located     # prove the number moves
     python3 tools/reachable_ceiling_probe.py --json
 """
 
@@ -1002,6 +1003,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="offline hashing backend over a temporary copy of the demo KB, for tests. "
         "Not combinable with --kb, which it would otherwise have to ignore.",
     )
+    # `--kb` says which corpus, this says which questions, and the two are separable. It exists
+    # because `tools/build_rfc_corpus.py`'s `write_golden_set` copies the committed
+    # `tools/rfc_corpus/questions.yaml` over `<kb>/eval/questions.yaml` on *every* build,
+    # unconditionally. That is right there — the questions are the instrument, not the data — and
+    # it leaves this probe with no route to re-measure the set a rebuild replaced except to put
+    # the old file back into the KB, where the next build overwrites it again. `pinakes.eval` and
+    # `tools/graph_matrix.py` already take this flag under this name with this `or` default; the
+    # probe was the one that did not.
+    #
+    # Deliberately *not* exclusive with `--fake`, unlike `--kb`. That pair is refused because
+    # `--fake` would have to discard a `--kb` and report one corpus's numbers under another's
+    # name; a golden set is honoured whichever corpus is underneath, so there is nothing to
+    # discard. The artifact stays honest either way: it records the set's resolved path and
+    # sha256, so a run against a non-default set is already distinguishable from one against the
+    # default.
+    parser.add_argument(
+        "--questions",
+        type=Path,
+        default=None,
+        help="golden set to measure (default: the measured KB's eval/questions.yaml)",
+    )
     parser.add_argument(
         "--drop",
         action="append",
@@ -1027,7 +1049,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         # against itself. The 12-failing/9-liftable figure the graph release was unblocked on was
         # produced before the setting existed, so this keeps a re-run comparable with it.
         manifest = replace(load(root), retrieval=replace(load(root).retrieval, graph_channel="off"))
-        questions_path = root / "eval" / "questions.yaml"
+        questions_path = args.questions or (root / "eval" / "questions.yaml")
         questions = load_questions(questions_path)
         connection = store.connect_ro(manifest.index_path)
         try:
