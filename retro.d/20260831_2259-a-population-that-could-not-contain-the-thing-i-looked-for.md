@@ -54,3 +54,16 @@
   disjoint and their union exact. Run across four invocations instead of one, the same sum is off
   by two — the corpus grows while you measure it, which is why a figure carries the hour it was
   taken.
+- **The same failure has a time axis, and the tool had no guard on it.** A peer read a workflow's
+  journal while the workflow was still running, saw 8 `started` against 7 `result`, and reported
+  the difference as a lost agent. It was the judge, mid-run; the workflow completed **9 of 9**
+  minutes later. The reading was correct and the question *when was this read* had not been asked
+  — the same defect as *out of what population*, one axis over. My own analysis had controlled for
+  it only by **observation** ("the most recent orphaned journal is 20260826, so none is in
+  flight"), which is a fact about that afternoon and not a property of the instrument. `workflows`
+  now excludes runs whose journal moved in the last `--settle-minutes` (default 60) and **prints
+  how many it excluded**, because a silent exclusion is another unstated population. Journal rows
+  carry no timestamp of their own — `agentId`, `key`, `result`, `type` — so the guard is the
+  file's mtime, and a journal whose age cannot be read counts as settled: the guard drops what it
+  can prove is recent, never what it merely cannot date. With the guard the corpus reads 55 runs /
+  868 agents / 157 no-terminal-row; without it, 57 / 881 / 159.

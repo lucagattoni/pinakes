@@ -17,6 +17,10 @@
   union — a property a test asserts, so a split can be quoted without leaving the tool. The default is `all` deliberately — a main-loop-only file list cannot
   contain a subagent transcript, so it answers questions about fan-outs with a zero that looks like
   a finding.
+- **`workflows` ignores runs that are still writing** (`--settle-minutes`, default 60) and says how
+  many it set aside. An agent that has not returned yet is indistinguishable from one that was
+  lost, so a workflow read mid-flight reports healthy agents as losses — measured live, the
+  unguarded count was 159 orphans against the settled 157.
 - **A model off the rate card reports no dollars rather than a guessed price**, and the rate card
   states its own provenance and cache date in the source. An estimate over transcripts is never a
   bill, and the code says so where the number is produced.
