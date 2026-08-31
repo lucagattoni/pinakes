@@ -118,8 +118,7 @@ only. This one survived; S17 did not, and both were recorded the same way.
 | `pnk doctor` | **exit 0**, `OK` on every row |
 
 **This is the S2 shape reached from a different direction** — the index and the disk disagree, and the
-diagnostic command says the KB is healthy. It is **live in `0.30.2`**, which is what `pip install pinakes`
-serves today.
+diagnostic command says the KB is healthy. It is **live in the published release**, which is **`0.31.0`** — verified against the index itself, `pypi.org/simple/pinakes/` carrying `pinakes-0.31.0-py3-none-any.whl`, with `refs/tags/v0.31.0` on `origin` and `__version__ = "0.31.0"`. **This read `0.30.2` until 20260831 22:36**, which would let a reader tell a user to *upgrade past 0.30.2* as though that escaped the defect. It does not — the defect is live on the newest release.
 
 **Why an ordinary action reaches it**, from the coder's analysis of `pair()`: a swap emits
 `[SoftDelete(X), Adopt(Y@a.md), SoftDelete(Y), Adopt(X@b.md)]`. The `UNIQUE` constraint on
@@ -182,9 +181,16 @@ argument for the note: a fresh session reading a green gate would have landed a 
 **Not preserved here:** the four `doctor` defects and the rework plan, all of which landed and are
 therefore readable in `main`'s history and in `retro.d/`'s S2 fragment.
 
-> ### 🧹 A task with a checkable precondition — delete the branch once this section is on `main`
+> ### 🧹 ✅ DONE — the branch is gone, and only the record of it was missing
 >
-> **`20260825_1243-s2-silent-index-loss` is still on `origin`, local and remote both at
+> **Verified 20260831 22:36: `20260825_1243-s2-silent-index-loss` exists in none of the three
+> places.** `git ls-remote origin` lists only `main` and the live branches; `git branch -a` shows
+> no local or tracking copy; `git worktree list` shows no worktree. The precondition below was
+> discharged too — `git grep -c "S2's abandoned first attempt" origin/main` on this file returns
+> 2 — so the task was carried out and **only this box went unticked.** Kept, not deleted: a
+> checkable precondition that was checked is the point of the box. The state it describes was:
+>
+> **`20260825_1243-s2-silent-index-loss` was on `origin`, local and remote both at
 > `5917886`**, holding four commits that are not on `main`:
 >
 >     5917886  The lesson from the fifth test: per-test, never per-run
@@ -324,14 +330,19 @@ planner **verified the code claim directly on `origin/main`** and did *not* repr
 that requires a paid-extracted document and a paid backend. **The end-to-end behaviour is the coder's
 reproduction, not the planner's.** Weigh it accordingly.
 
-`src/pinakes/pairing.py`'s same-path branch reads
+`src/pinakes/pairing.py`'s same-path branch **read, before S18's fix** — it does not now, and
+grepping for this line finds nothing:
 
     hash_changed = document.content_hash != file.content_hash or document.state == DELETED
+
+**On `main` today it separates the two:** `content_changed` and `retired` are computed apart,
+`hash_changed` is their `or`, and the reason is `CHANGED` or `RETIRED` accordingly. The analysis
+below is why that split exists; it is not a defect still in the tree.
 
 **The second disjunct forces `hash_changed` True for any retired row, including one whose file is
 byte-identical to what was indexed.** If that row's `extraction_backend` is paid and the run is free,
 the `recorded_is_paid and not effective_is_paid and not override` branch below it then emits `PaidExtractionRequired` — so **a paid document deleted and restored unchanged
-is never resurrected**, and `src/pinakes/sync.py`'s refusal message (`grep -n 'but its content changed'`) tells the user it was extracted with the paid backend *"but its content changed."* **It did not.** The remedy the tool prints asks them to spend
+is never resurrected**, and `src/pinakes/sync.py`'s refusal message told the user it was extracted with the paid backend *"but its content changed."* **It did not.** **[Fixed by S18: `sync.py` now selects the wording from the reason, and the retired case reads *"and its content is unchanged, but the document was retired and that extraction's text was discarded with its chunks."* The false sentence about the user's own file is gone; the original wording survives only where it is true.]** The remedy the tool prints asks them to spend
 money re-extracting a file that has not moved a byte.
 
 **Why the disjunct is there matters for the fix**: its *"Decision 9's paid-protection clauses"* comment states the intent —
@@ -465,8 +476,11 @@ onto its own line with 27 spaces of padding. Reproduced byte-for-byte.
 
 **It is not on the bounds table.** `docs/MANIFEST.md:307-319` lists ten exclusions and none covers it:
 the anchor carries a real value, nothing is deleted, the name is not reused, it is not self-referential.
-`MANIFEST.md:303` says plainly *"Comments … all survive a rewrite"*, and `docs/VERIFICATION.md:282`
-pins that promise. All six anchor/alias tests in `tests/test_sidecar.py` were checked — **none covers a
+`MANIFEST.md:303` says plainly *"Comments … all survive a rewrite"*, and `docs/VERIFICATION.md`
+pins that promise in its row *"comments survive a rewrite through `pnk link`"* (L6,
+`tests/test_cli_link.py::test_comments_survive_a_rewrite_through_pnk_link`). **The citation was
+`:282` until 20260831 22:36 and had rotted twice** — quote the row, never the line: this file's own
+rule is that a citation names a symbol or a heading rather than a line. All six anchor/alias tests in `tests/test_sidecar.py` were checked — **none covers a
 comment on an alias reference.**
 
 **So it is either a defect to fix, or a missing bound row plus a pinning test.** The row would be

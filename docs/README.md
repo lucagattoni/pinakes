@@ -29,8 +29,11 @@ anyway.
 | [**graph/**](graph/) | Graph-retrieval research shaping the links and graph releases — thirteen investigations plus the synthesis |
 
 Build plans live in [`plans/`](../plans/); the release history is [`CHANGELOG.md`](../CHANGELOG.md).
-`plans/` holds more than one kind of file. **As of 20260825 12:40 two files propose work: the
-exposure plan and the run-Pinakes sweep, both at the top of the table.** The exposure plan's § X1 is
+`plans/` holds more than one kind of file. **As of 20260831 22:36 two files propose work: the
+exposure plan and the run-Pinakes sweep, both at the top of the table** — re-derived by reading
+both build orders, not carried forward. **A third had one between 20260830 and 20260831**, the
+red-`main` plan, and every row of it is now ✅ done; read that file for what it carries, not for a
+queue. The exposure plan's § X1 is
 **built and landed** and its **D-35 was answered 20260825 12:37**, which unblocks § X7; D-31 to D-34
 were **answered 20260825 18:16**, with every other open question, in the open-decisions file at the top
 of the table. The sweep carries **thirteen numbered findings** (S1–S9, S16–S19) plus the unnumbered classes its Low section lists in prose — **no total is stated, because that file's own counts have never reconciled** — and two now-answered
