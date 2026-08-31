@@ -15,7 +15,7 @@
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`, so there is
 # one less thing in it that can rot.
 
-mutants = 42
+mutants = 45
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · the sixth sequence — STATUS's *Published on PyPI* prose
@@ -409,3 +409,50 @@ file = "tools/release_order_gate.py"
 old = '''        return self.versions_in(text)'''
 new = '''        return []'''
 kills = "tests/test_release_order_gate.py::test_the_real_documents_are_in_release_order"
+
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260830 · 0.30.3 declared absent from the two lists that record what PyPI serves
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# 0.30.3 was prepared and never tagged, so it reached no index. It stays *expected* in every
+# release-document sequence and is declared absent from the two PyPI lists only. **The scope is
+# the whole claim**: a declaration that leaked to the other five would make the gate green by
+# erasing the distinction between a release document and a published artifact, which is the false
+# claim it exists to refuse. All three mutants below attack the scope rather than the mechanism,
+# because the mechanism was already covered by 0.11.0's rows above — what is new here is *which*
+# sequences carry it, and that is data, which no type checker reads.
+
+[[mutant]]
+name = "CONTROL — the declaration names 0.30.2, a version that WAS published"
+file = "tools/release_order_gate.py"
+# The control for this section: a change the scope test must catch by construction, run first,
+# because a section with no kills is a broken harness rather than a clean bill.
+old = '''    (0, 30, 3),
+    "prepared 20260825 and never tagged, so it reached no index; its fix ships inside 0.31.0 "'''
+new = '''    (0, 30, 2),
+    "prepared 20260825 and never tagged, so it reached no index; its fix ships inside 0.31.0 "'''
+kills = "tests/test_release_order_gate.py::test_0303_is_declared_absent_from_the_published_lists_and_from_nothing_else"
+
+[[mutant]]
+name = "the Published versions row loses its declaration, so only the prose is exempt"
+file = "tools/release_order_gate.py"
+# Anchored on the comment above it, not on the assignment: the two sequences carry the *identical*
+# line, so a bare anchor matches twice and `mutate.py` refuses the whole battery before the first
+# mutation runs. This is the half a reader would most plausibly delete as a duplicate.
+old = '''        # Same declaration as the prose above, for the same reason and from the same constant:
+        # both lists record what the index serves, and 0.30.3 was never in it.
+        absent=(PREPARED_BUT_NEVER_PUBLISHED,),'''
+new = '''        # Same declaration as the prose above, for the same reason and from the same constant:
+        # both lists record what the index serves, and 0.30.3 was never in it.'''
+kills = "tests/test_release_order_gate.py::test_0303_is_declared_absent_from_the_published_lists_and_from_nothing_else"
+
+[[mutant]]
+name = "the exemption stops being reported, so a declared absence and a tolerated gap look alike"
+file = "tools/release_order_gate.py"
+# The failure this section is really about. Both a declared absence and a hole nobody noticed exit
+# 0; the only thing that separates them is the sentence on the green run. Silence it and the gate
+# still passes every ordering and membership check it has.
+old = '''                    " (declared absent: "'''
+new = '''                    " ("'''
+kills = "tests/test_release_order_gate.py::test_the_real_documents_are_complete_from_their_declared_starts"

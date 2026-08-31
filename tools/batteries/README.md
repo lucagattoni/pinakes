@@ -25,9 +25,12 @@ finding… It is not a harness failure, so this exits 0 — read the rows."* So 
 carry a coverage regression, and anything CI-shaped built on top of this needs its own check on the
 survivor count. `tests/test_batteries.py` is a **resolvability gate**, not a regression gate.
 
-**And the denominator.** Nine batteries, nine primary targets. Seven are under `tools/`; **two
-modules under `src/` have one** — `src-pinakes-init.toml`, over the check that decides whether a
-KB's `.pinakes/` can reach a remote, and `src-pinakes-pairing.toml`, which spans **two** files,
+**And the denominator.** Every battery has exactly one primary target, and `ls
+tools/batteries/*.toml` is the count — **do not restate it here**, because nothing turns red when it
+moves: `tests/test_batteries.py` checks anchors and `kills` selectors, never this prose. It said
+*"Nine … Seven"* from 20260826, when three batteries landed in one day and one was never added to
+the total, until 20260830. **Two modules under `src/` have one** — `src-pinakes-init.toml`, over the
+check that decides whether a KB's `.pinakes/` can reach a remote, and `src-pinakes-pairing.toml`, which spans **two** files,
 `src/pinakes/pairing.py` and `src/pinakes/sync.py`, because the guarantee it mutates spans both. No
 invariant in [`docs/INVARIANTS.md`](../../docs/INVARIANTS.md) has a battery of its own. The covered
 files change 1–13 times in 30 days — **except `sync.py` at 39, which was this paragraph's own example

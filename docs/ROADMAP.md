@@ -17,12 +17,16 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260825 08:27 UTC
+## Where things stand right now — 20260830 14:46 UTC
 
-- **56 releases in 31 days**, and a fifty-seventh landed but **not yet tagged**.
+- **57 releases in 36 days**, and **one** landed without ever reaching PyPI.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
-  [`0.30.3`](#0303--the-question-the-probes-could-not-ask--20260825-0827)
-  is on `main` as of 20260825 and **is not on PyPI**.
+  [`0.31.0`](#0310--the-gates-that-could-not-fail--20260830-1446) is on `main` and **on PyPI as of
+  20260830 14:54**, verified by installing it from the index.
+  [`0.30.3`](#0303--the-question-the-probes-could-not-ask--20260825-0827) never will be — it was
+  prepared on 20260825, never tagged, and **its fix ships inside `0.31.0`**; its entry is kept
+  rather than folded away, because the record was written honestly and deleting it would erase the
+  gap instead of correcting it.
 - **Latest on PyPI: `0.30.2`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
@@ -205,6 +209,7 @@ number belongs to a release only when it is cut
 | **[0.30.1](#0301--the-assembled-document-nobody-read--20260824-2355)** | 20260824 23:55 | the assembled document nobody read | • `fragments.py --check` now validates **the assembly `--apply` would write**, not only the fragments going in<br>• **One definition of the splice** — `--check` calls the same `prospective()`, pinned by a byte-comparison test<br>• Replayed: exits 1 **at the commit that added the fragment**, at 0.6.0 and 0.28.3<br>• The bullet rule is **changelog-only by construction** — the retro stream has no category vocabulary to reach it<br>• `--apply` spliced entries **inside fenced code blocks**, and would have taken a quoted `## [Unreleased]` as its anchor<br>• `--apply` **was not atomic across streams** — wrote one, deleted its fragments, then printed *"Nothing written"*<br>• **Five front-matter residues rendered as setext `<h2>`**, two on the published site, `--strict` green throughout<br>• Four documents told an implementer to write **planner-only files** — no rule added, four sentences corrected<br>• no code path changed |
 | **[0.30.2](#0302--the-check-that-was-not-git--20260825-0045)** | 20260825 00:45 | the check that was not git | • `pnk init` asks **git** whether `.pinakes/` is ignored — the old check was a substring test, **wrong in both directions**<br>• Silent for a commented-out `#.pinakes/`, leaving the ledger and every **verbatim question** tracked<br>• Probes an **arbitrary** path under the directory, not named files<br>• **The first fix was itself a regression** — three named probes read `*.db`/`*.json` as protection while `index.db-wal` stayed tracked<br>• Caught by adversarial review, **not by any gate**; the reviewer's own fix was insufficient too, and only measurement showed it<br>• The remedy no longer says *"add this line"* to someone whose line is already there and negated<br>• Outside a repository the same probes run in a throwaway repo — one definition of the answer<br>• `pnk doctor` re-checking, and WARN-vs-note, **still undecided**<br>• ships in the wheel |
 | **[0.30.3](#0303--the-question-the-probes-could-not-ask--20260825-0827)** | 20260825 08:27 | the question the probes could not ask | • `pnk init` reports a `.pinakes/` git is already **tracking** — 0.30.2's check could not see it<br>• `check-ignore` consults the index, and the opaque probes are never *in* it, so it answered only *would a new file be ignored*<br>• A KB committed before its ignore rule reads as **protected** while `git commit -a` republishes the **verbatim questions**<br>• A second **question** (`git ls-files`), asked whether or not the `.gitignore` was adopted<br>• **Remedy order is load-bearing** — ignore line first, or the next `git add -A` re-adds; absolute path, or it fails from the repo root<br>• Says index-not-disk, and claims nothing about pushed history<br>• **Two of three specified constraints were corrections to the plan**: the prescribed test could not fail (68/69 survived the mutant), and `rc=128` needed asserting below a `bool`<br>• `pnk doctor` re-checking, and WARN-vs-note, **still undecided** (D-31 to D-33)<br>• ships in the wheel |
+| **[0.31.0](#0310--the-gates-that-could-not-fail--20260830-1446)** | 20260830 14:46 | the gates that could not fail | • `make release-check` was **three `echo`s** — it now refuses a missing, duplicated, lightweight, empty, disagreeing or **already-pushed** tag<br>• The tag is created **before** the gate and pushed **after** — the push is the irreversible half<br>• A review fan-out that **lost agents reported success**; `review_pass_gate.py` exits 1 on an unfinished pass<br>• `review_ledger.py` — a later review pass no longer starts from zero<br>• STATUS's headline could claim a hold that was over, or hide one that was not — **the *removal* was the uncatchable half**<br>• The procedure never asked for the hold marker, which is why it had **never once been written**<br>• The suite read the **wall clock** against the committed price table — 25 tests red on the calendar, no commit involved<br>• `docs/RELEASING.md` gains the price-refresh step; `as_of` had **never been refreshed since the file was created**<br>• A sidecar whose id no longer matches its path **stops wedging the index** — `doctor` had reported healthy at exit 0<br>• No plan places one id at two paths; **renaming past each other still fails**, but now costs nothing<br>• `pnk doctor` gains a **retired documents** check<br>• no `schema_version`, no rebuild |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -2249,6 +2254,65 @@ whether it is a WARN or an OK-with-a-note, were **D-31 to D-33 — ANSWERED by t
 earlier pass proposed — that one silently downgraded a WARN to OK on exactly the loose-folder KB
 where `pnk init` had just printed the warning, which was its only behavioural effect. The build is
 the coder's and is queued.
+
+## 0.31.0 — the gates that could not fail · 20260830 14:46
+
+**Eight of this release's twelve entries are the same defect wearing different clothes: a check that
+reported success without checking.** They were not found by a gate. They were found by reading the
+gates.
+
+**`make release-check` was three `echo`s.** It printed `__version__`, printed the tag, and compared
+nothing — while `docs/RELEASING.md` and `CLAUDE.md` both described it as the last check before an
+irreversible publish. It now refuses when no release-shaped tag points at `HEAD`, when more than one
+does, when the tag does not name `pinakes.__version__`, when the tag is lightweight or its
+annotation is empty, and when the tag is **already on the remote** — which is how *"never after"*
+became checkable rather than remembered. **An unreachable remote is red, not green.** The order
+changed with it: the tag must exist for anything to be compared, so the gate now sits between
+creating the tag and **pushing** it, the push being the half PyPI will not let you take back.
+
+**A review fan-out that lost agents reported success.** A workflow whose subagents die resolves them
+to `null`; `.filter(Boolean)` erases them; the script returns a clean bill it never earned. One pass
+recorded `"status": "completed"` beside `agentCount: 52` with **26 of those agents dead** — half the
+fan-out gone and nothing in the artefact saying so. `tools/review_pass_gate.py` exits 1 on a pass
+that did not finish, and `tools/review_ledger.py` stops the next pass starting from zero.
+
+**`docs/STATUS.md`'s headline could claim a hold that was over, or hide one that was not — and the
+half nothing could have caught was the *removal*.** A marker left behind after publication is a
+false statement on a page that deploys on every push, and no procedure step asked for it, which is
+precisely why it had never once been written. Its own text said *"NOT tagged"*, a claim about git,
+where the fact that matters is about the index — so it went false at `git tag` while the version was
+still unpublished, with the gate green over it.
+
+**The test suite read the wall clock against the committed price table.** `prices.toml` aged past
+`max_price_age_days` on 20260827 and **25 tests went red with no commit touching the tree** — four
+days before anyone looked, on a repository whose CI cannot see a tree that breaks without a push.
+`docs/DESIGN.md` had already decided staleness must be a runtime refusal and a `doctor` WARN,
+*deliberately not a CI gate*; 25 tests then asserted the un-stale path without pinning a clock and
+became the gate the design refused. They now pin a fresh table exactly as one test already pinned an
+aged one — the seam is the **table**, not the clock, because the failing tests drive the real CLI
+and have no clock to inject.
+
+**And the shipped half of that defect was older.** `as_of` had been written once, when the file was
+created, and **no release had ever refreshed it**, so every installed copy stops pricing paid runs
+30 days after each release while the error advises *"Upgrade pinakes to refresh the bundled
+prices"* — naming a step that did not exist. `docs/RELEASING.md` now has it, and this is the first
+release to run it.
+
+**Two fixes a user can feel.** A sidecar whose id no longer matches the row at its path **stopped
+wedging the index**: the adoption collided with the row it was replacing, `sqlite3.IntegrityError`
+escaped as a raw traceback, the retired row survived so every later `pnk sync` hit the same wall,
+`pnk search` could not see the document, and `pnk doctor` reported the KB healthy at exit `0`. And
+no plan now places one id at two paths. **Renaming documents past each other still fails** —
+`documents.path` is UNIQUE and the adoptions cross — and that is left to its own fix; what changed
+is that the failure now costs nothing, leaving the index exactly as it was, where it used to commit
+a retirement first and leave a document soft-deleted behind the crash.
+
+**`pnk doctor` gains a `retired documents` check** for the state it could not previously describe: a
+document on disk, carrying its identity, that `pnk search` cannot see. `doctor` printed the sidecar
+count and the active-document count on adjacent lines and compared them to nothing.
+
+**No `schema_version` bump and no rebuild.** The `doctor` check and both `sync` fixes ship in the
+wheel; the gates do not.
 
 # Part 5 · What is not built
 

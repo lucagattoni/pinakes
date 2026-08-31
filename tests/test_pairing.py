@@ -6,7 +6,9 @@ from pinakes.errors import DuplicateIdsError
 from pinakes.ids import DocId, mint_doc_id
 from pinakes.pairing import (
     ACTIVE,
+    CHANGED,
     DELETED,
+    RETIRED,
     Adopt,
     IndexedDocument,
     IndexSnapshot,
@@ -428,6 +430,44 @@ def test_paid_recorded_free_effective_unchanged_hash_is_protected() -> None:
     )
     assert describe(result) == {"Skip": 1}
     assert result.paid_extraction_protected == ("docs/a.pdf",)
+
+
+def test_a_retired_paid_row_whose_file_returns_unchanged_says_retired_not_changed() -> None:
+    """S18. `SoftDelete` drops the chunks, so a retired paid document really does need
+    re-extracting — but **not because its content changed**, which for a file that came back
+    byte-identical is a false claim about the user's own file. The two reasons are one enum apart
+    here and one sentence apart in `sync`, and the sentence is what a user reads.
+
+    The control is the test below it, unchanged: with the hash genuinely different, the reason must
+    still be `CHANGED`. A fix that renamed every reason to `RETIRED` would pass this test alone.
+    """
+    doc = mint_doc_id()
+    result = pair(
+        IndexSnapshot(
+            (indexed(doc, "docs/a.pdf", "h1", state=DELETED, extraction_backend="claude-vision"),)
+        ),
+        WalkSnapshot((walked("docs/a.pdf", "h1"),), (sidecar("docs/a.pdf", doc),)),
+        effective_backend="pypdfium2",
+        paid_backend_names=frozenset({"claude-vision"}),
+    )
+    assert describe(result) == {"PaidExtractionRequired": 1}
+    assert actions_of(result, PaidExtractionRequired)[0].reason == RETIRED
+
+
+def test_a_retired_paid_row_whose_file_returns_changed_still_says_changed() -> None:
+    """Both hold, and `CHANGED` wins because it is the stronger true statement: the file really is
+    different. Written because the obvious implementation — check `retired` first — gets this
+    backwards and tells a user with a genuinely edited file that nothing about it changed."""
+    doc = mint_doc_id()
+    result = pair(
+        IndexSnapshot(
+            (indexed(doc, "docs/a.pdf", "h1", state=DELETED, extraction_backend="claude-vision"),)
+        ),
+        WalkSnapshot((walked("docs/a.pdf", "h2"),), (sidecar("docs/a.pdf", doc),)),
+        effective_backend="pypdfium2",
+        paid_backend_names=frozenset({"claude-vision"}),
+    )
+    assert actions_of(result, PaidExtractionRequired)[0].reason == CHANGED
 
 
 def test_paid_recorded_free_effective_changed_hash_requires_paid_extraction() -> None:

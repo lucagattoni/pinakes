@@ -153,18 +153,16 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
 **What is live right now** — the full routing table, with what each closed plan still binds, is
 [`docs/README.md`](docs/README.md):
 
-- **🛑🛑 `./check.sh` IS RED ON `main` AND NO COMMIT DID IT — read
+- **✅ `main` is green and 0.31.0 is published** (20260830). The red build, the release and the
+  fourteen document defects are all **closed** — but read
   [`plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md`](plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md)
-  before anything else.** `prices.toml` aged past `max_price_age_days` (30) on 20260827 and **25
-  tests fail**; every other gate passes. **CI's green is dated 20260826 and nothing has run since.**
-  **Unblocking it needs no decision** — `DESIGN.md:811` says staleness is *deliberately not a CI
-  gate*, so the wall-clock assertion in `tests/test_doctor.py` is the defect and
-  `tests/test_deep_loop.py:153` already carries the cure. **What needs the user is the shipped half**:
-  `as_of` has never been refreshed and `RELEASING.md` has no step that would. That file also holds a
-  self-review that **lost 26 of 52 agents to a session limit** — 30 of 51 findings never verified —
-  and five confirmed defects, including an unescaped `|` in a code span that **truncates the row on
-  GitHub while the published site renders it correctly**.
-- **🛑 Two plans have scheduled work, and it is now all coder work — every decision is taken.**
+  anyway, because what it now carries is not that incident. It holds **22 findings nobody has ever
+  checked** (§ *The 22 nobody has ever checked* — severity as *raised*, by agents whose claims were
+  never tested), the rule that **a claim resting on a set you selected or an instrument you chose
+  must state the selector**, and the record of **six** wrong claims in one day, each a valid
+  inference over a population nobody named. **`prices.toml` is refreshed at every release
+  now** — `docs/RELEASING.md` § *Before you start* step 3, which had never existed.
+- **🛑 Two plans have scheduled work. Most of it is coder work; two things are not.** **The S16 branch's HIGH is a live *user* decision holding a landing**, and rows 3–5 of the red-main plan are owner **planner**. *(This bullet read "it is now all coder work — every decision is taken" until 20260831, which was false in both directions.)*
   The **eight decisions and fifteen questions** in
   [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md) were **ANSWERED by
   the user 20260825 18:16**, and the planner's half of them landed **20260825 18:39–18:56 UTC**, with later records and corrections through 20260826: D-34 closed
@@ -194,7 +192,7 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   it had been cured.
   **S17 is ✅ FIXED** (it printed a remedy that never worked and left the document unindexed): the
   moved-sidecar guard from S2's second review fixed it as a side effect, **verified with a control**.
-  **S2 is ✅ BUILT** (landed `3876b57`, 20260826 04:06 UTC). **S18 is open. S19 is open and now *measured*** — its non-cyclic half reproduces, run independently by both sessions 20260826 07:19 UTC, so S16's scope is settled: ordering the applicable plans fixes the whole chain class, **cycles are a separate mechanism**, and the pinning case is a chain of three rather than a two-file swap. **D-36 and D-37 are now answered**. Every
+  **S2 is ✅ BUILT** (landed `3876b57`, 20260826 04:06 UTC). **S18 is ✅ BUILT** (20260830, `a2f5b86` + `8bb4be0`; this file was the last register still calling it open). **S19 is open and now *measured*** — its non-cyclic half reproduces, run independently by both sessions 20260826 07:19 UTC, so S16's scope is settled: ordering the applicable plans fixes the whole chain class, **cycles are a separate mechanism**, and the pinning case is a chain of three rather than a two-file swap. **D-36 and D-37 are now answered**. Every
   other file in `plans/` is closed, answered, deferred or proposed-unscheduled — and **an
   empty-looking list still means *the next thing to build has not been planned yet*, never *nothing
   to do***. `docs/ROADMAP.md` Part 5 holds what comes after.

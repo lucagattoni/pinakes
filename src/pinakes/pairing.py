@@ -47,6 +47,16 @@ from pinakes.ids import DocId
 ACTIVE = "active"
 DELETED = "deleted"
 
+#: Why a paid extraction is required. **The two are not the same claim** (S18). `CHANGED` is the
+#: original case: the bytes moved under a run whose effective backend cannot honour what was paid
+#: for. `RETIRED` is a row that was soft-deleted -- which drops its chunks, so the paid text really
+#: is gone -- whose file has since come back **byte-identical**. Both need a paid re-extraction and
+#: for different reasons, and telling a user their content changed when it did not is the false
+#: claim `docs/DESIGN.md` forbids by name in its "never conflated with 'content changed'" row, and
+#: that `PaidExtractionUnavailableError`'s own docstring calls out one layer down.
+CHANGED = "changed"
+RETIRED = "retired"
+
 
 @dataclass(frozen=True, slots=True)
 class IndexedDocument:
@@ -148,16 +158,22 @@ class SoftDelete:
 
 @dataclass(frozen=True, slots=True)
 class PaidExtractionRequired:
-    """A paid-extracted document's content changed under a free-effective run (I5, decision 14).
+    """A paid-extracted document needs re-extracting under a free-effective run (I5, decision 14).
 
     Neither re-extracting with the downgraded free backend (silently discarding paid quality)
     nor leaving the stale text indexed (silently wrong) is honest — this becomes a `failures` row
     naming the path and the paid backend, so the remedy is a deliberate, paid re-extraction.
+
+    `reason` is `CHANGED` or `RETIRED`, and it is a required field rather than a default: the two
+    are different claims about the user's own file, and a default would let a new construction site
+    quietly assert the wrong one. **`CHANGED` wins when both hold** — a retired row whose file also
+    came back different did change, and that is the stronger true statement.
     """
 
     doc_id: DocId
     path: str
     recorded_backend: str
+    reason: str
 
 
 type Action = (
@@ -296,7 +312,13 @@ def pair(
 
         handled_ids.add(document.id)
         handled_paths.add(path)
-        hash_changed = document.content_hash != file.content_hash or document.state == DELETED
+        content_changed = document.content_hash != file.content_hash
+        # A retired row must be revived exactly as a changed one is re-indexed, so the free
+        # branches below still read the two together. The paid branch must not: `SoftDelete` drops
+        # the chunks, so a retired paid document does need re-extracting -- but not *because its
+        # content changed*, which for a file that came back byte-identical is simply false (S18).
+        retired = document.state == DELETED
+        hash_changed = content_changed or retired
         recorded_backend = document.extraction_backend
         recorded_is_paid = recorded_backend is not None and recorded_backend in paid_backend_names
         override = force and explicit_extract
@@ -308,7 +330,10 @@ def pair(
                 assert recorded_backend is not None  # implied by recorded_is_paid
                 actions.append(
                     PaidExtractionRequired(
-                        doc_id=document.id, path=path, recorded_backend=recorded_backend
+                        doc_id=document.id,
+                        path=path,
+                        recorded_backend=recorded_backend,
+                        reason=CHANGED if content_changed else RETIRED,
                     )
                 )
             else:

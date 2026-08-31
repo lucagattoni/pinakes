@@ -242,6 +242,32 @@ NUM_PREFIX = r"(\d+)\.(\d+)"
 ROADMAP = "docs/ROADMAP.md"
 ROADMAP_SECTION = rf"^## {NUM} — "
 
+#: Declared absent from **the two lists that record what an index actually serves**, and from
+#: nothing else. 0.30.3 was prepared 20260825, never tagged, and reached no index and no wheel; its
+#: fix ships inside 0.31.0 and its `CHANGELOG.md` entry is marked accordingly. It stays *expected*
+#: in CHANGELOG's headings and link definitions, ROADMAP's table and sections, and STATUS's release
+#: roadmap, because it is a real release **document** — just never a published artifact. That
+#: distinction is the whole point, and a blanket exclusion would erase it.
+#:
+#: **Unlike 0.11.0's exception below, this one never retires.** PyPI does not accept a version
+#: twice and nothing was ever uploaded under 0.30.3, so it cannot become published later. The only
+#: way to delete this declaration is to add 0.30.3 to a list of published versions, which is
+#: exactly the false claim it exists to refuse. One constant rather than two literals: the two
+#: sequences must give the same reason, and a copy is a thing that can drift.
+#:
+#: **Lag explains a missing newest; only this explains a missing middle.** Both sequences carry
+#: `newest_may_lag`, which is why they are green today with 0.30.3 absent — it is still the tail,
+#: and the lists are permitted to trail a publish until it is verified from the index. The moment
+#: the post-publish sweep adds 0.31.0, 0.30.3 stops being the tail and becomes an interior hole,
+#: which lag does not cover and must not. So this gate is green on a tree that has not swept yet
+#: and red on the tree that tree becomes, and the declaration is what makes the second one honest
+#: rather than silent.
+PREPARED_BUT_NEVER_PUBLISHED: tuple[Version, str] = (
+    (0, 30, 3),
+    "prepared 20260825 and never tagged, so it reached no index; its fix ships inside 0.31.0 "
+    "and its CHANGELOG entry is marked accordingly",
+)
+
 SEQUENCES = (
     Sequence(
         "CHANGELOG.md",
@@ -308,6 +334,17 @@ SEQUENCES = (
         starts_at=(0, 16, 0),
         minimum=15,
         newest_may_lag=True,
+        # 0.30.3 was prepared 20260825 and never tagged, so it reached no index and no wheel of it
+        # exists; its fix ships inside 0.31.0 and its CHANGELOG entry is marked accordingly. It is
+        # a real release *document* and must stay expected in CHANGELOG's headings and link
+        # definitions, ROADMAP's table and sections, and STATUS's release roadmap -- it is absent
+        # only from the two lists that record what an index actually serves, which is the whole
+        # distinction. **Unlike 0.11.0's exception above, this one never retires**: PyPI does not
+        # accept a version twice and no artifact was ever uploaded under it, so 0.30.3 cannot
+        # become published later. Deleting this declaration to make the gate green would require
+        # adding 0.30.3 to a list of published versions, which is the false claim it exists to
+        # refuse.
+        absent=(PREPARED_BUT_NEVER_PUBLISHED,),
     ),
     # The seventh, added 20260823. The sixth reads the *Published on PyPI* prose; this reads the
     # **Published versions** row of the table forty lines below it — a different sequence, in the
@@ -360,6 +397,10 @@ SEQUENCES = (
         # says which release went missing. The shared floor leaves membership to name it, and
         # still catches the failure the floor is for: a reformatted row matches no region at all
         # and yields zero, not forty.
+        #
+        # Same declaration as the prose above, for the same reason and from the same constant:
+        # both lists record what the index serves, and 0.30.3 was never in it.
+        absent=(PREPARED_BUT_NEVER_PUBLISHED,),
     ),
 )
 

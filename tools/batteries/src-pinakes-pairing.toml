@@ -17,7 +17,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 16
+mutants = 18
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -333,3 +333,34 @@ old = '''        case SoftDelete(path=path):
 new = '''        case SoftDelete(path=path):
             return None'''
 kills = "tests/test_pairing.py::test_vacates_reports_every_way_a_path_is_freed"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260830 · S18 — a retired row is not a changed file
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# The same-path branch used to spell a retired row as a changed hash so both could share one
+# branch, and the paid refusal then told a user whose file came back byte-identical that its
+# content had changed. The refusal is right (`SoftDelete` drops the chunks, so the paid text really
+# is gone); only the reason was wrong. Both mutants below restore a version of the conflation, and
+# each is caught by a different half of the claim.
+
+[[mutant]]
+name = "CONTROL — the old conflation returns and every refusal says the content changed"
+file = "src/pinakes/pairing.py"
+old = '''                        reason=CHANGED if content_changed else RETIRED,'''
+new = '''                        reason=CHANGED,'''
+# Two tests catch this and the `kills` selector names the one a *user* would notice: the sentence
+# `sync` prints. The unit test beside it catches the same mutant one layer down, which is why the
+# pair exists -- a field is not a message, and only running proves the message.
+kills = "tests/test_sync.py::test_a_retired_paid_document_restored_unchanged_is_not_told_its_content_changed"
+
+[[mutant]]
+name = "the precedence inverts, so a genuinely edited file is told nothing about it changed"
+file = "src/pinakes/pairing.py"
+# The obvious implementation, and it is wrong in the direction that matters: when a retired row's
+# file *also* comes back different, `CHANGED` is the stronger true statement. `describe()` cannot
+# see this -- the census is identical, one `PaidExtractionRequired` either way -- so nothing but an
+# assertion on the reason itself catches it.
+old = '''                        reason=CHANGED if content_changed else RETIRED,'''
+new = '''                        reason=RETIRED if retired else CHANGED,'''
+kills = "tests/test_pairing.py::test_a_retired_paid_row_whose_file_returns_changed_still_says_changed"

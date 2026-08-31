@@ -6,11 +6,14 @@ other record of them was `RESUME.md`, which [`docs/BUILDING.md`](../docs/BUILDIN
 convenience, never a carrier"* — excluded from git, invisible to every other checkout, and unable to
 tell anyone it exists.**
 
-> ## 🛑 ONE DECISION IS THE USER'S AND IT BLOCKS EVERYTHING
-> `./check.sh` cannot go green until it is taken, so **nothing lands** — not a fix, not the release.
-> It is § *The decision* below.
+> ## ✅ CLOSED — every blocker in this file is discharged
+> **This banner read *"one decision is the user's and it blocks everything … nothing lands"* until
+> 20260831.** It was wrong by 20260830: the suite went green in `b59e58f`, **0.31.0 published**, and
+> twelve merges landed after it. `./check.sh` exits 0 and the four once-failing files give
+> **249 passed, 1 skipped, 0 failed**. **Read this file for §§ *The 22 nobody has ever checked*,
+> *Five defects of one shape* and the `TZ=UTC` trap — not for the incident it is named after.**
 
-## 1. `main`'s test suite is red, and no commit did it
+## 1. ✅ CLOSED — `main`'s test suite was red, and no commit did it
 
 **Measured 20260830 09:0x UTC on a clean checkout of `3712a7f`: `./check.sh` exits 1,
 `25 failed, 2331 passed, 4 skipped`.** Every other gate passes — this is the whole of it:
@@ -109,7 +112,7 @@ was verified by the planner rather than relayed:**
 It is a defect fix and it does not need the user. **A and B remain worth doing on their own merits,
 and neither is needed to unblock CI.**
 
-**What still needs the user is the bigger half.** `git log --follow src/pinakes/budget/prices.toml`
+**✅ SHIPPED IN 0.31.0 — this paragraph described the state until 20260830.** What needed the user was the bigger half, and it is done: `docs/RELEASING.md` § *Before you start* step 3 now refreshes the table at every release, and `as_of` was re-stamped for the first time in that release. The paragraph is kept because the *mechanism* it describes is why the step exists. `git log --follow src/pinakes/budget/prices.toml`
 shows `as_of` was written **once, at creation, and never refreshed**, and `docs/RELEASING.md`
 mentions prices **zero times**. So **every installed copy refuses paid estimates 30 days after each
 release**, and the remedy the error itself prints — *"Upgrade pinakes to refresh the bundled
@@ -378,15 +381,158 @@ defect count.**
 Six of the 51 were refuted and are harmless to re-check; the extraction cannot tell which six, so
 this list is an upper bound on work and a lower bound on nothing.
 
+## Five defects of one shape, and the rule that would have caught them
+
+**20260830 produced five wrong claims across three sessions. Every one was a valid inference from a
+true measurement, and every one was wrong about something nobody had written down.** None would
+have been caught by any gate in this repository, because a gate reads an artefact and each of these
+was a defect in *what the artefact was taken to be about*.
+
+| The measurement, true in every case | The thing never stated |
+|---|---|
+| four unconditional `datetime.now(UTC)` call sites exist in `src/` | **the failing tests** — they drive real `main([...])`, so no seam at those sites is reachable |
+| the row truncates, losing 2 860 characters | **which renderer** — and the escape that fixes GitHub renders a literal backslash on the published site |
+| `check (light pdf)` is the failing CI leg | **which leg lost a fail-fast race** — read as scope, it understates the fix by six tests |
+| 34 of 64 review waves produced no commit | **"produced no commit"** — the filter silently included every wave that correctly found nothing, which is the *success* condition |
+| `release_order_gate` exits 1 | **which tree** — a worktree with an unlanded sweep, asserted about `main`, freezing two sessions |
+
+**The first draft of the rule was *"name the population"*, and the reviewing peer refuted it as
+ceremony**: applied to every claim it becomes a sentence everyone writes and nobody reads, and *a
+rule that fires on everything selects nothing*. The refinement is theirs and it is sharper, because
+in all five the population was **constructed rather than pointed at** — a filter, a query, a
+checkout, a leg chosen by a race. Nobody misnamed a set they could point to.
+
+> ### 🧭 When a claim rests on a set you selected or an instrument you chose, state the selector beside the claim
+>
+> **Not what the set contains — how it was chosen.** `git rev-parse HEAD` beside a test result. The
+> filter predicate beside a ratio. The worktree path beside a gate's exit status. The renderer beside
+> a rendering claim.
+>
+> **The test of the rule is that it exposes the flaw without anyone having to be clever:** writing
+> *"waves that produced no commit"* beside *"34 of 64"* makes the error visible on the page.
+
+**`or an instrument you chose` is the planner's addition** to the peer's wording, and it is what
+extends the rule to the pipe defect: nothing was *selected* there — a renderer was *used*, and the
+claim inherited its behaviour. Both halves are the same failure at different distances from the
+data.
+
+**The hardest case is the one where no choosing happened.** The peer's own words, and the most
+useful sentence in the exchange: *"I did not choose 'waves with no commit' as a proxy for waste; I
+chose it because it was the only thing the corpus could count. The selector was imposed by the
+instrument."* **The planner's gate claim is the same** — no decision was taken to measure a worktree
+instead of `main`; the measurement happened where the session was standing. **An
+instrument-imposed selector is the hardest kind to notice, because there was never a moment of
+choosing to look back on.**
+
+### `TZ=UTC git log --date=format:` does not give UTC, and the repo already has a record it broke
+
+**`CLAUDE.md` requires every timestamp to be UTC and says *read the clock, never compose it* — but
+the obvious way to read a past stamp out of git is wrong, and silently.** `git log --date=format:`
+formats with **the committer's recorded offset**, so `TZ=UTC` in front of it changes nothing.
+
+Measured on `2209014`, one commit, four ways:
+
+| | |
+|---|---|
+| `TZ=UTC … --date=format:'%Y%m%d %H:%M'` | `20260830 15:58` ❌ |
+| `TZ=UTC … --date=format-local:'%Y%m%d %H:%M'` | `20260830 14:58` ✅ |
+| `--format=%cI` (raw) | `2026-08-30T15:58:27+01:00` |
+| `TZ=UTC … --date=iso-strict-local` | `2026-08-30T14:58:27Z` ✅ |
+
+**`format-local` is the fix**, and `%cI` is the honest raw form when you want the offset visible.
+
+**This is not hypothetical — the repository already carries a record it broke.**
+`plans/20260825_1803-open-decisions.md:367` quotes its own source command as
+`--date=format:'%Y%m%d %H:%M UTC'` and records *"both 20260825 13:42"*. Re-measured: `c23359f` is
+`2026-08-25T13:42:55+01:00`, so **the true UTC is 12:42**. The number is right for the machine and
+the label is wrong, which is the worst of the two failures — a stamp that is an hour out *and*
+carries the word `UTC` beside it.
+
+**Found by the coder, who nearly wrote a composed stamp into a handoff on the strength of it, and
+checked instead.** The planner promised to record it 20260830 and did not — this section exists
+because the promise was kept a day late after the coder asked whether it had landed. **A rule the
+project states and a mechanism that defeats it, both in the tree, and nothing gates the difference.**
+
+### Where the neighbourhood audit fails: inside corrections
+
+**`docs/README.md` requires auditing the neighbourhood, not the diff. It has now failed identically
+twice, and both times the failing edit was itself a correction.**
+
+| | |
+|---|---|
+| `7961b89` | fixing a row count in `docs/VERIFICATION.md`'s scope paragraph left the same number standing two paragraphs down. Its own message names the cause: *"this repo's own 'audit the neighbourhood, not the diff' rule failing inside a change that was itself a correction."* |
+| **20260830** | the planner corrected a false churn claim in `tools/batteries/README.md` and did not read three lines up, where *"Nine batteries … Seven under `tools/`"* had been wrong since 20260826. Ten and eight. |
+
+**The pattern is not carelessness and a reminder will not fix it.** The coder's sentence for it,
+which is the most useful thing anyone said about the day: **the state of mind that produces a careful
+fix is the state of mind that is done looking.** A correction arrives with its own sense of
+completion — the defect is identified, the edit is precise, the diff is small — and that feeling is
+exactly what an audit has to survive.
+
+**The strongest evidence is that the refutation was in hand and filed as housekeeping.** A stale
+proposal in an abandoned worktree held `Seven → Eight` for that same sentence — a correction written
+on 20260826 that was *already wrong when written*. It was reported as evidence the worktree was safe
+to delete. **It was evidence that restating the number is the defect**, and neither session read it
+that way until the number was measured. Its author says so plainly rather than letting it pass, and
+that is why the fix names `ls tools/batteries/*.toml` instead of writing *Ten*.
+
+**So the practical form of the rule is narrower than "audit the neighbourhood":** *when the edit you
+are making is itself a correction, read the surrounding paragraphs before you are finished, because
+that is the case where you will not want to.*
+
+### A sixth instance, and the rule's first return
+
+**The refinement was itself fitted to an unexamined population, which is the sixth case.** Its
+author built it from the four instances that were *selections* and it therefore missed the fifth,
+where nothing was selected and a renderer was simply used — the gap the `or an instrument you chose`
+clause closes. **A rule about generalising from an unexamined sample, generalised from an unexamined
+sample.** Recorded because it is the cheapest possible demonstration that the failure is structural
+rather than careless.
+
+**Then its author applied it to their own report, and it returned something better than an error.**
+The whole token analysis is denominated in a cost model — `input ×1.0, cache-write ×1.25, cache-read
+×0.1, output ×5.0` — which was stated in a footer without saying which weights were *sourced*.
+**The output ratio is** — `prices.toml` carries `claude-opus-5` at `$5.00`/`$25.00` per MTok, so
+×5.0 is measured, and the planner re-derived that from the committed file rather than accepting it.
+**The two cache multipliers were never verified against anything**; "standard" was doing the work
+that evidence should.
+
+So they were bounded rather than defended:
+
+| cost model | context transmission | generation |
+|---|---|---|
+| as published | 85.3% | 14.7% |
+| cheaper reads (0.08) | 83.0% | 16.9% |
+| dearer reads (0.125) | 87.3% | 12.6% |
+| 1h-TTL write (2.0) | 86.8% | 13.1% |
+| dearer output (×10) | 74.4% | 25.6% |
+| most hostile (read 0.05, write 1.0) | 76.7% | 23.2% |
+
+**The headline moves between 74.4% and 87.3% and never comes near flipping**, so the *ranking* of
+that report's recommendations does not depend on the unverified weights — only their precise sizes
+do. **The finding survived; the claim got a boundary.**
+
+**That is the return worth advertising when this rule is proposed.** A rule that only ever finds
+errors gets resented and quietly dropped. This one's first application to a *correct* piece of work
+converted an unstated assumption into a stated bound, which is what makes it worth the sentence it
+costs.
+
+**Attribution, stated because this document is about claims being traceable:** the refinement is the
+`optimize-adversarial-review-tokens` session's; the counter-case that killed the 34-of-64 figure was
+the coder's, not that session's own insight, and it asked not to be credited for it; the table and
+the instrument clause are the planner's. **Nothing in this section has been proposed for `CLAUDE.md`
+yet** — that file is 87 lines over its own guideline and has an extraction diff already waiting on
+the user, so a new rule goes to them beside it rather than ahead of it.
+
 ## Build order
 
 | # | Item | Blocked on | Owner |
 |---|---|---|---|
-| 1 | **C — stop the suite reading the wall clock**, `test_deep_loop.py:153`'s existing `prices()` pattern being the model. **Needs no decision: it restores `DESIGN.md:811`.** **It is not a one-file fix: `test_doctor.py` is 1 of the 25** — see § *What item 1 actually costs* | nothing | coder |
-| 2 | **The release step that refreshes `prices.toml`** — it has never existed, so every install refuses paid estimates 30 days after each release. Doc half `docs/RELEASING.md` (planner); the numbers need re-measuring (**user**) | **the user**, for the numbers | planner + user |
-| 3 | The five confirmed defects above | nothing — but `check.sh` is red until **item 1** (this row used to say item 2, which was wrong: item 2 is the recurrence cure, not the unblock) | planner (all five are planner-owned documents) |
-| 4 | The other 14 unfixed survivors in `SURVIVED.md` | nothing, same caveat | planner |
-| 5 | A **targeted** verification pass over the never-verified findings — **not** `resumeFromRunId`, which is same-session-only. **30 raises were never verified; deduplicated against the 14 that item 4 covers, 22 distinct items remain**, enumerated in § *The 22 nobody has ever checked* | items 3-4, so it does not re-raise what is already fixed | planner |
+| 1 | ✅ **BUILT 20260830 `b59e58f`.** ~~C — stop the suite reading the wall clock~~, `test_deep_loop.py:153`'s existing `prices()` pattern being the model. **Needs no decision: it restores `DESIGN.md:811`.** **It is not a one-file fix: `test_doctor.py` is 1 of the 25** — see § *What item 1 actually costs* | nothing | coder |
+| 2 | ✅ **BUILT 20260830**, `docs/RELEASING.md` § *Before you start* step 3, and first applied in 0.31.0. ~~The release step that refreshes `prices.toml`~~ — it has never existed, so every install refuses paid estimates 30 days after each release. Doc half `docs/RELEASING.md` (planner); the numbers need re-measuring (**user**) | **the user**, for the numbers | planner + user |
+| 3 | ✅ **DONE 20260830** — all five fixed and landed. ~~The five confirmed defects above~~ | nothing — but `check.sh` is red until **item 1** (this row used to say item 2, which was wrong: item 2 is the recurrence cure, not the unblock) | planner (all five are planner-owned documents) |
+| 4 | ✅ **DONE 20260830** — 14 verified, adversarially refuted, 12 fixed, 1 already fixed, 1 fix killed by its own skeptic. ~~The other 14 unfixed survivors in `SURVIVED.md`~~ | nothing, same caveat | planner |
+| 5 | 🔻 **THE ONLY ROW STILL OPEN.** A **targeted** verification pass over the never-verified findings — **not** `resumeFromRunId`, which is same-session-only. **30 raises were never verified; deduplicated against the 14 that item 4 covers, 22 distinct items remain**, enumerated in § *The 22 nobody has ever checked* | items 3-4, so it does not re-raise what is already fixed | planner |
 
 **The corpus rule does not apply.** Nothing here touches chunking, fusion, reranking or the
 confidence signal.

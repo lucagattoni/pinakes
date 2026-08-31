@@ -9,7 +9,7 @@
 # usd_per_eur carries the same as_of as the model prices below: every EUR figure this project
 # computes depends on it, and a rate with its own, different staleness would make "the prices are
 # fresh" a claim about only half of what an estimate actually uses.
-as_of = "20260728 16:31"
+as_of = "20260830 14:46"
 usd_per_eur = "1.08"
 
 # Measured against the live API on 20260729 03:17 with claude-opus-5, over the synthetic corpus
