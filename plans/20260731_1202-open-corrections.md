@@ -113,11 +113,13 @@ the same defect one layer out. **Watch it go red before believing it**, and say 
 made it red.
 
 **Sequencing — this was bound to the tag, not to the S-queue**, and it landed first, which is the
-order it needed. It never outranked the live user-facing defects (S2 ✅ built, S16, S3, S1, S4) that
-harm users on PyPI today while this one harmed nobody until someone tagged. **The 0.30.3 tag is
-taken and still pending**, so of the three gates on it, this one is now discharged: **D-35 layer 2
-is in build**, and the third is the user's — whether to tag 0.30.3 first or fold its entry into the
-next cut. Both gates existed for the same reason, and it is worth keeping after the fix: the release
+order it needed. It never outranked the live user-facing defects (S2 ✅ built, S16 ✅ built, S3, S1,
+S4) that harm users on PyPI today while this one harmed nobody until someone tagged. **Both of this
+paragraph's other two gates are closed, and the sentence naming them was stale twice over until
+20260831 22:28 UTC.** It read *"the 0.30.3 tag is taken and still pending … D-35 layer 2 is in
+build"*: 0.30.3 was **never published** — 0.31.0 was, 20260830 — and D-35 layer 2 is **built**,
+`6a77f3c`. The user's third gate resolved itself the same way: 0.30.3's entry was folded into the
+next cut rather than tagged first. Both gates existed for the same reason, and it is worth keeping after the fix: the release
 path relied on somebody remembering.
 
 **Closed 20260826 07:02 UTC.** The remedy above asked for two things and got both — *"fail when there is no
