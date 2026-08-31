@@ -421,6 +421,35 @@ instead of `main`; the measurement happened where the session was standing. **An
 instrument-imposed selector is the hardest kind to notice, because there was never a moment of
 choosing to look back on.**
 
+### `TZ=UTC git log --date=format:` does not give UTC, and the repo already has a record it broke
+
+**`CLAUDE.md` requires every timestamp to be UTC and says *read the clock, never compose it* — but
+the obvious way to read a past stamp out of git is wrong, and silently.** `git log --date=format:`
+formats with **the committer's recorded offset**, so `TZ=UTC` in front of it changes nothing.
+
+Measured on `2209014`, one commit, four ways:
+
+| | |
+|---|---|
+| `TZ=UTC … --date=format:'%Y%m%d %H:%M'` | `20260830 15:58` ❌ |
+| `TZ=UTC … --date=format-local:'%Y%m%d %H:%M'` | `20260830 14:58` ✅ |
+| `--format=%cI` (raw) | `2026-08-30T15:58:27+01:00` |
+| `TZ=UTC … --date=iso-strict-local` | `2026-08-30T14:58:27Z` ✅ |
+
+**`format-local` is the fix**, and `%cI` is the honest raw form when you want the offset visible.
+
+**This is not hypothetical — the repository already carries a record it broke.**
+`plans/20260825_1803-open-decisions.md:367` quotes its own source command as
+`--date=format:'%Y%m%d %H:%M UTC'` and records *"both 20260825 13:42"*. Re-measured: `c23359f` is
+`2026-08-25T13:42:55+01:00`, so **the true UTC is 12:42**. The number is right for the machine and
+the label is wrong, which is the worst of the two failures — a stamp that is an hour out *and*
+carries the word `UTC` beside it.
+
+**Found by the coder, who nearly wrote a composed stamp into a handoff on the strength of it, and
+checked instead.** The planner promised to record it 20260830 and did not — this section exists
+because the promise was kept a day late after the coder asked whether it had landed. **A rule the
+project states and a mechanism that defeats it, both in the tree, and nothing gates the difference.**
+
 ### Where the neighbourhood audit fails: inside corrections
 
 **`docs/README.md` requires auditing the neighbourhood, not the diff. It has now failed identically
