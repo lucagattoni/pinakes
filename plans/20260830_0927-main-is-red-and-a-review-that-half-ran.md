@@ -6,7 +6,7 @@ present-tense status claim, first line of a file `CLAUDE.md` and `docs/README.md
 cleared session to. **The filename keeps its original words on purpose**: both entry points link
 it, and renaming a file to fix a sentence breaks the links that make the sentence findable.
 **Read on for what this file carries** — the 22 findings and their verdicts, the selector rule,
-and the six wrong claims of one day — not for the incident it is named after.
+and the eight wrong claims — not for the incident it is named after.
 
 **Written 20260830 09:27 UTC against `main` at `3712a7f`.** Two things happened while nobody was
 looking, four days apart, and neither is visible from a commit. **This file exists because the only
@@ -591,12 +591,135 @@ errors gets resented and quietly dropped. This one's first application to a *cor
 converted an unstated assumption into a stated bound, which is what makes it worth the sentence it
 costs.
 
+### A seventh instance — the rule's author, the rule's hardest case, and the first one that shipped
+
+**20260831 23:20 UTC.** [`plans/20260831_2242-agent-spend-two-findings.md`](20260831_2242-agent-spend-two-findings.md)
+was committed to `main` asserting **`fable-5 requests, workflow agents: 0 of 868`**, `subagent runs: 0`,
+and the sentence those licensed: *"This is an unguarded path, not a realised cost."* **All false.**
+Re-measured against the committed instrument: **551 of 866 fable-5 requests — 63.6% — ran inside a
+fan-out**, and in Pinakes alone **471 of 618, 76.2%**.
+
+**Three things make it worth a section rather than a line.**
+
+**It is the hardest kind, and the section above already named it.** Nobody chose to exclude
+subagents. The spend analysis globbed main-loop transcripts because that is what the earlier
+analysis in the same session had globbed; subagent transcripts live under `<session>/subagents/`
+and workflow agents one level further down. *"An instrument-imposed selector is the hardest kind to
+notice, because there was never a moment of choosing to look back on."* Written five paragraphs
+above, twenty-four hours before it recurred.
+
+**The denominator came from the analysis next door, and that is the new mechanism.** `0 of 868` is
+not a count of 868 things that came back zero. The numerator was taken over main-loop transcripts;
+the 868 was the workflow-agent population from Finding 2, sitting in the same session's context.
+**The borrowed denominator is what made the zero read as a measurement of exactly the population it
+had excluded.** A bare `0` invites the question *out of what?*; `0 of 868` answers it, wrongly, and
+closes it.
+
+**And a zero is the only result a wrong population returns without looking wrong.** Every other
+figure in the message that carried these zeros was correct, and each was checkable against
+something — a ratio against its parts, a rate card against a published page, a file size against
+the disk. A zero is checkable only against the population, which is the one thing a summary line
+never carries. **Corollary, and the cheapest form of the rule: when a count comes back zero, print
+the denominator's *provenance* beside it, not just its size.**
+
+**It is also the first of the seven to reach a document.** The other six were caught in flight, in a
+message or a draft. This one was committed in `802d40b`, merged to `main` in `3cf9858` at
+**20260831 22:47 UTC**, and corrected in the commit carrying this section — which is the answer to
+anyone reading this section as a curiosity. **And the planner relayed it into
+that file without checking it**, having been told twice, consistently, by a session asking a
+question that shared the answer's unstated selector. *"A peer's claim is not evidence until you have
+checked it"* was already in `CLAUDE.md`, and consistency across two askings is exactly what it does
+not buy.
+
+**The remedy that worked was an instrument, not a resolution.**
+[`tools/agent_spend.py`](https://github.com/lucagattoni/pinakes/blob/main/tools/agent_spend.py)
+landed the same evening and **prints its population in its own output header** — `[main-loop
+sessions only]` or `[main loop + subagents + workflow agents]` — so the selector travels with the
+number instead of relying on the writer to remember it. Its first version could produce only the
+all-populations figure, which was caught and fixed within the hour: **a committed instrument that
+cannot reproduce the number in the document is the same defect one layer out.**
+
+**Attribution, unflattering in the useful direction:** the session that produced the zeros is the
+`optimize-adversarial-review-tokens` session — the author of the selector refinement in the section
+above. It retracted them unprompted, supplied the instrument, and identified its own defect in that
+instrument. **The rule's author breaking the rule is not an argument against the rule.** It is the
+third demonstration in this file that the failure is structural, and the strongest of the three,
+because this one had the rule written down in front of it.
+
 **Attribution, stated because this document is about claims being traceable:** the refinement is the
 `optimize-adversarial-review-tokens` session's; the counter-case that killed the 34-of-64 figure was
 the coder's, not that session's own insight, and it asked not to be credited for it; the table and
 the instrument clause are the planner's. **Nothing in this section has been proposed for `CLAUDE.md`
 yet** — that file is 87 lines over its own guideline and has an extraction diff already waiting on
 the user, so a new rule goes to them beside it rather than ahead of it.
+
+### An eighth instance — the corpus that contained the measurement
+
+**20260831 23:36 UTC, sixteen minutes after the seventh was corrected, in the correction itself.**
+The paragraph fixing the zeros asserted that fable-5 appeared *"across 59 transcripts … measured by
+scanning every `*.jsonl` under `~/.claude/projects` for a `message.model` of `claude-fable-5`"*.
+**The number and the method named in the same sentence were two different measurements.** 59 is
+every file in which the *string* `claude-fable-5` appears. Keying on `message.model` — the selector
+the sentence claimed — gives **33**, and 33 is the set that billed anything.
+
+**The two dozen extra files do not use the model. They talk about it — and most of them are this
+evening's own analysis sessions.** Every session that measured fable-5, wrote about fable-5, or
+read a document naming fable-5 landed in the numerator of the measurement. **A corpus that grows
+when you measure it has stopped being a corpus.** The seventh instance's denominator came from the
+analysis next door; the eighth's numerator came from the analysis *itself*.
+
+**Why it is a distinct mechanism and not the same one twice.** A borrowed denominator is a bad
+join — two populations, one sentence. This is a bad *predicate*: one population, and a test that
+cannot tell a use from a mention. Grep is the wrong instrument for the question *"what ran?"* and
+the right one for *"what mentions?"*, and the two are indistinguishable in a shell one-liner. The
+fix is not care; it is keying on the structured field the transcript already carries.
+
+**Three things it adds to the record.**
+
+- **It was caught by the peer whose number was being corrected** — the session that produced the
+  seventh instance, in the commit that made `--scope` a partition. **A retraction is not a
+  demotion**, and this file has now twice been improved by the party it is least flattering about.
+- **Re-reading did not catch it, twice.** The wrong sentence was written, reviewed, and committed
+  inside a document *whose subject is wrong populations*, by a session that had spent the hour
+  writing about wrong populations. **Neither instance was caught by a human or an agent re-reading
+  the prose.** Both were caught by someone re-running the measurement.
+- **The self-check that would have caught it costs one line.** 33 = 7 main + 12 subagent + 14
+  workflow. The count decomposes across the three scopes and the parts sum; 59 does not decompose at
+  all, because two dozen of its members belong to no scope's spend. **Ask a total to reproduce
+  itself from its parts** — the same check that proved `315 + 235 + 316 = 866` in the table three
+  paragraphs earlier, applied to the sentence underneath it, where nobody thought to apply it.
+
+**Two more the same night, caught before either reached a document — and they are why the count
+stops at eight rather than ten.** Only claims that *shipped* get a numbered instance; these were
+stopped in a message, which is what the other six were. Both are the same shape:
+
+- **A denominator from a set the rule cannot be evaluated on.** A stamp gate for `retro.d/` was
+  argued against because it *"would reject 14% of the corpus"*. The numerator was right and the
+  denominator was 100; the rule is *"the heading's stamp is a copy of the filename's prefix"*, and
+  **16 of those 100 fragments predate the prefix rule and have no prefix to copy** — the rule is
+  undefined on them, not violated by them. Over the 84 it *can* be evaluated on, the failure rate is
+  higher, not lower. **Arguing from a rejection rate requires the denominator to be the set the rule
+  applies to**, which is the borrowed-denominator mechanism a second time in one evening. **The
+  number the argument turns on was then reproduced independently from a different direction** — two
+  sessions, two taxonomies that disagree on how to bin a malformed stamp, and **both return 18 wrong
+  at the moment of commit.** A figure two parties derive by methods that disagree in their parts is
+  worth more than either party restating it, and it is the check none of tonight's four errors had.
+- **An instrument that answers a neighbouring question — and an aggregate that hid how often.** The
+  billing-day span of fable-5 in fan-outs was measured from **file mtime** and came back four days;
+  measured from each request's own `timestamp` it is three. Mtime answers *when did this file stop
+  changing*, never *when was this billed*. The first reading of this was that the two spans were
+  *"one file apart"* — **and that is the aggregate talking, not the instrument.** Per file, mtime is
+  wrong on **6 of the 33 billed transcripts, 18%**, four of them by **46 to 48 days**: sessions
+  resumed or recompacted on 20260824, weeks after they last billed. Only one of the six moved the
+  span, because the other five landed on days the union already held. **A union absorbs per-file
+  error and reports the residue**, so measuring an instrument through an aggregate understates it by
+  however much the aggregate happens to swallow — here, five errors in six. **An aggregate is an
+  instrument, and it has a selector of its own.**
+
+**All four of the night's errors were caught by re-running a measurement and none by re-reading a
+sentence** — including the two that had already been reviewed, committed, and merged. That is the
+practical form of the rule: *state the selector* is what makes a claim re-runnable, and re-running
+is the only step that has ever caught one of these.
 
 ## Build order
 
