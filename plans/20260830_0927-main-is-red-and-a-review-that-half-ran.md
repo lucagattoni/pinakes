@@ -405,7 +405,7 @@ next list like this one should cite `docs/RETROSPECTIVES.md` and a quoted phrase
 | 4 | `20260731_1202` :118 — *"D-35 layer 2 is in build"* | **CONFIRMED.** It is **built**, `6a77f3c`. The same sentence's *"the 0.30.3 tag is taken and still pending"* is stale twice over — 0.30.3 was never published and 0.31.0 was |
 | 6 | `tools/batteries/README.md` :33 | **PARTLY CONFIRMED.** The *1–13* range still holds for covered files. The three named exceptions are rolling-window figures that have rolled: `sync.py` 39→**17**, `cli.py` 52→**29**, `doctor.py` 36→**23** (measured 20260831). **Freeze them as dated rather than re-measuring** — otherwise the paragraph is stale again next month |
 | 7 | `20260825_0749` :617, row 9 — *"54 mutants, 0 survived"* | **REFUTED, and re-derivable.** At `6a77f3c` the two batteries that commit touched held **12 + 42 = 54**. They hold 12 + 45 = 57 today, which is why it read as unverifiable: the claim is true of the tree it was made against, not of this one |
-| 9 | `20260825_1252` :65–68 — the eight rows with no build-order row | **PARTLY DISCHARGED, and the only one still open.** Four are now parked in the sweep plan's § *Decided work with an owner and no build order*, and `CLAUDE.md` records three more gaining build-order rows. Settling which of *12, 13, 14, 17, 22, 24, 26, 27* remain needs each row's body |
+| 9 | `20260825_1252` :65–68 — the eight rows with no build-order row | **✅ CLOSED 20260831 22:28 UTC — all eight dispositioned.** Four **parked** in the sweep plan's § *Decided work with an owner and no build order* (12 as one unit, 13, 17, 22); two **not queueable by an agent** (14 is *which release owns `pnk adopt`*, 24 needs the user's material); two **re-marked ⏸ DEFERRED** (26, 27 — eval-gated, *never scheduled*). **Correcting this cell's own first reading:** it said four were *already* parked there, which was false — the four rows in that section were different work entirely, and reading a section's row count is not reading its rows |
 | 10, 15, 16 | `retro.d/20260826_1130` :44, `…_0638` :33, `…_0659` :24 | **Dead locator** ×3 |
 | 12 | `20260825_0749` :618, row 10 — *"BUILT 20260826 07:24 UTC"* | **REFUTED.** `docs/RELEASING.md:170`'s line-3 sweep row does ask for the marker, with `R`, the naming rule and layer 2's four outcomes |
 | 13 | `docs/BUILDING.md` :179–180 | **Already discharged.** `tools/review_ledger.py:818` prints *CHANGED BY THIS INCREMENT, OPENED BY NOBODY*, and the *"landing separately"* phrasing the finding quoted is gone |
@@ -427,9 +427,18 @@ rendered page is a claim about a string, never about a page.
 baseline, which needs pytest, and an anchor that still matches while the code around it moved is
 caught by nothing."*
 
-**What is owed from this pass**, none of it re-raising anything above: item 1's row rewritten to
-*layers 1–2 built, layer 3 outstanding*; item 4's two stale sentences; item 6's three figures frozen
-as dated; item 20's bullet restamped; and item 9 finished.
+**What was owed from this pass is done, 20260831 22:28 UTC**, none of it re-raising anything above.
+Item 1's row now reads *layers 1–2 BUILT, layer 3 only* with an explicit *do not rebuild layers
+1–2*; item 4's two stale sentences are corrected (0.30.3 was never published, D-35 layer 2 is built
+at `6a77f3c`) and the neighbouring S-queue list gained S16's ✅; item 20's bullet is restamped
+rather than rewritten, because it is a dated evidence record and only the word *currently* was ever
+wrong; item 9 is closed above. **Item 6 is the one that could not be done here** —
+`tools/batteries/README.md` must carry a third battery's name in the *implementer's own commit* for
+`tests/test_batteries.py` to pass, so the replacement paragraph was **dictated to the coder**
+(§ *Content mine, keystrokes yours*) with the figures **frozen to a stated 20260801–20260901
+window** and the *"no invariant has a battery"* claim corrected: two batteries mutate
+`docs/INVARIANTS.md` territory and say so in their own headers, which is true of the filenames and
+false of the coverage.
 
 ## Five defects of one shape, and the rule that would have caught them
 
