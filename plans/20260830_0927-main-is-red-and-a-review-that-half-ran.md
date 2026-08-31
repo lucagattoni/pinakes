@@ -6,11 +6,14 @@ other record of them was `RESUME.md`, which [`docs/BUILDING.md`](../docs/BUILDIN
 convenience, never a carrier"* — excluded from git, invisible to every other checkout, and unable to
 tell anyone it exists.**
 
-> ## 🛑 ONE DECISION IS THE USER'S AND IT BLOCKS EVERYTHING
-> `./check.sh` cannot go green until it is taken, so **nothing lands** — not a fix, not the release.
-> It is § *The decision* below.
+> ## ✅ CLOSED — every blocker in this file is discharged
+> **This banner read *"one decision is the user's and it blocks everything … nothing lands"* until
+> 20260831.** It was wrong by 20260830: the suite went green in `b59e58f`, **0.31.0 published**, and
+> twelve merges landed after it. `./check.sh` exits 0 and the four once-failing files give
+> **249 passed, 1 skipped, 0 failed**. **Read this file for §§ *The 22 nobody has ever checked*,
+> *Five defects of one shape* and the `TZ=UTC` trap — not for the incident it is named after.**
 
-## 1. `main`'s test suite is red, and no commit did it
+## 1. ✅ CLOSED — `main`'s test suite was red, and no commit did it
 
 **Measured 20260830 09:0x UTC on a clean checkout of `3712a7f`: `./check.sh` exits 1,
 `25 failed, 2331 passed, 4 skipped`.** Every other gate passes — this is the whole of it:
@@ -109,7 +112,7 @@ was verified by the planner rather than relayed:**
 It is a defect fix and it does not need the user. **A and B remain worth doing on their own merits,
 and neither is needed to unblock CI.**
 
-**What still needs the user is the bigger half.** `git log --follow src/pinakes/budget/prices.toml`
+**✅ SHIPPED IN 0.31.0 — this paragraph described the state until 20260830.** What needed the user was the bigger half, and it is done: `docs/RELEASING.md` § *Before you start* step 3 now refreshes the table at every release, and `as_of` was re-stamped for the first time in that release. The paragraph is kept because the *mechanism* it describes is why the step exists. `git log --follow src/pinakes/budget/prices.toml`
 shows `as_of` was written **once, at creation, and never refreshed**, and `docs/RELEASING.md`
 mentions prices **zero times**. So **every installed copy refuses paid estimates 30 days after each
 release**, and the remedy the error itself prints — *"Upgrade pinakes to refresh the bundled
@@ -525,11 +528,11 @@ the user, so a new rule goes to them beside it rather than ahead of it.
 
 | # | Item | Blocked on | Owner |
 |---|---|---|---|
-| 1 | **C — stop the suite reading the wall clock**, `test_deep_loop.py:153`'s existing `prices()` pattern being the model. **Needs no decision: it restores `DESIGN.md:811`.** **It is not a one-file fix: `test_doctor.py` is 1 of the 25** — see § *What item 1 actually costs* | nothing | coder |
-| 2 | **The release step that refreshes `prices.toml`** — it has never existed, so every install refuses paid estimates 30 days after each release. Doc half `docs/RELEASING.md` (planner); the numbers need re-measuring (**user**) | **the user**, for the numbers | planner + user |
-| 3 | The five confirmed defects above | nothing — but `check.sh` is red until **item 1** (this row used to say item 2, which was wrong: item 2 is the recurrence cure, not the unblock) | planner (all five are planner-owned documents) |
-| 4 | The other 14 unfixed survivors in `SURVIVED.md` | nothing, same caveat | planner |
-| 5 | A **targeted** verification pass over the never-verified findings — **not** `resumeFromRunId`, which is same-session-only. **30 raises were never verified; deduplicated against the 14 that item 4 covers, 22 distinct items remain**, enumerated in § *The 22 nobody has ever checked* | items 3-4, so it does not re-raise what is already fixed | planner |
+| 1 | ✅ **BUILT 20260830 `b59e58f`.** ~~C — stop the suite reading the wall clock~~, `test_deep_loop.py:153`'s existing `prices()` pattern being the model. **Needs no decision: it restores `DESIGN.md:811`.** **It is not a one-file fix: `test_doctor.py` is 1 of the 25** — see § *What item 1 actually costs* | nothing | coder |
+| 2 | ✅ **BUILT 20260830**, `docs/RELEASING.md` § *Before you start* step 3, and first applied in 0.31.0. ~~The release step that refreshes `prices.toml`~~ — it has never existed, so every install refuses paid estimates 30 days after each release. Doc half `docs/RELEASING.md` (planner); the numbers need re-measuring (**user**) | **the user**, for the numbers | planner + user |
+| 3 | ✅ **DONE 20260830** — all five fixed and landed. ~~The five confirmed defects above~~ | nothing — but `check.sh` is red until **item 1** (this row used to say item 2, which was wrong: item 2 is the recurrence cure, not the unblock) | planner (all five are planner-owned documents) |
+| 4 | ✅ **DONE 20260830** — 14 verified, adversarially refuted, 12 fixed, 1 already fixed, 1 fix killed by its own skeptic. ~~The other 14 unfixed survivors in `SURVIVED.md`~~ | nothing, same caveat | planner |
+| 5 | 🔻 **THE ONLY ROW STILL OPEN.** A **targeted** verification pass over the never-verified findings — **not** `resumeFromRunId`, which is same-session-only. **30 raises were never verified; deduplicated against the 14 that item 4 covers, 22 distinct items remain**, enumerated in § *The 22 nobody has ever checked* | items 3-4, so it does not re-raise what is already fixed | planner |
 
 **The corpus rule does not apply.** Nothing here touches chunking, fusion, reranking or the
 confidence signal.
