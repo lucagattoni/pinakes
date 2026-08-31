@@ -10,10 +10,10 @@ import numpy as np
 import pytest
 from conftest import pdf_extraction_runnable
 
+from pinakes import store
 from pinakes.embed import ModelInfo, Vectors, register_embedding_backend, register_reranker
 from pinakes.errors import ServeError
 from pinakes.ids import mint_doc_id
-from pinakes import store
 from pinakes.init import init
 from pinakes.manifest import load
 from pinakes.serve import EVIDENCE_HEADER, Server, as_payload, build

@@ -319,13 +319,23 @@ kills = "tests/test_release_tag_gate.py::test_make_release_check_runs_the_gate_r
 # is stated here rather than given a `kills` selector it would not honour. It is also not
 # hypothetical — it is what the first draft of the rebuild test did, and that test passed against
 # the unfixed code.
+#
+# **The whole-design control is not a mutant either, and it is stronger than one would be.** The fix
+# has two halves — one connection per thread, and `check_same_thread` off so shutdown can reap them
+# — and no single anchor spans both, so the first attempt at a CONTROL row mutated only the keying
+# and **SURVIVED**: with the thread check off, sharing one connection no longer raises. That is a
+# finding about the fix rather than about the row. Sharing one slot is still caught, by the
+# connection *count* rather than by an exception (the row below), and the design as it actually
+# shipped was reverted wholesale to `e526e29~1` and run: three of four tests failed in their
+# bodies. A `git checkout` of the prior commit is the faithful control here; a mutant would be an
+# approximation of it.
 
 [[mutant]]
-name = "CONTROL — every thread keys off one entry again, which is the shipped design exactly"
+name = "one entry for every thread — the shared slot returns, and only one connection is ever opened"
 file = "src/pinakes/serve.py"
 old = '''        current = threading.current_thread()'''
 new = '''        current = threading.main_thread()'''
-kills = "tests/test_serve.py::test_a_search_from_a_second_thread_answers_instead_of_raising"
+kills = "tests/test_serve.py::test_no_connection_is_opened_and_then_abandoned_still_open"
 
 [[mutant]]
 name = "the handle is opened bound to its own thread, so shutdown cannot close a single one it opened"
