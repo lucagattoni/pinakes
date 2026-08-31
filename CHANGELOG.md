@@ -10,6 +10,113 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.31.1] — 20260831 23:01
+
+### Fixed
+
+- **Renaming several documents at once no longer crashes `pnk sync` or leaves the index describing
+  the wrong file.** `documents.path` is `UNIQUE`, and the sync plan was built by walking paths in
+  sorted order — a fine order for deciding what each file *is*, and an arbitrary one for deciding
+  *when* to write it. So an ordinary `git mv` of three notes (`a → b`, `b → c`, `c → d`) produced a
+  plan in exactly reverse of the only order the database accepts: `pnk sync` exited 1 with a raw
+  traceback carrying no remedy and writing no failure row, `pnk search` then answered from a path
+  that no longer existed on disk, and `pnk doctor` exited **0** with every row `OK`, including
+  *failures: none recorded*. The plan is now ordered so every move lands on a free path, and every
+  document keeps its id — a re-mint would have synced just as cleanly and broken every inbound
+  `pnk://` link.
+- **Swapping two documents' names is a cycle and is still refused.** No order of a swap can be
+  applied — whichever moves first writes onto a path the other still holds — and resolving it needs
+  a temporary path the planner cannot create. It fails exactly as before, deliberately and with a
+  test pinning it *as* deferred, so that a fixed rename chain cannot be mistaken for fixed renames.
+- **A leftover `.pnk.yaml` can no longer cost a live document its id.** A sidecar whose own document
+  is gone claims an id for nothing; counted as a claim, it made an untouched document beside it read
+  as *an identity that has moved*, so the document was re-minted under a fresh id, the original was
+  retired, and every inbound `pnk://` link to it died. Guarded since 0.4.1 and untested until now —
+  found by a mutation run rather than by reading.
+
+- **`release_order_gate` no longer has to choose between a false claim and a red gate.** 0.30.3 was
+  prepared 20260825, never tagged, and reached no index — its fix ships inside 0.31.0. Both PyPI
+  sequences declare `newest_may_lag`, so while 0.30.3 was the newest thing missing the gate was
+  legitimately green; the moment the post-publish sweep added 0.31.0 it became an **interior hole**,
+  which lag does not cover and must not. **Lag explains a missing newest; only a declared absence
+  explains a missing middle.** 0.30.3 is now declared absent from the *Published on PyPI* prose and
+  the *Published versions* row — the two lists that record what an index actually serves — and from
+  **nothing else**: it stays expected in `CHANGELOG.md`'s headings and link definitions,
+  `docs/ROADMAP.md`'s table and sections, and `docs/STATUS.md`'s release roadmap, because it is a
+  real release *document* and only never a published artifact. Both declarations read one shared
+  constant, so the two reasons cannot drift apart, and the allowance is printed on the green run —
+  a tolerated gap and a declared one are otherwise identical from an exit status. Unlike 0.11.0's
+  exception beside it, **this one never retires**: PyPI does not accept a version twice and nothing
+  was uploaded under 0.30.3, so the only way to delete the declaration is to add 0.30.3 to a list of
+  published versions, which is the claim it exists to refuse.
+
+- **A paid document deleted and restored unchanged is no longer told its content changed.** Deleting
+  a document retires its row and drops its chunks with it, so restoring the file genuinely does need
+  a paid re-extraction — but `pairing.py` spelled *retired* as *changed hash* so both could share
+  one branch, and the refusal a user read said `...was extracted with the paid backend, but its
+  content changed.` **The file had not moved a byte**, and the remedy asked them to pay for a change
+  that never happened. `docs/DESIGN.md` forbids that conflation by name for the neighbouring case
+  ("never conflated with 'content changed'") and `PaidExtractionUnavailableError`'s own docstring
+  calls it a false claim. The refusal stays and only its reason changed: `PaidExtractionRequired`
+  now carries `CHANGED` or `RETIRED` and `pnk sync` says which, with `CHANGED` winning when both
+  hold, since a retired document whose file also came back different really did change. **A warm
+  extraction cache still cannot rescue it** — that needs provenance `pair()` cannot see, and routing
+  there without it would let a revived document be silently re-extracted by a free backend.
+
+- **A rename Pinakes cannot apply is now a recorded failure with a remedy, not a raw traceback.**
+  `documents.path` is `UNIQUE`, so a move onto a path another row still holds is refused by the
+  database. Ordering a rename chain fixed the common case, but two cases still collided: **a cycle**
+  — two documents exchanging names, which no order can apply — and **a chain whose earlier member
+  failed to index**, because a caught failure rolls back and that document keeps its old path for
+  the next action to land on. Both surfaced as `sqlite3.IntegrityError: UNIQUE constraint failed:
+  documents.path`, which escaped `_apply`, `sync()` and the CLI's own handler alike: no remedy, no
+  ledger row, and `pnk doctor` still answering `failures: none recorded` over it. `pnk sync` now
+  records a `PathStillHeldError` naming the temporary-name remedy, and `pnk doctor` reports it. The
+  exit status is unchanged — still non-zero — and **the cycle is contained, not resolved**: rows are
+  left at paths no longer on disk and the user has to act. What changed is that they are told.
+- **Only that one collision is caught.** `sqlite3.IntegrityError` also covers the
+  `chunks(doc_id, ordinal)` and `nodes(kind, key)` UNIQUEs, the `links` and `edges` primary keys and
+  the CHECKs on `documents.state`, `links.origin` and `nodes.kind` — every one of which fires when
+  Pinakes is wrong, not when a user's tree is. Those still escape loudly rather than being filed as
+  one document's failure.
+
+- **`pnk serve` answers concurrent requests, and shuts down cleanly.** The server cached one
+  `sqlite3.Connection` per KB and handed it to whichever thread asked next, and `sqlite3` refuses a
+  connection used off the thread that opened it. Nothing in `serve.py` starts a thread — the MCP
+  transport does: a sync tool runs under `anyio.to_thread.run_sync`, on a pooled worker. Measured
+  end to end through the real dispatch, **six concurrent tool calls left two answering and four
+  raising `sqlite3.ProgrammingError`**, and **`pnk serve`'s shutdown raised every time**, because
+  `cli.py` closes the server from the main thread and the handle belonged to a worker. Each thread
+  now opens its own read-only connection.
+- **Handles are reaped rather than accumulated.** A worker is retired after ten idle seconds, so one
+  connection per thread would otherwise be one file descriptor per thread over a long-lived server.
+  Handles whose thread has exited are closed at the next open, and `close()` takes the rest. That is
+  what `store.connect_ro`'s new `owning_thread_only=False` buys — shutdown runs on a *different*
+  thread from the workers, and with `sqlite3`'s check left on it could not close a single descriptor
+  it had opened. It does not make a connection shared: one thread owns each, by construction.
+- **A connection is no longer opened and abandoned.** The old code tested and assigned one shared
+  slot with no lock, so threads arriving together each opened one and only the last was kept. The
+  losers stayed open, unreferenced and unclosable — and a thread that won that race was answering
+  from a connection it had opened itself, which is why some concurrent calls succeeded at all.
+
+- **The shipped USD→EUR rate had never been re-verified, and a release stamped over it.**
+  `usd_per_eur` in `src/pinakes/budget/prices.toml` held its seed value `1.08` from the file's
+  creation on 20260728 until 20260831, while 0.31.0 moved `as_of` forward to `20260830 14:46` above
+  it — so the table asserted a rate as checked on a day nobody had checked it. Every EUR figure this
+  project prints is `cost_usd / usd_per_eur`, so the stale rate **inflated all of them by 7.4%**:
+  `pnk ask --deep` estimates, the reservations written to the ledger, and `pnk budget` totals alike,
+  which also means a EUR cap bit 7.4% early. The rate is now the ECB euro reference rate for the
+  stamp date, **1.1596**, `as_of` is read from the clock, and the file **names its FX source** so the
+  next release can re-check it instead of re-guessing it.
+- **Two retrospective fragments would have spliced malformed.** One carried no `##` heading at all,
+  and `tools/fragments.py`'s retrospectives stream writes no heading of its own — it joins fragment
+  bodies — so its bullets would have landed silently under the preceding fragment's heading in
+  `docs/RETROSPECTIVES.md`. Nothing catches this: the assembled-document checker forbids *adjacent
+  duplicate* headings, and the rule that a section must open with a bullet is changelog-only by
+  design, because retrospectives are free-form prose. The other carried `(20260831)` where every one
+  of that document's existing headings, and the fragment directory's own naming rule, requires the
+  filename prefix's `HH:MM` copied across. Both fixed in place; neither prose was rewritten.
+
 ## [0.31.0] — 20260830 14:46
 
 ### Added
@@ -4210,7 +4317,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.31.0...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.31.1...HEAD
+[0.31.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.31.1
 [0.31.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.31.0
 [0.30.3]: https://github.com/lucagattoni/pinakes/commit/d3a8f681afb23573a75e8299ecf112a8f158b848
 [0.30.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.30.2

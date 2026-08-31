@@ -8699,6 +8699,295 @@ current by construction"* — one function below the test that failed because it
 correction lands in the same change, or the fix leaves the premise that produced the defect
 in place. **A docstring is a claim with a shelf life and nothing checks it.**
 
+## S16/S19 — A fix that enforces a property globally unpins every test that asserted it locally (20260826 11:47)
+
+**HIGH — the finding is about the mutation harness, not about renames, and it is the most portable
+thing this increment produced.** The ordering pass makes *"no action writes a path a live row still
+holds"* true of **every** plan. Two mutants in `src-pinakes-pairing.toml` died on `main` to that
+property being **locally** violated — a `SoftDelete` landing after the `Adopt` it belongs before —
+so both became invisible the moment the property was guaranteed globally. **Neither
+`--check-anchors` nor `tests/test_batteries.py` can see this happen**: the anchor still resolves and
+the `kills` selector still names a test that exists, which is the entire contract those checks hold.
+The generalisable rule: **when a change makes a property hold by construction, every test that
+asserted that property by observation stops discriminating** — and a battery is exactly a corpus of
+such tests. Run the battery after a change of that shape; the anchors resolving is not a substitute.
+
+**The one that had nothing underneath it was still worth the run.** *Inverted guard* was killed by
+eleven other tests: the battery was right about the risk and wrong about the witness, which
+`tools/batteries/README.md` already names. It was repointed **and renamed** — its old name described
+the in-place half, which the ordering pass now repairs, and what still dies is the other branch.
+**A row's name is a claim too, and it rotted without its anchor moving.**
+
+**HIGH — the one that did have something underneath it was an untested route to breaking ULID
+permanence.** *An orphaned sidecar counts as a claim* survived on the branch and **nothing in 2 212
+tests saw it**. Reading why found a second reader of `claimed_by_id` that the ordering had been
+standing in front of: a file with **no sidecar of its own**, whose index id turns up claimed
+elsewhere, is read as *"this row's identity has moved"* and its path is left to be minted fresh. Let
+an orphaned `.pnk.yaml` count and that fires on an untouched document sitting beside it — **re-minted
+under a new id, the original retired, every inbound `pnk://` link dead**. That is
+[`docs/INVARIANTS.md`](https://github.com/lucagattoni/pinakes/blob/main/docs/INVARIANTS.md)'s first
+invariant, reachable with the user doing nothing wrong, and it had no test. The new one asserts the
+action **kind**, not the order — the half a global ordering guarantee cannot repair — and was watched
+red under the mutant first: `Skip` becomes `Rename`.
+
+**MEDIUM — the battery README's own remedy has a false-positive mode.** It says: before believing a
+survivor, run the mutant against the whole suite. The whole suite contains `tests/test_batteries.py`,
+whose anchor check fails on **any** edit to a battery target — so a mutant that dies only to that is
+**not killed**, and a run reporting `1 failed, 2 221 passed` reads as a clean bill. `tools/mutate.py`
+is blameless: it runs only the named selector and its report was honest. **The defect was in the
+advice, which makes it a one-flag fix** (`--ignore=tests/test_batteries.py`) rather than a redesign.
+
+**MEDIUM — working code was written, tested, and backed out, and that was the right call.** Making a
+rename cycle raise cleanly from `pair()` is tidier than letting it fail at the first write: nothing
+is applied, so nothing is half-applied. It broke five committed tests, and **three of them are guards
+that exist only while a cycle still produces a plan** — including one pinning the silent-loss shape
+the previous increment exists to prevent, which can only observe it by watching a plan be applied and
+fail. **Refusing the cycle is a decision about behaviour that costs coverage of a different defect,
+not an implementation detail of an ordering fix.** The price is now recorded where the next person
+reaching for it will start from it: not *"add a temporary path"* but *"add a temporary path **and**
+replace three guards."*
+
+**LOW, and a lesson about test seams rather than about this code: a stability test that could not
+reach the thing it tested.** The ordering pass returns early when a plan has no constraints — so the
+test that pinned *"a plan needing no constraint comes out unchanged"* never entered the topological
+sort at all. A mutant emitting ready actions in arbitrary order therefore changed the output of every
+constrained plan and survived that test **and the whole suite**. **A test named for a property is not
+evidence it reached the code implementing it**; the repair was a plan carrying a constraint *and*
+untouched actions beside it, so the sort runs and the unconstrained actions are observable.
+
+**LOW — `ty` caught two typing defects `pyright` strict passed**, both in new test code, both real
+(an attribute read off a union member that does not have it). `check.sh` calls `ty` a fast pre-check
+and *never* the gate, which remains right — but on this increment it was the only checker that saw
+them, and that is worth one line in the record rather than a re-litigation of the policy.
+
+## A gate green on `main` and red on the tree `main` is about to become (20260830 15:04)
+
+**MEDIUM — three sessions measured one gate within an hour and got three answers, and every
+measurement was correct.** The planner reported `release_order_gate` red and asked for a fix. A
+second session ran it on `main` at `37689f1`, measured **green**, and — instead of reporting the
+planner mistaken — said so and named its sha. The planner then re-measured, found it had reported a
+property of its own uncommitted worktree as a property of `main`, and corrected itself unprompted.
+The resolution came from neither: **reproducing the failure before writing a line.** Copying the
+three documents to a scratch tree and appending 0.31.0 exactly as the post-publish sweep does
+produced the planner's two failure lines verbatim.
+
+**So the accurate statement is one none of the three had: the gate is green on `main` and red on the
+tree `main` is about to become.** Both PyPI sequences declare `newest_may_lag`, so while 0.30.3 is
+the *tail* its absence reads as latency; adding 0.31.0 makes it an interior hole, which lag does not
+cover. **A blocker observable only from a tree that does not exist yet is still a blocker** — and it
+is invisible to exactly the check a careful reviewer runs, which is `git rev-parse HEAD` followed by
+the gate. This is the third measurement-over-a-moving-target failure recorded in one day and the
+only one where the target moved *forward*: the other two moved backward, a suite read across a
+release cut and a `TZ=UTC git log --date=format:` printing a committer-offset time as UTC.
+
+**LOW, and the reason the fix needed three tests rather than one: a declared absence and a hole
+nobody noticed have the same exit status.** The green run's `(declared absent: 0.30.3 — …)` sentence
+is the entire difference, so one mutant silences that sentence and nothing else, and it is killed by
+the real-documents test rather than by any of the new ones. The control that matters strips the
+declaration and requires red on **exactly** the two PyPI sequences — built on a fixture rather than
+the real documents on purpose, because before the sweep lands the real tree is green with or without
+the declaration, so a control there would prove nothing today and something different tomorrow.
+**A test whose meaning changes when an unrelated commit lands is not a control.**
+
+**And the scope is the whole claim.** 0.30.3 is a real release *document* and only never a published
+*artifact*; a blanket exclusion would have made the gate green by erasing that distinction. All
+three new battery rows attack the scope rather than the mechanism — the mechanism was already
+covered by 0.11.0's rows — because what is new here is *which* sequences carry the declaration, and
+that is data, which no type checker reads.
+
+## S18 — the obvious fix would have shipped the defect it claimed to fix (20260830 15:15)
+
+**HIGH — the right answer was written down, one layer down, and taking it would have been wrong.**
+`sync.py:2190` already handles this case beautifully: it decides from the sidecar's own recorded
+`content_hash` rather than from a cache miss, peeks the extraction cache, reuses paid text for free
+when it is warm, and raises the honest `PaidExtractionUnavailableError` when it is not.
+`docs/DESIGN.md:1036` names that as the required outcome. So the obvious fix was to stop `pairing.py`
+pre-empting it — emit `Reembed` and let the layer with more information decide. **Every sentence of
+that is true and the change would have introduced a Decision 9 violation.**
+
+What stopped it was reading `_paid_survivor_in_current_index` instead of trusting its name: it
+selects `WHERE id = ? AND state = 'active'`, so a **revived** row gets no index-side protection at
+all. The only remaining guard is `sync.py:2190`, which reads the *sidecar's* provenance — and
+`WalkedSidecar` carries `path`, `document_path`, `id`, `file_hash` and nothing else, so `pair()`
+cannot distinguish a document the cache could revive from one a free backend would silently
+downgrade. **The fix that removes a false claim would have shipped a silent one**, under a commit
+message about honesty.
+
+**That turned an implementation choice into a decision with a price, which is the user's and not
+mine.** Three options with a real trade-off — honest reason only, route to the extractor, or widen
+`WalkedSidecar` to carry provenance — were put to the user with the cost of each. **They took the
+first, 20260830**: the reason is corrected and nothing else moves. The cost is stated rather than
+buried, here and in `docs/DESIGN.md`'s row: a user whose extraction cache is warm still pays for
+text their machine already holds.
+
+**The distinction that made it a stop rather than a judgement call is worth keeping.** Choosing
+*how* to implement what a plan specifies is an implementer's; choosing *what* it should have
+specified is not. The plan said the fix "must keep the paid-protection clause and stop conflating
+retired with changed" — all three options do exactly that, and they differ only in whether a warm
+cache may spare the user money. That is a question about spending, and no amount of reading the
+code answers it.
+
+**MEDIUM — a census cannot see a reason, so nothing but an assertion on the reason catches it.**
+`describe()` returns `{"PaidExtractionRequired": 1}` whether the plan says the content changed or
+the row was retired, and both are one action either way. The mutant that inverts the precedence —
+`RETIRED if retired else CHANGED` — is therefore invisible to every structural check in the module,
+and it fails in the direction that matters: a user whose file genuinely *did* change is told nothing
+about it did. It is the obvious implementation, and it is the one a reader would write.
+
+**MEDIUM — a field is not a message.** The defect was never in a field; it was in a sentence a user
+reads. So the claim is pinned twice: a unit test on which reason the plan carries, and a
+`test_sync.py` test that drives a real delete-and-restore and asserts what is printed. The unit test
+alone would have passed against a build whose `sync` still said "content changed" for both reasons —
+the seam rule applied to a string rather than to a transport.
+
+**LOW — the reproduction that made all of this cheap was six lines and one changed field.** The same
+inputs with `state=ACTIVE` give `Skip` and protection; with `state=DELETED` they give
+`PaidExtractionRequired`. A control that differs in exactly one field is worth more than a paragraph
+of reasoning about what the branch does, and it is what let the fix be scoped in minutes rather than
+argued.
+
+## S16's residue — "containment is one line", and the line was too wide (20260831 21:58)
+
+**The review was right about the defect and wrong about the fix, and the two are easy to accept
+together.** Two independent adversarial agents found the same residue on the S16 branch: ordering a
+rename chain creates a dependency between actions that the executor knows nothing about, so one
+member failing to index leaves its row in place and the next action collides. Both wrote the same
+remedy: add `sqlite3.IntegrityError` to `_apply`'s except tuple. One of them called it "containment
+is one line", which it is.
+
+It is also one line that swallows `chunks(doc_id, ordinal)`, `nodes(kind, key)`, the `links` and
+`edges` primary keys, and the CHECKs on `documents.state`, `links.origin` and `nodes.kind`. Each of
+those fires only when Pinakes itself is wrong. `_apply` records a failure and **continues** — so a
+bare catch would file an invariant breach as one document's problem and let the run report success
+around it, which is the exact silent shape `docs/INVARIANTS.md` exists to prevent. **The finding's
+severity was HIGH and its proposed fix would have opened a second hole to close the first.**
+
+**The third option was not in the branch, not in the plan, and not in either review.** It came out
+of asking one question the reviews had not: how wide is `IntegrityError` here, actually? Reading
+`store.py` answered it, and `exc.sqlite_errorname` — measured on the interpreter rather than
+remembered from the docs — turned out to separate `SQLITE_CONSTRAINT_UNIQUE` (2067) from
+`SQLITE_CONSTRAINT_CHECK` (275) and `SQLITE_CONSTRAINT_PRIMARYKEY` (1555). That made a narrow catch
+cheap, so the decision put to the user was three options rather than the two the branch offered. **A
+review's recommended fix inherits the framing of the review, and a reviewer who has just proved a
+defect is not the least biased party about its remedy.**
+
+**The battery found the hole in my own test, which is the part worth keeping.** The witness for the
+narrow behaviour had three negative cases — a duplicate primary key, a CHECK breach, a
+`chunks(doc_id, ordinal)` collision — and it passed. It also passed with the `sqlite_errorname`
+clause deleted, because **all three fail on the column substring alone**, so the clause the whole
+decision rests on was never exercised. The case that separates them is
+`NOT NULL constraint failed: documents.path`: the right column under the wrong error code. Three
+plausible negative cases agreeing with each other is not coverage — they have to disagree about the
+clause under test, and nothing but writing the mutant asks whether they do.
+
+**The exit code came from the adversarial pass, not the build.** Catching an exception trades a
+crash for something quieter by construction, so the question "does `pnk sync` still exit non-zero?"
+had to be asked separately. It does — `report.ok` is `not self.failures` — but nothing pinned it,
+and a later edit to `ok` could have turned a contained failure into a silent success with every
+test green. It is asserted now.
+
+## S3 — a thread id is a slot the OS reuses, not an identity (20260831 22:21)
+
+- **A defect in how threads share a handle is invisible to a suite that never starts a thread.**
+  `tests/test_serve.py` had no thread anywhere in it. The bug was not missed by a weak assertion; it
+  was outside the shape of every test in the file. **The trigger was a property of the transport,
+  and the transport was the part nobody was testing** — `serve.py` starts no threads, so reading it
+  end to end tells you it is single-threaded, and that reading is what the tests encoded.
+- **The inherited explanation of *when* it fires was wrong, and only running it said so.** The
+  finding came with a mechanism — a worker retired after ten idle seconds, so the first call after
+  a pause gets a new thread — and it is a correct account of `anyio`. It is not what fails. Driven
+  through the real `mcp.call_tool`, an eleven-second pause reproduced **nothing**: the retired
+  worker's thread id had already been reused by its replacement, and `sqlite3` compares ids, so it
+  saw one thread. What did reproduce, on every attempt, was `close()` — shutdown runs on a thread
+  that opened nothing — and, under six concurrent calls, four of six raising `ProgrammingError`.
+  **The trigger is contention, not idleness.** The mechanism was sound, the population was never
+  checked, and the first commit message asserted the pause as though it had been measured; it is
+  corrected in the follow-up rather than left to read as evidence.
+- **A thread id is a slot the OS reuses, not an identity — and it faked a passing test.** The first
+  version of the rebuild test ran two worker threads in succession and **passed against the unfixed
+  code**. macOS had handed the second thread the id of the first the moment the first was reclaimed;
+  `sqlite3` compares ids, saw one thread, and allowed the reuse it exists to refuse. Measured
+  directly: three successive `anyio` workers reported one identical `get_ident()` and three
+  different `Thread` objects. Two consequences, one for the test and one for the fix — the opener
+  must be a thread that is still *running* when the reader starts, and the per-thread cache is keyed
+  by the thread object, because keying by id both hands a new thread a dead one's handle and makes a
+  dead entry indistinguishable from a live one, which is the entry reaping exists to find.
+- **The control is what turned this from a plausible fix into a pinned one.** Reverting the fix
+  failed three of the four tests *in their bodies*; the fourth — the handle-count bound — is red
+  under the old design only because the attribute does not exist, so it was checked separately by
+  deleting `_reap_dead_threads()` alone (`assert 12 <= 2`). Without running both controls the weak
+  test above would have shipped as a certificate, and its docstring now says which control it
+  answers to.
+- **The seam is named in the test that has one.** Driving real `threading.Thread`s proves the
+  handler is per-thread; it does not prove the transport ever uses a second thread. That half is the
+  whole premise of the fix, so it is asserted against `mcp` directly rather than assumed — a probe
+  tool that records the thread it ran on. If the library stops offloading sync tools, that test goes
+  red and says so, and nothing else in the suite would have noticed.
+- **The measurement that corrected it also found a second defect nobody had named.** Counting the
+  connections actually opened showed the old `connection()` testing and assigning one shared slot
+  with no lock: threads arriving together each opened one, the last assignment won, and the losers
+  stayed open, unreferenced and unclosable. That race is why *some* concurrent calls answered — a
+  thread that won it was using a connection it had opened itself — so the leak was also the thing
+  hiding the failure. Neither would have been found by reasoning about the fix; both came from
+  instrumenting the run and asking how many, rather than whether.
+
+## The release step written to catch a stale price, skipped by the release that wrote it (20260831 22:53)
+
+- **Five hours separated the rule from the violation, and both are in the same day's history.**
+  `a2cc944` (20260830 10:57) added `docs/RELEASING.md` § *Before you start* step 3, including the
+  warning that *"re-stamping `as_of` without re-verifying the numbers is not a refresh — it is
+  falsifying a measurement"* and a table whose `usd_per_eur` row says **"this is the field that
+  actually moves"**. `c7b0bd9` (20260830 15:53) cut 0.31.0 and changed exactly one line of
+  `prices.toml`: `as_of`. The rate the table singles out was left at its 20260728 seed. **A step's
+  first run is where it is weakest**, because the person running it is the person who just wrote it
+  and is checking their own text against their own memory of it.
+- **The model prices are the field that invites the skip.** Step 3's other row says of them
+  *"unchanged is the normal outcome"*, and they were unchanged — `claude-opus-5` is still
+  `5.00`/`25.00`, re-confirmed again today. Verifying the field that will not have moved feels like
+  performing the step, and it is the half that carries no information. The order in the table now
+  reads as a trap: the reassuring row is first.
+- **The staleness guard was healthy the whole time, and guarded the wrong thing.**
+  `max_price_age_days` and `pnk doctor`'s WARN both key on `as_of`, so a *re-stamped* table is
+  maximally fresh by every instrument the project owns — which is precisely how a wrong number
+  survives. **An instrument that reads the claim cannot check the claim.** The only detector is
+  going back to the source, which is why step 3 asks for a *named* one; an unnamed source is not
+  re-checkable by the next release, so `prices.toml` now names `api.frankfurter.dev` in the file
+  itself rather than in a commit message nobody will re-read.
+- **Two independent sources, because being wrong here would have looked exactly like being right.**
+  The ECB reference rate for 20260831 is 1.1596; a market quote for the same day gives 1.1617. They
+  agree to 0.2%, which is the difference between a daily fix and an intraday spot, and either would
+  have refuted 1.08. One source would have been a number I could not distinguish from a typo.
+- **The error's direction is the reason it was survivable, not a reason it was harmless.** `1.08`
+  is *below* the true rate, so `cost_usd / usd_per_eur` over-stated every euro figure by 7.4% and
+  every EUR cap bit early. Nothing overspent. But the ledger records `cost_usd` and the rate on each
+  line precisely so euros can be re-derived later, and lines written since 20260728 carry a rate
+  that was never true — the re-derivation is faithful to the record and the record is wrong.
+- **Nothing in the suite was watching the number, and the thing that went red was an accident.**
+  Checked exhaustively rather than by sampling — every EUR literal under `tests/` at `3cf9858`,
+  seven candidates, each one opened. Six are immune, and all six for the same reason: they pin the
+  rate where the test controls the input (a local constructor default, a module `RATE`, a per-call
+  `rate=`, a fixture deliberately at `1.00`, a value put in and read straight back). The seventh,
+  `test_cli_ask.py:374`, reaches the shipped rate only because `conftest.py`'s `prices_never_age`
+  replaces `as_of` alone — and it exists to discriminate €0.21 from €0.26, not to watch FX.
+  `test_budget_core.py` asserts the committed rate is a string that parses as a `Decimal`, never
+  its value; `check.sh`'s prices gate checks only that `as_of` parses, and says at length why it is
+  not a staleness check. **So the shipped rate's sole guard was a literal nobody wrote for the
+  purpose** — and it fires when the rate *moves*, never when it is *stale*, which is the wrong half
+  of the property. A month of `1.08` produced no signal from anything.
+- **Which makes "fix the coupling" a trap.** The obvious follow-up — decouple that literal from the
+  shipped table — deletes the only alarm the rate has ever had, and would read as tidying. The fix
+  is two parts, not one: pin the rate at that call site, *and* separately assert the committed rate
+  is plausible. **A bound is wrong in one place and right in the other**, which is why one change
+  cannot do both: a bound at the call site would admit 0.26 and destroy the discrimination the test
+  is *for*, while a bound on the rate is exactly right, because the property there is "somebody
+  refreshed this" rather than "it equals X". And the honest limit, stated rather than sold: a bound
+  cannot catch stale-but-plausible, and **1.08 was plausible for the whole month it was wrong**. The
+  mechanism is step 3; the bound is a backstop against a typo or a seed value left in place.
+- **The find came from executing the procedure, not from auditing it.** Step 3 was read tonight in
+  order to *run* it, and the defect surfaced in the first thirty seconds of doing so. Two days of
+  document audits over the same tree — including one that examined this plan's own file — had not
+  looked at the value.
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings

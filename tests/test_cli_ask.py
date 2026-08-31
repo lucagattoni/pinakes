@@ -367,11 +367,38 @@ def test_json_carries_a_null_answer_and_an_escalation_block(
     # A string, never a float: JSON has no decimal type, and a float here would reintroduce the
     # representation error `Decimal` is used throughout the budget to avoid (INVARIANTS).
     #
-    # **0.21, not the 0.26 the shipped defaults price**, because this KB chunks at
-    # `max_tokens = 60` (the fixture above). The estimate reads the widths of the KB in front of it,
-    # which is the whole reason it is not a constant: a KB retrieving twenty 2,000-token passages
-    # has to be priced as one.
-    assert payload["escalation"]["cost_eur"] == "0.21"
+    # **Lower than the shipped defaults price**, because this KB chunks at `max_tokens = 60` (the
+    # fixture above). The estimate reads the widths of the KB in front of it, which is the whole
+    # reason it is not a constant: a KB retrieving twenty 2,000-token passages has to be priced as
+    # one. (This line named that contrast figure as `0.26` until 20260831; it was a figure under
+    # the old FX rate and re-deriving it means re-measuring a counterfactual, so it is stated as a
+    # direction rather than restamped with a number nobody checked.)
+    #
+    # **It is also the only assertion in this suite that reads the committed `usd_per_eur`** --
+    # measured over every EUR literal under `tests/` at `3cf9858`, seven candidates, each opened:
+    # the other six pin the rate where the test controls the input (a local constructor default, a
+    # module `RATE`, a per-call `rate=`, a fixture at `1.00`, a value put in and read back), so they
+    # cannot see the shipped one. `conftest.py`'s `prices_never_age` replaces `as_of` alone and
+    # keeps the real rate, which is how this line reaches it at all.
+    #
+    # **That makes this literal the shipped rate's accidental alarm, and the only one there is.**
+    # `test_budget_core.py` asserts the committed rate is a string that parses as a `Decimal` --
+    # never its value -- and `check.sh`'s prices gate checks only that `as_of` parses. So nothing
+    # here was watching the number: `usd_per_eur` sat at its seed `1.08` from 20260728 to 20260831
+    # while `as_of` was re-stamped over it, and this line is what went red when a release finally
+    # re-verified the rate (`0.21` -> `0.20`). It fires when the rate *moves*, never when it is
+    # *stale*, which is the wrong half -- and `docs/RELEASING.md` step 3 now moves the rate at every
+    # release, so it goes red at every release until this is fixed rather than restamped.
+    #
+    # **Do not simply decouple it.** Removing the coupling without replacing the guard deletes the
+    # only alarm the shipped rate has ever had. Rowed as two parts: pin the rate *here* via the
+    # `monkeypatch.setattr` route `prices_never_age`'s docstring already documents -- not by
+    # widening that fixture, which promises the rate stays real -- and separately assert the
+    # committed rate is *plausible*, a bound rather than a value. A bound is wrong at this call site
+    # (it would admit `0.26` and kill the discrimination above) and right on the rate, where the
+    # property is "somebody refreshed this". It still cannot catch stale-but-plausible, and `1.08`
+    # was plausible for a month; step 3 is the mechanism, the bound is a backstop against a typo.
+    assert payload["escalation"]["cost_eur"] == "0.20"
     assert payload["escalation"]["remedy"] is None
 
 
