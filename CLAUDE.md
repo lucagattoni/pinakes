@@ -156,13 +156,14 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
 - **✅ `main` is green and 0.31.0 is published** (20260830). The red build, the release and the
   fourteen document defects are all **closed** — but read
   [`plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md`](plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md)
-  anyway, because what it now carries is not that incident. It holds **22 findings nobody has ever
-  checked** (§ *The 22 nobody has ever checked* — severity as *raised*, by agents whose claims were
-  never tested), the rule that **a claim resting on a set you selected or an instrument you chose
+  anyway, because what it now carries is not that incident. It holds the **22 findings nobody had ever
+  checked** — **checked 20260831**: four confirmed, eight pointing at `retro.d/` files consumed into
+  `docs/RETROSPECTIVES.md` at a release, one still open. **Severity *as raised* ran about 5:1 against
+  the tree**, which is the number to remember before trusting an untested raise, the rule that **a claim resting on a set you selected or an instrument you chose
   must state the selector**, and the record of **six** wrong claims in one day, each a valid
   inference over a population nobody named. **`prices.toml` is refreshed at every release
   now** — `docs/RELEASING.md` § *Before you start* step 3, which had never existed.
-- **🛑 Two plans have scheduled work, and exactly one row in them is not coder work: row 5 of the red-main plan, its only open row, owner planner.** **The S16 HIGH holds nothing any more** — the user answered it 20260831 21:38 UTC (`sqlite3.IntegrityError` caught **narrowly**, on `SQLITE_CONSTRAINT_UNIQUE` naming `documents.path` only) and it was built and landed the same evening. **That option was invented when the question was put and is in neither the branch nor the plan's original two — read the sweep plan's build-order row 2, never a memory of the options.** *(This bullet has been wrong three ways in two days: "all coder work — every decision is taken"; then "rows 3–5 … are owner planner" when rows 3 and 4 already read ✅ DONE; then "a live user decision holding a landing" for the half-hour after it was answered and built in another session.)*
+- **🛑 Two plans have scheduled work, and as of 20260831 22:17 UTC every row in them is coder work: the red-main plan's row 5 was the last planner row and it is closed.** *(What that plan still owes is written into its § CHECKED 20260831, not into a queue row — five small corrections, each naming its own file.)* **The S16 HIGH holds nothing any more** — the user answered it 20260831 21:38 UTC (`sqlite3.IntegrityError` caught **narrowly**, on `SQLITE_CONSTRAINT_UNIQUE` naming `documents.path` only) and it was built and landed the same evening. **That option was invented when the question was put and is in neither the branch nor the plan's original two — read the sweep plan's build-order row 2, never a memory of the options.** *(This bullet has been wrong three ways in two days: "all coder work — every decision is taken"; then "rows 3–5 … are owner planner" when rows 3 and 4 already read ✅ DONE; then "a live user decision holding a landing" for the half-hour after it was answered and built in another session.)*
   The **eight decisions and fifteen questions** in
   [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md) were **ANSWERED by
   the user 20260825 18:16**, and the planner's half of them landed **20260825 18:39–18:56 UTC**, with later records and corrections through 20260826: D-34 closed
