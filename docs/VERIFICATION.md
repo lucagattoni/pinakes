@@ -62,11 +62,22 @@ test, or write **none** and say why in the same commit.
   correction was found by counting, never by reading. **Do not restate a release count here at all.**
 * **Two gaps remain, and they are different in kind.** **Five modules carry zero rows** —
   `test_chunk.py`, `test_ids.py`, `test_lock.py`, `test_uri.py`, `test_embed.py`.
-  They predate the table and are not unowned. **Five more are named by no row at all** —
-  `test_build_rfc_corpus.py`, `test_deep_reservation.py`, `test_measure_sync_cpu.py`,
-  `test_rfc_golden_set.py`, `test_two_leg_gate.py`. **`test_review_pass_gate.py` left that list on
+  They predate the table and are not unowned. **Six more are named by no row at all** —
+  `test_agent_spend.py`, `test_build_rfc_corpus.py`, `test_deep_reservation.py`,
+  `test_measure_sync_cpu.py`, `test_rfc_golden_set.py`, `test_two_leg_gate.py`. **The census above
+  is what produced that six; do not hand-count it** — this list said *five* from 20260831 23:04 (`ef1154b`),
+  when `test_agent_spend.py` landed beside `tools/agent_spend.py` and nothing went red,
+  which is the silent denominator this bullet's own gate cannot see. **`test_agent_spend.py` owes
+  no rows and that is a ruling, not an omission**: `grep -n agent_spend check.sh Makefile
+  .github/workflows/*.yml` returns nothing, so it gates nothing and decides nothing, and D-34's
+  promise — *a user-visible guarantee, a named invariant, or a gate's own correctness* — reaches
+  none of it. **It is the fourth `tools/`-script test module on this list**, beside
+  `test_build_rfc_corpus.py`, `test_measure_sync_cpu.py` and `test_two_leg_gate.py`, which is the
+  established shape rather than a new exception. **`test_review_pass_gate.py` left that list on
   20260831**: it landed in `a36f0e6` carrying no rows and was owed them under D-34 — a gate's own
-  correctness is a promise — and it now has a section of its own at the end of this file. **`test_init.py` is no longer among them: it
+  correctness is a promise, and it *is* a gate — and it now has a section of its own at the end of
+  this file. **That contrast is the whole of the distinction**: the clause that pulled in the review
+  gate is the clause that excludes the measurement script. **`test_init.py` is no longer among them: it
   carries 27 rows**, and `test_eval.py` carries 32 throughout *The golden set, per question (G2)* —
   both were once listed here as absent, in error, and each correction was found by counting rather
   than by reading.
