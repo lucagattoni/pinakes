@@ -12,6 +12,11 @@
   first line undercounts output **1.7755×**. `tests/test_agent_spend.py` pins both against synthetic
   transcripts, and reads nothing from `~/.claude`, so it says the same thing on a machine that has
   never run an agent.
+- **`--scope {all,main}` selects the population, and every subcommand prints which one it read.**
+  `all` (the default) counts main-loop sessions, subagent runs and workflow agents; `main` counts
+  main-loop sessions only. The default is `all` deliberately — a main-loop-only file list cannot
+  contain a subagent transcript, so it answers questions about fan-outs with a zero that looks like
+  a finding.
 - **A model off the rate card reports no dollars rather than a guessed price**, and the rate card
   states its own provenance and cache date in the source. An estimate over transcripts is never a
   bill, and the code says so where the number is produced.

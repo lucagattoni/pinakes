@@ -1,3 +1,5 @@
+## A population that could not have contained the thing I was looking for (20260831 22:59)
+
 - **I reported a zero from a population that structurally could not contain a non-zero.** The claim
   was that `claude-fable-5` — which bills at exactly 2.00× `claude-opus-5` — had never been used by
   a fan-out: *"subagent runs: 0; workflow agents: 0 of 868"*. It reached a planner, and it is on
@@ -23,3 +25,10 @@
   **0** request ids of 20,156 and 23,685, so the combined totals are sound rather than
   double-counted. That check cost one query and was the difference between a reportable number and
   a plausible one.
+- **The fix is a default, not a caveat.** The tool as first landed hardcoded its file list per
+  subcommand, so the main-loop-only dollar share a document needs to cite was not reachable by any
+  flag — the committed instrument could not reproduce the number the committed document quotes,
+  which is the whole failure it was built to end. `--scope {all,main}` now selects it, **defaulting
+  to `all`**, and every subcommand prints the population it read. The direction of the default is
+  the lesson: the restricted population is the one that must be asked for by name, because a
+  restricted list does not announce itself — it just returns a zero.

@@ -36,6 +36,12 @@ never in this repository.
 
 Four subcommands, one per analysis:
 
+**Every subcommand names the population it read.** `--scope all` (the default) counts main-loop
+sessions, subagent runs and workflow agents; `--scope main` counts main-loop sessions only. The
+default is `all` deliberately: a main-loop-only file list is what produced the false zero above,
+because subagent transcripts live under `<session>/subagents/` and simply were not in it. The
+restricted population is the one you must ask for by name, and the header repeats which you got.
+
     models      requests, tokens, price-units and estimated dollars per model
     boot        the fixed context each session re-transmits on every request, over time
     workflows   workflow agent outcomes, and how the runs that record none are distributed
@@ -299,7 +305,7 @@ def find_transcripts(root: Path, project: str | None, include_subagents: bool) -
     return found
 
 
-def command_models(paths: Sequence[Path]) -> int:
+def command_models(paths: Sequence[Path], population: str) -> int:
     """Requests, price-units and estimated dollars per model.
 
     Units and dollars answer different questions and can disagree by a factor of two — a model
@@ -323,7 +329,7 @@ def command_models(paths: Sequence[Path]) -> int:
         return 1
     total_units = sum(units.values())
     total_usd = sum(dollars.values())
-    print(f"{sum(requests.values()):,} requests over {len(paths):,} transcripts")
+    print(f"{sum(requests.values()):,} requests over {len(paths):,} transcripts  [{population}]")
     print(f"{total_units:,.0f} price-units   ${total_usd:,.2f} estimated\n")
     for model in sorted(units, key=lambda name: units[name], reverse=True):
         share = units[model] / total_units * 100 if total_units else 0.0
@@ -358,7 +364,7 @@ def command_boot(paths: Sequence[Path]) -> int:
         print("no session had a datable first request")
         return 1
     rows.sort()
-    print(f"{len(rows)} sessions, oldest first\n")
+    print(f"{len(rows)} sessions, oldest first  [main-loop sessions only]\n")
     for stamp, context, name in rows:
         print(f"  {stamp}  {context:>8,}  {name}")
     first_boot, last_boot = rows[0][1], rows[-1][1]
@@ -463,7 +469,7 @@ def _bucket(gap_seconds: float) -> str:
     return GAP_BUCKETS[-1][0]
 
 
-def command_rewrites(paths: Sequence[Path]) -> int:
+def command_rewrites(paths: Sequence[Path], population: str) -> int:
     """Mid-session requests that re-wrote the whole cache, and what they cost above a cache read.
 
     A re-written token bills at 1.25x instead of 0.1x, so this is a 12.5x multiplier on whatever
@@ -493,7 +499,7 @@ def command_rewrites(paths: Sequence[Path]) -> int:
     total_events = sum(events.values())
     total_excess = sum(excess.values())
     share = total_excess / total_units * 100 if total_units else 0.0
-    print(f"{request_count:,} requests, {total_units:,.0f} price-units\n")
+    print(f"{request_count:,} requests, {total_units:,.0f} price-units  [{population}]\n")
     print(
         f"  {total_events} mid-session full cache re-writes "
         f"({total_events / request_count * 100:.2f}% of requests)"
@@ -525,6 +531,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=None,
         help="only projects whose directory name contains this (e.g. Pinakes)",
     )
+    parser.add_argument(
+        "--scope",
+        choices=("all", "main"),
+        default="all",
+        help=(
+            "which transcripts to count: 'all' (default) includes subagent runs and workflow "
+            "agents; 'main' is main-loop sessions only. `boot` is always main-loop -- a subagent's "
+            "first request is not a session boot -- and says so in its output."
+        ),
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
     for name, help_text in (
         ("models", "requests, price-units and estimated dollars per model"),
@@ -537,19 +553,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     root = cast("Path", args.root)
     project = cast("str | None", args.project)
     command = cast("str", args.command)
+    scope = cast("str", args.scope)
 
     if command == "workflows":
         return command_workflows(root, project)
 
-    paths = find_transcripts(root, project, include_subagents=command == "models")
+    # `boot` is main-loop by definition, so it opts out rather than silently reporting a population
+    # nobody asked for -- 1,088 subagent transcripts would swamp 65 sessions.
+    with_subagents = scope == "all" and command != "boot"
+    paths = find_transcripts(root, project, include_subagents=with_subagents)
     if not paths:
         print(f"no transcripts under {root} (project filter: {project!r})", file=sys.stderr)
         return 1
+    population = (
+        "main loop + subagents + workflow agents" if with_subagents else "main-loop sessions only"
+    )
     if command == "models":
-        return command_models(paths)
+        return command_models(paths, population)
     if command == "boot":
+        if scope == "all":
+            print("note: `boot` reads main-loop sessions only; --scope all does not apply to it\n")
         return command_boot(paths)
-    return command_rewrites(paths)
+    return command_rewrites(paths, population)
 
 
 if __name__ == "__main__":

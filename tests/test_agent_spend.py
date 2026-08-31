@@ -221,3 +221,68 @@ def test_a_missing_root_returns_nothing_rather_than_raising(tmp_path: Path) -> N
     crash."""
     assert agent_spend.find_transcripts(tmp_path / "absent", None, include_subagents=False) == []
     assert agent_spend.journal_outcomes(tmp_path / "absent", None) == {}
+
+
+def _corpus(root: Path) -> Path:
+    """A project holding one main-loop session, one subagent and one workflow agent."""
+    project = root / "-Users-someone-Pinakes"
+    session = project / "s"
+    (session / "subagents" / "workflows" / "wf_1").mkdir(parents=True)
+    _write(project / "s.jsonl", [_line("main_1", output=1)])
+    _write(
+        session / "subagents" / "agent-a.jsonl", [_line("sub_1", output=1, model="claude-fable-5")]
+    )
+    _write(
+        session / "subagents" / "workflows" / "wf_1" / "agent-b.jsonl",
+        [_line("wf_1", output=1, model="claude-fable-5")],
+    )
+    return project
+
+
+def test_subagent_and_workflow_transcripts_are_found_only_when_asked_for(tmp_path: Path) -> None:
+    """The file list is the population, and the population is what was wrong."""
+    _corpus(tmp_path)
+    main_only = agent_spend.find_transcripts(tmp_path, None, include_subagents=False)
+    everything = agent_spend.find_transcripts(tmp_path, None, include_subagents=True)
+    assert len(main_only) == 1, "a main-loop file list holds no subagent or workflow transcript"
+    assert len(everything) == 3, "subagents/ and subagents/workflows/ must both be reached"
+
+
+def test_the_default_population_is_the_one_that_can_see_a_fan_out(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The regression this whole file exists for, and the reason the default is `all`.
+
+    A main-loop-only file list produced the published claim that `claude-fable-5` had never been
+    used by a fan-out. 551 of its 866 requests ran inside subagents and workflow agents — in
+    transcripts the list never contained, so the query could not have returned anything else. The
+    restricted population must therefore be asked for **by name**, and every subcommand prints
+    which one it read: a number without its selector is what made the zeros survivable.
+    """
+    _corpus(tmp_path)
+
+    assert agent_spend.main(["--root", str(tmp_path), "models"]) == 0
+    wide = capsys.readouterr().out
+    assert "3 transcripts" in wide, "the default must reach subagents and workflow agents"
+    assert "main loop + subagents + workflow agents" in wide
+
+    assert agent_spend.main(["--root", str(tmp_path), "--scope", "main", "models"]) == 0
+    narrow = capsys.readouterr().out
+    assert "1 transcripts" in narrow
+    assert "main-loop sessions only" in narrow
+    assert "claude-fable-5" in wide and "claude-fable-5" not in narrow, (
+        "the fan-out models are exactly what the narrow population cannot see"
+    )
+
+
+def test_boot_says_it_is_main_loop_only_even_when_a_wider_scope_was_asked_for(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`boot` opts out of --scope rather than silently reporting a population nobody asked for."""
+    project = _corpus(tmp_path)
+    _write(project / "s.jsonl", [_line("main_1", output=1), _line("main_2", output=2)])
+
+    assert agent_spend.main(["--root", str(tmp_path), "--scope", "all", "boot"]) == 0
+    out = capsys.readouterr().out
+    assert "main-loop sessions only" in out
+    assert "does not apply to it" in out, "an ignored flag must say it was ignored"
