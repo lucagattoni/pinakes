@@ -78,7 +78,15 @@
   held. So a union does not merely lose per-file error, it *reports the residue as the error rate*
   — and validating an instrument through an aggregate understates it by whatever the aggregate
   happens to swallow. That is the population failure one level down, found in the paragraph
-  written to correct the population failure.
+  written to correct the population failure. **This lesson is deliberately recorded twice** — here,
+  and in `plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md` § *An eighth instance*,
+  which registers the incident while this records the principle. The plan closes; this does not.
+  **Correct either and you must correct both.** The precedent is § *Reconciling the queues — two
+  registers of one fact, and an owner with nowhere to queue* above:
+  `plans/20260825_1252-plans-sweep-findings.md` kept two registers of the same facts, a later pass
+  updated the prose and not the table, and **twelve of its 27 rows stopped describing the tree**
+  with no gate able to see it. A second copy is a decision to maintain two things, not a free
+  backup.
 - **Four wrong spans in one night, none of them arithmetic, and every one caught by a re-run.** The
   fable zeros (a borrowed denominator), a peer's 59 transcripts (a string match that counted the
   measuring sessions), another's 14-of-100 (a denominator from a set the rule is undefined on), and
