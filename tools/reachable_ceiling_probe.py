@@ -1033,6 +1033,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
+    # Checked here — before the workspace — because `--fake` copies and syncs an entire temporary
+    # corpus before any questions file is opened, so a typo in a hand-typed path would pay for that
+    # build and only then arrive as a nine-frame `FileNotFoundError` out of `pathlib`, which reads
+    # as a crash in the probe rather than as a wrong argument. `parser.error` because that is what
+    # it is: exit 2 with the usage line, the same treatment `--kb` alongside `--fake` already gets.
+    # `.is_file()` rather than `.exists()`, so a directory is refused here instead of surfacing as
+    # an `IsADirectoryError` further in.
+    #
+    # Only the flagged path is checked. An absent `<kb>/eval/questions.yaml` is a corpus that
+    # cannot be measured rather than a mistyped argument, and it keeps the behaviour it has always
+    # had. `src/pinakes/eval.py` and `tools/graph_matrix.py` carry the same flag and do neither of
+    # these; widening them is a change to two files this increment was not asked to touch.
+    if args.questions is not None and not args.questions.is_file():
+        parser.error(f"no golden set at {args.questions}")
 
     with tempfile.TemporaryDirectory() as workspace:
         if args.fake:

@@ -1477,6 +1477,46 @@ def test_a_refusal_names_the_golden_set_the_flag_named(tmp_path: Path) -> None:
     assert "eval/questions.yaml" not in completed.stderr
 
 
+def test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched(tmp_path: Path) -> None:
+    """An argument error, at argparse time, rather than a traceback after a corpus build.
+
+    `--fake` copies and syncs a whole temporary corpus before any questions file is opened, so a
+    guard placed inside that block would charge a typo for the build and then hand back a
+    nine-frame `FileNotFoundError` out of `pathlib` — which reads as the probe crashing, not as a
+    wrong argument.
+
+    **The `--kb` in the first case is the ordering pin, not decoration.** It points at a directory
+    that is not a KB, so anything reaching the corpus before the flag was checked would fail in
+    `load()` with a `ManifestError` about a missing `pinakes.toml` (verified: that is exactly what
+    this argument pair did before the guard existed). Reaching `parser.error` instead is what says
+    the check came first.
+    """
+    missing = tmp_path / "not-here.yaml"
+    completed = _run_probe(
+        "--kb", str(tmp_path / "no-such-kb"), "--questions", str(missing), "--json"
+    )
+    assert completed.returncode == 2
+    assert f"no golden set at {missing}" in completed.stderr
+    assert "Traceback" not in completed.stderr
+    assert "pinakes.toml" not in completed.stderr
+
+    # `.is_file()` rather than `.exists()`: a directory is a plausible mistype (tab-completion
+    # stopping a component short) and would otherwise become an `IsADirectoryError` further in.
+    completed = _run_probe("--fake", "--questions", str(tmp_path), "--json")
+    assert completed.returncode == 2
+    assert f"no golden set at {tmp_path}" in completed.stderr
+    assert "Traceback" not in completed.stderr
+
+    # The KB's own default is deliberately NOT guarded: an absent `<kb>/eval/questions.yaml` is a
+    # corpus that cannot be measured rather than a mistyped argument, and it keeps the behaviour it
+    # has always had. Without this, widening the guard to cover both would go unnoticed here.
+    bare = tmp_path / "kb-without-a-golden-set"
+    bare.mkdir()
+    completed = _run_probe("--kb", str(bare), "--json")
+    assert completed.returncode != 2
+    assert "no golden set at" not in completed.stderr
+
+
 RUNNER = """
 import sys
 

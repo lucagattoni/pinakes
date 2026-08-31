@@ -17,7 +17,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 4
+mutants = 5
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260831 · `--questions`, a golden set that is not the KB's own
@@ -71,3 +71,50 @@ old = '''    parser.add_argument(
 new = '''    corpus.add_argument(
         "--questions",'''
 kills = "tests/test_eval.py::test_the_probe_measures_the_golden_set_the_flag_names"
+
+[[mutant]]
+name = "the mistyped-path guard moves below `load()`, after a corpus has been built and opened"
+file = "tools/reachable_ceiling_probe.py"
+# Position, not presence. The check survives this mutant word for word and still refuses the same
+# paths with the same message — only the moment moves, from argparse time to after `--fake` has
+# copied and synced a whole temporary corpus and `load()` has parsed a manifest. Every assertion
+# about the *message* stays green; what goes red is the pair that has no business being in a test
+# about a missing questions file, `returncode == 2` and `"pinakes.toml" not in stderr`, because a
+# `--kb` that is not a KB now fails in `load()` first. That pair is the ordering pin, and this is
+# the mutant that says so.
+old = '''    if args.questions is not None and not args.questions.is_file():
+        parser.error(f"no golden set at {args.questions}")
+
+    with tempfile.TemporaryDirectory() as workspace:
+        if args.fake:
+            register_embedding_backend("fake", lambda section, offline: HashingBackend())
+            register_reranker("fake", lambda section, offline: OverlapReranker())
+            root = _fake_kb(Path(workspace))
+        else:
+            root = args.kb
+        kb_root = str(Path(root).resolve())
+
+        # `graph_channel` forced off, whatever the manifest says (G5). This probe measures the
+        # ceiling *from the two-list fused seeds*; on a KB with the channel on, `fused_candidates`
+        # would hand it seeds the channel had already expanded and the ceiling would be measured
+        # against itself. The 12-failing/9-liftable figure the graph release was unblocked on was
+        # produced before the setting existed, so this keeps a re-run comparable with it.
+        manifest = replace(load(root), retrieval=replace(load(root).retrieval, graph_channel="off"))'''
+new = '''    with tempfile.TemporaryDirectory() as workspace:
+        if args.fake:
+            register_embedding_backend("fake", lambda section, offline: HashingBackend())
+            register_reranker("fake", lambda section, offline: OverlapReranker())
+            root = _fake_kb(Path(workspace))
+        else:
+            root = args.kb
+        kb_root = str(Path(root).resolve())
+
+        # `graph_channel` forced off, whatever the manifest says (G5). This probe measures the
+        # ceiling *from the two-list fused seeds*; on a KB with the channel on, `fused_candidates`
+        # would hand it seeds the channel had already expanded and the ceiling would be measured
+        # against itself. The 12-failing/9-liftable figure the graph release was unblocked on was
+        # produced before the setting existed, so this keeps a re-run comparable with it.
+        manifest = replace(load(root), retrieval=replace(load(root).retrieval, graph_channel="off"))
+        if args.questions is not None and not args.questions.is_file():
+            parser.error(f"no golden set at {args.questions}")'''
+kills = "tests/test_eval.py::test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched"
