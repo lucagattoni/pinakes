@@ -190,9 +190,11 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   the wrong file. The fix **orders the applicable plans**; the **cycle half is contained, not
   resolved** — a `PathStillHeldError` with a remedy instead of a raw traceback, `pnk sync` still
   exiting non-zero, rows still left at paths no longer on disk.
-  The earlier claim of a 20260826 reproduction was **unsupported**: the only run on record was
-  20260825 18:18, *before* that fix — which is exactly how S17 came to be recorded as open after
-  it had been cured.
+  **It really was re-reproduced 20260826 06:49 UTC** against `origin/main`'s exact `src/` tree,
+  after S2's fix — and that matters because *a still earlier claim of a 20260826 reproduction
+  was* **unsupported** when it was made: the only run on record at that point was 20260825 18:18,
+  *before* that fix — which is exactly how S17 came to be recorded as open after it had been
+  cured.
   **S17 is ✅ FIXED** (it printed a remedy that never worked and left the document unindexed): the
   moved-sidecar guard from S2's second review fixed it as a side effect, **verified with a control**.
   **S2 is ✅ BUILT** (landed `3876b57`, 20260826 04:06 UTC). **S18 is ✅ BUILT** (20260830, `a2f5b86` + `8bb4be0`; this file was the last register still calling it open). **S19 is open and now *measured*** — its non-cyclic half reproduces, run independently by both sessions 20260826 07:19 UTC, so S16's scope is settled: ordering the applicable plans fixes the whole chain class, **cycles are a separate mechanism**, and the pinning case is a chain of three rather than a two-file swap. **D-36 and D-37 are now answered**. Every
