@@ -162,7 +162,7 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   must state the selector**, and the record of **six** wrong claims in one day, each a valid
   inference over a population nobody named. **`prices.toml` is refreshed at every release
   now** — `docs/RELEASING.md` § *Before you start* step 3, which had never existed.
-- **🛑 Two plans have scheduled work. Most of it is coder work; two things are not.** **The S16 branch's HIGH is a live *user* decision holding a landing**, and rows 3–5 of the red-main plan are owner **planner**. *(This bullet read "it is now all coder work — every decision is taken" until 20260831, which was false in both directions.)*
+- **🛑 Two plans have scheduled work, and exactly one row in them is not coder work: row 5 of the red-main plan, its only open row, owner planner.** **The S16 HIGH holds nothing any more** — the user answered it 20260831 21:38 UTC (`sqlite3.IntegrityError` caught **narrowly**, on `SQLITE_CONSTRAINT_UNIQUE` naming `documents.path` only) and it was built and landed the same evening. **That option was invented when the question was put and is in neither the branch nor the plan's original two — read the sweep plan's build-order row 2, never a memory of the options.** *(This bullet has been wrong three ways in two days: "all coder work — every decision is taken"; then "rows 3–5 … are owner planner" when rows 3 and 4 already read ✅ DONE; then "a live user decision holding a landing" for the half-hour after it was answered and built in another session.)*
   The **eight decisions and fifteen questions** in
   [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md) were **ANSWERED by
   the user 20260825 18:16**, and the planner's half of them landed **20260825 18:39–18:56 UTC**, with later records and corrections through 20260826: D-34 closed
@@ -184,9 +184,12 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   [`plans/20260825_1240-run-pinakes-sweep.md`](plans/20260825_1240-run-pinakes-sweep.md) — **defects found by running
   Pinakes** (thirteen numbered — S1–S9 and S16–S19 — plus unnumbered Low classes; **that file states
   no total and neither should you**) — **S16 and S17 were both found by *reviewing
-  a fix*, which is the sweep's own lesson turned on itself.** S16 crashes `sync` on an ordinary
-  two-file rename swap while `doctor` reports OK, and `search` then answers from the wrong file —
-  **still live, re-reproduced 20260826 06:49 UTC against `origin/main`'s exact `src/` tree**, after S2's fix.
+  a fix*, which is the sweep's own lesson turned on itself.** **S16 is ✅ BUILT** — landed
+  `926bc43` 20260831, its rows and the sentence its fix falsified in `a53f2ed`. It crashed `sync`
+  on an ordinary two-file rename swap while `doctor` reported OK, and `search` then answered from
+  the wrong file. The fix **orders the applicable plans**; the **cycle half is contained, not
+  resolved** — a `PathStillHeldError` with a remedy instead of a raw traceback, `pnk sync` still
+  exiting non-zero, rows still left at paths no longer on disk.
   The earlier claim of a 20260826 reproduction was **unsupported**: the only run on record was
   20260825 18:18, *before* that fix — which is exactly how S17 came to be recorded as open after
   it had been cured.
