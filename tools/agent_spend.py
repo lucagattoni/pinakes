@@ -409,7 +409,9 @@ class _RunOutcomes:
 
     agents: dict[str, str] = field(default_factory=dict[str, str])
     #: Journal mtime. The rows carry **no** timestamp of their own -- `agentId`, `key`, `result`,
-    #: `type` and nothing else -- so recency is a property of the file, not a record in it.
+    #: `type` and nothing else -- so recency is a property of the file, not a record in it. It
+    #: answers "has this file stopped changing", which is the settling question exactly; it does
+    #: *not* answer "when did this run end", and the two diverge (see `is_settled`).
     last_written: datetime | None = None
 
     @property
@@ -423,6 +425,22 @@ class _RunOutcomes:
         that reading is indistinguishable from a run that was killed. One was reported as a loss
         on 20260831 and completed 9-of-9 minutes later. A snapshot of a live process is not an
         outcome.
+
+        **A settled run can go back to being excluded, and that is not a regression.** The clock
+        here is the journal's mtime, so anything that touches the file -- a session resumed weeks
+        later, a recompaction -- moves it forward long after the run itself finished. Measured
+        20260831 over the 33 transcripts that billed `claude-fable-5`, mtime disagreed with the
+        day the requests were actually billed on **six of them, four by 46 to 48 days**. Only one
+        of the six moved the aggregate, because the other five landed on days it already held:
+        a union absorbs per-file error and reports the residue, so checking an instrument through
+        an aggregate understates it by whatever the aggregate happens to swallow.
+
+        That drift is tolerated rather than corrected, in this direction deliberately: an
+        undatable journal counts as settled, so the guard drops what it can prove is recent and
+        never what it merely cannot date. It fails toward excluding a run -- losing a datum --
+        rather than toward counting a live agent as a loss, which is the reading that put a wrong
+        number in front of a peer. Every excluded run is counted in the output rather than dropped
+        silently, so a run that reappears in that line is a touched file, not a lost one.
         """
         if cutoff is None or self.last_written is None:
             return True
@@ -612,7 +630,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         help=(
             "`workflows` only: ignore runs whose journal was written this recently, because an "
             "agent that has not returned yet is not an agent that was lost (default: 60; 0 "
-            "disables the guard)"
+            "disables the guard). The clock is the journal's mtime, so touching an old journal "
+            "re-excludes a run that finished long ago -- the excluded count is printed, and a "
+            "run reappearing in it is a touched file rather than a lost one"
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)

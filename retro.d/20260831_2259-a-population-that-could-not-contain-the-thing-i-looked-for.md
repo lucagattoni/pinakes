@@ -6,7 +6,8 @@
   `origin/main` in `plans/20260831_2242-agent-spend-two-findings.md` as **"an unguarded path, not a
   realised cost."** It is false. Measured with the committed script: **316 fable-5 requests in
   workflow agents and 235 in subagents**, all projects — **551 of 866, or 63.6%**, across 26
-  distinct transcripts dated 20260803 and 20260821. The reason I saw zero is that I was counting a
+  distinct transcripts, billing on three days between 20260709 and 20260821. The reason I saw
+  zero is that I was counting a
   **main-loop-only** population: subagent transcripts live under `<session>/subagents/` and were
   never in the file list. The query was sound, the domain was never named, and the answer was
   exactly the shape that made it look confirmed.
@@ -67,3 +68,23 @@
   file's mtime, and a journal whose age cannot be read counts as settled: the guard drops what it
   can prove is recent, never what it merely cannot date. With the guard the corpus reads 55 runs /
   868 agents / 157 no-terminal-row; without it, 57 / 881 / 159.
+- **An aggregate is an instrument too, and it has a selector of its own.** The span above was wrong
+  twice: first read off a truncated listing, then "corrected" using each transcript's **file
+  mtime**, which gave four days instead of three. A peer caught it, and checked the instrument the
+  obvious way — against the union, where mtime and the billing timestamps differed on exactly one
+  file in 26, an error rate small enough to write down and move on. Checked **per file** it is
+  **six of 33, four of them by 46 to 48 days**: sessions resumed or recompacted weeks after they
+  stopped billing. Five of the six were invisible because they landed on days the union already
+  held. So a union does not merely lose per-file error, it *reports the residue as the error rate*
+  — and validating an instrument through an aggregate understates it by whatever the aggregate
+  happens to swallow. That is the population failure one level down, found in the paragraph
+  written to correct the population failure.
+- **Four wrong spans in one night, none of them arithmetic, and every one caught by a re-run.** The
+  fable zeros (a borrowed denominator), a peer's 59 transcripts (a string match that counted the
+  measuring sessions), another's 14-of-100 (a denominator from a set the rule is undefined on), and
+  mtime-for-billing-day. Each was a correct measurement of something nobody had asked about. **None
+  was caught by re-reading a document**; three were caught by someone re-running the query
+  differently and one by re-running it on a corpus that had settled. That is the case for the
+  instrument being committed rather than its output being quoted — a number in a document cannot be
+  interrogated, and the disagreement between two people running two selectors is the only thing
+  that reliably surfaced the selector at all.
