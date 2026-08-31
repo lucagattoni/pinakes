@@ -20,7 +20,11 @@
 - **`workflows` ignores runs that are still writing** (`--settle-minutes`, default 60) and says how
   many it set aside. An agent that has not returned yet is indistinguishable from one that was
   lost, so a workflow read mid-flight reports healthy agents as losses — measured live, the
-  unguarded count was 159 orphans against the settled 157.
+  unguarded count was 159 orphans against the settled 157. The clock is the journal's mtime, which
+  is the settling question exactly ("has this file stopped changing") and *not* "when did this run
+  end": touching an old journal re-excludes a run that finished weeks ago. That direction is
+  deliberate — it costs a datum rather than reporting a live agent as a loss — and the excluded
+  count is printed, so a run reappearing there is a touched file, not a lost one.
 - **A model off the rate card reports no dollars rather than a guessed price**, and the rate card
   states its own provenance and cache date in the source. An estimate over transcripts is never a
   bill, and the code says so where the number is produced.
