@@ -922,3 +922,42 @@ def test_a_byte_order_mark_is_named_rather_than_reported_as_a_missing_heading(re
     assert "byte-order mark" in result.stderr
     assert "must open with its own" not in result.stderr, "the heading is there; the mark is not it"
     assert "must carry" not in result.stderr, "and the stamp is right once the mark is stripped"
+
+
+@pytest.mark.parametrize(
+    ("opener", "shown"),
+    [
+        (" ## A lesson (20260901 07:10)", "' ##"),
+        ("\t## A lesson (20260901 07:10)", "'\\t##"),
+    ],
+    ids=["leading-space", "leading-tab"],
+)
+def test_a_heading_hidden_by_leading_whitespace_is_quoted_with_the_whitespace_showing(
+    repo: Path, opener: str, shown: str
+) -> None:
+    """The refusal was right and the message was unreadable, which is the same defect as the BOM.
+
+    ` ## Heading` is a valid ATX heading to CommonMark, so this fragment is not *absorbed* — it is
+    invisible, to `document_problems` and to `anchors_of` in `tools/markdown_link_gate.py` alike,
+    both of which match `startswith("## ")`. The section reaches the published page and nothing can
+    link to it. So the gate is right to refuse it.
+
+    **What it said was not.** The message quoted the offending line `.strip()`ped, so it read *must
+    open with its own `## ` heading, and opens with `'## A lesson (20260901 07:10)'`* — a complaint
+    and a counter-example to itself, naming the one character the writer cannot see and then
+    deleting it. Found by running the gate, not by reading it: a probe fed it a leading space and a
+    leading tab and both came back with the same self-contradicting line.
+
+    The negative assertion is the load-bearing one. Showing the whitespace is only worth anything
+    if the stripped form is *gone* — and the stripped form is the one a reader takes for correct."""
+    write(repo, "retro.d/20260901_0710-a-lesson.md", f"{opener}\n\nProse.\n")
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "must open with its own `## ` heading" in result.stderr
+    assert shown in result.stderr, "the message shows the whitespace that caused the refusal"
+    assert "opens with '## " not in result.stderr, (
+        "quoted stripped, the message contradicts itself and names nothing to fix"
+    )
+    assert "must carry" not in result.stderr, "the stamp is correct; only the opening is hidden"

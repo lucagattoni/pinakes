@@ -313,6 +313,21 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
     of the parentheses, not a trailing `UTC`. A gate that accepts three spellings of a stamp is
     not checking the stamp, it is checking that somebody typed a date.
 
+    **A heading hidden behind leading whitespace fails for a different reason, and the message has
+    to survive it.** ` ## Heading` is a valid ATX heading to CommonMark, so it is not absorbed. It
+    is invisible instead — to `document_problems` here, to `anchors_of` in
+    `tools/markdown_link_gate.py`, to every reader in this repository that matches
+    `startswith("## ")` — so the section exists on the published page and nothing can link to it.
+    Refusing it is right. Quoting the offending line back `.strip()`ped was not: the message said
+    the fragment does not open with `## ` and then displayed a string that plainly does, which is
+    unfixable to read. Reproduced from a leading space and from a leading tab. **The raw line goes
+    in the message, `repr` and all** — that is what makes the whitespace visible.
+
+    **The messages name the defect, show the line, and cite `retro.d/README.md` § Contents. They do
+    not restate the rule** — a gate that restates one owns a second copy of it, and the copy rots.
+    Ruled by the planner, 20260901. The byte-order-mark arm is the exception and must stay
+    self-explaining, because the README does not mention a BOM at all.
+
     Reported separately because they are separate mistakes with separate fixes, and a fragment can
     have either without the other.
 
@@ -341,9 +356,7 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
     if not first.startswith("## "):
         problems.append(
             f"{stream.directory}/{path.name}: must open with its own `## ` heading, and opens "
-            f"with {first.strip()[:60]!r}. `render` joins fragment bodies with a blank line, so "
-            f"this one would be spliced into {stream.target} under the heading of whichever "
-            "fragment sorts before it, and read as part of that incident."
+            f"with {first[:60]!r}. See `{stream.directory}/README.md` § Contents."
         )
 
     stamp = _STAMP.match(path.stem)
@@ -353,9 +366,8 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
     wanted = f"({day} {clock[:2]}:{clock[2:]})"
     if wanted not in first:
         problems.append(
-            f"{stream.directory}/{path.name}: its heading must carry `{wanted}` — the filename's "
-            "own prefix, pasted, not the clock read a second time. Nothing else counts: not the "
-            "date alone, not an em-dash instead of the parentheses, not a trailing `UTC`."
+            f"{stream.directory}/{path.name}: its heading must carry `{wanted}`, the filename's "
+            f"own prefix. See `{stream.directory}/README.md` § Contents."
         )
     return problems
 

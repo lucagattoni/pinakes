@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 29
+mutants = 30
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -296,3 +296,14 @@ file = "tools/fragments.py"
 old = '''        first = first.lstrip("\ufeff")'''
 new = '''        pass'''
 kills = "tests/test_fragments.py::test_a_byte_order_mark_is_named_rather_than_reported_as_a_missing_heading"
+
+# The refusal was already right; the *message* quoted the offending line `.strip()`ped, so it
+# complained that the fragment does not open with `## ` and then displayed a string that does.
+# Found by running the gate against a leading space and a leading tab, not by reading it.
+
+[[mutant]]
+name = "DISCRIMINATING — the line is quoted stripped, so the message contradicts itself"
+file = "tools/fragments.py"
+old = '''            f"with {first[:60]!r}. See `{stream.directory}/README.md` § Contents."'''
+new = '''            f"with {first.strip()[:60]!r}. See `{stream.directory}/README.md` § Contents."'''
+kills = "tests/test_fragments.py::test_a_heading_hidden_by_leading_whitespace_is_quoted_with_the_whitespace_showing"
