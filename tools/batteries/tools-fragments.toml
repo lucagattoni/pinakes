@@ -207,7 +207,7 @@ new = '''        spliced = (
 kills = "tests/test_fragments.py::test_check_validates_the_exact_bytes_apply_writes"
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
-# a retrospective fragment carries its own `##` heading, stamped from its own filename
+# unreleased, 20260901 · a retro fragment carries its own `##` heading, stamped from its filename
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 #
 # **`document_problems` cannot see either of these, and that is the mechanism rather than an
@@ -257,8 +257,8 @@ kills = "tests/test_fragments.py::test_a_heading_whose_stamp_disagrees_with_the_
 [[mutant]]
 name = "DISCRIMINATING — the stamp is compared by date alone, so the time may be anything"
 file = "tools/fragments.py"
-old = '''    wanted = f"({day} {clock[:2]}:{clock[2:]})"'''
-new = '''    wanted = f"({day}"'''
+old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", first) is None:'''
+new = '''    if re.search(rf"(?:^|\s)\({day}[^)]*\)\s*$", first) is None:'''
 kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_accepted"
 
 [[mutant]]
@@ -313,12 +313,19 @@ kills = "tests/test_fragments.py::test_a_heading_hidden_by_leading_whitespace_is
 # did exactly that to the next input shape along, and the row for it did not exist until a reviewer
 # fed the mark in on its own line.
 #
-# Recorded and not fixed, because `tools/mutate.py` cannot measure it: under mutant 25
-# (`wanted = f"({day}"`) the em-dash case of `test_nothing_looser_than_the_ruled_stamp_is_accepted`
-# carries no `(` at all, so baseline and mutant both refuse it and that sub-case dies from the
-# message text rather than the looseness it names. Three of the four sub-cases kill on the return
-# code, so the mutant is legitimately killed at this tool's granularity — the gap is one level
-# finer than anything it reports, which is the point worth keeping.
+# The stamp row above read `wanted = f"({day}"` until the fifth pass, and it was never a laxity
+# mutant. `wanted` is `re.escape`d, so once the fourth pass anchored the comparison with
+# `(?:^|\s)…\s*$` the mutant required `(20260901` to be the heading's *trailing* token, which no
+# real heading is. It refused everything: 21 of 64 tests failed under it — the control
+# `test_the_real_documents_are_clean_which_is_this_checkers_only_control` among them, reporting all
+# 14 live fragments malformed — and all eight sub-cases of the looseness test died on the message
+# text rather than on the return code. That is the same defect the retro fragment for this
+# increment records for the predecessor `clock = ""`, recreated one pass later by an edit to a line
+# the mutant does not name. **A mutant is faithful only against the code it currently runs
+# against**, so anchoring a regex re-scopes every mutant feeding it and the earlier kill does not
+# carry forward — while the row went on reporting KILLED. The row now mutates the anchored
+# comparison itself: 4 tests fail under it, the control passes, and the three laxity sub-cases die
+# on the return code, which is the axis its name claims.
 
 [[mutant]]
 name = "DISCRIMINATING — a mark on its own line is neither reported nor stripped, so the heading two lines down is never read"
@@ -344,7 +351,7 @@ new = '''    if False:
 kills = "tests/test_fragments.py::test_a_fragment_with_no_prefix_owes_a_heading_and_not_a_stamp"
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
-# the fourth review pass · the separator, the anchor, and the line the arms are about
+# unreleased, 20260901 · the fourth pass — the separator, the anchor, and the line the arms name
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 #
 # Three of these four rows are the *previous* fix, restored. Pass 3 wrote `(?<!\()…(?!\))` under a

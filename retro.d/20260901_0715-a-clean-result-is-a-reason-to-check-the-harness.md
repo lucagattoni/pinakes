@@ -42,8 +42,13 @@ be anything"* and was written as `clock = ""`, which makes `wanted` the string `
 value that matches **nothing**, so the mutated gate refused *every* fragment, including correct
 ones. It is the opposite of the laxity its name claims. It still died, and the report still printed
 the name beside the test, so the battery carried a coverage claim for an axis nothing tested. The
-faithful mutant is `wanted = f"({day}"`, which accepts a valid heading *and* the date-only form and
-so can only be caught by the looseness test that names it.
+faithful mutant *was* `wanted = f"({day}"` — and it stopped being faithful inside this same
+increment, when the fourth pass anchored the comparison to the end of the line. `wanted` is
+`re.escape`d, so `(20260901` then had to be the heading's trailing token, matched nothing, and
+refused every fragment exactly as its predecessor had, the control among them. Nobody re-measured
+it, because it was still *killed*. The row now mutates the anchored comparison itself. **A mutant
+is faithful only against the code it currently runs against; a kill does not carry forward across
+an edit to a line the mutant does not name.**
 
 **A wrongly-credited kill is worse than a survivor.** A survivor is loud — the report says
 SURVIVED and somebody looks. A kill is silent, it is what you wanted to see, and nobody rechecks a

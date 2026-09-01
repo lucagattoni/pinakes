@@ -416,9 +416,12 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
     # wrappers and three still passed — `[(20260901 07:10)]`, `x(20260901 07:10)x` and
     # `( (20260901 07:10) )`, only the tight `((…))` being caught. A lookaround inspecting one
     # character on each side is not anchoring, and the sentence it was written to make true is in
-    # the docstring above and in `docs/VERIFICATION.md`. Anchoring costs nothing here: all 136
-    # stamped `## ` headings in `docs/RETROSPECTIVES.md` end with their stamp, as do all 13 live
-    # fragments — measured 20260901 before the rule was tightened, not assumed after.
+    # the docstring above and in `docs/VERIFICATION.md`. Anchoring costs nothing here, and the
+    # selector is the load-bearing half: of the 148 `## ` headings in `docs/RETROSPECTIVES.md` at
+    # `0aea036`, 136 carry a parenthesised stamp and all 136 carry it as the *trailing* token —
+    # none carries one anywhere else, and the other 12 use the em-dash form and carry none at all.
+    # Every fragment in `retro.d/` passed too. Measured 20260901 before the rule was tightened,
+    # not assumed after. ("All 136 stamped headings are stamped" would be true by construction.)
     if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", first) is None:
         problems.append(
             f"{stream.directory}/{path.name}: its heading must carry `{wanted}`, the filename's "
