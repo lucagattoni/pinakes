@@ -18,12 +18,16 @@ For the flag-by-flag reference see [CLI.md](CLI.md); for every manifest and side
 - [Choosing a backend](#choosing-a-backend)
 - [Indexing PDFs](#indexing-pdfs)
 - [Searching](#searching)
+- [Asking a question](#asking-a-question)
+- [Paying for an answer](#paying-for-an-answer)
 - [Keeping the index fresh](#keeping-the-index-fresh)
+- [Watching what it costs](#watching-what-it-costs)
 - [Using it from an agent](#using-it-from-an-agent)
 - [Health checks](#health-checks)
 - [Adopting a template change](#adopting-a-template-change)
 - [Moving, sharing and publishing a KB](#moving-sharing-and-publishing-a-kb)
 - [Troubleshooting](#troubleshooting)
+- [Following links between two KBs](#following-links-between-two-kbs)
 
 ---
 
@@ -238,6 +242,7 @@ nothing about PDF support.) `pnk sync` names what it skipped rather than leaving
 
 ```
 0 indexed, 0 renamed, 0 metadata-only, 0 unchanged, 0 removed
+0 edge(s) derived in 0.00s, 0 authored read from links: membership=0 sibling=0 parent-child=0 in-section=0 co-located=0 shared-tag=0 authored=0
 1 file(s) matched no `include` pattern: .pdf (1) — add "**/*.pdf" to `[sources] include` to index them, or `exclude` them to silence this.
 ```
 
@@ -544,9 +549,9 @@ Three hooks, split by what each is allowed to touch:
 
 | Hook | Runs | Why the split |
 |---|---|---|
-| `pre-commit` | `pnk sync --sidecars-only --stage --extract=pypdfium2` | Mints IDs for **staged** documents and `git add`s the sidecars, so a document and its permanent ID land in the *same commit*. The only hook that writes into `docs/`. It refuses to overwrite a sidecar that will not parse, and that refusal fails the hook — repair the file, or `git commit --no-verify` |
-| `post-commit` | `pnk sync --index-only --extract=pypdfium2` | Index only |
-| `post-merge` | `pnk sync --index-only --extract=pypdfium2` | Index only |
+| `pre-commit` | `pnk sync --sidecars-only --stage --quiet --extract=pypdfium2` | Mints IDs for **staged** documents and `git add`s the sidecars, so a document and its permanent ID land in the *same commit*. The only hook that writes into `docs/`. It refuses to overwrite a sidecar that will not parse, and that refusal fails the hook — repair the file, or `git commit --no-verify` |
+| `post-commit` | `pnk sync --index-only --quiet --extract=pypdfium2` | Index only |
+| `post-merge` | `pnk sync --index-only --quiet --extract=pypdfium2` | Index only |
 
 Sidecars are authored at pre-commit time precisely so `post-commit` never dirties the tree it just
 committed. `git commit --no-verify` is the escape hatch.
@@ -564,7 +569,7 @@ An existing hook that is not ours is left untouched and printed with the line to
 cannot find `pnk` warns and exits 0 — a hook that fails every commit only teaches `--no-verify`.
 
 No hooks? `pnk sync` from cron or CI works identically. It is safe to run concurrently: a second
-sync finding a live lock exits 0 quietly, and `pnk doctor` reports any held lock with its age.
+sync finding a live lock exits 0 quietly, and `pnk doctor` reports any held lock naming the holder (pid, host) and the time it was taken.
 
 ## Watching what it costs
 
@@ -886,6 +891,7 @@ points back:
 $ pnk sync --scan-links
 30 indexed, 0 renamed, 0 metadata-only, 0 unchanged, 0 removed
 inbound links: museum 6
+180 edge(s) derived in 0.00s, 12 authored read from links: membership=60 sibling=30 parent-child=0 in-section=60 co-located=30 shared-tag=0 authored=12
 ```
 
 Then ask what a document connects to:

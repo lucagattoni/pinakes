@@ -5,6 +5,49 @@ the doc claims, what is actually true, the evidence, and the fix. Nothing here i
 **This is not a build plan** — `docs/BUILDING.md` says to read the build order out of `plans/`, and
 this file is not part of it.
 
+## ✅ CLOSED 20260901 07:32 UTC — all 34 remaining findings are fixed
+
+Landed as **one unit**, per the sweep plan's parked row, against `f3303fc` (0.31.1). Eleven document
+clusters were re-measured in parallel, each by one agent and then by an adversary prompted to
+*refute* it with the evidence re-run rather than trusted; **33 fixes were applied across ten files**,
+two findings were ruled **already fixed by other work**, and `make docs` (`mkdocs --strict`, anchors
+validated) is green.
+
+**Do not re-open a finding below from its own text.** Every `## ` section still reads as it did when
+it was raised — this banner is the disposition, and the sections are the record of what was wrong.
+
+| | |
+|---|---|
+| Findings open at this pass | **34** |
+| Fixed here | **32** (one anchor served two findings) |
+| Already fixed by other work, closed unworked | **2** — both `docs/VERIFICATION.md`, by `c770c0f` and `ec73b1f` |
+| **New** findings the pass surfaced and fixed | **2** — see below |
+| Not pastable / needing a judgement call | **0** |
+
+**The arithmetic is settled by counting, and `39` was always wrong.** Three independent routes agree
+on **40** findings at the audit: 42 `## ` sections minus the two bookkeeping sections; the
+`# Medium — 13` and `# Low — 27` dividers; and 34 open + 6 already closed. The contradiction filed in
+[`20260825_1252-plans-sweep-findings.md`](20260825_1252-plans-sweep-findings.md) and flagged in
+`docs/README.md` is resolved by this count.
+
+**Two findings nobody had raised, both found by re-reading rather than by re-grepping, both fixed:**
+
+- **`README.md` carried a fourth copy of a sentence its own fixing commit called false.** `58adfe2`
+  (*"D-20: `pnk init --backend`, and three copies of a false sentence"*, 20260811, 0.22.0) rewrote
+  `docs/CLI.md`, `docs/GUIDE.md`, `docs/ROADMAP.md` and `docs/STATUS.md` to lead with the flag — and
+  never touched the root `README.md`, which went on telling readers to hand-edit `pinakes.toml` for a
+  `[light]` install. Verified live: `pnk init <dir> --backend light` writes `provider = "fastembed"`
+  into **both** `[embedding]` and `[rerank]` with no edit. **The most-read file in a public repo held
+  the last copy, for 21 days, because the sweep that fixed the other three was scoped to `docs/`.**
+- **`docs/DESIGN.md` §6.1 shows a runnable command for a template that does not ship.**
+  `pnk init research --template research-papers` → `error: no template named 'research-papers'.
+  Available: notes.` The tree is a legitimate illustration of the template contract; the sentence
+  under it was written in the present indicative. Now marked as the shape the template release fills
+  in, with `notes` named as the only shipped template.
+
+**What this pass did not do.** It re-measured and fixed; it did not re-audit. A finding that was
+never raised in 20260807 and that neither cluster agent stumbled onto is still unraised.
+
 Produced **20260807 21:15 UTC** by a 14-agent audit of every current-state document against the
 code at `fc0fd41`. Each finding was written by one agent and independently re-verified by a second
 prompted to *refute* it, with the evidence re-run rather than trusted. **75 findings survived; 11
@@ -14,7 +57,7 @@ were refuted.**
 |---|---|---|
 | Falsified by the 0.17.0 release, fixed with it | 21 | `063dbe1`, `8b44aa8` |
 | Actively misleading a reader, fixed straight after | 12 | `20260807_2138-docs-audit-acute-fixes` |
-| **Still open — this file** | **40** | below |
+| **Still open — this file** | **40** | below — **all closed 20260901**, § ✅ CLOSED |
 
 **Severity here: 13 medium, 27 low. None high** — all four `high`
 findings were in the first group and have shipped.
@@ -33,7 +76,7 @@ cheaper after T2 than before. Second, the three currency headers (`GUIDE:3`, `MA
 `DESIGN:5`) claim the file was verified against a version; **restamp those last**, because the
 stamp is only worth writing once everything under it is true.
 
-## Re-verified 20260823 against `c45ffa8` (0.29.1) — 34 of 39 remain
+## Re-verified 20260823 against `c45ffa8` (0.29.1) — 34 of 40 remained · **all closed 20260901**
 
 **Every `file:line` in a heading below is as of 20260807 and is stale.** Thirteen releases landed
 between the audit and this pass. **Locate a finding by its content, never by its line number.** This
@@ -41,7 +84,7 @@ pass re-read each claim in the document as it stands and re-ran its evidence.
 
 | | |
 |---|---|
-| Open at the audit | 39 |
+| Open at the audit | **40** — this cell read `39`, wrong; counted 20260901 |
 | **Fixed since, by other work** | **6** |
 | **Half-fixed — still open, now narrower** | **1** (`docs/DESIGN.md:711`) |
 | **Still open, stated fix no longer applies** | **5** — marked ⚠ below |

@@ -2,7 +2,6 @@
 
 **Repo:** github.com/lucagattoni/pinakes (PUBLIC) · **Licence:** Apache-2.0 · **Python:** 3.13+
 **Package:** `pinakes` · **Command:** `pnk` · **Tooling:** uv
-**Design date:** 20260725 09:52 (review pass 7) · **Last reviewed against the code:** 20260728 16:40
 
 > *The* Pinakes *were Callimachus's catalogue of the Library of Alexandria — the first known index
 > of a body of knowledge.*
@@ -601,10 +600,14 @@ because a wrong one is harder to notice. The lexical index only sees chunk text,
 only in a heading would otherwise be unsearchable, and a passage quoted back to the user reads
 better carrying the heading it belongs to. `heading_path` records the hierarchy separately, and it is
 worth being exact about what consumes it, because it is not retrieval: **citations**
-(`path:locator (heading > path)`), the **`in-section`, `parent` and `child` edges** derived from it,
-and the passage payload returned over the CLI and MCP surfaces. **Nothing filters or ranks on it** —
+(`path:locator (heading > path)`), the **`in-section`** and **`parent-child`** edges derived from it,
+and the passage payload returned over the CLI and MCP surfaces. With `[chunking] metadata = "off"` (the shipped default), **nothing filters or ranks on it** —
 FTS5 indexes `chunks.text` and embeddings are computed over `chunks.text`, so a chunk's recall is
-unaffected by whether it carries one. That is the point of putting the heading line *into* the
+unaffected by whether it carries one. Setting it to `"prefix"` is the one exception: the vector
+channel then embeds `title > heading path` ahead of the chunk text (`chunk.embedding_text`, not
+`chunk.text`), so a heading path *does* reach ranking there — measured on the RFC corpus as a null
+result (6 improved, 6 regressed, 84 unchanged against a strictly-more-improvements bar), which is
+why it ships off ([STATUS.md](STATUS.md)). That is the point of putting the heading line *into* the
 chunk: the words stay searchable either way, and `heading_path` buys attribution and structure
 rather than reach.
 
@@ -822,11 +825,13 @@ templates/research-papers/
 ├── template.toml       # declares the template's OWN version — independent of the package version
 ├── pinakes.toml.j2     # manifest defaults: chunking, filters, retrieval tuning, calibration
 ├── prompts/            # synthesis prompts for --deep
-├── eval/questions.yaml # golden questions shipped with the template
+├── eval/questions.yaml # golden-set scaffold — ships empty, yours to fill (§7)
 └── README.md
 ```
 
-`pnk init research --template research-papers` stamps out a new KB; the manifest records
+The tree above is the contract a template satisfies, not an inventory — **this build ships `notes`
+only**, and `research-papers` illustrates the shape the template release fills in. Under it,
+`pnk init research --template research-papers` stamps out a new KB and the manifest records
 `research-papers@1.2`. Templates version independently of `pinakes` itself, so a package upgrade does
 not implicitly change a KB's blueprint.
 
@@ -853,7 +858,7 @@ reconstruction is what would make the report wrong in the one direction nobody c
 
 **This is one of four drift axes, and the last to get a mechanism.** An index, an embedding model
 and a PDF extractor each drift detectably and are remedied by rebuilding derived state, which is
-free. A manifest and a template drift *silently*, and the remedy touches a file the user owns — so
+free. A manifest and a template drift *detectably* too — `pnk doctor` WARNs — but the remedy touches a file the user owns, so
 it cannot borrow the same shape. What is built therefore reports first and writes only on request,
 and the write is bounded by the report: nothing reaches the file that was not printed.
 [KB-UPDATES.md](KB-UPDATES.md) works the problem through and records what has been decided.
@@ -904,7 +909,7 @@ the other KB is making — and traversal returns it as `unresolved` with the rea
 **The honest limitation:** without fan-out query, a question must *start* in one KB and travel via
 links. If no link exists, the connection is invisible. Link coverage is the ceiling on cross-KB
 answers, so `pnk doctor` reports it (linked docs / total docs) — the ceiling is visible rather than
-mysterious. If it bites, federated query is the v2 answer.
+mysterious. If it bites, federated query is the answer, and it is not in scope here.
 
 ### 6.3 Freshness
 
