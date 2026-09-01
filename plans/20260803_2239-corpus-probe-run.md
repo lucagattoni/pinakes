@@ -38,6 +38,14 @@ Someone must convert, and conversion touches frozen material. These are the rule
    over `eval/questions.yaml` immediately before the probe run, never leaving it there. Giving the
    probe a `--questions` flag would remove the dance and is the better fix if the run is
    re-scoped; either way, **do not re-run `build_rfc_corpus.py` against that KB mid-run.**
+
+   ✅ **The dance is checkable, so check it rather than trusting it.** The probe stamps the golden
+   set it actually read — resolved path, `sha256`, question count, multi-hop count — into **both**
+   its text and `--json` output (`reachable_ceiling_probe.py:1078-1085`, `:1168-1169`, since
+   20260804). Diff that `sha256` against your converted file **after** the run: it is the only
+   evidence of *which* set produced the numbers, and it survives into the artifact where the
+   conversion file does not. It does not prevent the overwrite; it makes an overwritten run
+   identifiable instead of plausible.
 2. **`id` carries over unchanged.** One frozen question → one converted question. None dropped,
    none added, none merged — the converted file has exactly as many `multi-hop` entries as the
    frozen file, and the count is stated in the run report.

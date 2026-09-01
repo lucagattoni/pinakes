@@ -12,11 +12,19 @@
   first line undercounts output **1.7755×**. `tests/test_agent_spend.py` pins both against synthetic
   transcripts, and reads nothing from `~/.claude`, so it says the same thing on a machine that has
   never run an agent.
-- **`--scope {all,main}` selects the population, and every subcommand prints which one it read.**
-  `all` (the default) counts main-loop sessions, subagent runs and workflow agents; `main` counts
-  main-loop sessions only. The default is `all` deliberately — a main-loop-only file list cannot
+- **`--scope` selects the population, and every subcommand prints which one it read.**
+  `main`, `subagent` and `workflow` **partition** the corpus and `all` (the default) is their
+  union — a property a test asserts, so a split can be quoted without leaving the tool. The default is `all` deliberately — a main-loop-only file list cannot
   contain a subagent transcript, so it answers questions about fan-outs with a zero that looks like
   a finding.
+- **`workflows` ignores runs that are still writing** (`--settle-minutes`, default 60) and says how
+  many it set aside. An agent that has not returned yet is indistinguishable from one that was
+  lost, so a workflow read mid-flight reports healthy agents as losses — measured live, the
+  unguarded count was 159 orphans against the settled 157. The clock is the journal's mtime, which
+  is the settling question exactly ("has this file stopped changing") and *not* "when did this run
+  end": touching an old journal re-excludes a run that finished weeks ago. That direction is
+  deliberate — it costs a datum rather than reporting a live agent as a loss — and the excluded
+  count is printed, so a run reappearing there is a touched file, not a lost one.
 - **A model off the rate card reports no dollars rather than a guessed price**, and the rate card
   states its own provenance and cache date in the source. An estimate over transcripts is never a
   bill, and the code says so where the number is produced.

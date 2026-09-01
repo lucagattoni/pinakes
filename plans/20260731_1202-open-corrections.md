@@ -34,8 +34,10 @@ and that no increment had reason to look at until one added a new way to trigger
 reading, shipping, generalising from a fix, and reviewing what a new surface inherits each find a
 different class, and none of them finds the others'.
 
-**None live. Four were live at 0.21.1 (20260810 01:48), all four were answered on 20260811
-07:20, and `pnk init` (D-18) `--apply`'s `same manifest` gap (D-16) the eval header's tier (D-17) and the paid-document rechunk (D-15) are built and closed below — the list is empty again.** Each
+**None were live once 0.21.1's four were answered — and that is a 20260811 fact, not this file's
+status. The `## Live` heading below is this file's register and it is not empty; read it, never this
+sentence.** Four were live at 0.21.1 (20260810 01:48), all four were answered on 20260811
+07:20, and `pnk init` (D-18) `--apply`'s `same manifest` gap (D-16) the eval header's tier (D-17) and the paid-document rechunk (D-15) are built and closed below — the list was empty again *then*.** Each
 had stalled on the same thing — its *required* text was "choose between these two defensible
 answers", which an implementer may not do — so the list had converged on decisions rather than
 fixes. [`20260811_0720-decisions-gates-and-corrections.md`](20260811_0720-decisions-gates-and-corrections.md) takes all four, and every item below now carries a

@@ -305,9 +305,9 @@ diagnosis that closed it was a *static reading of six sites* — `pairing.py:298
 **pre-empts a decision `sync.py:2190` already makes correctly**, one layer up and with less
 information. `DESIGN.md:1036` had forbidden by name the exact string the tool printed.
 
-**⚠️ Cite it by symbol, not by line.** It was `pairing.py:244` when first recorded and is
-**`pairing.py:298`** now — the S2 rework moved it four hours later. Find it with
-`grep -n 'hash_changed = ' src/pinakes/pairing.py`.
+**⚠️ Cite it by symbol, not by line.** It was `pairing.py:244` when first recorded and `:298`
+after the S2 rework, and it has moved twice more since — which is why **no number is written
+here any more**. Find it with `grep -n 'hash_changed = ' src/pinakes/pairing.py`.
 
 > **🔁 The same failure as S17, one level out — and having both here is the point.** S17 was a
 > *finding* measured against a moving tree and reported without its sha; this is a *line number*
@@ -433,9 +433,9 @@ was backed out**, because it breaks **five committed tests**, three of which are
 
 | Guard | What it can only observe by watching a plan be applied and fail |
 |---|---|
-| `tests/test_pairing.py:447 test_a_name_swap_never_retires_an_id_the_same_plan_adopts` | the plan does not retire an id it also adopts |
-| `tests/test_pairing.py:493 test_a_three_way_rename_cycle_adopts_every_id_and_retires_none` | every id survives a three-way cycle |
-| `tests/test_sync.py:2661 test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row` | **the silent-loss shape S2 exists to prevent** — no live document loses its row when the second half fails |
+| `tests/test_pairing.py::test_a_name_swap_never_retires_an_id_the_same_plan_adopts` | the plan does not retire an id it also adopts |
+| `tests/test_pairing.py::test_a_three_way_rename_cycle_adopts_every_id_and_retires_none` | every id survives a three-way cycle |
+| `tests/test_sync.py::test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row` | **the silent-loss shape S2 exists to prevent** — no live document loses its row when the second half fails |
 
 **So refusing the cycle cleanly is a decision about behaviour, not an implementation detail**, and
 its price is denominated in **S2's coverage**. It is not taken here, and it was correctly not taken
@@ -449,7 +449,10 @@ branch `20260826_0712-s16-s19-rename-ordering`. This sentence used to assert it 
 `test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row`'s docstring says **"The sync's
 own outcome is deliberately not asserted… what this test pins is that no live document loses its
 row, which must hold *however that defect is settled*."** Its body implements that with
-`contextlib.suppress(sqlite3.IntegrityError)` at `tests/test_sync.py:2687` — which **pins the
+`contextlib.suppress(sqlite3.IntegrityError)` inside
+`tests/test_sync.py::test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row` — **not** the
+second, unrelated occurrence of the same suppress in
+`test_no_pure_rename_ever_leaves_the_index_half_written` — which **pins the
 exception type**. A cycle settled by raising anything else fails a test whose docstring promises it
 would not. **Intent portable, code not.** Verified 20260826 07:30. Owner: **coder**, unscheduled — it blocks
 nobody until the cycle is settled, and it blocks that person completely.
@@ -474,7 +477,7 @@ reports *"nothing matched the filters"* **when no filters were given**.
 `sameTags: *commontags      # alias reusing the anchor above` becomes two lines, the comment orphaned
 onto its own line with 27 spaces of padding. Reproduced byte-for-byte.
 
-**It is not on the bounds table.** `docs/MANIFEST.md:307-319` lists ten exclusions and none covers it:
+**It is not on the bounds table.** `docs/MANIFEST.md`'s table under *"Bounds on that…"* lists ten exclusions and none covers it:
 the anchor carries a real value, nothing is deleted, the name is not reused, it is not self-referential.
 `MANIFEST.md:303` says plainly *"Comments … all survive a rewrite"*, and `docs/VERIFICATION.md`
 pins that promise in its row *"comments survive a rewrite through `pnk link`"* (L6,
@@ -488,7 +491,7 @@ comment on an alias reference.**
 invariant, so it is not a free choice** — read `docs/INVARIANTS.md` before taking it.
 
 **The sibling claim was correctly killed** and the contrast is instructive: a block-style-reflow finding
-was refuted against `MANIFEST.md:314` (*"Indentation follows the writer"*), pinned by
+was refuted against `MANIFEST.md`'s bounds row *"Indentation follows the writer"*, pinned by
 `test_a_two_space_indented_sequence_is_reindented`. The finder had cited `INVARIANTS.md` without
 following its own pointer to the bounds list.
 
@@ -536,6 +539,49 @@ until this pass at **06:19**.
 | 8 | **D-36's build** — **ANSWERED 20260825 18:16, option E** (derive the bound from a generative round-trip corpus; set the free `ruamel` options). *This row used to name two options; option E replaced both, and **the adversarial pass invented it** — read the decision, never a memory of the options.* **Scheduled here as of 20260826**; until then this row read *build unscheduled*, which is an owner with no queue position | nothing — answered | coder |
 | 9 | **D-37's build** — **ANSWERED 20260825 18:16, option E**: gate the move hint on the **orphaned sidecar**, not the mint count. Also invented by the adversarial pass | nothing — answered | coder |
 | 10 | The Low section's findings (**four classes; the count of five is retracted in this file's header**) | S1–S9 | coder |
+| 11 | **The FX guard, in two parts that must not be collapsed into one.** (a) Pin the rate at the **one call site** in `tests/test_cli_ask.py` with `monkeypatch.setattr`, **never** by widening `tests/conftest.py`'s `prices_never_age` — that fixture's commitment is that every model price and the FX rate stay *real*, and widening it is the defect wearing the fix's clothes. **No bound at the call site**: the assertion exists to discriminate €0.21 from €0.26, and a bound admits both. (b) Separately, bound the committed `usd_per_eur` in `src/pinakes/budget/prices.toml`, where the property being asserted is *somebody refreshed this*, not *it equals X*. **The commit message must say the limit out loud: a bound cannot catch stale-but-plausible** — `1.08` was plausible for the entire month it was wrong, `docs/RELEASING.md` § *Before you start* step 3 is the mechanism, and this is a backstop against a typo or a seed value left in place. **A row that reads as though it solves staleness is worse than no row**, because it retires the attention the procedure depends on. Found 20260831 by running step 3; 0.31.1 moved the literal `"0.21"` → `"0.20"` and **deliberately took nothing else**, because the choice is test design | nothing | coder |
+| 12 | **A gate that a `retro.d/` fragment opens with a `## <title> (YYYYMMDD HH:MM)` heading.** `tools/fragments.py`'s retrospectives stream **synthesises no heading** — `render()` joins fragment bodies — so a heading-less fragment's bullets splice silently under the *preceding* fragment's heading, filed under a different incident. Nothing catches it: the assembled-document checker forbids only **adjacent duplicate** headings, and the rule that a section opens with a bullet is **changelog-only by design**, because retrospectives are free-form prose. **Place it beside `document_problems`, not inside it** — this is a property of a *pending fragment*, which is what `--check` reads, while `document_problems` reads the assembled result. **Three occurrences in one evening, 20260831**, by three different sessions; the third was found by running a draft of this very gate against the real `retro.d/` tree rather than against fixtures, which is also the lesson about where to point it | nothing | coder |
+
+**Rows 11 and 12 are not sweep findings and are in this table anyway.** Both were found on
+20260831 — one by running `docs/RELEASING.md` step 3, one by three sessions tripping over the same
+splice in one evening — and neither has an owning plan. Parking them in § *Decided work with an
+owner and no build order* below would have reproduced exactly what that section exists to record:
+**the G5 gate re-run aged 21 days there**. A queue position is the cheap half; giving them one here
+costs two rows and nothing else.
+
+**Row 12 includes the stamp — planner ruling, 20260831 23:40 UTC.** The coder asked whether the
+gate should check the heading's timestamp as well as its presence, on the ground that *"a stamp gate
+as `retro.d/README.md` states it would reject 14% of the corpus, including fragments nobody thinks
+are defective"*. **It is a fair objection aimed at the wrong population, and the answer is yes,
+build both halves.** Three findings settle it:
+
+- **`retro.d/` is emptied at every release, so the gate never reads the corpus.** `--check` reads
+  *pending* fragments. The 100 historical fragments live in `docs/RETROSPECTIVES.md` and in git
+  history; not one of them is a file this gate will ever open. **The tree holds exactly one
+  unconsumed fragment today and it passes both halves.** A rejection rate computed over consumed
+  fragments describes a retrospective audit nobody proposed.
+- **The denominator is 84, not 100.** Sixteen fragments predate the `YYYYMMDD_HHMM-` naming rule and
+  are named for their increment instead (`i8-page-citations.md`, `l5b-the-library-swap.md`, …).
+  The rule is *"the heading's stamp is a **copy** of the filename's prefix"* — **undefined on a file
+  with no prefix**, so those sixteen cannot fail a check that cannot be evaluated on them. The
+  coder's numerator is sound and its denominator was borrowed from a wider set, which is the
+  third time in twenty-four hours; see [`20260830_0927-main-is-red-and-a-review-that-half-ran.md`](20260830_0927-main-is-red-and-a-review-that-half-ran.md)
+  §§ *A seventh instance*, *An eighth instance*.
+- **The defect is recurrent and currently caught only by luck.** Census, selector stated: the 81
+  prefixed fragments whose add-commit is directly resolvable (3 more are lost to rename detection,
+  and are not counted rather than guessed). **18 of 81 were wrong at the moment they were
+  committed** — 8 with no stamp, 8 with a stamp that is not the filename's, 2 with no heading at
+  all. **Four of the 18 were repaired by a later review pass** before a release consumed them, and
+  the other fourteen were not. Review catches this defect sometimes; that is the argument for a
+  gate, not against one.
+
+**What the gate must accept is the rule as written, and nothing looser.** `(YYYYMMDD HH:MM)`
+trailing the heading, equal to the filename's prefix — not an em-dash form, not a date without a
+time, not *"UTC"* appended. All three variants exist in the history and each one is the composed
+stamp the rule exists to stop. **The README needs no change; it already says exactly this.** The
+fourteen historical fragments that would fail are not touched: they are spliced, published, and
+correcting a stamp now would invent a precision nobody measured — the same reason pre-20260804
+timestamps stay local.
 
 **S19 gets no row of its own, deliberately.** It is a constraint on S16's fix, not a separate build —
 giving it a row would licence someone to "do S19" and leave S16's ordering unfixed, which is the
@@ -578,6 +624,47 @@ decision's content.**
 | **Four rotted code citations in `docs/KB-UPDATES.md` §3** — assigned to T4, which shipped in 0.20.0 without them. Wrong: `store.py:205` at lines 37 and 78, `doctor.py:205` at 63, `sidecar.py:35,106` at 76, `_toml.py:184` at 77. Right today: `store.py:250 _check_schema_version`, `doctor.py:236 _template`, `sidecar.py:54/304`, `_toml.py:214` (verified 20260826 — **re-derive before pasting**, this citation has now rotted twice). F3's headline claim is separately closed: `KB-UPDATES.md:56-61` withdraws it, so the heading no longer names what is open | [`20260804_1016-template-release.md`](20260804_1016-template-release.md) F3 | nothing | planner |
 | **A `--questions` flag for `tools/reachable_ceiling_probe.py`** — a live re-run hazard: `tools/build_rfc_corpus.py:434-451 write_golden_set` overwrites `<out>/eval/questions.yaml` unconditionally on every build (called at :505), and the probe hardcodes `root / "eval" / "questions.yaml"` at :1030 with no way past it (argparse at :991-1012 defines only `--kb`, `--fake`, `--drop`, `--json`). The flag is the named better fix; the wider conversion rewrite the section originally governed is **done**, and its *if the run is re-scoped* wording keeps the rest proposed rather than scheduled | [`20260803_2239-corpus-probe-run.md`](20260803_2239-corpus-probe-run.md) | nothing | coder |
 | **The deferred `docs/ROADMAP.md` review, whose trigger fired at 0.18.0.** The audit defers a full ROADMAP review *until after T2*; T2 shipped in 0.18.0 and `docs/README.md:58` still records the review as *still owed*. **It lives in an audit header rather than a section, which is why every section-by-section sweep has missed it** — the same shape as the 21-day G5 seam above | [`20260807_2143-docs-audit-findings.md`](20260807_2143-docs-audit-findings.md) | nothing — the trigger fired at 0.18.0 | planner |
+
+**The probe row's wording stands — planner ruling, 20260831 23:40 UTC.** The coder read the row as
+claiming the probe *"silently measures a question set a rebuild overwrote"*, and correctly objected
+that it has never been silent: since `a6a931b` (**authored 20260804 04:13 UTC, committed 05:01
+UTC** — both stamps, because `--date=format-local` without `TZ=UTC` renders a third number and this
+is the wrong night to quote one; three days before the runbook warning was written and 27 days
+before this row) the probe records the golden set's resolved
+path, `sha256`, question count and multi-hop count — `reachable_ceiling_probe.py:1078-1085` for the
+JSON payload, `:1168-1169` for the text output, **both formats**, with a comment at `:1075` saying
+it reads them *"while the file is certainly still there"*. **Verified here, not taken on report.**
+
+**But neither this row nor the runbook ever said that.** This row says the probe has no flag to
+point elsewhere — *"no way past it"*, which is the framing the objection claimed was missing — and
+cites argparse at `:991-1012`. The runbook
+([`20260803_2239-corpus-probe-run.md`](20260803_2239-corpus-probe-run.md):34) says a conversion left
+at that path *"is silently clobbered by the next build"* — and the silent party there is
+`build_rfc_corpus.py`, which overwrites unconditionally and tells no one. **Correcting a document to
+answer a sentence the document does not contain is how a correction becomes the error**, which this
+repository did once tonight already. **Nothing in the row or the runbook changes.**
+
+**The sentence came from a handoff table, and the coder found that itself.** *"Stops a probe
+silently measuring a question set a rebuild overwrote"* was a one-line summary in the previous coder
+session's handoff, pasted into the next session at its start. It was then attributed to a plan **as
+a verbatim quotation**, and that attribution reached a retrospective fragment, a commit message and
+a message to the planner before anyone opened the row. Two review lenses caught the fabricated
+quotation independently; the coder verified it against the row itself rather than accepting them,
+and found the substantive half — **the correction was wrong, not just the citation.** It is retracted
+in a fix commit on the same branch, with the wrong version deliberately left visible in `1d5e7ac`.
+
+**This is the 20260823 shape a third time: a claim relayed between two agents and escalated before
+anyone read the file.** What is new is where the claim came from. **A handoff table is a lossy
+summary of a document, and the next session cannot tell its rows from quotations** — which is an
+argument for handoffs that cite `file:line` rather than paraphrase, and the reason this ruling
+records the provenance instead of only the verdict.
+
+**One sentence is added to the runbook, and it is an addition rather than a correction:** the
+copy-over dance the runbook prescribes is *verifiable*, because the probe stamps the `sha256` of
+what it actually read. A runner can diff that against the converted file and know which set was
+measured. **The residual defect is exactly as narrow as the coder scoped it** — no route to
+re-measure a replaced set except to put the old file back where the next build overwrites it — and
+`--questions` remains the fix, three lines and no guard.
 
 ## The corpus rule does not apply
 

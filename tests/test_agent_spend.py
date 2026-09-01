@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -211,15 +213,15 @@ def test_the_project_filter_selects_by_directory_name(tmp_path: Path) -> None:
         directory = tmp_path / name
         directory.mkdir()
         _write(directory / "s.jsonl", [_line("req_a", output=1)])
-    matched = agent_spend.find_transcripts(tmp_path, "Pinakes", include_subagents=False)
+    matched = agent_spend.find_transcripts(tmp_path, "Pinakes", "main")
     assert [path.parent.name for path in matched] == ["-Users-someone-Pinakes"]
-    assert len(agent_spend.find_transcripts(tmp_path, None, include_subagents=False)) == 2
+    assert len(agent_spend.find_transcripts(tmp_path, None, "main")) == 2
 
 
 def test_a_missing_root_returns_nothing_rather_than_raising(tmp_path: Path) -> None:
     """The tool runs on machines that have never run an agent; that is an empty answer, not a
     crash."""
-    assert agent_spend.find_transcripts(tmp_path / "absent", None, include_subagents=False) == []
+    assert agent_spend.find_transcripts(tmp_path / "absent", None, "main") == []
     assert agent_spend.journal_outcomes(tmp_path / "absent", None) == {}
 
 
@@ -242,8 +244,8 @@ def _corpus(root: Path) -> Path:
 def test_subagent_and_workflow_transcripts_are_found_only_when_asked_for(tmp_path: Path) -> None:
     """The file list is the population, and the population is what was wrong."""
     _corpus(tmp_path)
-    main_only = agent_spend.find_transcripts(tmp_path, None, include_subagents=False)
-    everything = agent_spend.find_transcripts(tmp_path, None, include_subagents=True)
+    main_only = agent_spend.find_transcripts(tmp_path, None, "main")
+    everything = agent_spend.find_transcripts(tmp_path, None, "all")
     assert len(main_only) == 1, "a main-loop file list holds no subagent or workflow transcript"
     assert len(everything) == 3, "subagents/ and subagents/workflows/ must both be reached"
 
@@ -285,4 +287,91 @@ def test_boot_says_it_is_main_loop_only_even_when_a_wider_scope_was_asked_for(
     assert agent_spend.main(["--root", str(tmp_path), "--scope", "all", "boot"]) == 0
     out = capsys.readouterr().out
     assert "main-loop sessions only" in out
-    assert "does not apply to it" in out, "an ignored flag must say it was ignored"
+    assert "does not apply" in out, "an ignored flag must say it was ignored"
+
+
+def test_the_three_narrow_scopes_partition_the_corpus(tmp_path: Path) -> None:
+    """`all` must be exactly main + subagent + workflow — no file twice, none unreachable.
+
+    A split whose parts do not add to the whole is how a population goes unstated: 316 workflow and
+    235 subagent requests were true and unpublishable, because the tool offered `main` and `all`
+    and nothing in between, and a number a committed instrument cannot produce is the class of
+    claim this file exists to end.
+    """
+    _corpus(tmp_path)
+    parts = [
+        set(agent_spend.find_transcripts(tmp_path, None, scope))
+        for scope in ("main", "subagent", "workflow")
+    ]
+    everything = set(agent_spend.find_transcripts(tmp_path, None, "all"))
+
+    assert set().union(*parts) == everything, "the parts must cover `all`"
+    assert sum(len(part) for part in parts) == len(everything), "and must not overlap"
+    assert [len(part) for part in parts] == [1, 1, 1], "the fixture holds one of each kind"
+    assert sorted(agent_spend.SCOPES) == ["all", "main", "subagent", "workflow"]
+
+
+def test_each_narrow_scope_names_itself_in_the_output(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A pasted number must carry its selector in every scope, not just the two extremes."""
+    _corpus(tmp_path)
+    for scope, expected in (
+        ("subagent", "subagent runs only"),
+        ("workflow", "workflow agents only"),
+    ):
+        assert agent_spend.main(["--root", str(tmp_path), "--scope", scope, "models"]) == 0
+        out = capsys.readouterr().out
+        assert expected in out
+        assert "1 transcripts" in out, f"--scope {scope} must select exactly its own kind"
+        assert "claude-fable-5" in out, "the fixture's fan-out transcripts are fable"
+
+
+def _journal(root: Path, run_name: str, rows: list[dict[str, Any]], age_minutes: float) -> Path:
+    """A workflow journal whose mtime is `age_minutes` in the past."""
+    import os
+    import time
+
+    run = root / "proj" / "session" / "subagents" / "workflows" / run_name
+    run.mkdir(parents=True)
+    journal = _write(run / "journal.jsonl", [json.dumps(row) for row in rows])
+    stamp = time.time() - age_minutes * 60
+    os.utime(journal, (stamp, stamp))
+    return journal
+
+
+def test_a_run_still_writing_is_not_counted_as_having_lost_its_agents(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The confound that turned a healthy run into a finding on 20260831.
+
+    A workflow read mid-flight shows every agent that has not returned yet as having no terminal
+    row, and that reading is indistinguishable from a run that was killed. One was reported as a
+    loss and completed 9-of-9 minutes later. Journal rows carry no timestamp of their own, so the
+    guard is the file's mtime.
+    """
+    started_only = [
+        {"type": "started", "agentId": "a1"},
+        {"type": "started", "agentId": "a2"},
+        {"type": "result", "agentId": "a1"},
+    ]
+    _journal(tmp_path, "wf_live", started_only, age_minutes=1)
+    _journal(tmp_path, "wf_old", list(started_only), age_minutes=600)
+
+    assert agent_spend.command_workflows(tmp_path, None, 60.0) == 0
+    guarded = capsys.readouterr().out
+    assert "1 settled workflow runs" in guarded, "the live run must not be in the population"
+    assert "1 run(s) excluded" in guarded, "and its exclusion must be stated, not silent"
+    assert re.search(r"NO terminal row\s+1\b", guarded), "only the settled run's orphan counts"
+
+    assert agent_spend.command_workflows(tmp_path, None, 0.0) == 0
+    unguarded = capsys.readouterr().out
+    assert "2 settled workflow runs" in unguarded, "--settle-minutes 0 disables the guard"
+    assert re.search(r"NO terminal row\s+2\b", unguarded), "the live run's agent is counted too"
+
+
+def test_a_journal_with_no_readable_mtime_is_treated_as_settled(tmp_path: Path) -> None:
+    """An unknown age must not silently drop a run from the population — the guard excludes what it
+    can prove is recent, never what it merely cannot date."""
+    run = agent_spend._RunOutcomes(agents={"a1": agent_spend.NO_OUTCOME}, last_written=None)
+    assert run.is_settled(datetime.now(UTC))

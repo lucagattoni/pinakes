@@ -38,7 +38,7 @@
 | Page provenance (`page_start`/`page_end`) | shipped | in the index since 0.2.0, and surfaced in results on both surfaces since I8 |
 | Extraction quality scoring | shipped | `make pdf-eval` against `tests/pdf-corpus/` |
 | **PDF ingest, paid path** (scanned PDFs) | shipped 0.3.0 | I7b. `claude-vision` is a real extractor, **measured against the live API 20260729** — 1.000 on every metric over the synthetic scanned stratum, where the free path scores 0.000 ([DESIGN §9](DESIGN.md#9-known-risks)) |
-| Budget estimator, caps, window aggregation | shipped 0.2.2, **inert** | I6a. The pure logic only — nothing calls it, so nothing can spend |
+| Budget estimator, caps, window aggregation | shipped 0.2.2, **live since I7b** | I6a. The pure logic alone — **nothing called it at 0.2.2**. `estimate_document` is called from I7b's extractor and `sync.py` now, and I6a's rest is read across the tree: I6b's accountant drives `reserve()` and `aggregate()`, `pnk doctor` reads `in_window`, and the deep estimator reads its ceilings |
 | Deep paid client | shipped 0.24.0, reached by `--deep` | E3. `src/pinakes/deep/client.py` — the **second and final** entry on `.paid-path-allowlist`, and the module that builds a round's two calls: decompose, and answer. Reached by `pnk ask --deep` since E4, which builds its transport only once the caps have admitted the run. Two structural defences ship with it — a subproblem is a plain string because the schema has no other field it could be, and an answer cites **passage numbers**, so a citation naming evidence the call never had is refused. `pnk serve` never loading it is now a gate. `src/pinakes/paid.py` holds what both paid clients obey; it is deliberately **not** allowlisted, because it imports no client |
 | Deep-round estimator | shipped 0.24.0 | E2. What one `pnk ask --deep` would cost, before the first call: the cheap branch's single synthesis call, a loop round, and `max_rounds x` a round for the whole operation. Pure — no client, no I/O, no wall clock. It waited on `main` for E4, which is what first made `--deep` real, and both cut in 0.24.0. **The free `pnk ask` calls it too**, to price the run it offers — which is why a free command reaches `pinakes.deep.estimate` and still never `pinakes.deep.client`, asserted in a fresh subprocess. At the shipped defaults the cheap branch is EUR 0.2627 and a three-round loop EUR 1.6872 — which is why E4 raised `per_operation_eur` to 2.00 and `daily_eur` to 6.00 (D-30): under the old 0.30 even a **one-round** loop was refused, on every KB the template stamps. **Every constant it prices with was measured against the live API in E6 and none was lowered** — 3.99x to 12.12x above their ceilings ([below](#the-deep-loop-measurement-run-has-been-done--20260821-02131)) |
 | Budget ledger, `pnk budget`, the accountant | shipped 0.3.0 | I6b. `ledger.jsonl`, the reservation/outcome protocol, and I6a's decisions read from it — now driven by I7b's extractor |
@@ -63,7 +63,7 @@ Measured live on 20260729, the reservation over-reserved **11.5×** — wrong in
 See [DESIGN §5](DESIGN.md#5-cost-control) and `pnk budget`.
 
 Since I7a (0.3.0) that is enforced rather than asserted: `.paid-path-allowlist`
-names every module permitted to import a paid client — one line since I7b — and four gates in
+names every module permitted to import a paid client — two lines, since I7b and E3 — and four gates in
 `check.sh` and CI hold it, the decisive one running the whole free path in a fresh subprocess and
 asserting no paid client reached `sys.modules`. It found two real leaks the day it landed: both
 `pnk doctor` and `pnk sync` reported a backend's availability by *loading* it, so a KB configured
@@ -161,7 +161,7 @@ landing with its own tests.
 | I3b | The `pypdfium2` adapter, quality metrics, two fitted floors | shipped 0.2.0 |
 | I4 | The extraction cache | shipped 0.2.0 |
 | I5 | PDF chunking, page provenance, backend-aware sync (`schema_version` 2) | shipped 0.2.0 |
-| I6a | Budget core, pure — estimator, reservation, `prices.toml` | shipped 0.2.2 (inert) |
+| I6a | Budget core, pure — estimator, reservation, `prices.toml` | shipped 0.2.2, inert **then** — live since I7b (see the surface table above). *The release-history rows below, and `docs/ROADMAP.md`'s 0.2.2 section, keep the bare "inert" on purpose: those record what 0.2.2 added, and it was true of 0.2.2.* |
 | I6b | Budget I/O — ledger, prompt, `pnk budget`, hooks that cannot spend | shipped 0.3.0 |
 | I7a | The paid-path allowlist gate and the invariant amendments | shipped 0.3.0 |
 | I7b | The paid Claude-vision extractor — request shape, validation, retries | shipped 0.3.0 |

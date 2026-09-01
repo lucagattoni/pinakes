@@ -36,11 +36,19 @@ never in this repository.
 
 Four subcommands, one per analysis:
 
-**Every subcommand names the population it read.** `--scope all` (the default) counts main-loop
-sessions, subagent runs and workflow agents; `--scope main` counts main-loop sessions only. The
-default is `all` deliberately: a main-loop-only file list is what produced the false zero above,
-because subagent transcripts live under `<session>/subagents/` and simply were not in it. The
-restricted population is the one you must ask for by name, and the header repeats which you got.
+**Every subcommand names the population it read.** `--scope` takes `all` (the default), `main`,
+`subagent` or `workflow`; the last three **partition** the corpus and `all` is their union, which a
+test asserts. The default is `all` deliberately: a main-loop-only file list is what produced the
+false zero above, because subagent transcripts live under `<session>/subagents/` and simply were
+not in it. The restricted population is the one you must ask for by name, and the header repeats
+which you got.
+
+**A count is not a measurement until its selector is stated**, and the selector is easy to get
+wrong in both directions. Scanning transcripts for the *string* `claude-fable-5` finds 59 files;
+scanning for a `message.model` of `claude-fable-5` finds 33, which is exactly the set that billed
+anything. The 26 extra are files that merely discuss it -- **including the sessions that did the
+measuring**, which is a corpus contaminated by its own analysis. This tool always reads
+`message.model`.
 
     models      requests, tokens, price-units and estimated dollars per model
     boot        the fixed context each session re-transmits on every request, over time
@@ -59,7 +67,7 @@ import sys
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import cast
 
@@ -112,6 +120,14 @@ GAP_BUCKETS: tuple[tuple[str, float], ...] = (
 #: agent; a terminal row overwrites it. An agent left in `NO_OUTCOME` recorded no result — which is
 #: what makes a workflow resume re-run it, and is NOT by itself evidence that the agent died.
 NO_OUTCOME = "no-terminal-row"
+
+#: What each scope is called in output, so a pasted number carries its own selector.
+POPULATIONS: dict[str, str] = {
+    "all": "main loop + subagents + workflow agents",
+    "main": "main-loop sessions only",
+    "subagent": "subagent runs only",
+    "workflow": "workflow agents only",
+}
 
 
 @dataclass(frozen=True)
@@ -286,11 +302,22 @@ def read_requests(path: Path) -> list[Request]:
     ]
 
 
-def find_transcripts(root: Path, project: str | None, include_subagents: bool) -> list[Path]:
-    """Main-loop transcripts, plus subagent and workflow-agent ones when asked for.
+#: The four values `--scope` accepts. `main`, `subagent` and `workflow` **partition** the corpus and
+#: `all` is their union -- asserted by `tests/test_agent_spend.py`, because a "split" whose parts do
+#: not add up to the whole is how a population goes unstated without anybody noticing.
+SCOPES: tuple[str, ...] = ("all", "main", "subagent", "workflow")
+
+
+def find_transcripts(root: Path, project: str | None, scope: str = "all") -> list[Path]:
+    """The transcripts one scope selects.
 
     A project is a directory under `root` whose name encodes the working directory it was started
     in; `project` matches a substring of that name, so `--project Pinakes` is enough.
+
+    `journal.jsonl` is deliberately not here: it records a workflow's outcomes and carries no
+    `usage`, so including it would add files and no spend. Measured against a full recursive walk,
+    that is the **only** difference -- 58 files, 0 requests, $0.00 -- which is what makes this list
+    safe to total.
     """
     if not root.is_dir():
         return []
@@ -298,9 +325,11 @@ def find_transcripts(root: Path, project: str | None, include_subagents: bool) -
     for directory in sorted(root.iterdir()):
         if not directory.is_dir() or (project is not None and project not in directory.name):
             continue
-        found.extend(sorted(directory.glob("*.jsonl")))
-        if include_subagents:
+        if scope in ("all", "main"):
+            found.extend(sorted(directory.glob("*.jsonl")))
+        if scope in ("all", "subagent"):
             found.extend(sorted(directory.glob("*/subagents/*.jsonl")))
+        if scope in ("all", "workflow"):
             found.extend(sorted(directory.glob("*/subagents/workflows/*/agent-*.jsonl")))
     return found
 
@@ -376,13 +405,46 @@ def command_boot(paths: Sequence[Path]) -> int:
 
 @dataclass
 class _RunOutcomes:
-    """One workflow run's agents, and the state each was left in."""
+    """One workflow run's agents, the state each was left in, and when the journal last moved."""
 
     agents: dict[str, str] = field(default_factory=dict[str, str])
+    #: Journal mtime. The rows carry **no** timestamp of their own -- `agentId`, `key`, `result`,
+    #: `type` and nothing else -- so recency is a property of the file, not a record in it. It
+    #: answers "has this file stopped changing", which is the settling question exactly; it does
+    #: *not* answer "when did this run end", and the two diverge (see `is_settled`).
+    last_written: datetime | None = None
 
     @property
     def orphans(self) -> int:
         return sum(1 for state in self.agents.values() if state == NO_OUTCOME)
+
+    def is_settled(self, cutoff: datetime | None) -> bool:
+        """False while the run may still be writing, so a live agent is never counted as a loss.
+
+        A workflow measured mid-flight shows every unreturned agent as having no terminal row, and
+        that reading is indistinguishable from a run that was killed. One was reported as a loss
+        on 20260831 and completed 9-of-9 minutes later. A snapshot of a live process is not an
+        outcome.
+
+        **A settled run can go back to being excluded, and that is not a regression.** The clock
+        here is the journal's mtime, so anything that touches the file -- a session resumed weeks
+        later, a recompaction -- moves it forward long after the run itself finished. Measured
+        20260831 over the 33 transcripts that billed `claude-fable-5`, mtime disagreed with the
+        day the requests were actually billed on **six of them, four by 46 to 48 days**. Only one
+        of the six moved the aggregate, because the other five landed on days it already held:
+        a union absorbs per-file error and reports the residue, so checking an instrument through
+        an aggregate understates it by whatever the aggregate happens to swallow.
+
+        That drift is tolerated rather than corrected, in this direction deliberately: an
+        undatable journal counts as settled, so the guard drops what it can prove is recent and
+        never what it merely cannot date. It fails toward excluding a run -- losing a datum --
+        rather than toward counting a live agent as a loss, which is the reading that put a wrong
+        number in front of a peer. Every excluded run is counted in the output rather than dropped
+        silently, so a run that reappears in that line is a touched file, not a lost one.
+        """
+        if cutoff is None or self.last_written is None:
+            return True
+        return self.last_written < cutoff
 
 
 def journal_outcomes(root: Path, project: str | None) -> dict[str, _RunOutcomes]:
@@ -400,6 +462,10 @@ def journal_outcomes(root: Path, project: str | None) -> dict[str, _RunOutcomes]
             continue
         for journal in sorted(directory.glob("*/subagents/workflows/*/journal.jsonl")):
             run = outcomes.setdefault(journal.parent.name, _RunOutcomes())
+            try:
+                run.last_written = datetime.fromtimestamp(journal.stat().st_mtime, UTC)
+            except OSError:
+                run.last_written = None
             for line in _read_lines(journal):
                 record = _decode(line)
                 if record is None:
@@ -415,16 +481,25 @@ def journal_outcomes(root: Path, project: str | None) -> dict[str, _RunOutcomes]
     return outcomes
 
 
-def command_workflows(root: Path, project: str | None) -> int:
+def command_workflows(root: Path, project: str | None, settle_minutes: float) -> int:
     """Workflow agent outcomes, and — the part that reframes them — how the losses are distributed.
 
     A flat percentage reads as a per-agent death rate. It is not one: the runs that lose agents
     tend to lose all of them at once, which is a killed workflow rather than a dying agent, and a
     different defect with a different fix.
     """
-    outcomes = journal_outcomes(root, project)
-    if not outcomes:
+    every_run = journal_outcomes(root, project)
+    if not every_run:
         print("no workflow journals found — check --root and --project")
+        return 1
+    cutoff = datetime.now(UTC) - timedelta(minutes=settle_minutes) if settle_minutes > 0 else None
+    outcomes = {name: run for name, run in every_run.items() if run.is_settled(cutoff)}
+    active = len(every_run) - len(outcomes)
+    if not outcomes:
+        print(
+            f"all {len(every_run)} runs were written in the last {settle_minutes:g} min — "
+            "nothing has settled yet"
+        )
         return 1
     tally: Counter[str] = Counter()
     for run in outcomes.values():
@@ -434,7 +509,13 @@ def command_workflows(root: Path, project: str | None) -> int:
         print("workflow journals found, but no agent runs recorded")
         return 1
     orphans, failed = tally[NO_OUTCOME], tally["failed"]
-    print(f"{len(outcomes)} workflow runs, {total:,} agent runs started\n")
+    print(f"{len(outcomes)} settled workflow runs, {total:,} agent runs started")
+    if active:
+        print(
+            f"  ({active} run(s) excluded: journal written in the last {settle_minutes:g} min, so "
+            "an unreturned agent may still be running rather than lost)"
+        )
+    print()
     print(f"  {'result rows':<18} {tally['result']:>5}  ({tally['result'] / total * 100:>4.1f}%)")
     print(f"  {'failed rows':<18} {failed:>5}  ({failed / total * 100:>4.1f}%)")
     print(f"  {'NO terminal row':<18} {orphans:>5}  ({orphans / total * 100:>4.1f}%)")
@@ -533,12 +614,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument(
         "--scope",
-        choices=("all", "main"),
+        choices=SCOPES,
         default="all",
         help=(
-            "which transcripts to count: 'all' (default) includes subagent runs and workflow "
-            "agents; 'main' is main-loop sessions only. `boot` is always main-loop -- a subagent's "
-            "first request is not a session boot -- and says so in its output."
+            "which transcripts to count: 'all' (default) is every one; 'main', 'subagent' and "
+            "'workflow' are the three parts it is the union of. `boot` is always main-loop -- a "
+            "subagent's first request is not a session boot -- and says so in its output."
+        ),
+    )
+    parser.add_argument(
+        "--settle-minutes",
+        type=float,
+        default=60.0,
+        metavar="MIN",
+        help=(
+            "`workflows` only: ignore runs whose journal was written this recently, because an "
+            "agent that has not returned yet is not an agent that was lost (default: 60; 0 "
+            "disables the guard). The clock is the journal's mtime, so touching an old journal "
+            "re-excludes a run that finished long ago -- the excluded count is printed, and a "
+            "run reappearing in it is a touched file rather than a lost one"
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -556,23 +650,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     scope = cast("str", args.scope)
 
     if command == "workflows":
-        return command_workflows(root, project)
+        return command_workflows(root, project, cast("float", args.settle_minutes))
 
     # `boot` is main-loop by definition, so it opts out rather than silently reporting a population
     # nobody asked for -- 1,088 subagent transcripts would swamp 65 sessions.
-    with_subagents = scope == "all" and command != "boot"
-    paths = find_transcripts(root, project, include_subagents=with_subagents)
+    effective = "main" if command == "boot" else scope
+    paths = find_transcripts(root, project, effective)
     if not paths:
         print(f"no transcripts under {root} (project filter: {project!r})", file=sys.stderr)
         return 1
-    population = (
-        "main loop + subagents + workflow agents" if with_subagents else "main-loop sessions only"
-    )
+    population = POPULATIONS[effective]
     if command == "models":
         return command_models(paths, population)
     if command == "boot":
-        if scope == "all":
-            print("note: `boot` reads main-loop sessions only; --scope all does not apply to it\n")
+        if scope != "main":
+            print(f"note: `boot` reads main-loop sessions only; --scope {scope} does not apply\n")
         return command_boot(paths)
     return command_rewrites(paths, population)
 
