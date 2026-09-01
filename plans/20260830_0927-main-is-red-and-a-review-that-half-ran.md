@@ -214,7 +214,7 @@ and the rows under it were the register nobody updated.
 | `docs/STATUS.md:20`, `:366`, `:1210` | **A bare `\|` inside a code span truncates the row on GitHub — and only on GitHub.** GFM splits the row on the bare pipe *before* inline code is parsed, then **silently drops the overflow to match the header's column count**, so the table still shows the right number of cells and looks intact. **14, 286 and 2 860 characters are discarded.** The 2 860 is the whole per-release commentary from 0.22.0 down to 0.4.1 — including the 0.20.1 warning that a KB setting `vector_tier = "sqlite-vec"` **stops loading entirely**. The published mkdocs site renders all three correctly and in full. **Fixed 20260830**, with the full population and the matrix below |
 | `docs/BUILDING.md:172` | *"the changelog fragment written in `d9fe1a9` carried 'wrong for twelve hours'"* — **at `d9fe1a9` it does not.** The phrase lived only at `29856b9`; `ef1465a` corrected it *before* the merge. The sha in the sentence is wrong |
 | `plans/20260825_1240-run-pinakes-sweep.md:417` | *"the reasoning is also in `src/pinakes/pairing.py`'s docstring"* — `grep -ci cycle src/pinakes/pairing.py` is **0** on `main`. True only on the coder's **unlanded** branch |
-| `docs/VERIFICATION.md:787`, `:282` | **✅ Fixed 20260831 22:36 — both, and the fix is to stop citing lines.** `:282` is cited by `plans/20260825_1240` for *"comments survive a rewrite"*; on `main` that row is *"unknown keys inside a link entry survive it"*, and the promise wanted lives one row above. It now cites the **row text and its test**, so nothing below it can move it again. `:787` was already discharged by layer 2 (`plans/20260825_0749` build-order row 10). **The pairing recorded in this cell was itself wrong** — `:282` was never the empty-tag/hub row, and the over-long-path row is `:299` today, not `:787`. A locator-rot finding whose own locators had rotted |
+| `docs/VERIFICATION.md:787`, `:282` | **✅ Fixed 20260831 22:36 — both, and the fix is to stop citing lines.** `:282` is cited by `plans/20260825_1240` for *"comments survive a rewrite"*; on `main` that row is *"unknown keys inside a link entry survive it"*, and the promise wanted lives one row above. It now cites the **row text and its test**, so nothing below it can move it again. `:787` was already discharged by layer 2 (`plans/20260825_0749` build-order row 10). **The pairing recorded in this cell was itself wrong** — `:282` was never the empty-tag/hub row, and the over-long-path row is not `:787` but the one reading *"an unreadable or over-long path is refused, not a traceback"* (`tests/test_cli_link.py::test_an_unreadable_directory_is_refused_rather_than_crashing`). **This cell first answered that with `:299`, in the same breath as saying the fix is to stop citing lines — and `:299` was wrong when written** (the row was at `:300` at this cell's own commit, and is at `:311` now). A locator-rot finding whose own locators had rotted, corrected 20260901 by citing the row and its test instead |
 | `plans/20260825_1252-plans-sweep-findings.md:87` (row 11) | **a thirteenth stale row the reconciliation missed** — says D-31/32/33 *"none taken"* and `user-decision` when they were answered 20260825 18:16. `docs/README.md:55` says the opposite about the same item |
 
 ### The pipe defect is a class, and no escape fixes both renderers
@@ -352,7 +352,7 @@ since changed meaning without changing content.**
 
 | | |
 |---|---|
-| **A scheduled run** (cron on `main`) | would have gone red on 20260827, three days earlier. **It is also the thing `DESIGN.md:811` is wary of** — until item 1 lands. Afterwards a nightly run cannot go red on staleness, because nothing in the suite reads the clock any more, so the objection dissolves and the schedule becomes safe |
+| **A scheduled run** (cron on `main`) | would have gone red on 20260827, three days earlier. **It is also the thing `DESIGN.md:811` was wary of** — until item 1 landed, which it did on 20260830 (`b59e58f`, row 1 of this file's own build order). Nothing in the suite reads the clock against `prices.toml` any more, so the objection is discharged and a scheduled run is safe today |
 | **The release step** (item 2) | catches it at each release, which is the path that actually reaches users |
 | **A watcher over the artefact rather than the run** | the general form of the standing rule — *verify the artefact, never the run's own status* — applied to a tree instead of a release |
 
@@ -650,7 +650,9 @@ because this one had the rule written down in front of it.
 `optimize-adversarial-review-tokens` session's; the counter-case that killed the 34-of-64 figure was
 the coder's, not that session's own insight, and it asked not to be credited for it; the table and
 the instrument clause are the planner's. **Nothing in this section has been proposed for `CLAUDE.md`
-yet** — that file is 87 lines over its own guideline and has an extraction diff already waiting on
+yet** — that file is well over its own guideline — **re-run `wc -l CLAUDE.md` rather than quote a
+number, because this one has been wrong three times**: 87 over as first written, 135 over at the
+20260831 re-check, 141 over on 20260901 — and has an extraction diff already waiting on
 the user, so a new rule goes to them beside it rather than ahead of it.
 
 ### An eighth instance — the corpus that contained the measurement

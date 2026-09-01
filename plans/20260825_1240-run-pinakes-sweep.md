@@ -305,9 +305,9 @@ diagnosis that closed it was a *static reading of six sites* — `pairing.py:298
 **pre-empts a decision `sync.py:2190` already makes correctly**, one layer up and with less
 information. `DESIGN.md:1036` had forbidden by name the exact string the tool printed.
 
-**⚠️ Cite it by symbol, not by line.** It was `pairing.py:244` when first recorded and is
-**`pairing.py:298`** now — the S2 rework moved it four hours later. Find it with
-`grep -n 'hash_changed = ' src/pinakes/pairing.py`.
+**⚠️ Cite it by symbol, not by line.** It was `pairing.py:244` when first recorded and `:298`
+after the S2 rework, and it has moved twice more since — which is why **no number is written
+here any more**. Find it with `grep -n 'hash_changed = ' src/pinakes/pairing.py`.
 
 > **🔁 The same failure as S17, one level out — and having both here is the point.** S17 was a
 > *finding* measured against a moving tree and reported without its sha; this is a *line number*
@@ -433,9 +433,9 @@ was backed out**, because it breaks **five committed tests**, three of which are
 
 | Guard | What it can only observe by watching a plan be applied and fail |
 |---|---|
-| `tests/test_pairing.py:447 test_a_name_swap_never_retires_an_id_the_same_plan_adopts` | the plan does not retire an id it also adopts |
-| `tests/test_pairing.py:493 test_a_three_way_rename_cycle_adopts_every_id_and_retires_none` | every id survives a three-way cycle |
-| `tests/test_sync.py:2661 test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row` | **the silent-loss shape S2 exists to prevent** — no live document loses its row when the second half fails |
+| `tests/test_pairing.py::test_a_name_swap_never_retires_an_id_the_same_plan_adopts` | the plan does not retire an id it also adopts |
+| `tests/test_pairing.py::test_a_three_way_rename_cycle_adopts_every_id_and_retires_none` | every id survives a three-way cycle |
+| `tests/test_sync.py::test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row` | **the silent-loss shape S2 exists to prevent** — no live document loses its row when the second half fails |
 
 **So refusing the cycle cleanly is a decision about behaviour, not an implementation detail**, and
 its price is denominated in **S2's coverage**. It is not taken here, and it was correctly not taken
@@ -449,7 +449,10 @@ branch `20260826_0712-s16-s19-rename-ordering`. This sentence used to assert it 
 `test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row`'s docstring says **"The sync's
 own outcome is deliberately not asserted… what this test pins is that no live document loses its
 row, which must hold *however that defect is settled*."** Its body implements that with
-`contextlib.suppress(sqlite3.IntegrityError)` at `tests/test_sync.py:2687` — which **pins the
+`contextlib.suppress(sqlite3.IntegrityError)` inside
+`tests/test_sync.py::test_a_rename_cycle_that_fails_halfway_never_destroys_a_live_row` — **not** the
+second, unrelated occurrence of the same suppress in
+`test_no_pure_rename_ever_leaves_the_index_half_written` — which **pins the
 exception type**. A cycle settled by raising anything else fails a test whose docstring promises it
 would not. **Intent portable, code not.** Verified 20260826 07:30. Owner: **coder**, unscheduled — it blocks
 nobody until the cycle is settled, and it blocks that person completely.
@@ -474,7 +477,7 @@ reports *"nothing matched the filters"* **when no filters were given**.
 `sameTags: *commontags      # alias reusing the anchor above` becomes two lines, the comment orphaned
 onto its own line with 27 spaces of padding. Reproduced byte-for-byte.
 
-**It is not on the bounds table.** `docs/MANIFEST.md:307-319` lists ten exclusions and none covers it:
+**It is not on the bounds table.** `docs/MANIFEST.md`'s table under *"Bounds on that…"* lists ten exclusions and none covers it:
 the anchor carries a real value, nothing is deleted, the name is not reused, it is not self-referential.
 `MANIFEST.md:303` says plainly *"Comments … all survive a rewrite"*, and `docs/VERIFICATION.md`
 pins that promise in its row *"comments survive a rewrite through `pnk link`"* (L6,
@@ -488,7 +491,7 @@ comment on an alias reference.**
 invariant, so it is not a free choice** — read `docs/INVARIANTS.md` before taking it.
 
 **The sibling claim was correctly killed** and the contrast is instructive: a block-style-reflow finding
-was refuted against `MANIFEST.md:314` (*"Indentation follows the writer"*), pinned by
+was refuted against `MANIFEST.md`'s bounds row *"Indentation follows the writer"*, pinned by
 `test_a_two_space_indented_sequence_is_reindented`. The finder had cited `INVARIANTS.md` without
 following its own pointer to the bounds list.
 
