@@ -10,8 +10,17 @@
 >
 > **The 15 blockers are CLOSED** — 13 by the planner in `6a86482`, 2 by the coder — and each was
 > re-verified individually against `6a86482` by the auditor rather than taken on the fixer's word.
-> **What survives here is the residue: 13 misleading and 33 cosmetic**, none of which changes what a
-> cleared session does. Read it as a worklist, never as a live alarm.
+> **✅ ALL 62 ARE NOW CLOSED. This file is spent — read it for its record, never as a worklist.**
+> The 13 misleading closed 20260831 (`802d40b`); the 33 cosmetic closed 20260901 (`1d90613`).
+>
+> **What closing the cosmetic 33 actually found, which is the reason to keep this file:** not one of
+> its suggested fixes could be pasted — `main` had moved eleven times — so every finding was
+> re-measured first. **Eight were already fixed, five had suggestions that had themselves rotted,
+> two were moot** (`RESUME.md` is untracked, committed at no sha), and **three of this audit's own
+> corrections had rotted again within the day.** No line number was replaced with another line
+> number: the fixes cite a `grep`, a `file.py::test_name`, or the sentence itself. **A count that had
+> been wrong three times was replaced by the instruction to re-run `wc -l`** — the only form that
+> cannot go stale a fourth time.
 >
 > **Its own stated limit, which is why the number is usable:** *"62 is what survived an adversary
 > told to refute, not ground truth; severities are the refuter's correction."* Line numbers are as
