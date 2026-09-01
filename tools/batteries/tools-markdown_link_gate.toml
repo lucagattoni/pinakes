@@ -23,7 +23,7 @@
 mutants = 15
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
-# 20260823 · the gate's first cut — the ungated-Markdown surface
+# 0.30.0 · the gate's first cut — the ungated-Markdown surface
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 #
 # Mutant 1 is the control: a known-catchable change run first, because a battery with no kills is a

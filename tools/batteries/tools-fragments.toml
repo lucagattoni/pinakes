@@ -317,8 +317,9 @@ kills = "tests/test_fragments.py::test_a_heading_hidden_by_leading_whitespace_is
 # mutant. `wanted` is `re.escape`d, so once the fourth pass anchored the comparison with
 # `(?:^|\s)…\s*$` the mutant required `(20260901` to be the heading's *trailing* token, which no
 # real heading is. It refused everything: 21 of 64 tests failed under it — the control
-# `test_the_real_documents_are_clean_which_is_this_checkers_only_control` among them, reporting all
-# 14 live fragments malformed — and all eight sub-cases of the looseness test died on the message
+# `test_the_real_documents_are_clean_which_is_this_checkers_only_control` among them, reporting
+# every live fragment in `retro.d/` malformed — 14 of them at `0e424c7`, where this was measured —
+# and all eight sub-cases of the looseness test died on the message
 # text rather than on the return code. That is the same defect the retro fragment for this
 # increment records for the predecessor `clock = ""`, recreated one pass later by an edit to a line
 # the mutant does not name. **A mutant is faithful only against the code it currently runs
@@ -354,16 +355,20 @@ kills = "tests/test_fragments.py::test_a_fragment_with_no_prefix_owes_a_heading_
 # unreleased, 20260901 · the fourth pass — the separator, the anchor, and the line the arms name
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 #
-# Three of these four rows are the *previous* fix, restored. Pass 3 wrote `(?<!\()…(?!\))` under a
+# Two of these four rows are the *previous* fix, restored. Pass 3 wrote `(?<!\()…(?!\))` under a
 # comment saying "anchored, not contained"; pass 4 measured `[(…)]`, `x(…)x` and `( (…) )` and
 # three of the four wrappers still passed. Pass 1 wrote `startswith("## ")`, which accepted two
 # spaces and refused a tab — a line drawn by an idiom, matching neither the ruled form nor the
 # renderer. **A row whose `new` is the code that shipped last week is the only kind that proves the
 # correction was a correction**, and neither of those two had one.
 #
-# The fourth row is the selector the other arms depend on and nothing covered: pass 4 mutated
-# `if line.strip()` to `if line` and all 56 tests stayed green, while the mutated gate told a
-# writer with a correct heading and a correct stamp that both were missing.
+# The other two restore nothing, because neither shape ever shipped: pass 1's check already
+# required the separator, so a bare `re.compile(r"^##")` is fresh coverage for the `\S` half of the
+# current opening rather than a revert. And the last row is the selector the other arms depend on
+# and nothing covered: pass 4 mutated `if line.strip()` to `if line` and all 56 tests stayed green,
+# while the mutated gate told a writer with a correct heading and a correct stamp that both were
+# missing. Verified across every commit from `50dd420` to `6bc8078`: `startswith("## ")` and the
+# pass-3 lookaround each shipped, `^##` and `if line` never did.
 
 [[mutant]]
 name = "DISCRIMINATING — the opening reverts to `startswith`, which accepts two spaces and refuses a tab"
