@@ -419,7 +419,8 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
     # the docstring above and in `docs/VERIFICATION.md`. Anchoring costs nothing here, and the
     # selector is the load-bearing half: of the 148 `## ` headings in `docs/RETROSPECTIVES.md` at
     # `0aea036`, 136 carry a parenthesised stamp and all 136 carry it as the *trailing* token —
-    # none carries one anywhere else, and the other 12 use the em-dash form and carry none at all.
+    # none carries one anywhere else. Of the other 12, three use the em-dash form, one carries
+    # the date-only `(20260823)` this arm also refuses, and eight carry no date at all.
     # Every fragment in `retro.d/` passed too. Measured 20260901 before the rule was tightened,
     # not assumed after. ("All 136 stamped headings are stamped" would be true by construction.)
     if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", first) is None:
