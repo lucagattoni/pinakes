@@ -1,15 +1,20 @@
 # Updating an existing KB — design note
 
-**Status: mostly proposal. Decided 20260728 18:39.** Its minimum — the `requires_pinakes` pre-pass
+**Status: mostly built. Decided 20260728 18:39.** Its minimum — the `requires_pinakes` pre-pass
 (§4, §7) — **shipped in 0.6.0**, as G4 of
 [`plans/20260729_0256-links-and-graph.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260729_0256-links-and-graph.md); every field rule is in
 [MANIFEST.md](MANIFEST.md) and the reasoning in [DESIGN §2.1](DESIGN.md#21-the-manifest--pinakestoml).
-**The template-drift gate (§6) shipped in 0.17.0**, along with the version bump §9 puts ahead of it,
-so the `doctor` check this note calls dead now fires. **0.18.0 made `pnk doctor` report *how far*
-a template has drifted — a computed line count, not a diff — and `pnk upgrade`, which prints the
-lines themselves, is merged.** What remains a proposal
-is `--apply`: adopting a change into a manifest. Template-release work either way. [STATUS.md](STATUS.md) is the authority on
-what exists.
+Template drift then shipped in four steps — **detection and its CI gate (§6, 0.17.0)**, along with the
+version bump §9 puts ahead of them, so the `doctor` check this note calls dead now fires; **how far
+a template has drifted (0.18.0)**, a computed line count rather than a diff; **`pnk upgrade`, which
+prints the changed lines themselves (0.19.0)**; and **`--apply`, which adopts into a manifest the
+hunks that fit (0.20.0)**. Every row of §9's table is built.
+
+**What is still a proposal** is what §8 leaves open, and anything reaching past `pinakes.toml`
+into a template's other files — **and the live gap §3 describes, which none of the four closes**,
+because adoption needs an archived baseline and a KB recording a template version whose content was
+never archived has none. Template-release work either way.
+[STATUS.md](STATUS.md) is the authority on what exists.
 
 This note answers one question the build plans had not asked: **when Pinakes changes, what happens
 to a KB somebody already has?**
@@ -24,7 +29,7 @@ edited, and belong to the user; nothing may rewrite them casually.
 
 The design handles derived state well and committed state not at all. Every mechanism below exists
 for the first category. For the second, **detection shipped in 0.17.0, `pnk upgrade` in 0.19.0, and
-adoption — `--apply` — is merged** (see the header above). This section was written when none of
+adoption — `--apply` — in 0.20.0** (see the header above). This section was written when none of
 them existed. **What adoption does *not* reach is still the honest gap**: it writes `pinakes.toml`
 and nothing else, so a template's `README.md` and its starter `eval/questions.yaml` remain yours to
 refresh by hand, and a KB recording a version whose content was never archived has no baseline to

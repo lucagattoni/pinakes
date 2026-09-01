@@ -166,6 +166,7 @@ order, not new work** — the sweep plan remains the owner of every row it alrea
 | 10 | **ENG-1 · `paid_path_gate` battery first**, then the remaining six | — new | nothing | § 2. Split per gate; each is its own commit. |
 | 11 | Row 11 — the FX guard, two parts | 11 | nothing | Already scoped, including the sentence the commit must carry. |
 | 12 | Row 13 — the vacuous verifier | 13 | nothing | Small; pin the empty-input case as non-zero. |
+| 13 | **The BOM arm covers only one stream** — widen it to `changelog.d/`, and nothing else | — new | row 12 | Raised by the coder 20260901, while reviewing row 12, and **outside row 12 as scoped** — recorded, not widened into it. Row 12's BOM check returns early on `stream.name != "retrospectives"`, so a changelog fragment saved with a byte-order mark still splices the mark into `CHANGELOG.md` with no gate seeing it. **The consequence is not cosmetic, which is why this is a row and not a note:** the mark precedes the leading `- `, so `'\ufeff- **claim**'.startswith('- ')` is `False` and the entry's first bullet renders as a **paragraph** — the same failure mode as one leading space in a retro fragment, in the other stream. **Take it right after row 14** while `fragments.py` is open, or later; it blocks nothing and the release does not wait on it. Its own commit and its own review pass — do not fold it into row 12, which is already under review. |
 
 **Rows 4–9 are the list § 4 refers to as "the user-facing list".** It is empty when those six land.
 
