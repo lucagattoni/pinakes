@@ -17,7 +17,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 6
+mutants = 8
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260831 · `--questions`, a golden set that is not the KB's own
@@ -82,8 +82,16 @@ file = "tools/reachable_ceiling_probe.py"
 # about a missing questions file, `returncode == 2` and `"pinakes.toml" not in stderr`, because a
 # `--kb` that is not a KB now fails in `load()` first. That pair is the ordering pin, and this is
 # the mutant that says so.
-old = '''    if args.questions is not None and not args.questions.is_file():
-        parser.error(f"no golden set at {args.questions}")
+old = '''    if args.questions is not None:
+        if not args.questions.is_file():
+            parser.error(f"no golden set at {args.questions}")
+        try:
+            with args.questions.open("rb"):
+                pass
+        except OSError as exc:
+            parser.error(
+                f"cannot read the golden set {args.questions}: {exc.strerror or type(exc).__name__}"
+            )
 
     with tempfile.TemporaryDirectory() as workspace:
         if args.fake:
@@ -115,8 +123,16 @@ new = '''    with tempfile.TemporaryDirectory() as workspace:
         # against itself. The 12-failing/9-liftable figure the graph release was unblocked on was
         # produced before the setting existed, so this keeps a re-run comparable with it.
         manifest = replace(load(root), retrieval=replace(load(root).retrieval, graph_channel="off"))
-        if args.questions is not None and not args.questions.is_file():
-            parser.error(f"no golden set at {args.questions}")'''
+        if args.questions is not None:
+            if not args.questions.is_file():
+                parser.error(f"no golden set at {args.questions}")
+            try:
+                with args.questions.open("rb"):
+                    pass
+            except OSError as exc:
+                parser.error(
+                    f"cannot read the golden set {args.questions}: {exc.strerror or type(exc).__name__}"
+                )'''
 kills = "tests/test_eval.py::test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched"
 
 [[mutant]]
@@ -133,4 +149,33 @@ old = '''        questions_path = args.questions or (root / "eval" / "questions.
 new = '''        questions_path = args.questions or (root / "eval" / "questions.yaml")
         if not questions_path.is_file():
             parser.error(f"no golden set at {questions_path}")'''
+kills = "tests/test_eval.py::test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched"
+
+[[mutant]]
+name = "the readability arm is dropped, leaving `.is_file()` to vouch for a file it only stats"
+file = "tools/reachable_ceiling_probe.py"
+# The arm this branch's third review pass added, after establishing that the reason it had been
+# left out — *injection cannot cross the subprocess boundary* — was false. `.is_file()` stats, and
+# `stat` succeeds on a file whose contents the process may not read, so without this arm a golden
+# set that exists and is unreadable passes the guard, costs a full `--fake` corpus build, and
+# arrives as a `PermissionError` traceback. Killed by the injected case, which is the only portable
+# way to produce one: `chmod(0o000)` is refused here (`tests/test_doctor.py:1497`).
+old = '''        try:
+            with args.questions.open("rb"):
+                pass
+        except OSError as exc:
+            parser.error(
+                f"cannot read the golden set {args.questions}: {exc.strerror or type(exc).__name__}"
+            )'''
+new = '''        pass'''
+kills = "tests/test_eval.py::test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched"
+
+[[mutant]]
+name = "the refusal invents its own reason instead of reporting the OS's `strerror`"
+file = "tools/reachable_ceiling_probe.py"
+# A plausible tidy-up: one message for every unreadable file. It is wrong because the arm catches
+# `OSError`, not `PermissionError` — the reason is the only thing distinguishing *denied* from a
+# stale mount, an I/O error or a name too long, and the operator is the one who has to act on it.
+old = '''                f"cannot read the golden set {args.questions}: {exc.strerror or type(exc).__name__}"'''
+new = '''                f"cannot read the golden set {args.questions}: it could not be read"'''
 kills = "tests/test_eval.py::test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched"

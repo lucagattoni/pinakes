@@ -39,3 +39,19 @@
   independently, and only the denominator was borrowed. **A ratio is a claim about its
   denominator.** Recounted on the population the rule actually covers, **18 of 85 were wrong at the
   moment they were committed** — which is an argument *for* the gate I had just argued against.
+- **And that recount had an unstated selector of its own, which is the same failure one level in.**
+  *85* counts `git log --all`, so it includes fragments on branches nobody has merged — this one's
+  included. Re-run at a named commit: at **`d66acb8`**, 100 fragments ever added, **84 prefixed**,
+  16 not, and **18 of the 84 were wrong at the moment they were committed**. That is the planner's
+  published 18 of 84 exactly, reached by a different method. **`--all` and a ref are different
+  populations, and `retro.d/` gains files hourly** — a census of it that does not name its commit
+  is not a measurement. Caught before it was raised with the planner, by re-running with the
+  selector stated, which is the only step that has ever caught one of these.
+- **The total is robust and the breakdown is not, which is worth more than either number.** Three
+  independent counts agree on **18** and disagree on how it splits: 2/8/8, then 4/3/11, now
+  **4 with no heading at all, 5 with no stamp, 9 with a stamp that is not the filename's**. Nothing
+  is wrong in any of them — the boundary between *no stamp* and *wrong stamp* is a definition each
+  count drew for itself, and none stated it. **A breakdown inherits every ambiguity the total
+  averages out**, so the gate is argued from 18, and the split is not published. One byproduct:
+  reading each file at the sha that added it (`git show <sha>:<path>`) resolves **all 84**, so the
+  *three lost to rename detection* in the ruling are an artifact of the method, not of the corpus.

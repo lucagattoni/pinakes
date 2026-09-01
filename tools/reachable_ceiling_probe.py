@@ -1035,33 +1035,42 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     # Checked here — before the workspace — because `--fake` copies and syncs an entire temporary
     # corpus before any questions file is opened, so a typo in a hand-typed path would pay for that
-    # build and only then arrive as a five-frame `FileNotFoundError` out of `pathlib` — module,
-    # `main`, `load_questions`, `read_text`, `open` — which reads as a crash in the probe rather
-    # than as a wrong argument. (Measured on `b47eda6`, the commit before this guard. The first
-    # version of this comment said *nine*, a number nobody counted; see `retro.d`.)
-    # `parser.error` because that is what it is: exit 2 with the usage line, the same treatment
-    # `--kb` alongside `--fake` already gets. `.is_file()` rather than `.exists()`, so a directory
-    # — and equally a FIFO or a device, which `.exists()` admits and `read_text` would then block
-    # on — is refused here instead of surfacing further in.
+    # build and only then arrive as a `FileNotFoundError` out of `pathlib` — module, `main`,
+    # `load_questions`, `read_text`, `open` — which reads as a crash in the probe rather than as a
+    # wrong argument. **Six frames on 3.13 and five on 3.14**, measured on `b47eda6` under both:
+    # `pathlib` splits `read_text` across `_local.py` and `_abc.py` on 3.13, and 3.14 collapses it.
+    # Two earlier versions of this comment gave one number — one of them *nine*, which nobody
+    # counted — and a single number here is wrong on principle, because a frame count is a property
+    # of an interpreter and this project runs both (`retro.d`; the primary checkout is the 3.13
+    # outlier while every fresh worktree and CI are 3.14).
     #
-    # **What this does not cover, stated rather than implied.** A correctly named *regular* file
-    # the process cannot read passes `.is_file()`, because `stat` succeeds on it, and still ends
-    # in a five-frame `PermissionError` after `--fake` has paid for the corpus. That is deliberate
-    # and it is the boundary, not an oversight: a readability probe would have to open the file
-    # here, and the only portable way to make a read fail in a test is injection — which cannot
-    # cross the subprocess boundary `tests/test_eval.py::_run_probe` runs the probe through, so
-    # the branch would ship untested. `chmod(0o000)` is not an option: this repository's rule is
-    # *injected, not chmod'd* (`tests/test_doctor.py:1497`), because root ignores the mode and CI's
-    # runner once produced a stat that neither succeeded nor raised. An unreadable file is a fact
-    # about the machine rather than a mistyped argument, and `PermissionError: [Errno 13] ...` does
-    # name the path and the reason, so the diagnosis survives even though the traceback does not.
+    # **Two refusals, because there are two ways for a path to be wrong.** `.is_file()` first, so a
+    # directory — and equally a FIFO or a device, which `.exists()` would admit and which
+    # `read_text` would then *block* on rather than fail — is refused before anything opens it.
+    # Then a read, because `.is_file()` only stats: a correctly named regular file the process
+    # cannot read passes it and would otherwise reach the same traceback after `--fake` had paid
+    # for the corpus. The second arm reports the OS's own `strerror`, so the diagnosis is the
+    # system's rather than a guess. `parser.error` for both: exit 2 with the usage line is what a
+    # bad argument gets here already, the same treatment `--kb` alongside `--fake` has.
+    #
+    # **The window between this read and the real one is real, and is not what this guards.** The
+    # file is opened again seconds later; a golden set that becomes unreadable in between is a
+    # machine changing under the run, not an operator typing the wrong path.
     #
     # Only the flagged path is checked. An absent `<kb>/eval/questions.yaml` is a corpus that
     # cannot be measured rather than a mistyped argument, and it keeps the behaviour it has always
     # had. `src/pinakes/eval.py` and `tools/graph_matrix.py` carry the same flag and do neither of
     # these; widening them is a change to two files this increment was not asked to touch.
-    if args.questions is not None and not args.questions.is_file():
-        parser.error(f"no golden set at {args.questions}")
+    if args.questions is not None:
+        if not args.questions.is_file():
+            parser.error(f"no golden set at {args.questions}")
+        try:
+            with args.questions.open("rb"):
+                pass
+        except OSError as exc:
+            parser.error(
+                f"cannot read the golden set {args.questions}: {exc.strerror or type(exc).__name__}"
+            )
 
     with tempfile.TemporaryDirectory() as workspace:
         if args.fake:

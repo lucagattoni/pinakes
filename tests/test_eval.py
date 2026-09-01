@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import itertools
 import json
+import os
 import posixpath
 import shutil
 import subprocess
@@ -861,11 +862,21 @@ run the probe against a KB whose manifest names a backend the subprocess never r
 that got past the refusal would fail too, and only the message tells the two apart."""
 
 
-def _run_probe(*argv: str) -> subprocess.CompletedProcess[str]:
+def _run_probe(*argv: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     """The probe as a user runs it — deliberately no `check`, since these tests are about how it
-    refuses, and a `CalledProcessError` would hide the stderr they assert on."""
+    refuses, and a `CalledProcessError` would hide the stderr they assert on.
+
+    `env` shapes the child, and exists for exactly one caller: the injected-unreadable-file case
+    below, which cannot reach into this process because the probe does not run in it. Passed
+    through `dict(os.environ, **env)` rather than as a bare environment, since the child needs
+    `PATH` and the interpreter's own variables to start at all.
+    """
     return subprocess.run(
-        [sys.executable, str(PROBE), *argv], capture_output=True, text=True, cwd=REPO
+        [sys.executable, str(PROBE), *argv],
+        capture_output=True,
+        text=True,
+        cwd=REPO,
+        env=None if env is None else dict(os.environ, **env),
     )
 
 
@@ -1483,9 +1494,10 @@ def test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched(tmp_p
 
     `--fake` copies and syncs a whole temporary corpus before any questions file is opened, so a
     guard placed inside that block would charge a typo for the build and then hand back a
-    five-frame `FileNotFoundError` out of `pathlib` — which reads as the probe crashing, not as a
-    wrong argument. (Five, counted on `b47eda6`. This docstring said *nine* when it was written,
-    which was a composed number.)
+    `FileNotFoundError` out of `pathlib` — which reads as the probe crashing, not as a wrong
+    argument. Six frames on 3.13, five on 3.14, counted on `b47eda6` under both; this docstring
+    said *nine* when it was written, and then *five* flat, and a frame count is a property of an
+    interpreter rather than of a traceback.
 
     **The `--kb` in the first case is the ordering pin, not decoration.** It points at a directory
     that is not a KB, so anything reaching the corpus before the flag was checked would fail in
@@ -1493,10 +1505,17 @@ def test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched(tmp_p
     this argument pair did before the guard existed). Reaching `parser.error` instead is what says
     the check came first.
 
-    **The region no test here reaches**, named because the probe's own comment names it: a regular
-    file that exists and cannot be read. `chmod(0o000)` is this repository's forbidden instrument
-    and injection cannot cross `_run_probe`'s subprocess boundary, so that class is covered by
-    prose and by nothing else.
+    **The fourth block was very nearly not written at all.** An earlier version of this docstring
+    said a regular file that exists and cannot be read was unreachable from here — that
+    `chmod(0o000)` is refused by this repository (`tests/test_doctor.py:1497`: root ignores the
+    mode, and CI's runner once produced a stat that neither succeeded nor raised) and that
+    injection could not cross `_run_probe`'s subprocess boundary. The first half is true and the
+    second is false: `_run_probe` inherits this process's environment, so `PYTHONPATH` pointing at
+    a `sitecustomize.py` runs arbitrary code in the child before the probe's first line. That is
+    the same instrument `test_doctor.py` uses and the same purpose — *what is under test is that
+    an `OSError` out of the read becomes a message, so raise one* — reached through an env var
+    instead of a `monkeypatch.setattr`. The claim was refuted by an adversarial pass that simply
+    built the seam.
     """
     missing = tmp_path / "not-here.yaml"
     completed = _run_probe(
@@ -1526,12 +1545,52 @@ def test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched(tmp_p
     # golden set removed. `load()` succeeds, `questions_path` resolves to the default, and the
     # third assertion is the one that says we got that far.
     bare = tmp_path / "kb-without-a-golden-set"
-    shutil.copytree(DEMO, bare)
+    # `ignore=` for the reason the `demo` fixture at the top of this file gives in full: `.pinakes/`
+    # is generated and gitignored, and on a developer machine holds an index built with the real
+    # 384-dimensional model. Nothing here reaches the index — `load_questions` raises first — so
+    # omitting it passed, which is exactly why it had to be caught by reading rather than by a run.
+    shutil.copytree(DEMO, bare, ignore=shutil.ignore_patterns(".pinakes"))
     (bare / "eval" / "questions.yaml").unlink()
     completed = _run_probe("--kb", str(bare), "--json")
     assert completed.returncode != 2
     assert "no golden set at" not in completed.stderr
     assert "eval/questions.yaml" in completed.stderr
+
+    # A regular file that exists and cannot be read. `.is_file()` only stats, so it passes; the
+    # second arm of the guard is what refuses it, and it reports the OS's own `strerror` rather
+    # than a message of ours.
+    #
+    # **Injected, not chmod'd**, this repository's rule, reached through the child's environment
+    # because the child is where the probe runs. `sitecustomize.py` is written into `tmp_path`
+    # rather than committed under `tests/`: pytest puts `tests/` on `sys.path`, so a committed one
+    # would be imported by every Python this repository ever starts.
+    denied = tmp_path / "denied.yaml"
+    _kept_set(denied)
+    injector = tmp_path / "injector"
+    injector.mkdir()
+    (injector / "sitecustomize.py").write_text(
+        "import os, pathlib\n"
+        "_deny = os.environ['PNK_TEST_DENY_READ_OF']\n"
+        "_real = pathlib.Path.open\n"
+        "def _open(self, *a, **k):\n"
+        "    if str(self) == _deny:\n"
+        "        raise PermissionError(13, 'Permission denied')\n"
+        "    return _real(self, *a, **k)\n"
+        "pathlib.Path.open = _open\n",
+        encoding="utf-8",
+    )
+    environment = {"PYTHONPATH": str(injector), "PNK_TEST_DENY_READ_OF": str(denied)}
+    completed = _run_probe("--fake", "--questions", str(denied), "--json", env=environment)
+    assert completed.returncode == 2
+    assert f"cannot read the golden set {denied}: Permission denied" in completed.stderr
+    assert "Traceback" not in completed.stderr
+
+    # The control the injection needs, and the reason it is not decoration: the identical run
+    # without the two variables reaches the corpus and refuses for a golden-set reason instead, so
+    # the assertion above is about the guard rather than about the fixture being broken.
+    completed = _run_probe("--fake", "--questions", str(denied), "--json")
+    assert completed.returncode != 2
+    assert "cannot read the golden set" not in completed.stderr
 
 
 RUNNER = """
