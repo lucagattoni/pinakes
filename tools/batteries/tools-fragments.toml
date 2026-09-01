@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 27
+mutants = 29
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -257,8 +257,8 @@ kills = "tests/test_fragments.py::test_a_heading_whose_stamp_disagrees_with_the_
 [[mutant]]
 name = "DISCRIMINATING — the stamp is compared by date alone, so the time may be anything"
 file = "tools/fragments.py"
-old = '''    day, clock = stamp.group(0)[:8], stamp.group(0)[9:13]'''
-new = '''    day, clock = stamp.group(0)[:8], ""'''
+old = '''    wanted = f"({day} {clock[:2]}:{clock[2:]})"'''
+new = '''    wanted = f"({day}"'''
 kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_accepted"
 
 [[mutant]]
@@ -278,3 +278,21 @@ new = '''    if problems:
         return problems
     stamp = _STAMP.match(path.stem)'''
 kills = "tests/test_fragments.py::test_a_fragment_that_is_neither_reports_both_problems"
+
+# A fragment saved as UTF-8-with-BOM opens with `\ufeff## …`. Refusing it is right — `render`
+# would splice the mark into the middle of the document — but the *reason* has to be the mark,
+# not a missing heading, or the writer is sent to fix the one thing that is correct.
+
+[[mutant]]
+name = "the byte-order mark is neither reported nor stripped, so a correct heading reads as missing"
+file = "tools/fragments.py"
+old = '''    if first.startswith("\ufeff"):'''
+new = '''    if False:'''
+kills = "tests/test_fragments.py::test_a_byte_order_mark_is_named_rather_than_reported_as_a_missing_heading"
+
+[[mutant]]
+name = "DISCRIMINATING — the mark is reported but not stripped, so the heading arm fires about it too"
+file = "tools/fragments.py"
+old = '''        first = first.lstrip("\ufeff")'''
+new = '''        pass'''
+kills = "tests/test_fragments.py::test_a_byte_order_mark_is_named_rather_than_reported_as_a_missing_heading"

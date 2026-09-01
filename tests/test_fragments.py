@@ -470,7 +470,11 @@ def test_the_bullet_rule_never_reaches_the_free_form_stream(repo: Path) -> None:
     **The `###` heading in the fixture is load-bearing.** The bullet rule only ever reads a `###`,
     so a fixture built from `##` alone exercises nothing and the scoping guard could be deleted
     with this test still green — which is what the mutation pass reported. The real document
-    carries thirty-four `###` headings, every one of them opening with prose."""
+    carried 42 `###` headings at `0aea036` (`grep -c '^### ' docs/RETROSPECTIVES.md`), every
+    one of them opening with prose. **The count is stamped with the commit it was measured
+    at, because it grows at every release** — an unstamped one was written here as
+    *thirty-four*, copied from here into a second docstring, and was 42 by the time anybody
+    counted."""
     write(
         repo,
         "docs/RETROSPECTIVES.md",
@@ -478,7 +482,7 @@ def test_the_bullet_rule_never_reaches_the_free_form_stream(repo: Path) -> None:
         "A paragraph, which is what this document is made of.\n\n"
         "### The review pass over I1's own diff\n\n"
         "Three defects, all in the new check — prose under a `###`, which the real document does "
-        "thirty-four times.\n\n"
+        "dozens of times.\n\n"
         "## Design review passes 1-7 (pre-implementation)\n\nfooter\n",
     )
 
@@ -798,7 +802,7 @@ def test_a_third_level_heading_does_not_open_a_fragment(repo: Path) -> None:
     the stamp lives inside the heading and a fragment with no heading fails both.
 
     `###` is the level `render` gives a *changelog* category, and `docs/RETROSPECTIVES.md` carries
-    thirty-four of them **inside** entries. A fragment opening at that level is a section of
+    42 of them at `0aea036` **inside** entries. A fragment opening at that level is a section of
     something, and the something is whatever precedes it."""
     write(
         repo,
@@ -893,3 +897,28 @@ def test_the_heading_rule_never_reaches_the_changelog_stream(repo: Path) -> None
     write(repo, "changelog.d/20260901_0710-added-one.md", "- **A new thing.**")
 
     assert run(repo, "--stream", "changelog", "--check").returncode == 0
+
+
+def test_a_byte_order_mark_is_named_rather_than_reported_as_a_missing_heading(repo: Path) -> None:
+    """A fragment saved as "UTF-8 with BOM" opens with `\\ufeff## …`, so `startswith("## ")` is
+    False about a heading that is plainly there.
+
+    **Refusing it is right and the first draft's reason was wrong.** `render` would splice the mark
+    into the *middle* of `docs/RETROSPECTIVES.md`, where it is invisible and belongs to nothing —
+    so the fragment must not pass. But a message sending the writer to add the heading they already
+    wrote is worse than no message: it is the failure
+    `test_the_duplicate_message_names_the_mechanism_that_belongs_to_the_stream` already rules
+    against, an error naming the wrong cause. `tools/build_rfc_corpus.py` strips a BOM from
+    ingested text with a comment saying why, so this is an input class this repository has met."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        "﻿## A lesson (20260901 07:10)\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "byte-order mark" in result.stderr
+    assert "must open with its own" not in result.stderr, "the heading is there; the mark is not it"
+    assert "must carry" not in result.stderr, "and the stamp is right once the mark is stripped"

@@ -325,6 +325,19 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
 
     problems: list[str] = []
     first = next((line for line in text.splitlines() if line.strip()), "")
+    if first.startswith("\ufeff"):
+        # Reported on its own, and stripped before the arms below judge the line. Refusing
+        # the fragment is right — `render` would splice the mark into the *middle* of the
+        # document, where it is invisible and belongs to nothing — but saying "must open with
+        # a heading" about a fragment that plainly does sends the writer to fix the one thing
+        # that is correct. `tools/build_rfc_corpus.py` already strips a BOM from ingested
+        # text, so this is an input class the repository has met before.
+        problems.append(
+            f"{stream.directory}/{path.name}: opens with a UTF-8 byte-order mark, which "
+            f"`render` would splice into the middle of {stream.target}. Save it as UTF-8 "
+            "without a BOM."
+        )
+        first = first.lstrip("\ufeff")
     if not first.startswith("## "):
         problems.append(
             f"{stream.directory}/{path.name}: must open with its own `## ` heading, and opens "
