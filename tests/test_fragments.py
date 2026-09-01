@@ -845,6 +845,9 @@ def test_a_heading_whose_stamp_disagrees_with_the_filename_is_refused(repo: Path
         "## A lesson (20260901 07:10 UTC)",
         "## A lesson ((20260901 07:10))",
         "## A lesson (20260901 0710)",
+        "## A lesson ( (20260901 07:10) )",
+        "## A lesson [(20260901 07:10)]",
+        "## A lesson x(20260901 07:10)x",
     ],
 )
 def test_nothing_looser_than_the_ruled_stamp_is_accepted(repo: Path, heading: str) -> None:
@@ -992,3 +995,62 @@ def test_a_byte_order_mark_alone_on_the_first_line_reports_only_itself(repo: Pat
     assert "must open with its own" not in result.stderr, "the heading is two lines down, and fine"
     assert "must carry" not in result.stderr, "so is the stamp inside it"
     assert result.stderr.count("20260901_0710-a-lesson.md") == 1, "one fault, named once"
+
+
+@pytest.mark.parametrize(
+    "opener",
+    [
+        "##  A lesson (20260901 07:10)",
+        "##\tA lesson (20260901 07:10)",
+        "##\t A lesson (20260901 07:10)",
+        "##A lesson (20260901 07:10)",
+    ],
+    ids=["two-spaces", "tab", "tab-then-space", "no-space"],
+)
+def test_the_separator_is_one_space_and_the_gate_is_stricter_than_the_renderer(
+    repo: Path, opener: str
+) -> None:
+    """Three of these four render *byte-identically* to the ruled form, and all four are refused.
+
+    Measured 20260901 against Python-Markdown with `mkdocs.yml`'s own extension list: two spaces, a
+    tab, and a tab followed by a space each produce the same `<h2 id="a-lesson-20260901-0710">` as
+    the ruled opening, and `anchors_of` mints the same anchor for them. So this arm is not about a
+    consequence in the built page — it is about `retro.d/README.md` § Contents saying the opening is
+    `## ` **exactly** and that this checker refuses anything else. A gate accepting a form that
+    sentence excludes makes the sentence false, and the sentence is the thing writers read.
+
+    **The line the code drew before this was drawn by an idiom, not by a decision.**
+    `first.startswith("## ")` accepted `"##  A lesson"` and refused `"##\tA lesson"` — neither the
+    ruled form nor the renderer's tolerance, and stated nowhere. `"##A lesson"` is the fourth case
+    and the only one with a consequence of its own: it renders as a correct heading that
+    `tools/markdown_link_gate.py` cannot see, so nothing may link to it."""
+    write(repo, "retro.d/20260901_0710-a-lesson.md", f"{opener}\n\nProse.\n")
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "must open with its own `## ` heading" in result.stderr
+    assert "must carry" not in result.stderr, "the stamp is correct; only the separator is not"
+
+
+def test_a_whitespace_only_first_line_is_not_read_as_the_opening(repo: Path) -> None:
+    """An editor leaves one behind routinely, and the heading is on the next line.
+
+    `next((line for line in text.splitlines() if line.strip()), "")` picks the first line with
+    something on it, so `"   \n## A lesson …"` opens with the heading and the fragment is correct.
+    Drop the `.strip()` and the blank line becomes the opening: the writer is told the fragment has
+    no `## ` heading *and* no stamp, about a heading and a stamp that are both already right — the
+    exact false-positive class the mark arms exist to prevent, reintroduced by the selector that
+    chooses which line the arms are about.
+
+    Pinned here because it was not pinned anywhere: pass 4 mutated `if line.strip()` to `if line`
+    and all 56 tests stayed green."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        "   \n## A lesson (20260901 07:10)\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 0, result.stderr

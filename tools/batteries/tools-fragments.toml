@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 33
+mutants = 37
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -243,14 +243,14 @@ kills = "tests/test_fragments.py::test_the_heading_rule_never_reaches_the_change
 [[mutant]]
 name = "DISCRIMINATING — any heading level opens a fragment, so a `###` section passes"
 file = "tools/fragments.py"
-old = '''    if not first.startswith("## "):'''
-new = '''    if not first.startswith("#"):'''
+old = '''    if _OPENING.match(first) is None:'''
+new = '''    if re.match(r"^#", first) is None:'''
 kills = "tests/test_fragments.py::test_a_third_level_heading_does_not_open_a_fragment"
 
 [[mutant]]
 name = "the stamp arm is dropped, leaving the heading free to name any time at all"
 file = "tools/fragments.py"
-old = '''    if re.search(rf"(?<!\(){re.escape(wanted)}(?!\))", first) is None:'''
+old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", first) is None:'''
 new = '''    if False:'''
 kills = "tests/test_fragments.py::test_a_heading_whose_stamp_disagrees_with_the_filename_is_refused"
 
@@ -330,7 +330,7 @@ kills = "tests/test_fragments.py::test_a_byte_order_mark_alone_on_the_first_line
 [[mutant]]
 name = "DISCRIMINATING — the stamp is contained rather than anchored, so `((20260901 07:10))` passes"
 file = "tools/fragments.py"
-old = '''    if re.search(rf"(?<!\(){re.escape(wanted)}(?!\))", first) is None:'''
+old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", first) is None:'''
 new = '''    if wanted not in first:'''
 kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_accepted"
 
@@ -342,3 +342,46 @@ old = '''    if stamp is None:
 new = '''    if False:
         return problems'''
 kills = "tests/test_fragments.py::test_a_fragment_with_no_prefix_owes_a_heading_and_not_a_stamp"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# the fourth review pass · the separator, the anchor, and the line the arms are about
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Three of these four rows are the *previous* fix, restored. Pass 3 wrote `(?<!\()…(?!\))` under a
+# comment saying "anchored, not contained"; pass 4 measured `[(…)]`, `x(…)x` and `( (…) )` and
+# three of the four wrappers still passed. Pass 1 wrote `startswith("## ")`, which accepted two
+# spaces and refused a tab — a line drawn by an idiom, matching neither the ruled form nor the
+# renderer. **A row whose `new` is the code that shipped last week is the only kind that proves the
+# correction was a correction**, and neither of those two had one.
+#
+# The fourth row is the selector the other arms depend on and nothing covered: pass 4 mutated
+# `if line.strip()` to `if line` and all 56 tests stayed green, while the mutated gate told a
+# writer with a correct heading and a correct stamp that both were missing.
+
+[[mutant]]
+name = "DISCRIMINATING — the opening reverts to `startswith`, which accepts two spaces and refuses a tab"
+file = "tools/fragments.py"
+old = '''    if _OPENING.match(first) is None:'''
+new = '''    if not first.startswith("## "):'''
+kills = "tests/test_fragments.py::test_the_separator_is_one_space_and_the_gate_is_stricter_than_the_renderer"
+
+[[mutant]]
+name = "the separator is not required at all, so `##A lesson` opens a fragment"
+file = "tools/fragments.py"
+old = '''_OPENING = re.compile(r"^## \S")'''
+new = '''_OPENING = re.compile(r"^##")'''
+kills = "tests/test_fragments.py::test_the_separator_is_one_space_and_the_gate_is_stricter_than_the_renderer"
+
+[[mutant]]
+name = "DISCRIMINATING — the anchor is one character wide again, so a wrapper with a separator evades it"
+file = "tools/fragments.py"
+old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", first) is None:'''
+new = '''    if re.search(rf"(?<!\(){re.escape(wanted)}(?!\))", first) is None:'''
+kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_accepted"
+
+[[mutant]]
+name = "DISCRIMINATING — any line may be the opening, so a blank first line is refused as a missing heading"
+file = "tools/fragments.py"
+old = '''    first = next((line for line in text.splitlines() if line.strip()), "")'''
+new = '''    first = next((line for line in text.splitlines() if line), "")'''
+kills = "tests/test_fragments.py::test_a_whitespace_only_first_line_is_not_read_as_the_opening"

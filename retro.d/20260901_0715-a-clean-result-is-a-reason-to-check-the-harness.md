@@ -64,3 +64,44 @@ merge at 11:14, leaving a document naming a time no commit exists at. The clock 
 composing a number; it does not stop the world moving between the reading and the write. When a
 stamp is about *when something landed*, it can only be written after it lands, or it must name both
 times and the gap.
+
+**I read a runner's summary instead of the gate's own exit status — in the increment whose whole
+subject is reading the thing itself.** `./check.sh > log 2>&1; echo "CHECK_EXIT=$?" >> log`, run in
+the background. The harness reported *completed (exit code 0)*: the **wrapper's** status, and the
+wrapper ends in an `echo`, which always succeeds. I reported the branch green to a peer while
+`CHECK_EXIT=1` sat in my own `tail` output in the same message. The `; echo "$?"` appended
+*specifically* to preserve the status is what destroyed it — preserved in the file, discarded in the
+wrapper. This repository already rules that **a gate is only a gate when its exit status is what the
+next command reads**; the new edge is that wrapping a gate in order to *record* its status mints a
+second, always-zero status for whoever is watching the wrapper. **Read the log's last line, never a
+runner's summary.**
+
+**`set -e` makes a failing gate produce no result for every gate after it, and an absence reads as a
+pass.** `check.sh` stopped at the link gate, so overlap, nul-scan and template-drift never ran.
+Anyone reading *check.sh failed on the link gate* concludes the rest was fine. It was **unmeasured**
+— the same class as the wrapper above: a status nobody read, and an absence that looks like a pass.
+
+**Two agents mutating one checkout measure each other, and the run reports kills either way.** The
+first draft of this increment's review ran two source-mutating lenses concurrently in one worktree;
+both apply a mutant to `tools/fragments.py` and restore it, and a restore by one is a false SURVIVED
+for the other with nothing in the report able to tell. Rewritten before either finished: the
+mutators serialized, the other lenses probing a *copy* through `tools/fragments.py --repo <tmpdir>`.
+That is possible only because the tool takes its own root as an argument — **a tool parameterised by
+its repository root is testable by agents that must not touch the tree**, which is worth knowing
+while writing the next one.
+
+**Two right numbers, two selectors, and no dispute to have.** A peer measured five drifted heading
+stamps shipping; I measured three. Both correct: five drifted *when written*, three are *still wrong
+in the published document*, and two were fixed by hand between fragment and splice (`fbf17da` wrote
+`(20260826 07:31)`; the shipped line reads `(20260826 07:33)`). Neither of us had stated the
+selector — in a measurement about a gate whose entire subject is stamps composed rather than copied.
+**State the selector even when the other party agrees with you**: agreement between two unstated
+populations is a coincidence, not a confirmation.
+
+**The general shape of the defect this gate sits beside.** This gate reads a relation whose **both**
+operands are inside its input — the heading against the filename, one file, nothing else consulted.
+`tools/markdown_link_gate.py` reads one operand of a relation whose other operand lives in the
+*destination* document. A gate holding half a relation can always be wrong about a form that is
+correct where it lands, and it is wrong in **both** directions: green on the branch and broken after
+splicing, or red on the branch and correct after. One missing operand, two signs. The fix is not a
+new rule for that gate; it is handing it the operand it never had.

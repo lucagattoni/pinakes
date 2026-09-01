@@ -124,6 +124,11 @@ def fragments_of(stream: Stream, repo: Path) -> list[Path]:
 #: `YYYYMMDD_HHMM-`, the timestamp prefix every fragment and plan carries.
 _STAMP = re.compile(r"^\d{8}_\d{4}-")
 
+#: A retrospective fragment's opening line: two hashes, **one** space, then the heading text.
+#: `startswith("## ")` drew a line here that matched neither the ruled form nor the renderer —
+#: it accepted `"##  A lesson"` and refused `"##\tA lesson"`, and nothing said why.
+_OPENING = re.compile(r"^## \S")
+
 
 def body_of(path: Path) -> str:
     """The filename with its `YYYYMMDD_HHMM-` prefix removed.
@@ -332,6 +337,15 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
     three are refused, for three different reasons, which is why the message names the *form* and
     leaves the consequence to the README.
 
+    **The separator is one space, and here the gate is deliberately stricter than the renderer.**
+    `'##  A lesson'` (two spaces) and `'##\tA lesson'` (a tab between the hashes and the text)
+    render *byte-identically* to the ruled form — same `<h2>`, same anchor, measured 20260901 —
+    and both are refused anyway. The renderer's tolerance is not the rule: `retro.d/README.md`
+    § Contents says the opening is `## ` exactly and that `--check` refuses anything else, and a
+    gate accepting a form that sentence excludes makes the sentence false. `startswith("## ")`
+    accepted the two-space form and refused the tab — a line matching neither the ruled form nor
+    the renderer, drawn by an idiom rather than by a decision, and stated nowhere.
+
     **Quoting the offending line back `.strip()`ped was the second defect.** The message said the
     fragment does not open with `## ` and then displayed a string that plainly does — unfixable to
     read, reproduced from a leading space and from a leading tab. **The raw line goes in the
@@ -354,6 +368,14 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
     **This is the retrospectives stream only.** `changelog.d/` fragments are `- ` bullets merged
     under a category heading `render` synthesises for them, so requiring a heading of their own
     would refuse the format that stream is for.
+
+    **That reason covers two of the three arms, and not the mark.** The byte-order arm's own
+    justification — `render` splices the mark into the middle of the target — is true of both
+    streams, and a BOM'd changelog bullet is worse than invisible: the mark precedes the `- `, so
+    the entry's first bullet renders as a paragraph. The mark arm is scoped to this stream by its
+    *position* below the return above, not by an argument that holds. Widening it is its own
+    increment, rowed with the planner — adding scope to a branch already on its fifth review pass
+    is how the next pass finds what this one would have.
     """
     if stream.name != "retrospectives":
         return []
@@ -377,7 +399,7 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
         )
         text = text.lstrip("\ufeff")
     first = next((line for line in text.splitlines() if line.strip()), "")
-    if not first.startswith("## "):
+    if _OPENING.match(first) is None:
         problems.append(
             f"{stream.directory}/{path.name}: must open with its own `## ` heading, and opens "
             f"with {first[:60]!r}. See `{stream.directory}/README.md` § Contents."
@@ -388,10 +410,16 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
         return problems
     day, clock = stamp.group(0)[:8], stamp.group(0)[9:13]
     wanted = f"({day} {clock[:2]}:{clock[2:]})"
-    # Anchored, not contained. `((20260901 07:10))` carries `wanted` as a substring and is not the
-    # ruled form, so a containment test made "nothing looser passes" false — in the docstring above
-    # and in `docs/VERIFICATION.md`. Found by a reviewer who read that sentence as a claim.
-    if re.search(rf"(?<!\(){re.escape(wanted)}(?!\))", first) is None:
+    # The stamp is the heading's **trailing token**: the start of the line or whitespace before it,
+    # nothing but whitespace after. Pass 3 replaced a containment test with a one-character
+    # lookaround for `(` and `)` and a comment claiming it was anchored; pass 4 measured four
+    # wrappers and three still passed — `[(20260901 07:10)]`, `x(20260901 07:10)x` and
+    # `( (20260901 07:10) )`, only the tight `((…))` being caught. A lookaround inspecting one
+    # character on each side is not anchoring, and the sentence it was written to make true is in
+    # the docstring above and in `docs/VERIFICATION.md`. Anchoring costs nothing here: all 136
+    # stamped `## ` headings in `docs/RETROSPECTIVES.md` end with their stamp, as do all 13 live
+    # fragments — measured 20260901 before the rule was tightened, not assumed after.
+    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", first) is None:
         problems.append(
             f"{stream.directory}/{path.name}: its heading must carry `{wanted}`, the filename's "
             f"own prefix. See `{stream.directory}/README.md` § Contents."
