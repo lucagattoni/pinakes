@@ -161,7 +161,7 @@ landing with its own tests.
 | I3b | The `pypdfium2` adapter, quality metrics, two fitted floors | shipped 0.2.0 |
 | I4 | The extraction cache | shipped 0.2.0 |
 | I5 | PDF chunking, page provenance, backend-aware sync (`schema_version` 2) | shipped 0.2.0 |
-| I6a | Budget core, pure — estimator, reservation, `prices.toml` | shipped 0.2.2 (inert) |
+| I6a | Budget core, pure — estimator, reservation, `prices.toml` | shipped 0.2.2, inert **then** — live since I7b (see the surface table above). *The release-history rows below, and `docs/ROADMAP.md`'s 0.2.2 section, keep the bare "inert" on purpose: those record what 0.2.2 added, and it was true of 0.2.2.* |
 | I6b | Budget I/O — ledger, prompt, `pnk budget`, hooks that cannot spend | shipped 0.3.0 |
 | I7a | The paid-path allowlist gate and the invariant amendments | shipped 0.3.0 |
 | I7b | The paid Claude-vision extractor — request shape, validation, retries | shipped 0.3.0 |
