@@ -18,9 +18,24 @@ halves kill the theory I went on to state in the same paragraph. One `grep` conf
     tests/test_fragments.py:40   def run(repo: Path, ...) -> `repo` is a required positional; there is
                                  no default to forget, so the route I was guarding does not exist
 
-The actual cause was four newline-separated shell lines in a probe: a `cd` into a directory another
-agent's `rm -rf /tmp/probe-*` had already deleted, followed by `rm -f retro.d/*.md` and `: >` on both
-targets. The `cd` failed and stopped nothing, so all of it ran in the session's cwd.
+The actual cause was **two agents, not one**, and they caused different halves of the damage. Both ran
+a probe recipe whose safety rested entirely on a `cd`, and a failed `cd` stops nothing that follows it:
+
+    a583  11:31:13-11:33:22  six blocks  cd /tmp/probe1       rm -f retro.d/*.md, and no `: >` at all
+    acea  11:34:41           one block   cd /tmp/probe-refute both, with `: >` on each target twice
+
+So the fragments were deleted from **11:31:13** and the documents truncated at **11:34:41** — three and
+a half minutes and two authors apart. I had one compound symptom and gave it one cause, which is the
+same move as the paragraph above, made one level further out. A peer found the second agent; I then
+re-ran the census and found that the halves did not share an author.
+
+Two things that only fall out of counting properly. Of the 16 recorded calls whose command contains
+`rm -f retro.d`, **eight are executions and eight are the two of us grepping for the string during the
+investigation** — counting those would have been the "measuring sessions as data" error again. And of
+the eight executions, **seven did damage**: acea's second block named its scratch directory absolutely
+and ran there. The evidence for that is physical rather than inferred — the backup I took holds
+`two-spaces-after-hash.md`, written by the 11:34:41 block, and no `leading-tab.md`, which the 11:34:56
+block would have written after deleting it.
 
 **The failure is not that I guessed.** It is that I reasoned from symptoms to a *named mechanism in
 someone else's file* without opening the file, while holding — and having already stated — the fact
