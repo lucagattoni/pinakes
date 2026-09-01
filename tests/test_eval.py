@@ -5,6 +5,7 @@ import importlib.util
 import itertools
 import json
 import posixpath
+import shutil
 import subprocess
 import sys
 import zlib
@@ -1482,14 +1483,20 @@ def test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched(tmp_p
 
     `--fake` copies and syncs a whole temporary corpus before any questions file is opened, so a
     guard placed inside that block would charge a typo for the build and then hand back a
-    nine-frame `FileNotFoundError` out of `pathlib` — which reads as the probe crashing, not as a
-    wrong argument.
+    five-frame `FileNotFoundError` out of `pathlib` — which reads as the probe crashing, not as a
+    wrong argument. (Five, counted on `b47eda6`. This docstring said *nine* when it was written,
+    which was a composed number.)
 
     **The `--kb` in the first case is the ordering pin, not decoration.** It points at a directory
     that is not a KB, so anything reaching the corpus before the flag was checked would fail in
     `load()` with a `ManifestError` about a missing `pinakes.toml` (verified: that is exactly what
     this argument pair did before the guard existed). Reaching `parser.error` instead is what says
     the check came first.
+
+    **The region no test here reaches**, named because the probe's own comment names it: a regular
+    file that exists and cannot be read. `chmod(0o000)` is this repository's forbidden instrument
+    and injection cannot cross `_run_probe`'s subprocess boundary, so that class is covered by
+    prose and by nothing else.
     """
     missing = tmp_path / "not-here.yaml"
     completed = _run_probe(
@@ -1509,12 +1516,22 @@ def test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched(tmp_p
 
     # The KB's own default is deliberately NOT guarded: an absent `<kb>/eval/questions.yaml` is a
     # corpus that cannot be measured rather than a mistyped argument, and it keeps the behaviour it
-    # has always had. Without this, widening the guard to cover both would go unnoticed here.
+    # has always had. Widening the guard to cover both is the regression this block exists to catch.
+    #
+    # **It has to be a real KB, and the first version of this block was not one.** An empty
+    # directory has no `pinakes.toml`, so `load()` raises `ManifestError` and execution never
+    # reaches the default questions path at all — both assertions below were then satisfied by an
+    # unrelated crash, and a genuinely widened guard passed this test. Found by the adversarial
+    # pass, reproduced by patching the widened guard in. So: the demo KB, copied, with only its
+    # golden set removed. `load()` succeeds, `questions_path` resolves to the default, and the
+    # third assertion is the one that says we got that far.
     bare = tmp_path / "kb-without-a-golden-set"
-    bare.mkdir()
+    shutil.copytree(DEMO, bare)
+    (bare / "eval" / "questions.yaml").unlink()
     completed = _run_probe("--kb", str(bare), "--json")
     assert completed.returncode != 2
     assert "no golden set at" not in completed.stderr
+    assert "eval/questions.yaml" in completed.stderr
 
 
 RUNNER = """

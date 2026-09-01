@@ -17,7 +17,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 5
+mutants = 6
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260831 · `--questions`, a golden set that is not the KB's own
@@ -117,4 +117,20 @@ new = '''    with tempfile.TemporaryDirectory() as workspace:
         manifest = replace(load(root), retrieval=replace(load(root).retrieval, graph_channel="off"))
         if args.questions is not None and not args.questions.is_file():
             parser.error(f"no golden set at {args.questions}")'''
+kills = "tests/test_eval.py::test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched"
+
+[[mutant]]
+name = "the guard is widened to the KB's own default, which the flag deliberately does not cover"
+file = "tools/reachable_ceiling_probe.py"
+# The sixth mutant exists because the fifth review found the test that was supposed to catch this
+# catching nothing. `<kb>/eval/questions.yaml` being absent is a corpus that cannot be measured, not
+# a mistyped argument, and it keeps the behaviour it has always had — a `FileNotFoundError` naming
+# the default path. The widening below is the plausible "surely both" edit, and it is what the third
+# block of the killing test asserts against. That block first used an empty directory as its KB,
+# which has no `pinakes.toml`, so `load()` raised before this line ran and the widened guard passed
+# unnoticed; it is a real copy of the demo KB now, and this mutant is what says so.
+old = '''        questions_path = args.questions or (root / "eval" / "questions.yaml")'''
+new = '''        questions_path = args.questions or (root / "eval" / "questions.yaml")
+        if not questions_path.is_file():
+            parser.error(f"no golden set at {questions_path}")'''
 kills = "tests/test_eval.py::test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched"
