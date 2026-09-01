@@ -5,9 +5,12 @@ the doc claims, what is actually true, the evidence, and the fix. Nothing here i
 **This is not a build plan** — `docs/BUILDING.md` says to read the build order out of `plans/`, and
 this file is not part of it.
 
-## ✅ CLOSED 20260901 07:32 UTC — all 34 remaining findings are fixed
+## ✅ CLOSED 20260901 — all 34 remaining findings are fixed
 
-Landed as **one unit**, per the sweep plan's parked row, against `f3303fc` (0.31.1). Eleven document
+Landed as **one unit**, per the sweep plan's parked row, against `f3303fc` (0.31.1) — **fixed and
+gated 07:32 UTC, landed 11:14 UTC in `85de81a`**, the gap being a session-limit stop rather than
+anything about the work. *(Stated because the two stamps do not match and a reader reconciling this
+banner against `git log` would otherwise find no commit at 07:32.)* Eleven document
 clusters were re-measured in parallel, each by one agent and then by an adversary prompted to
 *refute* it with the evidence re-run rather than trusted; **33 fixes were applied across ten files**,
 two findings were ruled **already fixed by other work**, and `make docs` (`mkdocs --strict`, anchors
