@@ -288,6 +288,65 @@ def document_problems(stream: Stream, text: str) -> list[str]:
     return problems
 
 
+def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
+    """The two ways a retrospective fragment joins the incident above it without saying so.
+
+    **Neither is visible to `document_problems`, and that is not an oversight — it is the
+    mechanism.** A fragment carrying no `##` heading is not malformed once spliced. It is
+    *absorbed*: `render` joins bodies with a blank line, so its prose lands under whichever
+    fragment sorts before it and reads as a continuation of that incident. The result is
+    well-formed markdown making a false claim about whose retrospective it is, every existing gate
+    stays green, and the reader who would notice is the one who no longer can. A checker reading
+    the assembled document is reading the evidence after it has been destroyed, so this reads the
+    fragments going in.
+
+    The stamp is the second half and a different failure. `retro.d/README.md` requires the
+    heading's `(YYYYMMDD HH:MM)` to be a **copy** of the filename's prefix — one reading of the
+    clock written twice — because a second reading is a second chance to be wrong. On 20260826
+    three headings were typed from memory in one morning, out by 1 minute, 2 minutes and **3 hours
+    30 minutes**, in fragments whose own subject was measurement discipline; the largest drift is
+    the one nothing prompts you to check. Only the filename can settle it, so only a fragment that
+    has a prefix is checked here — the fragments predating the naming rule are exempt from this
+    arm and **not** from the first.
+
+    Nothing looser than the ruled form passes: not a date without a time, not an em-dash in place
+    of the parentheses, not a trailing `UTC`. A gate that accepts three spellings of a stamp is
+    not checking the stamp, it is checking that somebody typed a date.
+
+    Reported separately because they are separate mistakes with separate fixes, and a fragment can
+    have either without the other.
+
+    **This is the retrospectives stream only.** `changelog.d/` fragments are `- ` bullets merged
+    under a category heading `render` synthesises for them, so requiring a heading of their own
+    would refuse the format that stream is for.
+    """
+    if stream.name != "retrospectives":
+        return []
+
+    problems: list[str] = []
+    first = next((line for line in text.splitlines() if line.strip()), "")
+    if not first.startswith("## "):
+        problems.append(
+            f"{stream.directory}/{path.name}: must open with its own `## ` heading, and opens "
+            f"with {first.strip()[:60]!r}. `render` joins fragment bodies with a blank line, so "
+            f"this one would be spliced into {stream.target} under the heading of whichever "
+            "fragment sorts before it, and read as part of that incident."
+        )
+
+    stamp = _STAMP.match(path.stem)
+    if stamp is None:
+        return problems
+    day, clock = stamp.group(0)[:8], stamp.group(0)[9:13]
+    wanted = f"({day} {clock[:2]}:{clock[2:]})"
+    if wanted not in first:
+        problems.append(
+            f"{stream.directory}/{path.name}: its heading must carry `{wanted}` — the filename's "
+            "own prefix, pasted, not the clock read a second time. Nothing else counts: not the "
+            "date alone, not an em-dash instead of the parentheses, not a trailing `UTC`."
+        )
+    return problems
+
+
 #: The two places a problem carries a line number: its `file:line:` prefix, and the `on line N`
 #: back-reference inside a duplicate-heading message. Both shift when the same fault is seen in the
 #: assembled document instead of the one on disk, and stripping only the prefix left the *other*
@@ -375,6 +434,8 @@ def check(stream: Stream, repo: Path) -> list[str]:
                 f"spliced verbatim into {stream.target}. The category lives in the filename, "
                 "never inside the file — delete the fence and start with the entry body."
             )
+        else:
+            problems.extend(heading_problems(stream, path, body))
     return problems
 
 

@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 20
+mutants = 27
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -205,3 +205,76 @@ new = '''        spliced = (
             splice(stream, render(stream, repo) + "\n", repo) if render(stream, repo) else None
         )'''
 kills = "tests/test_fragments.py::test_check_validates_the_exact_bytes_apply_writes"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# a retrospective fragment carries its own `##` heading, stamped from its own filename
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# **`document_problems` cannot see either of these, and that is the mechanism rather than an
+# oversight.** A fragment with no heading is not spliced malformed — it is *absorbed*: `render`
+# joins bodies with a blank line, so its prose lands under whichever fragment sorts before it and
+# reads as that incident's. The assembled document is correct markdown making a false claim, so a
+# checker reading the result is reading the evidence after it was destroyed. Hence `check`, which
+# reads the fragments going in.
+#
+# The stamp is a *copy* of the filename's prefix, because a second reading of the clock is a second
+# chance to be wrong — 20260826, three headings typed from memory in one morning, out by 1 minute,
+# 2 minutes and 3 hours 30 minutes.
+#
+# **The corpus cannot substitute for these rows.** `retro.d/` holds only *unreleased* fragments —
+# the rest were spliced into `docs/RETROSPECTIVES.md` and deleted at each release — so the live
+# directory was 4 files when this was built and all 4 already passed. The one live counter-example
+# anywhere was a *fixture*, in `test_apply_is_one_step_or_none_across_every_stream`.
+
+[[mutant]]
+name = "the gate never runs, so a headingless fragment is absorbed exactly as it was before"
+file = "tools/fragments.py"
+old = '''            problems.extend(heading_problems(stream, path, body))'''
+new = '''            pass'''
+kills = "tests/test_fragments.py::test_a_retro_fragment_with_no_heading_of_its_own_is_refused"
+
+[[mutant]]
+name = "the rule widens to `changelog.d/`, refusing the bullet format that stream exists for"
+file = "tools/fragments.py"
+old = '''    if stream.name != "retrospectives":'''
+new = '''    if False:'''
+kills = "tests/test_fragments.py::test_the_heading_rule_never_reaches_the_changelog_stream"
+
+[[mutant]]
+name = "DISCRIMINATING — any heading level opens a fragment, so a `###` section passes"
+file = "tools/fragments.py"
+old = '''    if not first.startswith("## "):'''
+new = '''    if not first.startswith("#"):'''
+kills = "tests/test_fragments.py::test_a_third_level_heading_does_not_open_a_fragment"
+
+[[mutant]]
+name = "the stamp arm is dropped, leaving the heading free to name any time at all"
+file = "tools/fragments.py"
+old = '''    if wanted not in first:'''
+new = '''    if False:'''
+kills = "tests/test_fragments.py::test_a_heading_whose_stamp_disagrees_with_the_filename_is_refused"
+
+[[mutant]]
+name = "DISCRIMINATING — the stamp is compared by date alone, so the time may be anything"
+file = "tools/fragments.py"
+old = '''    day, clock = stamp.group(0)[:8], stamp.group(0)[9:13]'''
+new = '''    day, clock = stamp.group(0)[:8], ""'''
+kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_accepted"
+
+[[mutant]]
+name = "the exemption widens: a fragment with no prefix skips the heading arm as well as the stamp"
+file = "tools/fragments.py"
+old = '''    first = next((line for line in text.splitlines() if line.strip()), "")'''
+new = '''    if _STAMP.match(path.stem) is None:
+        return problems
+    first = next((line for line in text.splitlines() if line.strip()), "")'''
+kills = "tests/test_fragments.py::test_a_fragment_with_no_prefix_owes_a_heading_and_not_a_stamp"
+
+[[mutant]]
+name = "DISCRIMINATING — the first problem short-circuits the second, so one fix is reported at a time"
+file = "tools/fragments.py"
+old = '''    stamp = _STAMP.match(path.stem)'''
+new = '''    if problems:
+        return problems
+    stamp = _STAMP.match(path.stem)'''
+kills = "tests/test_fragments.py::test_a_fragment_that_is_neither_reports_both_problems"

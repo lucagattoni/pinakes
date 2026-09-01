@@ -593,7 +593,7 @@ def test_apply_is_one_step_or_none_across_every_stream(repo: Path) -> None:
         "## Design review passes 1-7 (pre-implementation)\n\nfooter\n",
     )
     write(repo, "changelog.d/added-one.md", "- **A changelog thing.**")
-    write(repo, "retro.d/a-lesson.md", "Retro prose.")
+    write(repo, "retro.d/a-lesson.md", "## A lesson\n\nRetro prose.")
     before = changelog(repo)
 
     result = run(repo, "--apply")
@@ -727,3 +727,169 @@ def test_check_validates_the_exact_bytes_apply_writes(repo: Path) -> None:
         assert predicted[name] == (repo / target).read_text(encoding="utf-8"), (
             f"{name}: --check validated bytes --apply did not write"
         )
+
+
+def test_a_retro_fragment_with_no_heading_of_its_own_is_refused(repo: Path) -> None:
+    """The fragment does not become malformed — it becomes **somebody else's retrospective**.
+
+    `render` joins bodies with a blank line, so prose with no `##` of its own lands under whichever
+    fragment sorts before it. The spliced document is well-formed markdown asserting something
+    false about which increment the lesson came from, and the reader who could have noticed is the
+    one who no longer can: by release time the fragment that would have explained it is deleted."""
+    write(repo, "retro.d/20260901_0710-a-lesson.md", "Prose that starts straight in.\n")
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "20260901_0710-a-lesson.md" in result.stderr
+    assert "must open with its own `## ` heading" in result.stderr
+
+
+def test_a_headingless_fragment_is_invisible_to_the_checker_that_reads_the_document(
+    repo: Path,
+) -> None:
+    """**Why the rule lives in `check` and not in `document_problems`** — the ruling's own words,
+    turned into the assertion that holds them.
+
+    `document_problems` reads the assembled document, and absorption leaves nothing there to find:
+    the result is a correct document. So this asserts the negative directly — the document checker
+    returns *no* problems on the very assembly the fragment checker refuses — and then asserts the
+    absorption itself, that the orphaned prose really does land under the previous fragment's
+    heading. Without both halves, "put it in `document_problems` instead" reads as a free
+    simplification.
+
+    A test asserting a **non**-behaviour has no fix to revert, so reverting proves nothing about
+    it. It is run forward instead: delete the `heading_problems` call from `check` and the first
+    assertion below still passes, which is the point — that is the state this test describes."""
+    spec = importlib.util.spec_from_file_location("_fragments", TOOL)
+    assert spec is not None and spec.loader is not None
+    module: Any = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+
+        write(repo, "retro.d/20260901_0700-first.md", "## First (20260901 07:00)\n\nIts own body.")
+        write(repo, "retro.d/20260901_0710-orphan.md", "Prose belonging to nobody.")
+
+        stream = module.STREAMS["retrospectives"]
+        assembled = module.prospective(stream, repo)
+        assert assembled is not None
+        document = module.document_problems(stream, assembled)
+    finally:
+        del sys.modules[spec.name]
+
+    assert document == [], (
+        "the assembled document is well-formed — absorption is invisible to a checker that reads "
+        f"the result, which is why the rule reads the fragments going in: {document}"
+    )
+
+    orphan = assembled.index("Prose belonging to nobody.")
+    heading = assembled.index("## First (20260901 07:00)")
+    assert heading < orphan, "the orphan follows the heading it would be read as belonging to"
+    assert "##" not in assembled[heading + 2 : orphan], (
+        "nothing separates them: the orphaned prose reads as part of the first fragment's incident"
+    )
+
+    assert run(repo, "--stream", "retrospectives", "--check").returncode == 1
+
+
+def test_a_third_level_heading_does_not_open_a_fragment(repo: Path) -> None:
+    """The heading arm on its own, with the stamp arm satisfied — the only way to isolate it, since
+    the stamp lives inside the heading and a fragment with no heading fails both.
+
+    `###` is the level `render` gives a *changelog* category, and `docs/RETROSPECTIVES.md` carries
+    thirty-four of them **inside** entries. A fragment opening at that level is a section of
+    something, and the something is whatever precedes it."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        "### A lesson (20260901 07:10)\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "must open with its own `## ` heading" in result.stderr
+    assert "must carry" not in result.stderr, "the stamp is correct; only the level is wrong"
+
+
+def test_a_heading_whose_stamp_disagrees_with_the_filename_is_refused(repo: Path) -> None:
+    """One minute out, which is the drift nothing prompts you to check.
+
+    The stamp is a *copy* of the filename's prefix — one reading of the clock written twice — and
+    a second reading is a second chance to be wrong. On 20260826 three headings were typed from
+    memory in one morning, out by 1 minute, 2 minutes and 3 hours 30 minutes; only the filename can
+    settle which was meant."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        "## A lesson (20260901 07:11)\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "(20260901 07:10)" in result.stderr, "the message names the stamp the filename requires"
+    assert "must open with its own" not in result.stderr, "the heading is fine; the stamp is not"
+
+
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "## A lesson (20260901)",
+        "## A lesson — 20260901 07:10",
+        "## A lesson (20260901 07:10 UTC)",
+        "## A lesson (20260901 0710)",
+    ],
+)
+def test_nothing_looser_than_the_ruled_stamp_is_accepted(repo: Path, heading: str) -> None:
+    """**A gate that accepts three spellings of a stamp is not checking the stamp.** Each of these
+    is a plausible near-miss a writer would defend, and each breaks the property the rule is for:
+    the heading and the filename can no longer be compared by equality, so nothing can tell a
+    correct stamp from a remembered one. Accepting the ruled form and nothing else was the
+    decision, so this is the assertion that keeps it from being loosened by sympathy."""
+    write(repo, "retro.d/20260901_0710-a-lesson.md", f"{heading}\n\nProse.\n")
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "(20260901 07:10)" in result.stderr
+
+
+def test_a_fragment_with_no_prefix_owes_a_heading_and_not_a_stamp(repo: Path) -> None:
+    """The exemption, and its exact width. Fragments predating the naming rule have no prefix to
+    copy, so there is nothing to compare a stamp against and the stamp arm cannot run. The heading
+    arm is unaffected — absorption does not care when the file was named."""
+    write(repo, "retro.d/a-lesson.md", "## A lesson\n\nProse.\n")
+
+    assert run(repo, "--stream", "retrospectives", "--check").returncode == 0
+
+    write(repo, "retro.d/a-lesson.md", "Prose with no heading.\n")
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "must open with its own `## ` heading" in result.stderr
+    assert "must carry" not in result.stderr, "there is no prefix to require a stamp against"
+
+
+def test_a_fragment_that_is_neither_reports_both_problems(repo: Path) -> None:
+    """Two mistakes with two fixes, so two messages. A single "malformed fragment" line would send
+    a writer who adds a heading straight back for a second round over the stamp."""
+    write(repo, "retro.d/20260901_0710-a-lesson.md", "Prose with no heading at all.\n")
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "must open with its own `## ` heading" in result.stderr
+    assert "(20260901 07:10)" in result.stderr
+
+
+def test_the_heading_rule_never_reaches_the_changelog_stream(repo: Path) -> None:
+    """`changelog.d/` fragments are `- ` bullets that `render` merges under a category heading it
+    synthesises for them; a heading of their own is the defect `document_problems` already
+    refuses. Requiring one here would refuse the format that stream exists for — the mirror of the
+    bullet rule's scoping, and the same reason."""
+    write(repo, "changelog.d/20260901_0710-added-one.md", "- **A new thing.**")
+
+    assert run(repo, "--stream", "changelog", "--check").returncode == 0
