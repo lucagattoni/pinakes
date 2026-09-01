@@ -42,12 +42,16 @@ landed at `d441f48` is why this list is short: rows 4–14 of the sweep plan wer
 |---|---|---|---|
 | M1 | Custom gates `check.sh` invokes, vs. gates with a mutation battery | **7 of 11 have no battery** | `grep -oE 'tools/[a-z_]+\.py' check.sh` ∩ `file =` keys across `tools/batteries/*.toml`, on `c621d08` |
 | M2 | Insertions by area, `51a34bb` → `b6be317` | `src/` **928 of 16,909 — 5.5%**; `docs/`+`plans/` 7,677 | `git diff --numstat`, non-merge window since 20260824 04:07 |
-| M3 | Register corpus size over the same window | `docs/` 20,110 → 22,786 (+13%); `plans/` 10,883 → 15,631 (**+44%**) | `git show <sha>:<path> | wc -l` at both ends |
+| M3 | Register corpus size over the same window | `docs/` 20,110 → 22,786 (+13%); `plans/` 10,883 → 15,631 (**+44%**) | `git show <sha>:<path> \| wc -l` at both ends |
 | M4 | Retro fragments ever added, judged by row 12's gate as written on its branch | 107 files, 91 judged, **18 would fail, 0 false positives** | each file read at its own adding commit via `git log --diff-filter=A` |
-| M5 | Pending fragments at `HEAD` | 4 `changelog.d/` + 7 `retro.d/` | `git ls-tree --name-only HEAD` |
+| M5 | Pending fragments — **pinned to a sha, because this is the one measurement that moves** | **16 at `9cc9bc1`: 5 `changelog.d/` + 11 `retro.d/`**, of which **9** `retro.d/` carry a `20260901_` stamp | `git ls-tree -r --name-only 9cc9bc1 -- changelog.d retro.d \| grep -v README`, re-run 20260901 12:26 UTC |
 
 **M1 is the only one that produces a work item.** M2–M4 are context for § 4 and nothing depends on
-them being acted upon.
+them being acted upon. **M5 is the only one that decays**, because the fragment directories change with
+every landing — which is why it names a sha, and why § 3 row 3 now cites it instead of restating its
+numbers. Row 3 restated them four times on this file's own landing day and every restatement
+disagreed with M5 *and* with the tree: M5 said 11, row 3 said 15 twice and 10, and the tree held 16.
+**A register decayed inside the plan about registers decaying, within four hours of landing.**
 
 ---
 
@@ -75,7 +79,7 @@ I measured it because a survey raised it (M1), and it is the highest-leverage un
 repository.
 
 `check.sh` names eleven custom gates and **runs ten of them**: `wheel_import_gate.py` is named at
-`check.sh:57-64` and deliberately not run there, because it needs `uv build` and a network resolve, so
+`check.sh:57-65` and deliberately not run there, because it needs `uv build` and a network resolve, so
 CI's `build` job and `release.yml` run it instead. Four of the eleven have a mutation battery. Seven
 do not, and the count is unaffected by where the eleventh runs:
 
@@ -135,7 +139,8 @@ The other six sit between `status_header_gate` (268 source → 144, 12 mutants) 
 wrong for the seventh; it was corrected for a reason that did not survive checking, and the corrected
 number stands on the precedent instead.
 
-**That expectation is the reason to do it, not a reason to
+**The honest expectation is that most of these seven gates kill their mutants, and that the exercise
+returns confirmation rather than defects. That expectation is the reason to do it, not a reason to
 skip it** — if a gate does not kill, everything it has ever certified is unsupported, including
 past releases.
 
@@ -151,7 +156,7 @@ order, not new work** — the sweep plan remains the owner of every row it alrea
 |---|---|---|---|---|
 | 1 | Row 14 — teach `markdown_link_gate` the splice destination, both arms; restore the two code-spanned links | 14 | nothing | A correct link is currently degraded on `main` and both fragment READMEs carry a caveat contradicting their own instruction. Live incoherence in the tree beats everything else. |
 | 2 | Row 12 — the retro heading + stamp gate | 12 | nothing | Finished and pushed on its branch; landing it is cheaper than carrying it. **M4 is the evidence it earns its place:** 18 of 91 historical fragments would fail it and none is a false positive. |
-| 3 | **Cut the release — ASK FIRST** | — | rows 1–2, **and an explicit user go-ahead** | 11 fragments pending (M5) and `[Unreleased]` reads empty, which is itself misleading. **It is a MINOR, not a patch — measured at `6ae2a6c` 20260901 12:05 UTC.** (The number is deliberately not written here: *a version number belongs to a release when it is cut, never before*, and `docs/RELEASING.md` names none either.) 15 fragments pend (5 `changelog.d/` + 10 `retro.d/`); two of the five are **Added** (`agent-spend-measures-what-the-agents-cost`, `the-ceiling-probe-takes-the-golden-set-as-an-argument`) and three are **Fixed**, so the SemVer table gives MINOR. `__version__` is `0.31.1` and `## [Unreleased]` is **empty**, which makes the document say nothing is pending while the tree holds fifteen — the exact trap `docs/RELEASING.md` exists for. **Do not cut this without asking.** A session on 20260901 recorded the release as held by the user (*"still uncut, as you set it"*), and that hold appears in no document in this repository — so it cannot be verified from the tree and must not be inferred away by this row. A tag publishes to PyPI and PyPI never accepts a version twice: this is the only row here that cannot be undone. **State plainly in the release notes that this release reaches no user of `pnk`** — the rename crash people would feel is already out in 0.31.1; this is two dev tools, a docs-audit closure and a gate unblock. **The cost of holding, stated because it points the other way:** ten of the fifteen are `retro.d/` records of 20260901's own wrong diagnoses — five instances of one failure across three sessions — and they reach `docs/RETROSPECTIVES.md` only at a cut. Every day held is a day the published retrospectives omit the day that produced the most of them. That argues for cutting; it does not argue for cutting without asking. Planner-owned. |
+| 3 | **Cut the release — ASK FIRST** | — | rows 1–2, **and an explicit user go-ahead** | The fragments **M5** counts are pending while `[Unreleased]` reads empty, which is itself misleading. **It is a MINOR, not a patch — measured at `6ae2a6c` 20260901 12:05 UTC.** (The number is deliberately not written here: *a version number belongs to a release when it is cut, never before*, and `docs/RELEASING.md` names none either.) Of M5's five `changelog.d/` fragments, two are **Added** (`agent-spend-measures-what-the-agents-cost`, `the-ceiling-probe-takes-the-golden-set-as-an-argument`) and three are **Fixed**, so the SemVer table gives MINOR. **The counts live in M5 and are deliberately not restated here** — an earlier version of this cell restated them four times and disagreed with M5 and with the tree every time. `__version__` is `0.31.1` and `## [Unreleased]` is **empty**, which makes the document say nothing is pending while the tree holds every fragment M5 counts — the exact trap `docs/RELEASING.md` exists for. **Do not cut this without asking.** A session on 20260901 recorded the release as held by the user (*"still uncut, as you set it"*), and that hold appears in no document in this repository — so it cannot be verified from the tree and must not be inferred away by this row. A tag publishes to PyPI and PyPI never accepts a version twice: this is the only row here that cannot be undone. **State plainly in the release notes that this release reaches no user of `pnk`** — the rename crash people would feel is already out in 0.31.1; this is two dev tools, a docs-audit closure and a gate unblock. **The cost of holding, stated because it points the other way:** M5's nine `20260901_`-stamped `retro.d/` fragments are records of that day's own wrong diagnoses — five instances of one failure across three sessions — and they reach `docs/RETROSPECTIVES.md` only at a cut. Every day held is a day the published retrospectives omit the day that produced the most of them. That argues for cutting; it does not argue for cutting without asking. Planner-owned. |
 | 4 | **S1** — `PermissionError` aborts the whole walk | 4 | nothing | The worst failure mode in the list: one unreadable file and **nothing is indexed at all**. |
 | 5 | **S4** — escape at render in `template.py` | 5 | nothing | Silent, permanent, and `init` refuses to repair it. Exit 0 on a bricked KB. |
 | 6 | **D-37's build** — gate the move hint on the orphaned sidecar | 9 | nothing | Fires on **every ordinary deletion, on every `pnk sync`**, claiming an id was minted when none was. Highest frequency of anything in the list. |
@@ -252,10 +257,10 @@ Listed for completeness; none blocks § 3.
 
 | Decision | State |
 |---|---|
-| The `CLAUDE.md` extraction (`475b452`) | Pushed, unmerged, marked *do not land without the user*. `main` has drifted since, so it now needs a rebase |
-| `pnk adopt` — which release owns it, or drop it | Appears in **no** top-level routing document. An unowned proposal in one plan file is worse than either outcome |
-| The `fable` clause in the user's global `~/.claude/CLAUDE.md` | Reported done 20260901 07:01 UTC; **verify before acting on either state** |
-| `--autocompact 150000` | **Unverifiable from this repo.** One mention in `RESUME.md`, no plan, no commit; the live setting is a different number |
+| The `CLAUDE.md` extraction (`475b452`) | Pushed, unmerged, marked *do not land without the user*. **Measured 20260901 12:35 UTC: `main` is 114 commits ahead, and `git merge-tree` reports a real content conflict in `CLAUDE.md`** (`docs/README.md` merges clean). A rebase is not optional and not mechanical — the conflict is the status block the proposal deletes, which `main` has since rewritten |
+| `pnk adopt` — which release owns it, or drop it | **Corrected 20260901 12:35 UTC: it *does* appear in a top-level routing document** — [`docs/README.md:29`](../docs/README.md) names it, correctly, as part of what "is still a proposal". The earlier claim that it appears in none was wrong. What is true: no release owns it, and it is unimplemented — `grep -rn '"adopt"' src/` returns 0 where the same selector returns `cli.py:1799` for `"upgrade"` |
+| ~~The `fable` clause in the user's global `~/.claude/CLAUDE.md`~~ | **CLOSED — verified present 20260901 12:35 UTC**, `~/.claude/CLAUDE.md:42`: *"nothing reaches Fable either, which bills at 2x Opus"*. It was reported done and the report was right; this row existed because nobody had opened the file |
+| `--autocompact 150000` | **Unverifiable from this repo**, and the flag does not exist under that name. One mention in `RESUME.md`, no plan, no commit. The live setting is `autoCompactWindow` in `~/.claude/settings.json` and reads **300000** — measured 20260901 12:35 UTC, twice the number this row is named for. Whatever decision this row records, it is not about a value anything currently reads |
 
 ---
 
