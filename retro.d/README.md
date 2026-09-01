@@ -47,3 +47,13 @@ instead, with the anchor the site will generate:
 The same applies to `changelog.d/`. Caught at 0.12.0's cut, by `make docs` and not before: nothing
 in `./check.sh` resolves a link that only becomes wrong at splice time, so the fragment was green on
 its own branch.
+
+**⚠️ Until build-order row 14 lands, write that anchor in a code span rather than as a live link.**
+The form above is right about the *destination* — `docs/RETROSPECTIVES.md:4034` links to `:3945` this
+way and `mkdocs --strict` passes — but `tools/markdown_link_gate.py` resolves a `#…` target against
+the fragment's **own** headings, so a cross-fragment anchor is red in `retro.d/` and green only after
+splicing. Name the sibling's title in prose and put the anchor in backticks; make it a link once the
+gate learns the destination. **Measured 20260901 11:16 UTC**: the first fragment to follow this
+instruction literally turned `main` red at `b6be317` (14 jobs green, 1 red) and blocked three
+branches at once — `check.sh` runs this gate under `set -e`, so everything after it stops running and
+you get no result for the remaining checks either.

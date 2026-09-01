@@ -97,7 +97,12 @@ explanation did not — which is the argument for re-running rather than re-read
   rebuilding landed work, and this repository has come within one message of that twice. The
   substitution half of the same family — running the right measurement against the wrong artifact,
   and why *the nearest to hand is the one that flatters* — is already recorded and is not restated
-  here: [*re-running a measurement is not enough when there are two artifacts*](#re-running-a-measurement-is-not-enough-when-there-are-two-artifacts-to-run-it-against-20260901-0633).
+  here, in the sibling fragment spliced just above this one: *Re-running a measurement is not enough
+  when there are two artifacts to run it against* (20260901 06:33). **Deliberately not a link, and the
+  link was the correct form** — `#re-running-a-measurement-is-not-enough-when-there-are-two-artifacts-to-run-it-against-20260901-0633`
+  resolves once both fragments are spliced, exactly as `docs/RETROSPECTIVES.md:4034` already does.
+  `tools/markdown_link_gate.py` checks each fragment against its own file, so it turned `main` red at
+  `b6be317`. Restore the link when sweep-plan build-order row 14 lands.
 - **`uv run --frozen $cmd` cannot work in this shell, and the error message hides why.** zsh does
   not word-split unquoted parameter expansions; bash does. Measured here: `c2="python -c"; for w in
   $c2` yields **one** word under zsh 5.9 and **two** under bash. So uv is handed a single argv
