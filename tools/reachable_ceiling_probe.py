@@ -93,10 +93,11 @@ their figures. No corpus digest is recorded, so that gap is real; it is stated r
 over, and a run whose result is quoted anywhere should be a run whose corpus stood still.
 
 Usage:
-    python3 tools/reachable_ceiling_probe.py                    # real models, the measurement
-    python3 tools/reachable_ceiling_probe.py --kb path/to/kb    # another corpus
-    python3 tools/reachable_ceiling_probe.py --fake             # offline, for tests
-    python3 tools/reachable_ceiling_probe.py --drop co-located  # prove the number moves
+    python3 tools/reachable_ceiling_probe.py                       # real models, the measurement
+    python3 tools/reachable_ceiling_probe.py --kb path/to/kb       # another corpus
+    python3 tools/reachable_ceiling_probe.py --questions kept.yaml # a golden set a rebuild replaced
+    python3 tools/reachable_ceiling_probe.py --fake                # offline, for tests
+    python3 tools/reachable_ceiling_probe.py --drop co-located     # prove the number moves
     python3 tools/reachable_ceiling_probe.py --json
 """
 
@@ -1002,6 +1003,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="offline hashing backend over a temporary copy of the demo KB, for tests. "
         "Not combinable with --kb, which it would otherwise have to ignore.",
     )
+    # `--kb` says which corpus, this says which questions, and the two are separable. It exists
+    # because `tools/build_rfc_corpus.py`'s `write_golden_set` copies the committed
+    # `tools/rfc_corpus/questions.yaml` over `<kb>/eval/questions.yaml` on *every* build,
+    # unconditionally. That is right there — the questions are the instrument, not the data — and
+    # it leaves this probe with no route to re-measure the set a rebuild replaced except to put
+    # the old file back into the KB, where the next build overwrites it again. `pinakes.eval` and
+    # `tools/graph_matrix.py` already take this flag under this name with this `or` default; the
+    # probe was the one that did not.
+    #
+    # Deliberately *not* exclusive with `--fake`, unlike `--kb`. That pair is refused because
+    # `--fake` would have to discard a `--kb` and report one corpus's numbers under another's
+    # name; a golden set is honoured whichever corpus is underneath, so there is nothing to
+    # discard. The artifact stays honest either way: it records the set's resolved path and
+    # sha256, so a run against a non-default set is already distinguishable from one against the
+    # default.
+    parser.add_argument(
+        "--questions",
+        type=Path,
+        default=None,
+        help="golden set to measure (default: the measured KB's eval/questions.yaml)",
+    )
     parser.add_argument(
         "--drop",
         action="append",
@@ -1011,6 +1033,44 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
+    # Checked here — before the workspace — because `--fake` copies and syncs an entire temporary
+    # corpus before any questions file is opened, so a typo in a hand-typed path would pay for that
+    # build and only then arrive as a `FileNotFoundError` out of `pathlib` — module, `main`,
+    # `load_questions`, `read_text`, `open` — which reads as a crash in the probe rather than as a
+    # wrong argument. **Six frames on 3.13 and five on 3.14**, measured on `b47eda6` under both:
+    # `pathlib` splits `read_text` across `_local.py` and `_abc.py` on 3.13, and 3.14 collapses it.
+    # Two earlier versions of this comment gave one number — one of them *nine*, which nobody
+    # counted — and a single number here is wrong on principle, because a frame count is a property
+    # of an interpreter and this project runs both (`retro.d`; the primary checkout is the 3.13
+    # outlier while every fresh worktree and CI are 3.14).
+    #
+    # **Two refusals, because there are two ways for a path to be wrong.** `.is_file()` first, so a
+    # directory — and equally a FIFO or a device, which `.exists()` would admit and which
+    # `read_text` would then *block* on rather than fail — is refused before anything opens it.
+    # Then a read, because `.is_file()` only stats: a correctly named regular file the process
+    # cannot read passes it and would otherwise reach the same traceback after `--fake` had paid
+    # for the corpus. The second arm reports the OS's own `strerror`, so the diagnosis is the
+    # system's rather than a guess. `parser.error` for both: exit 2 with the usage line is what a
+    # bad argument gets here already, the same treatment `--kb` alongside `--fake` has.
+    #
+    # **The window between this read and the real one is real, and is not what this guards.** The
+    # file is opened again seconds later; a golden set that becomes unreadable in between is a
+    # machine changing under the run, not an operator typing the wrong path.
+    #
+    # Only the flagged path is checked. An absent `<kb>/eval/questions.yaml` is a corpus that
+    # cannot be measured rather than a mistyped argument, and it keeps the behaviour it has always
+    # had. `src/pinakes/eval.py` and `tools/graph_matrix.py` carry the same flag and do neither of
+    # these; widening them is a change to two files this increment was not asked to touch.
+    if args.questions is not None:
+        if not args.questions.is_file():
+            parser.error(f"no golden set at {args.questions}")
+        try:
+            with args.questions.open("rb"):
+                pass
+        except OSError as exc:
+            parser.error(
+                f"cannot read the golden set {args.questions}: {exc.strerror or type(exc).__name__}"
+            )
 
     with tempfile.TemporaryDirectory() as workspace:
         if args.fake:
@@ -1027,7 +1087,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         # against itself. The 12-failing/9-liftable figure the graph release was unblocked on was
         # produced before the setting existed, so this keeps a re-run comparable with it.
         manifest = replace(load(root), retrieval=replace(load(root).retrieval, graph_channel="off"))
-        questions_path = root / "eval" / "questions.yaml"
+        questions_path = args.questions or (root / "eval" / "questions.yaml")
         questions = load_questions(questions_path)
         connection = store.connect_ro(manifest.index_path)
         try:

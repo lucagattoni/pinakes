@@ -1,0 +1,181 @@
+# Mutation battery — `tools/reachable_ceiling_probe.py`.
+#
+#     python3 tools/mutate.py tools/batteries/tools-reachable_ceiling_probe.toml
+#
+# **Scoped to `--questions` and nothing else.** The probe is a large file and this battery is the
+# first one it has had; it covers the flag that landed with it, not the tool. Read the directory's
+# README on why that is a starting point rather than a coverage claim — a reader who greps this
+# file and finds every anchor resolving learns that four named defects are caught, and nothing
+# about the other thousand lines.
+#
+# What makes this flag worth a battery at all: **every mutant below is a way the probe keeps
+# running, exits 0 and prints a plausible artifact.** There is no crash to notice. The tool's whole
+# job is to produce a number that a `schema_version` bump is decided on, so a run that measures one
+# question set while labelling it another is the worst shape a defect can take here — and three of
+# the four rows are *partial implementations*, which is what a hurried version of this change
+# actually looks like, not an imagined one.
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 8
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260831 · `--questions`, a golden set that is not the KB's own
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Mutant 1 is the control: the fix reverted whole, run first, because a battery with no kills is a
+# broken harness rather than a clean bill.
+
+[[mutant]]
+name = "CONTROL — the flag is parsed and then ignored, and the KB's own set is measured as always"
+file = "tools/reachable_ceiling_probe.py"
+# The state of the file before this increment. argparse still accepts `--questions`, `--help`
+# still advertises it, and the value is silently dropped — which is the failure the flag exists to
+# end, restored exactly.
+old = '''        questions_path = args.questions or (root / "eval" / "questions.yaml")'''
+new = '''        questions_path = root / "eval" / "questions.yaml"'''
+kills = "tests/test_eval.py::test_the_probe_measures_the_golden_set_the_flag_names"
+
+[[mutant]]
+name = "the flagged set is read, but the refusal names the default it displaced"
+file = "tools/reachable_ceiling_probe.py"
+# `check_measurable` takes `source=` separately from the questions themselves, so this is one
+# keystroke from correct and survives every assertion about the *successful* path. It fails in the
+# only direction that costs anything: the operator is sent to fix `<kb>/eval/questions.yaml`,
+# finds it healthy, and the file that actually refused is never opened.
+old = '''                source=questions_path,'''
+new = '''                source=root / "eval" / "questions.yaml",'''
+kills = "tests/test_eval.py::test_a_refusal_names_the_golden_set_the_flag_named"
+
+[[mutant]]
+name = "the recorded golden-set path is no longer resolved, so two relative sets record as one"
+file = "tools/reachable_ceiling_probe.py"
+# The same defect `kb_root` already carries a test for, on the field beside it. Two golden sets
+# both reached as `./kept.yaml` from two directories produce artifacts identical in the field that
+# is supposed to tell them apart. Invisible to any test whose fixture path is already absolute —
+# which is every other test here, since `tmp_path` is absolute and resolved.
+old = '''            golden_set_path = str(questions_path.resolve())'''
+new = '''            golden_set_path = str(questions_path)'''
+kills = "tests/test_eval.py::test_a_relative_questions_path_is_recorded_resolved"
+
+[[mutant]]
+name = "`--questions` is folded into the `--kb`/`--fake` exclusive group"
+file = "tools/reachable_ceiling_probe.py"
+# The plausible future "tidy-up", and it is wrong for a reason worth pinning: `--kb` is refused
+# alongside `--fake` because `--fake` would have to *discard* it and report one corpus's numbers
+# under another's name. A golden set is honoured whichever corpus is underneath, so there is
+# nothing to discard — the exclusion would remove a working combination to prevent a collision
+# that cannot happen. argparse exits 2 before anything is measured.
+old = '''    parser.add_argument(
+        "--questions",'''
+new = '''    corpus.add_argument(
+        "--questions",'''
+kills = "tests/test_eval.py::test_the_probe_measures_the_golden_set_the_flag_names"
+
+[[mutant]]
+name = "the mistyped-path guard moves below `load()`, after a corpus has been built and opened"
+file = "tools/reachable_ceiling_probe.py"
+# Position, not presence. The check survives this mutant word for word and still refuses the same
+# paths with the same message — only the moment moves, from argparse time to after `--fake` has
+# copied and synced a whole temporary corpus and `load()` has parsed a manifest. Every assertion
+# about the *message* stays green; what goes red is the pair that has no business being in a test
+# about a missing questions file, `returncode == 2` and `"pinakes.toml" not in stderr`, because a
+# `--kb` that is not a KB now fails in `load()` first. That pair is the ordering pin, and this is
+# the mutant that says so.
+old = '''    if args.questions is not None:
+        if not args.questions.is_file():
+            parser.error(f"no golden set at {args.questions}")
+        try:
+            with args.questions.open("rb"):
+                pass
+        except OSError as exc:
+            parser.error(
+                f"cannot read the golden set {args.questions}: {exc.strerror or type(exc).__name__}"
+            )
+
+    with tempfile.TemporaryDirectory() as workspace:
+        if args.fake:
+            register_embedding_backend("fake", lambda section, offline: HashingBackend())
+            register_reranker("fake", lambda section, offline: OverlapReranker())
+            root = _fake_kb(Path(workspace))
+        else:
+            root = args.kb
+        kb_root = str(Path(root).resolve())
+
+        # `graph_channel` forced off, whatever the manifest says (G5). This probe measures the
+        # ceiling *from the two-list fused seeds*; on a KB with the channel on, `fused_candidates`
+        # would hand it seeds the channel had already expanded and the ceiling would be measured
+        # against itself. The 12-failing/9-liftable figure the graph release was unblocked on was
+        # produced before the setting existed, so this keeps a re-run comparable with it.
+        manifest = replace(load(root), retrieval=replace(load(root).retrieval, graph_channel="off"))'''
+new = '''    with tempfile.TemporaryDirectory() as workspace:
+        if args.fake:
+            register_embedding_backend("fake", lambda section, offline: HashingBackend())
+            register_reranker("fake", lambda section, offline: OverlapReranker())
+            root = _fake_kb(Path(workspace))
+        else:
+            root = args.kb
+        kb_root = str(Path(root).resolve())
+
+        # `graph_channel` forced off, whatever the manifest says (G5). This probe measures the
+        # ceiling *from the two-list fused seeds*; on a KB with the channel on, `fused_candidates`
+        # would hand it seeds the channel had already expanded and the ceiling would be measured
+        # against itself. The 12-failing/9-liftable figure the graph release was unblocked on was
+        # produced before the setting existed, so this keeps a re-run comparable with it.
+        manifest = replace(load(root), retrieval=replace(load(root).retrieval, graph_channel="off"))
+        if args.questions is not None:
+            if not args.questions.is_file():
+                parser.error(f"no golden set at {args.questions}")
+            try:
+                with args.questions.open("rb"):
+                    pass
+            except OSError as exc:
+                parser.error(
+                    f"cannot read the golden set {args.questions}: {exc.strerror or type(exc).__name__}"
+                )'''
+kills = "tests/test_eval.py::test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched"
+
+[[mutant]]
+name = "the guard is widened to the KB's own default, which the flag deliberately does not cover"
+file = "tools/reachable_ceiling_probe.py"
+# The sixth mutant exists because the fifth review found the test that was supposed to catch this
+# catching nothing. `<kb>/eval/questions.yaml` being absent is a corpus that cannot be measured, not
+# a mistyped argument, and it keeps the behaviour it has always had — a `FileNotFoundError` naming
+# the default path. The widening below is the plausible "surely both" edit, and it is what the third
+# block of the killing test asserts against. That block first used an empty directory as its KB,
+# which has no `pinakes.toml`, so `load()` raised before this line ran and the widened guard passed
+# unnoticed; it is a real copy of the demo KB now, and this mutant is what says so.
+old = '''        questions_path = args.questions or (root / "eval" / "questions.yaml")'''
+new = '''        questions_path = args.questions or (root / "eval" / "questions.yaml")
+        if not questions_path.is_file():
+            parser.error(f"no golden set at {questions_path}")'''
+kills = "tests/test_eval.py::test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched"
+
+[[mutant]]
+name = "the readability arm is dropped, leaving `.is_file()` to vouch for a file it only stats"
+file = "tools/reachable_ceiling_probe.py"
+# The arm this branch's third review pass added, after establishing that the reason it had been
+# left out — *injection cannot cross the subprocess boundary* — was false. `.is_file()` stats, and
+# `stat` succeeds on a file whose contents the process may not read, so without this arm a golden
+# set that exists and is unreadable passes the guard, costs a full `--fake` corpus build, and
+# arrives as a `PermissionError` traceback. Killed by the injected case, which is the only portable
+# way to produce one: `chmod(0o000)` is refused here (`tests/test_doctor.py:1497`).
+old = '''        try:
+            with args.questions.open("rb"):
+                pass
+        except OSError as exc:
+            parser.error(
+                f"cannot read the golden set {args.questions}: {exc.strerror or type(exc).__name__}"
+            )'''
+new = '''        pass'''
+kills = "tests/test_eval.py::test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched"
+
+[[mutant]]
+name = "the refusal invents its own reason instead of reporting the OS's `strerror`"
+file = "tools/reachable_ceiling_probe.py"
+# A plausible tidy-up: one message for every unreadable file. It is wrong because the arm catches
+# `OSError`, not `PermissionError` — the reason is the only thing distinguishing *denied* from a
+# stale mount, an I/O error or a name too long, and the operator is the one who has to act on it.
+old = '''                f"cannot read the golden set {args.questions}: {exc.strerror or type(exc).__name__}"'''
+new = '''                f"cannot read the golden set {args.questions}: it could not be read"'''
+kills = "tests/test_eval.py::test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched"

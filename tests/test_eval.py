@@ -4,7 +4,9 @@ import hashlib
 import importlib.util
 import itertools
 import json
+import os
 import posixpath
+import shutil
 import subprocess
 import sys
 import zlib
@@ -860,11 +862,21 @@ run the probe against a KB whose manifest names a backend the subprocess never r
 that got past the refusal would fail too, and only the message tells the two apart."""
 
 
-def _run_probe(*argv: str) -> subprocess.CompletedProcess[str]:
+def _run_probe(*argv: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     """The probe as a user runs it — deliberately no `check`, since these tests are about how it
-    refuses, and a `CalledProcessError` would hide the stderr they assert on."""
+    refuses, and a `CalledProcessError` would hide the stderr they assert on.
+
+    `env` shapes the child, and exists for exactly one caller: the injected-unreadable-file case
+    below, which cannot reach into this process because the probe does not run in it. Passed
+    through `dict(os.environ, **env)` rather than as a bare environment, since the child needs
+    `PATH` and the interpreter's own variables to start at all.
+    """
     return subprocess.run(
-        [sys.executable, str(PROBE), *argv], capture_output=True, text=True, cwd=REPO
+        [sys.executable, str(PROBE), *argv],
+        capture_output=True,
+        text=True,
+        cwd=REPO,
+        env=None if env is None else dict(os.environ, **env),
     )
 
 
@@ -1372,6 +1384,213 @@ def test_the_probe_refuses_fake_together_with_kb(tmp_path: Path) -> None:
     # `--bogus` would satisfy an assertion that only looked for the two names.
     assert "not allowed with argument" in completed.stderr
     assert "--fake" in completed.stderr and "--kb" in completed.stderr
+
+
+#: A golden set demo-kb can actually be measured against, kept out of the tests below so the three
+#: of them differ only in *where the file is* and *what is asserted about it*. Both hops are known
+#: good on this corpus — the same pair `test_the_probe_names_the_kb_it_measured` rewrites with.
+KEPT_QUESTION: dict[str, object] = {
+    "id": "a-set-a-rebuild-replaced",
+    "question": "Why may material bought with the public grant not be sold?",
+    "kind": "multi-hop",
+    "expect": ["docs/deaccession-policy.md", "docs/funding-sources.md"],
+    "hops": [
+        {"query": "public money", "expect": "docs/deaccession-policy.md"},
+        {"query": "core funding", "expect": "docs/funding-sources.md"},
+    ],
+}
+
+
+def _kept_set(path: Path, questions: list[dict[str, object]] | None = None) -> Path:
+    """A golden set at an arbitrary path, deliberately not named `questions.yaml`.
+
+    The name matters: a flag that resolved by filename rather than by the path it was handed would
+    satisfy a test whose fixture happened to be called `questions.yaml`."""
+    path.write_text(
+        json.dumps({"questions": [KEPT_QUESTION] if questions is None else questions}),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_the_probe_measures_the_golden_set_the_flag_names(tmp_path: Path) -> None:
+    """`tools/build_rfc_corpus.py`'s `write_golden_set` copies the committed questions over
+    `<kb>/eval/questions.yaml` on *every* build, unconditionally. That is right for that corpus —
+    the questions are the instrument, not the data — but until this flag existed the probe had no
+    way past its own default, so re-measuring the set a rebuild replaced meant putting the old
+    file back into the KB, where the next build overwrote it again.
+
+    Run under `--fake`, which is also the pin on the deliberate *non*-exclusivity: `--kb` is
+    refused alongside `--fake` because `--fake` would have to discard it, and a golden set has
+    nothing to discard. Adding `--questions` to that mutually exclusive group would take this to
+    `returncode == 2` on the first assertion.
+
+    The count is what makes this discriminate. A probe that reported the flagged path but loaded
+    the default file would pass every assertion about `path` and `sha256` — those are computed
+    from `questions_path` — and fail only on `questions`, which counts what was actually read.
+    """
+    kept = _kept_set(tmp_path / "kept.yaml")
+    default_set = load_questions(DEMO / "eval" / "questions.yaml")
+
+    completed = _run_probe("--fake", "--questions", str(kept), "--json")
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+
+    assert payload["golden_set"]["path"] == str(kept.resolve())
+    assert payload["golden_set"]["sha256"] == hashlib.sha256(kept.read_bytes()).hexdigest()
+    assert payload["golden_set"]["questions"] == 1
+    assert payload["golden_set"]["multi_hop"] == 1
+    # The control, asserted rather than assumed: the file the flag displaced is a different file
+    # with a different number of questions, so `== 1` above could not have come from it. If the
+    # committed demo-kb set is ever cut to one question this test stops discriminating, and this
+    # line is what says so instead of the suite going quietly green.
+    assert len(default_set) > 1
+    assert payload["kb_root"].endswith("demo-kb")  # the corpus is still --fake's own copy
+
+
+def test_a_relative_questions_path_is_recorded_resolved(tmp_path: Path) -> None:
+    """Same property `kb_root` already has, for the same reason: two golden sets both reached as
+    `./kept.yaml` from two directories would record one path and be indistinguishable in the
+    artifact. `tmp_path` is already absolute and already resolved, so only a run whose *cwd* makes
+    the argument relative can pin it."""
+    kept = _kept_set(tmp_path / "kept.yaml")
+
+    completed = subprocess.run(
+        [sys.executable, str(PROBE), "--fake", "--questions", kept.name, "--json"],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+
+    assert Path(payload["golden_set"]["path"]).is_absolute()
+    assert payload["golden_set"]["path"] == str(kept.resolve())
+
+
+def test_a_refusal_names_the_golden_set_the_flag_named(tmp_path: Path) -> None:
+    """The refusal has to name the file it read, not the one it would have read.
+
+    `check_measurable` is handed `source=` separately from the questions themselves, so pointing
+    the loader at the flag while leaving `source` on the default is a real way to get this wrong —
+    and it fails silently in the only direction that matters: an operator fixing the *KB's* set
+    because the message named it, while the set that actually refused sits untouched elsewhere.
+    """
+    kept = _kept_set(
+        tmp_path / "kept.yaml",
+        [{**KEPT_QUESTION, "hops": [{"query": "public money", "expect": "docs/absent.md"}]}],
+    )
+
+    completed = _run_probe("--fake", "--questions", str(kept), "--json")
+
+    assert completed.returncode != 0
+    assert REFUSAL in completed.stderr
+    assert str(kept) in completed.stderr
+    assert "eval/questions.yaml" not in completed.stderr
+
+
+def test_a_mistyped_questions_path_is_refused_before_the_corpus_is_touched(tmp_path: Path) -> None:
+    """An argument error, at argparse time, rather than a traceback after a corpus build.
+
+    `--fake` copies and syncs a whole temporary corpus before any questions file is opened, so a
+    guard placed inside that block would charge a typo for the build and then hand back a
+    `FileNotFoundError` out of `pathlib` — which reads as the probe crashing, not as a wrong
+    argument. Six frames on 3.13, five on 3.14, counted on `b47eda6` under both; this docstring
+    said *nine* when it was written, and then *five* flat, and a frame count is a property of an
+    interpreter rather than of a traceback.
+
+    **The `--kb` in the first case is the ordering pin, not decoration.** It points at a directory
+    that is not a KB, so anything reaching the corpus before the flag was checked would fail in
+    `load()` with a `ManifestError` about a missing `pinakes.toml` (verified: that is exactly what
+    this argument pair did before the guard existed). Reaching `parser.error` instead is what says
+    the check came first.
+
+    **The fourth block was very nearly not written at all.** An earlier version of this docstring
+    said a regular file that exists and cannot be read was unreachable from here — that
+    `chmod(0o000)` is refused by this repository (`tests/test_doctor.py:1497`: root ignores the
+    mode, and CI's runner once produced a stat that neither succeeded nor raised) and that
+    injection could not cross `_run_probe`'s subprocess boundary. The first half is true and the
+    second is false: `_run_probe` inherits this process's environment, so `PYTHONPATH` pointing at
+    a `sitecustomize.py` runs arbitrary code in the child before the probe's first line. That is
+    the same instrument `test_doctor.py` uses and the same purpose — *what is under test is that
+    an `OSError` out of the read becomes a message, so raise one* — reached through an env var
+    instead of a `monkeypatch.setattr`. The claim was refuted by an adversarial pass that simply
+    built the seam.
+    """
+    missing = tmp_path / "not-here.yaml"
+    completed = _run_probe(
+        "--kb", str(tmp_path / "no-such-kb"), "--questions", str(missing), "--json"
+    )
+    assert completed.returncode == 2
+    assert f"no golden set at {missing}" in completed.stderr
+    assert "Traceback" not in completed.stderr
+    assert "pinakes.toml" not in completed.stderr
+
+    # `.is_file()` rather than `.exists()`: a directory is a plausible mistype (tab-completion
+    # stopping a component short) and would otherwise become an `IsADirectoryError` further in.
+    completed = _run_probe("--fake", "--questions", str(tmp_path), "--json")
+    assert completed.returncode == 2
+    assert f"no golden set at {tmp_path}" in completed.stderr
+    assert "Traceback" not in completed.stderr
+
+    # The KB's own default is deliberately NOT guarded: an absent `<kb>/eval/questions.yaml` is a
+    # corpus that cannot be measured rather than a mistyped argument, and it keeps the behaviour it
+    # has always had. Widening the guard to cover both is the regression this block exists to catch.
+    #
+    # **It has to be a real KB, and the first version of this block was not one.** An empty
+    # directory has no `pinakes.toml`, so `load()` raises `ManifestError` and execution never
+    # reaches the default questions path at all — both assertions below were then satisfied by an
+    # unrelated crash, and a genuinely widened guard passed this test. Found by the adversarial
+    # pass, reproduced by patching the widened guard in. So: the demo KB, copied, with only its
+    # golden set removed. `load()` succeeds, `questions_path` resolves to the default, and the
+    # third assertion is the one that says we got that far.
+    bare = tmp_path / "kb-without-a-golden-set"
+    # `ignore=` for the reason the `demo` fixture at the top of this file gives in full: `.pinakes/`
+    # is generated and gitignored, and on a developer machine holds an index built with the real
+    # 384-dimensional model. Nothing here reaches the index — `load_questions` raises first — so
+    # omitting it passed, which is exactly why it had to be caught by reading rather than by a run.
+    shutil.copytree(DEMO, bare, ignore=shutil.ignore_patterns(".pinakes"))
+    (bare / "eval" / "questions.yaml").unlink()
+    completed = _run_probe("--kb", str(bare), "--json")
+    assert completed.returncode != 2
+    assert "no golden set at" not in completed.stderr
+    assert "eval/questions.yaml" in completed.stderr
+
+    # A regular file that exists and cannot be read. `.is_file()` only stats, so it passes; the
+    # second arm of the guard is what refuses it, and it reports the OS's own `strerror` rather
+    # than a message of ours.
+    #
+    # **Injected, not chmod'd**, this repository's rule, reached through the child's environment
+    # because the child is where the probe runs. `sitecustomize.py` is written into `tmp_path`
+    # rather than committed under `tests/`: pytest puts `tests/` on `sys.path`, so a committed one
+    # would be imported by every Python this repository ever starts.
+    denied = tmp_path / "denied.yaml"
+    _kept_set(denied)
+    injector = tmp_path / "injector"
+    injector.mkdir()
+    (injector / "sitecustomize.py").write_text(
+        "import os, pathlib\n"
+        "_deny = os.environ['PNK_TEST_DENY_READ_OF']\n"
+        "_real = pathlib.Path.open\n"
+        "def _open(self, *a, **k):\n"
+        "    if str(self) == _deny:\n"
+        "        raise PermissionError(13, 'Permission denied')\n"
+        "    return _real(self, *a, **k)\n"
+        "pathlib.Path.open = _open\n",
+        encoding="utf-8",
+    )
+    environment = {"PYTHONPATH": str(injector), "PNK_TEST_DENY_READ_OF": str(denied)}
+    completed = _run_probe("--fake", "--questions", str(denied), "--json", env=environment)
+    assert completed.returncode == 2
+    assert f"cannot read the golden set {denied}: Permission denied" in completed.stderr
+    assert "Traceback" not in completed.stderr
+
+    # The control the injection needs, and the reason it is not decoration: the identical run
+    # without the two variables reaches the corpus and refuses for a golden-set reason instead, so
+    # the assertion above is about the guard rather than about the fixture being broken.
+    completed = _run_probe("--fake", "--questions", str(denied), "--json")
+    assert completed.returncode != 2
+    assert "cannot read the golden set" not in completed.stderr
 
 
 RUNNER = """
