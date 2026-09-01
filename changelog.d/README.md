@@ -48,6 +48,10 @@ not into a fragment — which is exactly the difference this section is about.) 
 20260825 by the gate, on a fragment whose links were right for where the text was going and wrong
 for where it was sitting.
 
+**Until build-order row 14 lands, a cross-fragment anchor goes in a code span, not a live link** —
+`tools/markdown_link_gate.py` resolves `#…` against the fragment's own headings, so the form that is
+correct after splicing is red before it. See `retro.d/README.md` for the measurement.
+
 **And never link to another fragment by filename**, for the reason
 [`retro.d/README.md`](../retro.d/README.md) gives: splicing puts every fragment into one document,
 where a sibling's filename no longer resolves. Link to the *heading* instead.
