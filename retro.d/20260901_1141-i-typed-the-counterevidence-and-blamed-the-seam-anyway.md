@@ -18,24 +18,33 @@ halves kill the theory I went on to state in the same paragraph. One `grep` conf
     tests/test_fragments.py:40   def run(repo: Path, ...) -> `repo` is a required positional; there is
                                  no default to forget, so the route I was guarding does not exist
 
-The actual cause was **two agents, not one**, and they caused different halves of the damage. Both ran
-a probe recipe whose safety rested entirely on a `cd`, and a failed `cd` stops nothing that follows it:
+The actual cause was **one agent, one block, one failed `cd`** — four newline-separated shell lines in
+a probe: a `cd` into a directory that did not exist, followed by `rm -f retro.d/*.md` and `: >` on both
+targets, the pair of them twice in the one run. The `cd` failed and stopped nothing, so all of it ran
+in the session's cwd, which was the repository.
 
-    a583  11:31:13-11:33:22  six blocks  cd /tmp/probe1       rm -f retro.d/*.md, and no `: >` at all
-    acea  11:34:41           one block   cd /tmp/probe-refute both, with `: >` on each target twice
+**That sentence is the second version of this paragraph, and the first was worse than the error it
+replaced.** Told that a second agent had run the same recipe six times three minutes earlier, I ran a
+census over every transcript, found six more `rm -f retro.d/*.md` calls, and rewrote the cause as two
+agents authoring one symptom each. A peer then read the tool *results* — which neither of us had
+opened — and the account collapsed: all six of the other agent's runs succeeded inside their probe
+directory, the first result opening `no matches found: retro.d/*.md` because that directory was empty.
+It deleted nothing. The one block whose result reads `(eval):cd:1: no such file or directory` is the
+only one that ran anywhere near the repository, and it is the one that did all of the damage.
 
-So the fragments were deleted from **11:31:13** and the documents truncated at **11:34:41** — three and
-a half minutes and two authors apart. I had one compound symptom and gave it one cause, which is the
-same move as the paragraph above, made one level further out. A peer found the second agent; I then
-re-ran the census and found that the halves did not share an author.
+**A command's text is not evidence that it ran where you think it ran.** That is the lesson, and it
+generalises past this recipe in a way that nothing about `cd` does. My census was one layer short of
+right: it correctly separated the executions from the two of us grepping for the string during the
+investigation — eight of the sixteen recorded calls are the investigation — and then treated all eight
+executions as equivalent, because I was still reading intent. The result is the event. Pair each
+`tool_use` with its `tool_result` on `id` and read the first line; it costs the same query.
 
-Two things that only fall out of counting properly. Of the 16 recorded calls whose command contains
-`rm -f retro.d`, **eight are executions and eight are the two of us grepping for the string during the
-investigation** — counting those would have been the "measuring sessions as data" error again. And of
-the eight executions, **seven did damage**: acea's second block named its scratch directory absolutely
-and ran there. The evidence for that is physical rather than inferred — the backup I took holds
-`two-spaces-after-hash.md`, written by the 11:34:41 block, and no `leading-tab.md`, which the 11:34:56
-block would have written after deleting it.
+**And the argument I did check was one that could not have distinguished the cases.** I reasoned that
+the surviving backup held `two-spaces-after-hash.md` and no `leading-tab.md`, so the later block must
+have run elsewhere — true, and I was right about that block. But the same evidence is equally
+explained by the damaging block's *own* second `rm -f` deleting the file its first half had written,
+which is what actually happened. I took a correct conclusion from an argument with no discriminating
+power and counted it as verification.
 
 **The failure is not that I guessed.** It is that I reasoned from symptoms to a *named mechanism in
 someone else's file* without opening the file, while holding — and having already stated — the fact

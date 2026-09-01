@@ -1,0 +1,272 @@
+# Clear the user-facing list, then decide whether to add process
+
+**Drafted as a proposal by a read-only survey session 20260901 11:48 UTC; reviewed, revised and
+adopted as a plan by the planner 20260901 11:58 UTC, against `main` at `6ae2a6c`.** § 3 is a build
+order and its rows are live. **§ 4 is the user's and nothing waits on it** — the build order does not
+depend on the answer, which is itself part of the argument in § 4.
+
+**Audience: the planner, the coder and the user. Goal: sequence work that is already decided, row one
+item nobody has rowed, and put one standing decision to the user.**
+
+**What the planner changed in review**, each verified rather than accepted:
+
+| # | Change | Why |
+|---|---|---|
+| 1 | § 2's verification grep replaced | The original was a null over a selector never shown able to fire. The replacement names the population |
+| 2 | § 3 row 9 keeps its rank, gains a premise correction | `init.py` **does** defend at creation; the row is about drift, and it is stronger when it survives someone opening the file |
+| 3 | § 4 gains a third reading and a conflict-of-interest note | Both options assume the ratio measures process appetite. It may measure queue position |
+| 4 | § 2's sizing measured, then **the measurement was itself refuted** | The planner's first correction compared battery-file lines against gate-source lines and double-counted mutants. The survey session refuted it; § 2 carries the corrected version and says so |
+| 5 | § 2's verb corrected: `check.sh` **names** eleven gates and runs ten | `wheel_import_gate` needs `uv build` and a network resolve; CI's `build` job runs it |
+| 6 | § 3 row 3 (cut the release) gained an explicit stop | A session reported the user holding the release; that hold is written in no document, and a tag publishes to PyPI irreversibly |
+
+**M1 was re-run by the planner and its counts are exact** — 11 gates, 4 with a battery, 7 without —
+**but its verb was not**: `check.sh` *names* eleven and runs ten (§ 2). A looser sweep of `file =` keys also returns batteries for `mcp_handshake_gate`,
+`release_tag_gate`, `review_ledger`, `mutate` and `reachable_ceiling_probe` — correctly excluded,
+because `check.sh` does not invoke them.
+
+**What this file does not do.** It re-decides nothing. It opens no finding that
+[`20260825_1240-run-pinakes-sweep.md`](20260825_1240-run-pinakes-sweep.md) already carries, and it
+does not restate that plan's rows — after the register audit landed in `d441f48`, every open row
+there carries its own dated measurement and is better evidence than a summary of it would be. **Only
+§ 2 is new.** The rest is order, and one question.
+
+---
+
+## 0. What was measured, and when
+
+**Each row is a measurement I ran, not a claim inherited from a register.** The register audit that
+landed at `d441f48` is why this list is short: rows 4–14 of the sweep plan were re-measured at
+20260901 11:35 UTC by the planner and I have not duplicated that work.
+
+| # | Measurement | Result | How |
+|---|---|---|---|
+| M1 | Custom gates `check.sh` invokes, vs. gates with a mutation battery | **7 of 11 have no battery** | `grep -oE 'tools/[a-z_]+\.py' check.sh` ∩ `file =` keys across `tools/batteries/*.toml`, on `c621d08` |
+| M2 | Insertions by area, `51a34bb` → `b6be317` | `src/` **928 of 16,909 — 5.5%**; `docs/`+`plans/` 7,677 | `git diff --numstat`, non-merge window since 20260824 04:07 |
+| M3 | Register corpus size over the same window | `docs/` 20,110 → 22,786 (+13%); `plans/` 10,883 → 15,631 (**+44%**) | `git show <sha>:<path> | wc -l` at both ends |
+| M4 | Retro fragments ever added, judged by row 12's gate as written on its branch | 107 files, 91 judged, **18 would fail, 0 false positives** | each file read at its own adding commit via `git log --diff-filter=A` |
+| M5 | Pending fragments at `HEAD` | 4 `changelog.d/` + 7 `retro.d/` | `git ls-tree --name-only HEAD` |
+
+**M1 is the only one that produces a work item.** M2–M4 are context for § 4 and nothing depends on
+them being acted upon.
+
+---
+
+## 1. Why this plan is about order and not about findings
+
+**The product is finished against every plan it has; the queue that keeps it correct is what
+stopped.** Every named release has shipped, failed its own measurement honestly and ships off, or
+waits behind a written trigger. There is no feature backlog by construction — that is a
+finished-product signature, not a stall.
+
+Against that: **the published 0.31.1 carries eight reproduced user-facing defects, found by running
+Pinakes on 20260825, decided the same day, and still unbuilt.** They are rows 4, 5, 6, 9 and 10 of
+the sweep plan's build order, each re-measured 20260901 11:35 UTC. Two are the sharp kind — S1
+indexes *nothing* when one file is unreadable, S4 reports a bricked KB as created with exit 0.
+
+**So the work is already decided, already owned and already rowed. What it lacks is a position in
+front of everything else.** That is all § 3 supplies.
+
+---
+
+## 2. ENG-1 — seven of eleven gates have never been mutation-tested
+
+**Recorded in no plan and no queue, which is why it is here rather than in the sweep plan's table.**
+I measured it because a survey raised it (M1), and it is the highest-leverage unrowed item in the
+repository.
+
+`check.sh` names eleven custom gates and **runs ten of them**: `wheel_import_gate.py` is named at
+`check.sh:57-64` and deliberately not run there, because it needs `uv build` and a network resolve, so
+CI's `build` job and `release.yml` run it instead. Four of the eleven have a mutation battery. Seven
+do not, and the count is unaffected by where the eleventh runs:
+
+| Gate | Battery? | What it enforces |
+|---|---|---|
+| `paid_path_gate.py` | **none** | the two-entry paid-path allowlist — **the only invariant that costs real money** |
+| `traversal_cap_gate.py` | **none** | the link-traversal bound |
+| `link_density_gate.py` | **none** | the link-density bound |
+| `eval_reproducibility_gate.py` | **none** | that a published eval number can be re-derived |
+| `shared_file_overlap.py` | **none** | the pre-merge overlap check every landing is told to run |
+| `template_drift_gate.py` | **none** | that the stamped template matches the shipped one |
+| `wheel_import_gate.py` | **none** | that the built wheel imports without an extra |
+| `fragments.py`, `markdown_link_gate.py`, `release_order_gate.py`, `status_header_gate.py` | ✅ | — |
+
+**This repository's own rule is that a gate is only evidence once something has shown it can kill**
+— *"a mutation pass is evidence only if the harness is shown to kill"*, and *"a run with no kills is
+a broken harness, not a clean bill"*. By that rule seven of these eleven are unverified until
+somebody checks, and nobody has checked.
+
+**A correction to my own framing, because it changes what "do `paid_path_gate` first" means.**
+[`docs/INVARIANTS.md:24`](../docs/INVARIANTS.md) says **four** gates enforce the paid path, and that
+*"the one that matters runs the whole free path in a fresh subprocess and asserts no paid client
+reached `sys.modules`"* — that is `tests/test_paid_path.py` with `tests/free_path_run.py`, not
+`tools/paid_path_gate.py`. So the grep gate is not the strongest enforcement and should not be
+described as though it were.
+
+**It does not weaken the item; it widens it.** No battery names *any* paid-path file — not the
+gate, and not the subprocess test that INVARIANTS calls the one that matters. **The strongest
+assertion protecting the money invariant has never been shown able to fail.** Do that one first,
+then the gate. **Verify it with a selector that names its population**, not with a grep that returns nothing:
+
+    grep -rln 'PINAKES_ANTHROPIC_API_KEY' src/
+      -> src/pinakes/paid.py, src/pinakes/errors.py, src/pinakes/deep/loop.py
+
+Those three files are the paid path. None is a `file =` key in any battery. Stated that way a future
+zero carries information; stated as `... | grep -i paid` it cannot, because nothing shows the
+selector could ever have fired.
+
+**Scope discipline, because this is the exact shape § 4 wants to freeze.** This is not new process.
+It adds no gate, no rule and no register — it asks whether seven gates that already exist do
+anything. **Batteries are appended to the target's existing battery file, never started as a second
+file** ([`tools/batteries/README.md`](../tools/batteries/README.md)), and
+`tests/test_batteries.py` fails if that is got wrong.
+
+**Sizing, measured — and the planner's first version of this paragraph was wrong.** It claimed
+`template_drift_gate` at 684 lines was beyond anything ever batteried here, and the survey session
+refuted it with one command: **`tools/release_order_gate.py` is 797 lines and carries a full battery**
+(458 lines, 45 mutants). 684 is *below* the existing precedent, not beyond it. The planner's mutant
+counts were also doubled by an anchor matching both `[[mutant]]` and `name = ` in the same block —
+batteries run **128-458 lines and 8-45 mutants** (median 179 and 15; 211 mutants across 11 batteries),
+and nothing here has 90.
+
+So the conclusion inverts: **do not split `template_drift_gate` — size it against `release_order_gate`,
+the closest and larger precedent.** Roughly 400-450 battery lines, 40-odd mutants, about two sessions.
+The other six sit between `status_header_gate` (268 source → 144, 12 mutants) and `fragments.py` (598
+→ 207, 20), so one session each holds for them. The original "roughly one session each" was still
+wrong for the seventh; it was corrected for a reason that did not survive checking, and the corrected
+number stands on the precedent instead.
+
+**That expectation is the reason to do it, not a reason to
+skip it** — if a gate does not kill, everything it has ever certified is unsupported, including
+past releases.
+
+---
+
+## 3. Proposed build order
+
+**All of this is coder work and none of it needs a decision.** Rows 1–6 are the sweep plan's own
+rows; the column names their number there rather than restating them. **This table proposes an
+order, not new work** — the sweep plan remains the owner of every row it already carries.
+
+| # | Item | Sweep row | Blocked on | Why here |
+|---|---|---|---|---|
+| 1 | Row 14 — teach `markdown_link_gate` the splice destination, both arms; restore the two code-spanned links | 14 | nothing | A correct link is currently degraded on `main` and both fragment READMEs carry a caveat contradicting their own instruction. Live incoherence in the tree beats everything else. |
+| 2 | Row 12 — the retro heading + stamp gate | 12 | nothing | Finished and pushed on its branch; landing it is cheaper than carrying it. **M4 is the evidence it earns its place:** 18 of 91 historical fragments would fail it and none is a false positive. |
+| 3 | **Cut the release — ASK FIRST** | — | rows 1–2, **and an explicit user go-ahead** | 11 fragments pending (M5) and `[Unreleased]` reads empty, which is itself misleading. **It is a MINOR, not a patch — measured at `6ae2a6c` 20260901 12:05 UTC.** (The number is deliberately not written here: *a version number belongs to a release when it is cut, never before*, and `docs/RELEASING.md` names none either.) 15 fragments pend (5 `changelog.d/` + 10 `retro.d/`); two of the five are **Added** (`agent-spend-measures-what-the-agents-cost`, `the-ceiling-probe-takes-the-golden-set-as-an-argument`) and three are **Fixed**, so the SemVer table gives MINOR. `__version__` is `0.31.1` and `## [Unreleased]` is **empty**, which makes the document say nothing is pending while the tree holds fifteen — the exact trap `docs/RELEASING.md` exists for. **Do not cut this without asking.** A session on 20260901 recorded the release as held by the user (*"still uncut, as you set it"*), and that hold appears in no document in this repository — so it cannot be verified from the tree and must not be inferred away by this row. A tag publishes to PyPI and PyPI never accepts a version twice: this is the only row here that cannot be undone. **State plainly in the release notes that this release reaches no user of `pnk`** — the rename crash people would feel is already out in 0.31.1; this is two dev tools, a docs-audit closure and a gate unblock. **The cost of holding, stated because it points the other way:** ten of the fifteen are `retro.d/` records of 20260901's own wrong diagnoses — five instances of one failure across three sessions — and they reach `docs/RETROSPECTIVES.md` only at a cut. Every day held is a day the published retrospectives omit the day that produced the most of them. That argues for cutting; it does not argue for cutting without asking. Planner-owned. |
+| 4 | **S1** — `PermissionError` aborts the whole walk | 4 | nothing | The worst failure mode in the list: one unreadable file and **nothing is indexed at all**. |
+| 5 | **S4** — escape at render in `template.py` | 5 | nothing | Silent, permanent, and `init` refuses to repair it. Exit 0 on a bricked KB. |
+| 6 | **D-37's build** — gate the move hint on the orphaned sidecar | 9 | nothing | Fires on **every ordinary deletion, on every `pnk sync`**, claiming an id was minted when none was. Highest frequency of anything in the list. |
+| 7 | **S5–S9** — the accept-then-mishandle batch | 6 | nothing | Five inputs accepted and then mishandled. Whoever builds it should decide up front whether it is one fix or five, and say which in the commit. |
+| 8 | The four Low classes | 10 | rows 4–7 | `-k 0` becoming the default page size, mistyped `--source-type` returning nothing, the wrong `confidence_reason`, a symlink loop reported healthy. |
+| 9 | **The `.pinakes/` questions in `doctor`** (D-31/D-32/D-33, option C, unconditional) | exposure 5–6 | nothing | **Ranks with S1 and S4 on severity, not below them:** since the deep release the index holds users' verbatim questions, only `init` ever asks whether `.pinakes/` is committed, and it asks once. A KB that starts leaking *after* init is never warned while `doctor` reports clean. **Checked before ranking it:** `init.py:122-156` does defend at creation — it writes a `.gitignore` and asks git via `check-ignore` rather than text-scanning, the scan it replaced having been measured wrong in both directions on 20260825. So the exposed population is KBs whose ignore state **drifted after init**, not every KB. That is a lower frequency than S1 or S4 and a worse, irreversible consequence — keep it level with them, not above. **And that defence is itself batteried** (`tools/batteries/src-pinakes-init.toml`, 14 mutants, one of them targeting the `check-ignore` diagnostic), so row 9 is narrower *and* better defended than the draft said — which is the version worth landing, because it is the one that survives being checked |
+| 10 | **ENG-1 · `paid_path_gate` battery first**, then the remaining six | — new | nothing | § 2. Split per gate; each is its own commit. |
+| 11 | Row 11 — the FX guard, two parts | 11 | nothing | Already scoped, including the sentence the commit must carry. |
+| 12 | Row 13 — the vacuous verifier | 13 | nothing | Small; pin the empty-input case as non-zero. |
+
+**Rows 4–9 are the list § 4 refers to as "the user-facing list".** It is empty when those six land.
+
+**What this order deliberately puts last:** the G5 re-run, the ROADMAP review, X7 layer 3, D-36,
+`_toml.py`'s message and `pageyield.py`'s example. Each is real; none reaches a user of `pnk`.
+
+---
+
+## 4. The decision for the user — a process moratorium
+
+**This is the only thing in this file that is not already decided, and it is not an agent's to
+take.** It is put here because M2 and M3 measure a ratio that nobody has ruled on.
+
+**The evidence, stated with its selector.** Over `51a34bb` → `b6be317` (20260824 04:07 → 20260901
+11:16 UTC), `src/` took **928 of 16,909 inserted lines — 5.5%** (M2), while `docs/` grew 13% and
+`plans/` grew **44%** (M3). Both halves are true simultaneously: individual findings genuinely
+closed, *and* the corpus grew 7,424 lines net. **A count of commits is not offered** — a commit
+tally varies with how finely a session slices its work, and a path-filtered `git log` returns a
+different number again through history simplification.
+
+**A third reading, which neither option below states.** The ratio may be measuring **queue position,
+not process appetite.** Across that window the code work was decided-but-unstarted and the document
+work was unblocked, and agents write what is available to write. If that is what happened, freezing
+the register layer does not cause S1 to be built — only building S1 does — and the ratio corrects
+itself when § 3 rows 4-9 land. This reading argues that **§ 3 is sufficient and § 4 is unnecessary**.
+It is not offered as a fourth option because it is an argument about whether to decide at all, and
+because it is not free of assumption either: it predicts the ratio falls once the queue drains, which
+nobody has tested.
+
+**Conflict of interest, stated because the recommendation is not neutral.** Option A validates the
+measurement its author spent the morning producing, and the author said so when handing the draft
+over. That does not make A wrong — it is genuinely the only zero-cost reversible option — but the
+user should weigh it knowing the recommender benefits from its adoption.
+
+### The options
+
+| | **A · Freeze the register layer** | **B · Freeze nothing** | **C · Actively consolidate** |
+|---|---|---|---|
+| **What it means** | No new register, no new rule in `CLAUDE.md`, no new gate that is not closing a defect that already shipped — until § 3 rows 4–9 are done | Carry on; judge each addition on its merits as now | Collapse the four queues into one as a scheduled piece of work |
+| **For** | Costs nothing, reversible in a sentence, and directly targets the measured ratio. Leaves every existing gate running | Nothing is refused on a rule rather than on merit. The newest process — `RELEASING.md` step 3 — caught a stale FX rate that had shipped in a wheel for a month | Attacks the actual cause of the disorientation, which the repo has already diagnosed precisely |
+| **Against** | A freeze is blunt: it would have refused step 3, which paid for itself. Needs an explicit carve-out for a gate closing a shipped defect | Is the status quo, and the status quo produced the ratio. Nothing changes | More writing, into the corpus that is already up 44%. **The last attempt produced a fifth register rather than one.** Spends a week on the map while the territory is stalled |
+| **Cost** | zero | zero | ~1 week, planner |
+| **Reversible** | yes, immediately | n/a | no |
+
+### Recommendation — **A, with the carve-out written into the rule**
+
+**Recommended because it is the only option that changes the measured ratio at zero cost and can be
+lifted in one sentence.** The carve-out is what makes it survivable: *a gate that closes a defect
+which already shipped is not new process.* Step 3 would have passed that test — it was written
+because a stale rate shipped. ENG-1 passes it too, which is why § 3 rows it rather than deferring it.
+
+**C is not recommended now**, and the reason is evidential rather than aesthetic: the diagnosis is
+already written down in several places, and acting on it while the engine is stalled means the map
+grows again. It becomes the right answer once § 3 rows 4–9 are empty.
+
+**B is a legitimate answer** and would be the right one if the ratio were an artifact of a single
+unusual week. It is not offered as a strawman: three days of that window were silent, so the ratio
+is measured over five working days, and one week is a thin base for a standing rule.
+
+**The exit condition, so the freeze cannot become permanent by inattention:** it lifts when § 3
+rows 4–9 have landed. That is a checkable state, not a date.
+
+---
+
+## 5. What comes after — and why it is not scheduled here
+
+**Dogfooding is the highest-yield activity this repository has on record, and it cannot be
+scheduled by an agent.** Every user-facing defect in § 3 came from one sweep of *running* Pinakes on
+20260825. Two of the three gated futures need the same input to fire: T6 wants "a KB that is
+actually queried" past ~50,000 chunks with felt latency, and the dogfooding KB `pinakes-kb` has one
+commit, dated 20260804, untouched since.
+
+**It is the user's material, so the user is the trigger.** It is named here so that an empty build
+order is not misread — [`docs/README.md`](../docs/README.md) already warns that an empty list means
+*the next thing to build has not been planned yet*, never *nothing to do*.
+
+**One honest note about the gated futures, because it changes what re-measuring is worth:** the G5
+re-run will not revive the graph channel. PPR's own gate requires a channel shipping default-on, and
+the plan predicts another null in advance — so a null re-run leaves PPR exactly where it is.
+Reviving it needs a different mechanism or corpus, not another measurement. The re-run is still
+worth doing if the goal is to retire the question honestly; it is not worth doing if the goal is to
+unblock the graph work.
+
+---
+
+## 6. Also owed by the user, and not by anyone here
+
+Listed for completeness; none blocks § 3.
+
+| Decision | State |
+|---|---|
+| The `CLAUDE.md` extraction (`475b452`) | Pushed, unmerged, marked *do not land without the user*. `main` has drifted since, so it now needs a rebase |
+| `pnk adopt` — which release owns it, or drop it | Appears in **no** top-level routing document. An unowned proposal in one plan file is worse than either outcome |
+| The `fable` clause in the user's global `~/.claude/CLAUDE.md` | Reported done 20260901 07:01 UTC; **verify before acting on either state** |
+| `--autocompact 150000` | **Unverifiable from this repo.** One mention in `RESUME.md`, no plan, no commit; the live setting is a different number |
+
+---
+
+## 7. What this plan does not claim
+
+- **It does not claim § 3's order is the only correct one.** Rows 4–9 could be built in any order;
+  what is argued is that they precede rows 10–12, and that row 9 belongs with rows 4–5 rather than
+  below them.
+- **It does not restate the sweep plan's evidence.** Where this file and that one disagree about a
+  row's state, **the sweep plan wins** — it carries the dated measurement and this file carries a
+  summary of it.
+- **It adds no finding except ENG-1.** Everything else here has an owner already.
+- **Its own status claims decay.** Every row states where to check rather than asking to be
+  believed; a register that is read is the one that stays true.
