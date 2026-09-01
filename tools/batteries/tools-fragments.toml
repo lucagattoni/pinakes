@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 30
+mutants = 33
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -250,7 +250,7 @@ kills = "tests/test_fragments.py::test_a_third_level_heading_does_not_open_a_fra
 [[mutant]]
 name = "the stamp arm is dropped, leaving the heading free to name any time at all"
 file = "tools/fragments.py"
-old = '''    if wanted not in first:'''
+old = '''    if re.search(rf"(?<!\(){re.escape(wanted)}(?!\))", first) is None:'''
 new = '''    if False:'''
 kills = "tests/test_fragments.py::test_a_heading_whose_stamp_disagrees_with_the_filename_is_refused"
 
@@ -286,14 +286,14 @@ kills = "tests/test_fragments.py::test_a_fragment_that_is_neither_reports_both_p
 [[mutant]]
 name = "the byte-order mark is neither reported nor stripped, so a correct heading reads as missing"
 file = "tools/fragments.py"
-old = '''    if first.startswith("\ufeff"):'''
+old = '''    if text.startswith("\ufeff"):'''
 new = '''    if False:'''
 kills = "tests/test_fragments.py::test_a_byte_order_mark_is_named_rather_than_reported_as_a_missing_heading"
 
 [[mutant]]
 name = "DISCRIMINATING — the mark is reported but not stripped, so the heading arm fires about it too"
 file = "tools/fragments.py"
-old = '''        first = first.lstrip("\ufeff")'''
+old = '''        text = text.lstrip("\ufeff")'''
 new = '''        pass'''
 kills = "tests/test_fragments.py::test_a_byte_order_mark_is_named_rather_than_reported_as_a_missing_heading"
 
@@ -307,3 +307,38 @@ file = "tools/fragments.py"
 old = '''            f"with {first[:60]!r}. See `{stream.directory}/README.md` § Contents."'''
 new = '''            f"with {first.strip()[:60]!r}. See `{stream.directory}/README.md` § Contents."'''
 kills = "tests/test_fragments.py::test_a_heading_hidden_by_leading_whitespace_is_quoted_with_the_whitespace_showing"
+
+# The three below all come from the second adversarial pass, and two of them are about the arm the
+# *first* pass added. A gate written to stop a fragment being sent to fix what is already correct
+# did exactly that to the next input shape along, and the row for it did not exist until a reviewer
+# fed the mark in on its own line.
+#
+# Recorded and not fixed, because `tools/mutate.py` cannot measure it: under mutant 25
+# (`wanted = f"({day}"`) the em-dash case of `test_nothing_looser_than_the_ruled_stamp_is_accepted`
+# carries no `(` at all, so baseline and mutant both refuse it and that sub-case dies from the
+# message text rather than the looseness it names. Three of the four sub-cases kill on the return
+# code, so the mutant is legitimately killed at this tool's granularity — the gap is one level
+# finer than anything it reports, which is the point worth keeping.
+
+[[mutant]]
+name = "DISCRIMINATING — a mark on its own line is neither reported nor stripped, so the heading two lines down is never read"
+file = "tools/fragments.py"
+old = '''    if text.startswith("\ufeff"):'''
+new = '''    if text.startswith("\ufeff") and not text.startswith("\ufeff\n"):'''
+kills = "tests/test_fragments.py::test_a_byte_order_mark_alone_on_the_first_line_reports_only_itself"
+
+[[mutant]]
+name = "DISCRIMINATING — the stamp is contained rather than anchored, so `((20260901 07:10))` passes"
+file = "tools/fragments.py"
+old = '''    if re.search(rf"(?<!\(){re.escape(wanted)}(?!\))", first) is None:'''
+new = '''    if wanted not in first:'''
+kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_accepted"
+
+[[mutant]]
+name = "the no-prefix exemption is dropped, so a fragment predating the naming rule is asked for a stamp it cannot have"
+file = "tools/fragments.py"
+old = '''    if stamp is None:
+        return problems'''
+new = '''    if False:
+        return problems'''
+kills = "tests/test_fragments.py::test_a_fragment_with_no_prefix_owes_a_heading_and_not_a_stamp"

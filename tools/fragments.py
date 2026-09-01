@@ -289,7 +289,7 @@ def document_problems(stream: Stream, text: str) -> list[str]:
 
 
 def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
-    """The two ways a retrospective fragment joins the incident above it without saying so.
+    r"""The two ways a retrospective fragment joins the incident above it without saying so.
 
     **Neither is visible to `document_problems`, and that is not an oversight — it is the
     mechanism.** A fragment carrying no `##` heading is not malformed once spliced. It is
@@ -313,15 +313,35 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
     of the parentheses, not a trailing `UTC`. A gate that accepts three spellings of a stamp is
     not checking the stamp, it is checking that somebody typed a date.
 
-    **A heading hidden behind leading whitespace fails for a different reason, and the message has
-    to survive it.** ` ## Heading` is a valid ATX heading to CommonMark, so it is not absorbed. It
-    is invisible instead — to `document_problems` here, to `anchors_of` in
-    `tools/markdown_link_gate.py`, to every reader in this repository that matches
-    `startswith("## ")` — so the section exists on the published page and nothing can link to it.
-    Refusing it is right. Quoting the offending line back `.strip()`ped was not: the message said
-    the fragment does not open with `## ` and then displayed a string that plainly does, which is
-    unfixable to read. Reproduced from a leading space and from a leading tab. **The raw line goes
-    in the message, `repr` and all** — that is what makes the whitespace visible.
+    **The three near-miss openings fail three different ways, and only one of them is the way this
+    docstring first claimed.** Measured 20260901, against Python-Markdown with `mkdocs.yml`'s own
+    extension list, and against `anchors_of` in `tools/markdown_link_gate.py`:
+
+    | opening | what the built site shows | what `anchors_of` returns |
+    |---|---|---|
+    | `' ## A lesson'` | a **paragraph** under the previous heading — *absorbed* | an anchor |
+    | `'\t## A lesson'` | a **code block**, heading text and all | an anchor |
+    | `'##A lesson'` | a correct `<h2 id=…>` | **nothing** |
+
+    So absorption is not the wrong mechanism for the space form — it is exactly the mechanism, and
+    Python-Markdown is stricter than CommonMark here: one leading space is enough, where CommonMark
+    allows three. The tab form is worse than absorbed. And both whitespace forms fail a *second*
+    way nothing else here catches: `anchors_of` matches `^\s{0,3}(#{1,6})\s+`, so the link gate
+    mints an anchor the built page does not have — a link to it passes the gate and 404s on the
+    site, a false green. `'##A lesson'` inverts that: a real heading the link gate cannot see. All
+    three are refused, for three different reasons, which is why the message names the *form* and
+    leaves the consequence to the README.
+
+    **Quoting the offending line back `.strip()`ped was the second defect.** The message said the
+    fragment does not open with `## ` and then displayed a string that plainly does — unfixable to
+    read, reproduced from a leading space and from a leading tab. **The raw line goes in the
+    message, `repr` and all.**
+
+    **This paragraph has been wrong twice, both times written from reading the code.** The first
+    draft named absorption for every form. The second deleted absorption as "the wrong mechanism"
+    and credited `startswith("## ")` to `anchors_of`, which is a regex allowing what the claim said
+    it excluded. The table above was *run*. `site/RETROSPECTIVES/index.html` is the authority for
+    what a fragment becomes, and asking it costs one command.
 
     **The messages name the defect, show the line, and cite `retro.d/README.md` § Contents. They do
     not restate the rule** — a gate that restates one owns a second copy of it, and the copy rots.
@@ -339,20 +359,24 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
         return []
 
     problems: list[str] = []
-    first = next((line for line in text.splitlines() if line.strip()), "")
-    if first.startswith("\ufeff"):
-        # Reported on its own, and stripped before the arms below judge the line. Refusing
-        # the fragment is right — `render` would splice the mark into the *middle* of the
-        # document, where it is invisible and belongs to nothing — but saying "must open with
-        # a heading" about a fragment that plainly does sends the writer to fix the one thing
-        # that is correct. `tools/build_rfc_corpus.py` already strips a BOM from ingested
+    if text.startswith("\ufeff"):
+        # Stripped from the *text*, before the opening line is chosen — not from the line, which
+        # is where the pass-2 review found the second half of this. `"\ufeff".strip()` is truthy,
+        # so a mark sitting alone on line 1 is itself selected as the opening line; lstripping it
+        # there leaves `""`, and the heading two lines down is never read. That fragment collected
+        # three messages, two of them about a heading and a stamp which were already correct.
+        # Refusing it is right either way — `render` would splice the mark into the *middle* of
+        # the document, where it is invisible and belongs to nothing — but a message sending the
+        # writer to fix what is correct is the exact failure this arm was added to prevent, one
+        # input shape further in. `tools/build_rfc_corpus.py` already strips a BOM from ingested
         # text, so this is an input class the repository has met before.
         problems.append(
             f"{stream.directory}/{path.name}: opens with a UTF-8 byte-order mark, which "
             f"`render` would splice into the middle of {stream.target}. Save it as UTF-8 "
             "without a BOM."
         )
-        first = first.lstrip("\ufeff")
+        text = text.lstrip("\ufeff")
+    first = next((line for line in text.splitlines() if line.strip()), "")
     if not first.startswith("## "):
         problems.append(
             f"{stream.directory}/{path.name}: must open with its own `## ` heading, and opens "
@@ -364,7 +388,10 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
         return problems
     day, clock = stamp.group(0)[:8], stamp.group(0)[9:13]
     wanted = f"({day} {clock[:2]}:{clock[2:]})"
-    if wanted not in first:
+    # Anchored, not contained. `((20260901 07:10))` carries `wanted` as a substring and is not the
+    # ruled form, so a containment test made "nothing looser passes" false — in the docstring above
+    # and in `docs/VERIFICATION.md`. Found by a reviewer who read that sentence as a claim.
+    if re.search(rf"(?<!\(){re.escape(wanted)}(?!\))", first) is None:
         problems.append(
             f"{stream.directory}/{path.name}: its heading must carry `{wanted}`, the filename's "
             f"own prefix. See `{stream.directory}/README.md` § Contents."

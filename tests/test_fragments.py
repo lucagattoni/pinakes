@@ -843,6 +843,7 @@ def test_a_heading_whose_stamp_disagrees_with_the_filename_is_refused(repo: Path
         "## A lesson (20260901)",
         "## A lesson — 20260901 07:10",
         "## A lesson (20260901 07:10 UTC)",
+        "## A lesson ((20260901 07:10))",
         "## A lesson (20260901 0710)",
     ],
 )
@@ -937,10 +938,13 @@ def test_a_heading_hidden_by_leading_whitespace_is_quoted_with_the_whitespace_sh
 ) -> None:
     """The refusal was right and the message was unreadable, which is the same defect as the BOM.
 
-    ` ## Heading` is a valid ATX heading to CommonMark, so this fragment is not *absorbed* — it is
-    invisible, to `document_problems` and to `anchors_of` in `tools/markdown_link_gate.py` alike,
-    both of which match `startswith("## ")`. The section reaches the published page and nothing can
-    link to it. So the gate is right to refuse it.
+    Refusing both is right, and not for one reason. Measured 20260901 against Python-Markdown with
+    `mkdocs.yml`'s own extension list: `" ## A lesson"` renders as a **paragraph** under the
+    previous fragment's heading — absorbed, the mechanism the gate exists for, and one leading
+    space is enough because Python-Markdown is stricter than CommonMark — while `"\t## A lesson"`
+    renders as a **code block**. Both also mint an anchor from `anchors_of`
+    (`tools/markdown_link_gate.py`, a regex allowing three leading spaces) that the built page does
+    not have, so a link to either passes the link gate and 404s on the site.
 
     **What it said was not.** The message quoted the offending line `.strip()`ped, so it read *must
     open with its own `## ` heading, and opens with `'## A lesson (20260901 07:10)'`* — a complaint
@@ -961,3 +965,30 @@ def test_a_heading_hidden_by_leading_whitespace_is_quoted_with_the_whitespace_sh
         "quoted stripped, the message contradicts itself and names nothing to fix"
     )
     assert "must carry" not in result.stderr, "the stamp is correct; only the opening is hidden"
+
+
+def test_a_byte_order_mark_alone_on_the_first_line_reports_only_itself(repo: Path) -> None:
+    """The same defect as the mark itself, one input shape further in — and it took a second review.
+
+    A mark on its own line leaves `"\\ufeff\\n## A lesson …"`, and `"\\ufeff".strip()` is
+    truthy — so that line was chosen as the fragment's opening line, stripping the mark *there*
+    left `""`, and the heading two lines down was never read. The fragment collected three
+    messages: the true one, plus a missing heading and a missing stamp, about a heading and a
+    stamp that were both already correct.
+
+    Pass 1 added the mark arm precisely so a fragment would not be sent to fix what is right, and
+    then did exactly that to the next input shape. The fix strips the mark from the *text* before
+    the opening line is chosen, which is the only place the choice is not already poisoned."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        "﻿\n## A lesson (20260901 07:10)\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "byte-order mark" in result.stderr
+    assert "must open with its own" not in result.stderr, "the heading is two lines down, and fine"
+    assert "must carry" not in result.stderr, "so is the stamp inside it"
+    assert result.stderr.count("20260901_0710-a-lesson.md") == 1, "one fault, named once"
