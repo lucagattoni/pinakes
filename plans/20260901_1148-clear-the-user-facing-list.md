@@ -79,7 +79,7 @@ I measured it because a survey raised it (M1), and it is the highest-leverage un
 repository.
 
 `check.sh` names eleven custom gates and **runs ten of them**: `wheel_import_gate.py` is named at
-`check.sh:57-64` and deliberately not run there, because it needs `uv build` and a network resolve, so
+`check.sh:57-65` and deliberately not run there, because it needs `uv build` and a network resolve, so
 CI's `build` job and `release.yml` run it instead. Four of the eleven have a mutation battery. Seven
 do not, and the count is unaffected by where the eleventh runs:
 
@@ -257,10 +257,10 @@ Listed for completeness; none blocks § 3.
 
 | Decision | State |
 |---|---|
-| The `CLAUDE.md` extraction (`475b452`) | Pushed, unmerged, marked *do not land without the user*. `main` has drifted since, so it now needs a rebase |
-| `pnk adopt` — which release owns it, or drop it | Appears in **no** top-level routing document. An unowned proposal in one plan file is worse than either outcome |
-| The `fable` clause in the user's global `~/.claude/CLAUDE.md` | Reported done 20260901 07:01 UTC; **verify before acting on either state** |
-| `--autocompact 150000` | **Unverifiable from this repo.** One mention in `RESUME.md`, no plan, no commit; the live setting is a different number |
+| The `CLAUDE.md` extraction (`475b452`) | Pushed, unmerged, marked *do not land without the user*. **Measured 20260901 12:35 UTC: `main` is 114 commits ahead, and `git merge-tree` reports a real content conflict in `CLAUDE.md`** (`docs/README.md` merges clean). A rebase is not optional and not mechanical — the conflict is the status block the proposal deletes, which `main` has since rewritten |
+| `pnk adopt` — which release owns it, or drop it | **Corrected 20260901 12:35 UTC: it *does* appear in a top-level routing document** — [`docs/README.md:29`](../docs/README.md) names it, correctly, as part of what "is still a proposal". The earlier claim that it appears in none was wrong. What is true: no release owns it, and it is unimplemented — `grep -rn '"adopt"' src/` returns 0 where the same selector returns `cli.py:1799` for `"upgrade"` |
+| ~~The `fable` clause in the user's global `~/.claude/CLAUDE.md`~~ | **CLOSED — verified present 20260901 12:35 UTC**, `~/.claude/CLAUDE.md:42`: *"nothing reaches Fable either, which bills at 2x Opus"*. It was reported done and the report was right; this row existed because nobody had opened the file |
+| `--autocompact 150000` | **Unverifiable from this repo**, and the flag does not exist under that name. One mention in `RESUME.md`, no plan, no commit. The live setting is `autoCompactWindow` in `~/.claude/settings.json` and reads **300000** — measured 20260901 12:35 UTC, twice the number this row is named for. Whatever decision this row records, it is not about a value anything currently reads |
 
 ---
 
