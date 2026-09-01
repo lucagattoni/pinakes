@@ -34,7 +34,7 @@ adopt against.
 
 | # | What drifts | Mechanism today | State |
 |---|---|---|---|
-| 1 | **Index schema** | `schema_version` mismatch → refuse to open, name `pnk sync --rebuild`. No migrations, by design (`store.py:205`) | ✅ shipped |
+| 1 | **Index schema** | `schema_version` mismatch → refuse to open, name `pnk sync --rebuild`. No migrations, by design (`store.py:267`) | ✅ shipped |
 | 2 | **Embedding model** | Index built by another model/revision → queries refuse rather than return garbage | ✅ shipped |
 | 3 | **PDF extractor** | Fingerprint mismatch → free backend refuses; paid marks `stale_extraction` and warns | ✅ shipped (I5) |
 | 4 | **Manifest + template** | `[kb] requires_pinakes`: a version floor read in a pre-pass, so a refusal can name the version needed (G4, shipped 0.6.0). **Detecting** template drift shipped in 0.17.0 — a bumped `notes@1.1`, a CI gate that makes the bump impossible to forget, and a `pnk doctor` WARN that now fires. **Adopting** it landed in T4: `pnk upgrade --apply` writes the hunks that fit into the user's manifest, after printing every one of them, and refuses the whole run if any conflicts | ● **closed for `pinakes.toml`** — a template's other three files are still the user's to refresh by hand |
@@ -60,7 +60,7 @@ Two live cases on `main` today, and one this note got wrong:
    keep working — but a KB whose owner *sets* one is then unreadable by any earlier Pinakes
    (§4).
 3. ~~**The one drift signal that exists does not fire.**~~ **Closed in 0.17.0.** `doctor._template`
-   (`doctor.py:205`, comparing at `:219`) compares declared version strings only — which was
+   (`doctor.py:238`, comparing at `:270`) compares declared version strings only — which was
    worthless while `notes` declared `version = "1.0"` through eleven releases of changing content.
    `notes` is now `1.1` and §6's gate makes the next bump impossible to forget, so the check
    discriminates. **The comparison is no longer a version string.** 0.18.0 renders both archived
@@ -77,9 +77,9 @@ Verified behaviour when a file contains a key the running Pinakes does not know:
 
 | File | Behaviour | Direction |
 |---|---|---|
-| **Sidecar** | Preserved verbatim under `extra` and written back (`sidecar.py:35,106`) | Forward-**compatible** |
-| **Manifest** | **Hard error** (`_toml.py:184`) | Forward-**incompatible** |
-| **Index** | `found != str(SCHEMA_VERSION)` (`store.py:205`) | Refuses **both** directions |
+| **Sidecar** | Preserved verbatim under `extra` and written back (`sidecar.py:304,564`) | Forward-**compatible** |
+| **Manifest** | **Hard error** (`_toml.py:213`) | Forward-**incompatible** |
+| **Index** | `found != str(SCHEMA_VERSION)` (`store.py:267`) | Refuses **both** directions |
 
 Demonstrated against `main` (20260728 18:39) with a hypothetical future key:
 
@@ -103,7 +103,7 @@ and the message tells them they made a spelling mistake.
   has no ceiling to express. Absence means no floor declared:
 
   ```
-  error: this KB requires pinakes >= 0.3 (this build is 0.2.1)
+  error: <path> [kb]: this KB requires pinakes >=0.3 (this build is 0.2.1)
   ```
 
   The cost, accepted: it couples the KB format to package version numbers, which the project

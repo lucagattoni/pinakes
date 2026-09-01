@@ -190,7 +190,7 @@ the two stages it skips.
 
 1. **`prices.toml`** gains the measured per-page constant and its `measured_on`.
 2. **DESIGN §9** gains the scanned-quality numbers, with date, model and euros.
-3. **DESIGN §7.1** gains the free-vs-paid delta.
+3. **DESIGN §7.2** gains the free-vs-paid delta.
 4. **`tests/fixtures/claude/`** — **four branches were recorded live on 20260729 03:36** and the
    README already carries per-fixture provenance, so the remaining work is *re-recording* those
    four with `tools/record_claude_fixtures.py` and checking whether any still-authored branch has

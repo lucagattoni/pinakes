@@ -101,9 +101,12 @@ pnk upgrade                           # what your template changed; writes nothi
 uvx --from "pinakes[st]" pnk serve    # MCP server, nothing installed
 ```
 
-⚠️ Two things `pnk init` cannot know, each needing one manifest edit: on a `[light]` install set
-`provider = "fastembed"`, and to index PDFs add `"**/*.pdf"` to `[sources] include`. Both are in the
-[Guide](docs/GUIDE.md#choosing-a-backend).
+On a `[light]` install, stamp the models with the flag: `pnk init my-kb --backend light`. It is a
+flag rather than detection deliberately — `pinakes.toml` is committed, so baking in whatever the
+`init` machine happened to have installed breaks the KB for everyone with the other extra
+([Guide](docs/GUIDE.md#choosing-a-backend)).
+
+⚠️ The one thing `pnk init` cannot know: to index PDFs, add `"**/*.pdf"` to `[sources] include`.
 
 **→ [Full guide](docs/GUIDE.md)** — PDFs, filters, calibration, git hooks, MCP setup, troubleshooting.
 

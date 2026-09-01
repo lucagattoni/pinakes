@@ -1,7 +1,7 @@
 # Manifest and sidecar reference
 
-The two files you edit by hand. Field-by-field, with defaults taken from `manifest.py` at 0.2.0
-(20260728 16:40).
+The two files you edit by hand. Field-by-field, with defaults taken from `manifest.py` at 0.31.1
+(20260901 07:06).
 
 *Why* the format is shaped this way is in [DESIGN §2](DESIGN.md#2-anatomy-of-a-kb); how to use it
 is in [GUIDE.md](GUIDE.md). This file is the reference — if a field's default is stated anywhere
@@ -115,7 +115,7 @@ Optional. Governs PDFs only.
 | Key | Default | Notes |
 |---|---|---|
 | `backend` | `pypdfium2` | `pypdfium2` (free) or `claude-vision` (paid, opt-in; [shipped in 0.3.0](STATUS.md)). Validated against the registry **without importing either**, so an unknown name is rejected before an extra could matter |
-| `model` | | Consulted only when `backend = "claude-vision"` |
+| `model` | `claude-opus-5` | Consulted only when `backend = "claude-vision"` |
 
 Override for one run with `pnk sync --extract=BACKEND`.
 
@@ -181,7 +181,7 @@ Consumed only when `[retrieval] rerank = "local"`. Mirrors `[embedding]`.
 
 | Key | Default | Notes |
 |---|---|---|
-| `provider` | | `sentence-transformers` or `fastembed` — set this too on a `[light]` install |
+| `provider` | `sentence-transformers` | `sentence-transformers` or `fastembed` — set this too on a `[light]` install |
 | `model` | `BAAI/bge-reranker-base` | ~1.04 GB of weights. Same id on both providers |
 | `revision` | | HF commit sha |
 

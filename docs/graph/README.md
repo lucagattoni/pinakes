@@ -51,5 +51,5 @@ Pinakes is Apache-2.0 and `pnk serve` is a network service, so a copyleft obliga
 anyone embedding it. The same reasoning ruled out PyMuPDF in favour of `pypdfium2`
 (`plans/20260727_1543-v0.2.md`, decision 1). **Ideas and measured results are free to reuse; source is not** —
 read them, then write it yourself. Stated once in
-[PINAKES_APPROACH.md §"License gate"](PINAKES_APPROACH.md) and repeated here because the index is
+[PINAKES_APPROACH.md §1](PINAKES_APPROACH.md#1-what-the-investigations-changed) and repeated here because the index is
 where someone starts.

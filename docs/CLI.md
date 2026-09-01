@@ -5,6 +5,8 @@ released. Task-oriented walkthroughs are in [GUIDE.md](GUIDE.md); **whether a gi
 release yet is [STATUS.md](STATUS.md)**, which is why no version is quoted here.
 
 `pnk --help` and `pnk <command> --help` are authoritative — this file adds the *when* and *why*.
+`pnk --version` prints the installed package version and exits `0`; `pnk` with no command prints
+help and exits `0`.
 
 ## Exit codes
 
@@ -24,7 +26,7 @@ Every error carries a **remedy**, not just a message. If one doesn't, that's a b
 | Flag | On | Means |
 |---|---|---|
 | `--kb PATH` | `sync`, `search`, `ask`, `doctor`, `install-hooks`, `budget`, `link`, `links`, `upgrade` | KB root. Defaults to the nearest `pinakes.toml`, searching upwards from the cwd — git-style |
-| `--offline` | `sync`, `search`, `ask`, `serve` | Never reach out for model weights. Fails fast instead of downloading |
+| `--offline` | `sync`, `search`, `ask`, `links`, `serve` | On `sentence-transformers`, never reaches out for model weights and fails fast instead of downloading. On `fastembed` it only refuses when no model cache directory *at all* exists — an existing cache missing this particular model still downloads |
 
 ---
 
@@ -109,7 +111,7 @@ rows are still printed: the question you asked is still answered.
 
 ```
 pnk sync [--kb PATH] [--rebuild] [--sidecars-only] [--index-only] [--stage] [--offline] [--scan-links]
-         [--offline] [--force-unlock] [--extract BACKEND] [--force]
+         [--force-unlock] [--extract BACKEND] [--force]
          [--estimate-only] [--clear-cache[=paid|transcripts]] [--yes] [-q]
 ```
 
@@ -126,7 +128,7 @@ corpus. Failures are recorded, the run continues, and sync exits non-zero listin
 | `--index-only` | Update the index; never write into `docs/`. The `post-commit` half |
 | `--stage` | With `--sidecars-only`: limit to staged files and `git add` them, so a document and its ID land in one commit |
 | `--scan-links` | Re-read every `[[links.kb]]`'s committed sidecars now, ignoring the freshness window. Ordinary syncs skip a partner read within the last hour, because this runs on `post-commit` and `post-merge`. Refused together with `--sidecars-only`, which never opens the index at all |
-| `--extract BACKEND` | Override `[extraction] backend` for this run only. Validated against the registry *without importing* it, so an unknown name is a usage error before any extra could matter |
+| `--extract BACKEND` | Override `[extraction] backend` for this run only. Validated against the registry *without importing* it, so an unknown name is refused before any extra could matter — as a `PinakesError`, exit `1`, not an argparse usage error (see [Exit codes](#exit-codes)) |
 | `--estimate-only` | Price what a paid run would cost and exit, extracting nothing. **A network call** — it measures the real first-slice request with the vendor's own token counter, so it needs a key. It generates nothing and bills no output. Refuses on a free backend |
 | `--force` | Overrules **exactly two** refusals: paying to extract a PDF whose free text layer is already healthy, and — **only together with an explicit free `--extract`** — overwriting a paid extraction, printing what it discards. It never widens `per_operation_eur`, `daily_eur`, `monthly_eur`, the stale-price refusal, the missing-floor refusal, or the no-terminal abort |
 | `--clear-cache[=paid]` | Empty `cache/extract/` entirely — paid or free, active or orphaned — after printing the entry count, the bytes, **and what the paid entries cost in euros**, and requiring a `y`. Never touches `ledger.jsonl`, and never touches a [deep-run transcript](#pnk-ask---deep). `=paid` is the explicit authorisation to destroy entries a paid backend wrote. The bare form is `=all` spelled out — both clear the whole cache, so between those two the value names what you are authorising, not what is removed |
@@ -408,14 +410,15 @@ look sourced.
 pnk doctor [--kb PATH] [--prune]
 ```
 
-Health check. Reports environment (SQLite version, FTS5, loadable extensions), backend and cached
-weights, template drift, index/model coherence, extraction coherence, calibration validity,
-orphaned sidecars, duplicate IDs, dangling links and link coverage, recorded failures, extraction
-cache stats, PDF text yield, the completeness audit's below-median pages, the 50k-chunk NumPy
-threshold, held sync locks, hook status, the price table's age,
-unknown-outcome ledger records, whether a paid backend is configured on a KB whose hooks force
-the free one, the highest-degree structural edge hubs, heading coverage, chunking coherence, and
-titles.
+Health check. Reports environment (SQLite version, FTS5, loadable extensions), backend, cached
+weights and the PDF extractor, template drift, linked KBs, sidecar readability, the index itself,
+index/model coherence, extraction coherence, calibration validity, orphaned sidecars, duplicate
+IDs, retired documents, dangling links and link coverage, recorded failures, extraction cache
+stats, awaiting paid extraction, paid extraction not requested, paid extraction stale, PDF text
+yield, the completeness audit's below-median pages, the 50k-chunk NumPy threshold, held sync
+locks, hook status, the price table's age, unknown-outcome ledger records, whether a paid backend
+is configured on a KB whose hooks force the free one, the highest-degree structural edge hubs,
+heading coverage, chunking coherence, and titles.
 
 **`titles` counts documents still carrying the title `sync` minted from their filename, and is
 always OK.** A **Markdown** document titles itself from its own `# ` heading — but **only when the
@@ -510,7 +513,7 @@ nothing is judged.
 |---|---|
 | `--prune` | Delete orphaned sidecars — **the only thing `doctor` can change**. Prints every path first |
 
-Every non-OK check carries a remedy. Exits non-zero when any check fails.
+Almost every non-OK check carries a remedy — the one exception is `calibration` when the reranker cannot be loaded offline to fingerprint it. Exits non-zero when any check fails.
 
 ## `pnk install-hooks`
 
@@ -553,7 +556,7 @@ single number.
 reserved amount until resolved; three of them consume a €1.00 day. `pnk budget` lists them with the
 exact `--resolve` line, and `pnk doctor` warns once their total passes a quarter of a window.
 
-**`monthly_eur` is per KB.** Ten paid KBs have ten monthly allowances. v0.2 adds no global cap and
+**`monthly_eur` is per KB.** Ten paid KBs have ten monthly allowances. Pinakes adds no global cap and
 says so rather than leaving a reader to assume one.
 
 ## `pnk serve`
@@ -846,7 +849,7 @@ so a printed `>=x.y.z` would be a guess wearing a decimal point.
 ## Planned — not built yet
 
 Listed so the shape is known in advance; each names the increment that lands it
-([STATUS](STATUS.md#v02-increment-ledger)).
+([STATUS](STATUS.md#release-roadmap)).
 
 **`pnk ask --deep` left this table at E4** — it is documented [above](#pnk-ask---deep), built and
 spending. What remains is the second half of the write-back it makes possible.

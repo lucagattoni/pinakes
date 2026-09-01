@@ -77,10 +77,12 @@ test, or write **none** and say why in the same commit.
   20260831**: it landed in `a36f0e6` carrying no rows and was owed them under D-34 — a gate's own
   correctness is a promise, and it *is* a gate — and it now has a section of its own at the end of
   this file. **That contrast is the whole of the distinction**: the clause that pulled in the review
-  gate is the clause that excludes the measurement script. **`test_init.py` is no longer among them: it
-  carries 27 rows**, and `test_eval.py` carries 32 throughout *The golden set, per question (G2)* —
-  both were once listed here as absent, in error, and each correction was found by counting rather
-  than by reading.
+  gate is the clause that excludes the measurement script. **Neither `test_init.py` nor `test_eval.py` is among
+  them** — both carry rows throughout (`test_eval.py`'s run the length of *The golden set, per
+  question (G2)*), and both were once listed here as absent, in error. **The two row counts that
+  stood here are gone deliberately, not updated**: they were restated once and had drifted again by
+  20260901, in a paragraph whose neighbour already says a counted claim goes stale in silence. Count
+  them if you need a number; never read one.
 * **D-34 is answered: this table maps *promises*, not every test.** Taken by the user
   **20260825 18:16 UTC** ([`plans/20260825_1803-open-decisions.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260825_1803-open-decisions.md)),
   ratifying the reading `db7d1c1` had already operated on since 20260804. **A promise is a
