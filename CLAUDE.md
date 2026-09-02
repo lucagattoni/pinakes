@@ -157,7 +157,7 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   [`plans/20260901_1148-clear-the-user-facing-list.md`](plans/20260901_1148-clear-the-user-facing-list.md)** —
   its § 3 is the queue, and its § 4 is a decision that is **the user's, not an agent's**. Read it
   before picking anything up. **Everything below this bullet is background, not a queue.**
-- **✅ `main` is green and 0.31.0 is published** (20260830). The red build, the release and the
+- **✅ `main` is green and 0.31.1 is published** (20260831 23:09). The red build, the release and the
   fourteen document defects are all **closed** — but read
   [`plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md`](plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md)
   anyway, because what it now carries is not that incident. It holds the **22 findings nobody had ever
