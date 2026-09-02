@@ -280,11 +280,17 @@ def test_every_battery_declares_how_many_mutants_it_carries() -> None:
 def test_the_committed_batteries_cover_only_tools_and_the_readme_says_so() -> None:
     """A coverage index with a hidden denominator is the thing this repository keeps catching.
 
-    Twelve batteries over twelve primary targets — counted 20260902 10:56, when it read
-    *"Eleven … Two"*. Nine are under `tools/`; **three are named for a module under `src/`** —
-    `src-pinakes-init.toml` since 20260825, `src-pinakes-pairing.toml` the same day, which is
-    also the first battery to span two files, and `src-pinakes-budget-ledger.toml` since 20260902,
-    the first over the paid path and the first to span three. **A name is not a coverage claim,
+    Thirteen batteries over thirteen primary targets. Nine are under `tools/`; **four are named
+    for a module under `src/`** — `src-pinakes-init.toml` since 20260825, `src-pinakes-pairing.toml`
+    the same day, also the first battery to span two files, `src-pinakes-budget-ledger.toml` since
+    20260902, the first over the paid path and the first to span three, and
+    `src-pinakes-template.toml` the same day, the only one of the four spanning a single file.
+
+    **Re-derive rather than trust these numbers** — `ls tools/batteries/*.toml | wc -l`,
+    `ls tools/batteries/src-*.toml`. They were counted at the commit that added the fourth, and a
+    count is a fact about the moment it was taken. This docstring has gone stale twice, and it is a
+    docstring rather than an assertion, so nothing goes red when it does: it is a true statement
+    with nothing that notices when it stops being one. **A name is not a coverage claim,
     and this sentence is where that keeps being forgotten**: `tools-mcp_handshake_gate.toml` mutates
     `src/pinakes/serve.py` and seven files besides, so the count below is of batteries, never of
     the area they reach. That is a starting point rather than a coverage claim, and the README has

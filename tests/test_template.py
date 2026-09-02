@@ -97,6 +97,27 @@ def test_a_tab_is_left_raw_rather_than_escaped(tmp_path: Path) -> None:
     assert load(result.root).kb.name == "a\tb"
 
 
+def test_a_backslash_path_that_stays_valid_toml_still_reads_back_unchanged() -> None:
+    """The case where the manifest parses and means something else — found by the mutation pass.
+
+    Every value in `CLASSES` carrying a backslash carries one TOML *rejects* too:
+    `C:\\notes\\kb` holds `\\k`, which is not a legal escape, so dropping the backslash arm of
+    `_TOML_ESCAPES` makes `tomllib` refuse the file. That is loud, and the tests above catch it
+    by parsing alone.
+
+    `C:\\notes` is the quiet one. Its only backslash sequence is `\\n`, which **is** legal — so
+    without escaping it parses cleanly and reads back as `C:`, a newline, and `otes`. `pnk doctor`
+    would call that KB healthy under a name nobody typed. Nothing in this file reached that case
+    until the battery's row 3 died on a `TOMLDecodeError` instead of on an equality — the same
+    mutant passing for the wrong reason.
+    """
+    value = "C:\\notes"
+
+    rendered = template.render_manifest("notes", _context(name=value))
+
+    assert tomllib.loads(rendered)["kb"]["name"] == value
+
+
 def test_an_ordinary_name_is_left_byte_for_byte_alone() -> None:
     """The control against over-escaping: a name with nothing to escape is not rewritten.
 

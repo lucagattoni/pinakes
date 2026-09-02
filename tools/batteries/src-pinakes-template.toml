@@ -1,0 +1,116 @@
+# Mutation battery — `src/pinakes/template.py`.
+#
+#     python3 tools/mutate.py tools/batteries/src-pinakes-template.toml
+#
+# **`template.py` had no battery at all** until 20260902. It is the file that writes the first byte
+# of every KB, and S4 is what happens when nobody is watching it: a name carrying a `"` produced a
+# `pinakes.toml` no parser could read, while `pnk init` exited 0 and printed *created*.
+#
+# **The organising idea of these rows: parsing is the weaker claim** — and this file's own first
+# draft got that wrong in the direction it was warning about, which is why the correction is kept
+# here rather than tidied away. It claimed that dropping the backslash arm leaves `C:\notes\kb`
+# **valid TOML** reading back as `C:` + newline + `otes\kb`. **Measured: false.** That value also
+# holds `\k`, which TOML does not define, so the file is *rejected* and the mutant dies on a
+# `TOMLDecodeError` — a parse failure, not an equality failure.
+#
+# The claim is true of a *different* value. `C:\notes` alone contains only `\n`, which is legal, so
+# without escaping it parses cleanly and means `C:`, a newline, `otes`. That case reached no test
+# until the mutation run exposed it, and row 3 below now kills through
+# `test_a_backslash_path_that_stays_valid_toml_still_reads_back_unchanged` rather than through the
+# eleven-character corpus — so the row asserts *round-trips*, which is what its name claims, instead
+# of passing on *parses*, which is the weaker property it was accidentally resting on.
+#
+# **Four of the tests these rows kill through are controls that pass without the fix**, so they can
+# only ever kill an *over*-escaping mutant — rows 4 and 5 are the two that aim at them. A battery
+# made only of under-escaping mutants would leave the whole over-escaping direction unmeasured, and
+# over-escaping is the direction the obvious fix actually fails in.
+#
+# **The seam, named rather than discovered later.** `finalize` is handed the value of every
+# interpolation, and Jinja calls `str()` on whatever comes back — so a mutant that merely
+# *stringifies* a non-string is invisible by construction: `dim = {{ embedding_dim }}` renders
+# `dim = 384` whether the hook returned `384` or `"384"`. Row 5 therefore mutates the guard into one
+# that **quotes**, which is observable, rather than one that stringifies, which is not. A row
+# written against the stringifying edit would be a guaranteed survivor dressed as a coverage finding.
+#
+# **What no row here reaches:** that `render_manifest` and `render_archived` escape *identically*.
+# Both call `_render`, so no single-line edit can separate them —
+# `test_both_sides_of_an_upgrade_diff_escape_identically` pins the property, and nothing in this
+# file can kill through it. That is a seam, not a gap.
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 6
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260902 · a value a user typed cannot change what the manifest MEANS
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# The four under-escaping rows. Each removes one class of escape and leaves the rest, because
+# removing them all is one mutant that every test kills and says nothing about which test carries
+# which class.
+
+[[mutant]]
+name = "the escaping hook is never installed, so every interpolation goes out raw again"
+file = "src/pinakes/template.py"
+old = "            finalize=_toml_basic,"
+new = "            finalize=None,"
+kills = "tests/test_template.py::test_init_writes_a_kb_that_load_can_open_whatever_the_name_holds"
+
+[[mutant]]
+name = "a double quote is left raw, so the name closes the string it is written inside"
+file = "src/pinakes/template.py"
+old = '''    '"': '\\"',
+'''
+new = ""
+kills = "tests/test_template.py::test_a_name_in_any_class_the_sweep_named_renders_a_manifest_that_parses"
+
+# **The row that distinguishes parsing from meaning**, and the only one whose `kills` deliberately
+# names a single-value test rather than the corpus. `C:\notes` is syntactically fine without any
+# escaping — `\n` is a legal TOML escape — so it parses and means `C:`, a newline, `otes`, and a
+# KB reports healthy under a name nobody typed. Pointed at the eleven-character corpus this row
+# died on `\k` being an illegal escape instead, which is the mutant passing for the wrong reason.
+[[mutant]]
+name = "a backslash is left raw, so a Windows-style path parses as a name nobody typed"
+file = "src/pinakes/template.py"
+old = '''    "\\": "\\\\",
+'''
+new = ""
+kills = "tests/test_template.py::test_a_backslash_path_that_stays_valid_toml_still_reads_back_unchanged"
+
+[[mutant]]
+name = "a control character with no single-letter escape is emitted raw instead of as \\uXXXX"
+file = "src/pinakes/template.py"
+old = '        elif character != "\t" and (character < " " or character == "\x7f"):'
+new = '        elif False:'
+kills = "tests/test_template.py::test_init_writes_a_kb_that_load_can_open_whatever_the_name_holds"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260902 · and escaping does not rewrite what was already correct
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# The over-escaping direction, which the four control tests exist for. Both rows below produce a
+# manifest that parses cleanly — neither can be caught by asking whether the output is valid TOML.
+
+# Tab is the one control character a TOML basic string may carry raw. This mutant escapes it like
+# every other, which round-trips perfectly — `tomllib` unescapes `\t` back to a tab — so the ONLY
+# instrument that can see it is an assertion on the byte on disk. That is why the control test reads
+# the written file rather than re-parsing it.
+[[mutant]]
+name = "the tab exemption is dropped, rewriting a legal byte that needed no escape"
+file = "src/pinakes/template.py"
+old = '        elif character != "\t" and (character < " " or character == "\x7f"):'
+new = '        elif character < " " or character == "\x7f":'
+kills = "tests/test_template.py::test_a_tab_is_left_raw_rather_than_escaped"
+
+# **Not the stringifying edit** — see the seam note in this file's header: `str(384)` is invisible
+# because Jinja stringifies anyway. Quoting is the observable form of the same mistake, and it is
+# the one that turns `dim = 384` into `dim = "384"` — valid TOML that `manifest.load` then rejects
+# far from `init`, in a command with nothing to do with creating the KB.
+[[mutant]]
+name = "the non-string guard quotes what it passes through, so the bare dimension becomes a string"
+file = "src/pinakes/template.py"
+old = """    if not isinstance(value, str):
+        return value"""
+new = """    if not isinstance(value, str):
+        return f'"{value}"'"""
+kills = "tests/test_template.py::test_the_embedding_dimension_stays_a_bare_integer"
