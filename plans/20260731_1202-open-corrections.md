@@ -231,8 +231,11 @@ that actually shipped.** *Reads every entry rather than the first* catches that 
 met on 20260823 — five setext front-matter residues rendering as `<h2>`, and a top-level entry
 wrongly indented into a sub-item — both invisible to an ATX-on-source-lines rule.
 
-**DEFERRED with a trigger, 20260825 18:41 UTC — planner.** Neither widening is built. **Owner: the
-user**, because which widening is wanted is a judgement about a rule that fires on nothing today.
+**DEFERRED with a trigger, 20260825 18:41 UTC — planner.** Neither widening is built. **Owner: the planner — REASSIGNED 20260902 07:41.** It read *"Owner: the user, because which widening is
+wanted is a judgement"*, and nine lines below, the same item already names the implementation: *"It is the
+**setext-plus-indentation pair**, not widening 1."* Both cannot be true. Nothing is left to judge; what
+remains is queue position behind a trigger that is self-executing, which is planner work here as it is for
+every other deferred-with-trigger item. The trigger below is unchanged.
 
 - **The trigger.** One residue of either class in a **live** section of a released document — a
   non-blank line followed by a line of only `=` or `-` outside a fence in `CHANGELOG.md` or
