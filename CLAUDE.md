@@ -155,8 +155,11 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
 
 - **🧭 The live build order is
   [`plans/20260901_1148-clear-the-user-facing-list.md`](plans/20260901_1148-clear-the-user-facing-list.md)** —
-  its § 3 is the queue, and its § 4 is a decision that is **the user's, not an agent's**. Read it
-  before picking anything up. **Everything below this bullet is background, not a queue.**
+  its § 3 is the queue. **§ 4 was ANSWERED by the user 20260902 — option E**, no freeze plus a
+  written re-measure trigger, so the section is kept for its reasoning and is not a question any
+  more. Read § 3 before picking anything up, and **read a row's body, not only its cells**:
+  *Blocked on: nothing* speaks about external blockers, and two rows carry a choice inside them.
+  **Everything below this bullet is background, not a queue.**
 - **✅ `main` is green and 0.32.0 is published** (green 20260902 10:51, published 10:07). Its red
   lasted 44 minutes and is worth one sentence: a money assertion compared a value taken *before*
   the ledger's write-time quantisation against one taken *after* it, and **had been green for a
@@ -174,7 +177,23 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   must state the selector**, and the record of **six** wrong claims in one day, each a valid
   inference over a population nobody named. **`prices.toml` is refreshed at every release
   now** — `docs/RELEASING.md` § *Before you start* step 3, which had never existed.
-- **🛑 Two plans have scheduled work, and as of 20260831 22:17 UTC every row in them is coder work: the red-main plan's row 5 was the last planner row and it is closed.** *(What that plan still owes is written into its § CHECKED 20260831, not into a queue row — five small corrections, each naming its own file.)* **The S16 HIGH holds nothing any more** — the user answered it 20260831 21:38 UTC (`sqlite3.IntegrityError` caught **narrowly**, on `SQLITE_CONSTRAINT_UNIQUE` naming `documents.path` only) and it was built and landed the same evening. **That option was invented when the question was put and is in neither the branch nor the plan's original two — read the sweep plan's build-order row 2, never a memory of the options.** *(This bullet has been wrong three ways in two days: "all coder work — every decision is taken"; then "rows 3–5 … are owner planner" when rows 3 and 4 already read ✅ DONE; then "a live user decision holding a landing" for the half-hour after it was answered and built in another session.)*
+- **🛑 Two plans have scheduled work, and it is NOT all coder work any more.** Rows 21 and 22 of
+  the live plan are **planner-owned** — the dogfooding on-ramp's design, and regenerating this
+  file — both added 20260902 on the user's own instructions; and row 9 carries a design choice
+  inside a row whose blocker cell reads *nothing*.
+  *(What the red-main plan still owes is written into its § CHECKED 20260831, not into a queue
+  row — five small corrections, each naming its own file.)*
+  **The S16 HIGH holds nothing any more** — the user answered it 20260831 21:38 UTC
+  (`sqlite3.IntegrityError` caught **narrowly**, on `SQLITE_CONSTRAINT_UNIQUE` naming
+  `documents.path` only) and it was built and landed the same evening. **That option was invented
+  when the question was put and is in neither the branch nor the plan's original two — read the
+  sweep plan's build-order row 2, never a memory of the options.**
+  *(This bullet has now been wrong **four** ways in three days: "all coder work — every decision is
+  taken"; then "rows 3–5 … are owner planner" when rows 3 and 4 already read ✅ DONE; then "a live
+  user decision holding a landing" for the half-hour after it was answered and built in another
+  session; then "every row in them is coder work", for the two days after two planner rows were
+  added. **It is the most-falsified region in this file, and every instance has been about who owns
+  what** — which is the one thing a cleared session reads it to learn.)*
   The **eight decisions and fifteen questions** in
   [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md) were **ANSWERED by
   the user 20260825 18:16**, and the planner's half of them landed **20260825 18:39–18:56 UTC**, with later records and corrections through 20260826: D-34 closed
