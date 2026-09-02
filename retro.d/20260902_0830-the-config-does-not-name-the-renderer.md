@@ -44,3 +44,13 @@ This is the same defect as *A method is not a measurement point, and `--all` is 
 (`#a-method-is-not-a-measurement-point-and---all-is-not-a-corpus-20260902-0245`), one layer down: not
 a number measured over the wrong population, but a string measured with the wrong program. The
 sentence that names it is the anchor to that fragment, which is the string I got wrong.
+
+**Three more in the same hour, all caught before they cost anything, all the same shape.** A
+`--check` run through `grep -v` returned an empty `FRAGCHECK_EXIT=`. A `nohup ./check.sh > log 2>&1 &`
+discarded the gate's status entirely, leaving me about to read *"all gates green"* off stdout and
+call it a gate — **a backgrounding form eating the exit status is the pipe rule wearing different
+clothes**, and it is not a trap peculiar to `nohup`. And a public-repo secrets vet used a lookahead
+`ugrep` rejects: the pattern errored, the `||` branch fired, and it printed **"clean: no paths,
+addresses, secrets or external URLs"** — a false all-clear from a check that never ran, on the one
+gate where a false clean is worst. Each was found by asking the same question the anchor needed: not
+*what did it say*, but *was it able to say anything else*.
