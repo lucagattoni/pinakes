@@ -20,7 +20,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 15
+mutants = 21
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.30.0 · the gate's first cut — the ungated-Markdown surface
@@ -171,3 +171,67 @@ file = "tools/markdown_link_gate.py"
 old = '''    missing = [path for path in paths if not path.is_file()]'''
 new = '''    missing: list[Path] = []'''
 kills = "tests/test_markdown_link_gate.py::test_paths_naming_a_file_that_does_not_exist_is_refused_rather_than_traced"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260902 · the splice destination — a fragment checked where its body is going
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# This arm exists because the failure it catches is invisible to every pre-splice instrument: the
+# link is valid where it is written and dead where it is published, so the gate was green, the
+# author was careful, and the release build was red. The rows below are the ways the arm could be
+# absent while the gate still printed the same clean summary line it printed before it existed.
+
+[[mutant]]
+name = "a fragment resolves from its own directory again, so the release-breaking form is green"
+file = "tools/markdown_link_gate.py"
+# The whole arm in one line. `[x](20260902_0245-....md)` names a real sibling inside `retro.d/`, so
+# reverting this makes the gate agree with the filesystem and disagree with the published document.
+old = '''    base = path.parent if destination is None else destination.parent'''
+new = '''    base = path.parent'''
+kills = "tests/test_markdown_link_gate.py::test_a_fragment_linking_a_sibling_by_filename_is_refused_before_anything_is_spliced"
+
+[[mutant]]
+name = "a stream README is treated as a fragment, breaking the file that explains the rule"
+file = "tools/markdown_link_gate.py"
+# `retro.d/README.md` is never spliced and never deleted, so its relative links are correct exactly
+# as written. This is the boundary of the arm, not a detail of it.
+old = '''    if len(rel.parts) != 2 or rel.name == "README.md":'''
+new = '''    if len(rel.parts) != 2:'''
+kills = "tests/test_markdown_link_gate.py::test_a_stream_readme_is_not_a_fragment_and_keeps_resolving_where_it_sits"
+
+[[mutant]]
+name = "the destination document contributes no anchors, so a link into it reads as dead"
+file = "tools/markdown_link_gate.py"
+old = '''    if target.is_file():
+        contributors.append(target)'''
+new = '''    if False:
+        contributors.append(target)'''
+kills = "tests/test_markdown_link_gate.py::test_a_fragments_anchor_into_the_destination_document_resolves"
+
+[[mutant]]
+name = "pending fragments contribute no anchors, so every cross-fragment link reads as dead"
+file = "tools/markdown_link_gate.py"
+# The half that makes the READMEs' prescribed form legal. Without it the gate is merely stricter
+# than before and the code-span workaround stays necessary.
+old = '''        contributors.extend(sorted(p for p in source.glob("*.md") if p.name != "README.md"))'''
+new = '''        pass'''
+kills = "tests/test_markdown_link_gate.py::test_a_fragments_anchor_into_a_sibling_fragment_resolves"
+
+[[mutant]]
+name = "an ambiguous slug is accepted, so the gate certifies an anchor it cannot predict"
+file = "tools/markdown_link_gate.py"
+# Two files contributing one slug means the rendered document numbers the second `-1`, and which
+# one keeps the bare form depends on where the splice lands. Silence here is the gate reporting a
+# certainty it does not have — the failure this whole battery is about, one level in.
+old = '''    return set(seen), {slug for slug, count in seen.items() if count > 1}'''
+new = '''    return set(seen), set()'''
+kills = "tests/test_markdown_link_gate.py::test_an_anchor_two_files_both_contribute_is_refused_rather_than_guessed_at"
+
+[[mutant]]
+name = "the duplicated stream table drifts from the splicer's and nothing notices"
+file = "tools/markdown_link_gate.py"
+# The same hazard as the duplicated slug algorithm: this table says where a body goes, and if the
+# splicer moves a stream the gate keeps resolving against the old destination and stays green.
+old = '''    "retro.d": "docs/RETROSPECTIVES.md",'''
+new = '''    "retro.d": "docs/RETROSPECTIVES-moved.md",'''
+kills = "tests/test_markdown_link_gate.py::test_the_gates_splice_targets_are_the_ones_the_splicer_actually_uses"
