@@ -545,14 +545,17 @@ def walk_document_paths(manifest: Manifest) -> frozenset[str]:
     corpus with one unreadable file would take `pnk doctor` down with a raw traceback — the command
     you run when things are already broken. Nothing here opens a document or parses a sidecar.
     """
-    files, _sidecars, _unmatched, _escaping = walk_sources(manifest, _documents_only=True)
+    files, _sidecars, _unmatched, _escaping, _unreadable = walk_sources(
+        manifest, _documents_only=True
+    )
     return frozenset(file.path for file in files)
 
 
 def walk_sources(
     manifest: Manifest, *, _documents_only: bool = False
-) -> tuple[list[WalkedFile], list[WalkedSidecar], UnmatchedFiles, tuple[str, ...]]:
-    """Collect source files, sidecars, files no `include` matched, and patterns that left the KB.
+) -> tuple[list[WalkedFile], list[WalkedSidecar], UnmatchedFiles, tuple[str, ...], tuple[str, ...]]:
+    """Collect source files, sidecars, files no `include` matched, patterns that left the KB,
+    and documents that matched but could not be read.
 
     Sidecars are excluded from the *document* set categorically, whatever the include patterns say:
     an `include = ["**/*.yaml"]` must never ingest a document's own metadata as a document.
@@ -572,6 +575,16 @@ def walk_sources(
     string. Measured on 0.7.0 — `docs/escape -> /outside` with `include = ["*/*.md"]` indexed the
     outside file and minted a sidecar beside it.
 
+    **The fifth is the unreadable half of the same completeness question the third asks.** A
+    document an `include` pattern matched and the process cannot open is neither indexable nor
+    absent, and it used to be neither reported nor survivable: `hash_file` let the `PermissionError`
+    escape the walk, so one `chmod 000` file aborted the entire sync with a raw traceback and *no
+    index database was created at all* — every other document in the KB unreachable because of one.
+    Skipping it silently would be worse rather than better: `pair()` retires a row whose path the
+    walk stopped reporting, so a permission change would have soft-deleted the document and dropped
+    its chunks, which is this repository's worst recorded shape. So the path is carried out here,
+    held by `pair()`, and reported as a per-document failure.
+
     Worth knowing, and *not* a guard: the **default** `include = ["**/*.md", "**/*.txt"]` does not
     escape this way, because `pathlib`'s recursive `**` skips symlinked directories. That is luck
     about the standard library, and any user who writes a non-recursive pattern loses it.
@@ -579,6 +592,7 @@ def walk_sources(
     files: dict[str, WalkedFile] = {}
     sidecars: dict[str, WalkedSidecar] = {}
     unmatched: set[str] = set()
+    unreadable: set[str] = set()
     anchor = manifest.root.resolve()
     # **One problem per pattern** — not per file, and not per `(root, pattern)`: a hostile `../**`
     # matches thousands of files, and two roots would report the same escape twice.
@@ -664,10 +678,19 @@ def walk_sources(
                 # `_documents_only` callers get the population and must never get a snapshot: an
                 # empty hash would read as "this file is empty" to `pair()`, so the only wrapper
                 # that sets the flag (`walk_document_paths`) returns paths alone.
-                files[relative] = WalkedFile(
-                    path=relative,
-                    content_hash="" if _documents_only else hash_file(candidate),
-                )
+                if _documents_only:
+                    files[relative] = WalkedFile(path=relative, content_hash="")
+                    continue
+                try:
+                    content_hash = hash_file(candidate)
+                except OSError:
+                    # **Caught around the hash, not around the walk.** The read is the only
+                    # operation here that can fail on permissions, and catching wider would swallow
+                    # a genuine `OSError` from `glob` — a walk that quietly returned half a KB is
+                    # the failure this whole channel exists to prevent, not a fix for it.
+                    unreadable.add(relative)
+                    continue
+                files[relative] = WalkedFile(path=relative, content_hash=content_hash)
 
         if _documents_only:
             continue
@@ -715,6 +738,7 @@ def walk_sources(
         sorted(sidecars.values(), key=lambda s: s.path),
         UnmatchedFiles(paths=tuple(sorted(unmatched)), truncated=truncated),
         tuple(sorted(escaping)),
+        tuple(sorted(unreadable)),
     )
 
 
@@ -939,7 +963,7 @@ def _estimate_only(manifest: Manifest, options: SyncOptions) -> SyncReport:
         )
 
     prices = load_prices()
-    files, _sidecars, _unmatched, _escaping = walk_sources(manifest)
+    files, _sidecars, _unmatched, _escaping, _unreadable = walk_sources(manifest)
     # Built on the first PDF, not up front: constructing the transport needs a key, and a KB with
     # no PDFs at all has nothing to estimate and no business demanding one.
     transport = None
@@ -1099,11 +1123,28 @@ def _run(
     report: SyncReport,
     extraction_backend: str,
 ) -> None:
-    files, sidecars, unmatched, escaping = walk_sources(manifest)
+    files, sidecars, unmatched, escaping, unreadable = walk_sources(manifest)
     report.unmatched = unmatched.paths
     report.unmatched_truncated = unmatched.truncated
     report.unmatched_pdf_extra = _missing_pdf_extra(unmatched.paths, extraction_backend)
     report.escaping_patterns = escaping
+    for path in unreadable:
+        # A `failures` entry rather than a field of its own, for the reason this module's docstring
+        # gives: a file that will not parse is recorded per document. It is also what keeps the run
+        # honest — `report.ok` is `not report.failures`, so a KB holding an unreadable document
+        # cannot exit 0 and read as a clean sync.
+        #
+        # **Above the `--sidecars-only` return, not below it.** That half of the split-sync pair is
+        # the one that runs in a pre-commit hook, which is the last place an unreadable document
+        # should pass silently.
+        report.failures.append(
+            (
+                path,
+                "cannot be read: Permission denied.",
+                "Restore read permission (`chmod +r`), or exclude it in `[sources] exclude`. "
+                "Any index row it already has is held meanwhile, not deleted.",
+            )
+        )
 
     if options.sidecars_only:
         _write_missing_sidecars(manifest, files, sidecars, options, stamp, report)
@@ -1154,6 +1195,7 @@ def _run(
             paid_backend_names=paid_backend_names(),
             force=options.force,
             explicit_extract=options.extract is not None,
+            unreadable=frozenset(unreadable),
         )
         report.ambiguities = result.ambiguities
         report.orphaned_sidecars = result.orphaned_sidecars
