@@ -10,6 +10,272 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.32.0] — 20260902 09:48
+
+### Added
+
+- **`tools/agent_spend.py` measures what the agents working on this repository actually spend**,
+  reading only their own transcripts — no network, no API calls, nothing written. Four subcommands:
+  `models` (requests, price-units and estimated dollars per model), `boot` (the fixed context a
+  session re-transmits on every request), `workflows` (workflow agent outcomes and how the losses
+  are distributed), `rewrites` (mid-session full cache re-writes, bucketed by idle gap). It prints
+  only counts, models and identifiers — never prompt or response text — so its output can be pasted
+  into a public document.
+- **It exists because two properties of the transcript format silently corrupt any naive sum**, and
+  both were got wrong on the first pass at this data. One API response is written as **several**
+  lines that repeat the same `requestId` and an identical `usage` block, so summing per line
+  inflates spend **2.14×**; and `output_tokens` is a **running partial**, so taking a request's
+  first line undercounts output **1.7755×**. `tests/test_agent_spend.py` pins both against synthetic
+  transcripts, and reads nothing from `~/.claude`, so it says the same thing on a machine that has
+  never run an agent.
+- **`--scope` selects the population, and every subcommand prints which one it read.**
+  `main`, `subagent` and `workflow` **partition** the corpus and `all` (the default) is their
+  union — a property a test asserts, so a split can be quoted without leaving the tool. The default is `all` deliberately — a main-loop-only file list cannot
+  contain a subagent transcript, so it answers questions about fan-outs with a zero that looks like
+  a finding.
+- **`workflows` ignores runs that are still writing** (`--settle-minutes`, default 60) and says how
+  many it set aside. An agent that has not returned yet is indistinguishable from one that was
+  lost, so a workflow read mid-flight reports healthy agents as losses — measured live, the
+  unguarded count was 159 orphans against the settled 157. The clock is the journal's mtime, which
+  is the settling question exactly ("has this file stopped changing") and *not* "when did this run
+  end": touching an old journal re-excludes a run that finished weeks ago. That direction is
+  deliberate — it costs a datum rather than reporting a live agent as a loss — and the excluded
+  count is printed, so a run reappearing there is a touched file, not a lost one.
+- **A model off the rate card reports no dollars rather than a guessed price**, and the rate card
+  states its own provenance and cache date in the source. An estimate over transcripts is never a
+  bill, and the code says so where the number is produced.
+
+- **`tools/reachable_ceiling_probe.py --questions <path>` measures a golden set that is not the
+  measured KB's own.** Omitted, it resolves to `<kb>/eval/questions.yaml` exactly as before, so
+  every recorded run stays reproducible byte-for-byte. It exists because
+  `tools/build_rfc_corpus.py` copies the repository's `tools/rfc_corpus/questions.yaml` over
+  `<out>/eval/questions.yaml` on **every** build, unconditionally — correct by design, since the
+  repository copy is the source of truth — which left the probe with no route to re-measure a set
+  a rebuild had replaced except to put the old file back where the next build overwrites it again.
+- **The flag is deliberately combinable with `--fake`**, unlike `--kb`. That pair is refused
+  because `--fake` builds its own corpus and would have to report one corpus's numbers under
+  another's name; a golden set is honoured whichever corpus is underneath, so there is nothing to
+  discard. `src/pinakes/eval.py` and `tools/graph_matrix.py` already carried this flag under this
+  name with this default — the probe was the one that did not.
+
+- **`tools/fragments.py --check` refuses a `retro.d/` fragment that does not open with a `## `
+  heading of its own — two hashes, one space, nothing before them — or whose heading does not
+  end with the `(YYYYMMDD HH:MM)` the filename's own prefix requires.** A headingless
+  fragment was not malformed once spliced — it was *absorbed*, landing under whichever fragment
+  sorted before it and reading as that incident's lesson, in a document that stayed correct
+  markdown while every gate stayed green. The stamp arm holds the existing rule that the heading's
+  time is a **copy** of the filename's, never a second reading of the clock. Fragments predating
+  the naming rule have no prefix to copy and owe the heading only; `changelog.d/` is untouched.
+
+### Fixed
+
+- **Every remaining finding of the 20260807 documentation audit is fixed** — 34 findings across ten
+  files, landed as one unit rather than 34 rows. Two were already cured by other work
+  (`c770c0f`, `ec73b1f`) and are closed unworked; the rest were re-measured against `f3303fc`
+  before a single character was changed.
+- **Three published output fences now match what the commands print.** `docs/GUIDE.md` showed
+  `pnk sync` output with the structural-graph `0 edge(s) derived …` line missing, in three places
+  on a site published on every push to `main`. Each was re-run as a control first — and the
+  unmatched-`.pdf` case and the `--scan-links` case put that line in **different** positions
+  (second and third respectively), which reading could not have told apart.
+- **`docs/CLI.md`'s `--offline` row no longer states a guarantee the code does not make.** It
+  claimed `--offline` never reaches for model weights. True on `sentence-transformers`, which
+  passes `local_files_only`; on `fastembed` the refusal fires only when no cache directory exists
+  at all, so an existing cache missing *this* model downloads 1.1 GB under `--offline` and the
+  search succeeds. The row now says both halves, and lists `links` among the commands that take
+  the flag.
+- **The root `README.md` no longer tells readers to hand-edit `pinakes.toml` for a `[light]`
+  install.** `pnk init --backend light` has done it since 0.22.0. The commit that shipped the flag
+  is titled *"three copies of a false sentence"* and fixed `docs/CLI.md`, `docs/GUIDE.md`,
+  `docs/ROADMAP.md` and `docs/STATUS.md` — the fourth copy was in `README.md`, out of that sweep's
+  `docs/` scope, and survived 21 days in the most-read file of a public repository.
+- **`docs/DESIGN.md` §6.1 no longer shows a runnable command for a template that does not ship.**
+  `pnk init research --template research-papers` exits 1 — `notes` is the only template. The tree
+  stays as the contract a template satisfies, now named as the shape the template release fills in.
+- **Nine rotted code citations were re-derived by reading the lines**, not by pasting the values a
+  register recorded in 20260826 — which had themselves drifted again in the interim.
+- **Two stale row counts came out of `docs/VERIFICATION.md` rather than being corrected.** They had
+  been restated once and had drifted a second time by 20260901, two paragraphs below the file's own
+  standing instruction that a counted claim goes stale in silence.
+
+- **`main` is green again.** A cross-fragment anchor link in
+  `retro.d/20260901_0713-the-rule-i-quoted-had-been-deleted.md` turned CI red at `b6be317` — 14 jobs
+  green, one red. The link was **correct**: it targets a sibling fragment's heading, which resolves
+  once `tools/fragments.py --apply` splices both into `docs/RETROSPECTIVES.md`, exactly as
+  `docs/RETROSPECTIVES.md:4034` already links to `:3945` in that form with `mkdocs --strict` passing.
+  `tools/markdown_link_gate.py` resolves a `#…` target against the fragment's own headings only, so
+  it is red before splicing and green after. The link is code-spanned as an interim measure and
+  restored when build-order row 14 teaches the gate the splice destination.
+- **Both fragment READMEs now carry the caveat.** `retro.d/README.md` *instructs* writers to use the
+  anchor form, and the first fragment to follow it literally broke the build; `changelog.d/README.md`
+  repeats the instruction. Each now says to code-span the anchor until row 14 lands, with the
+  measurement.
+- **Four of the eight rows parked in `plans/20260825_1240-run-pinakes-sweep.md` were already done** —
+  the docs audit, the `KB-UPDATES.md` §3 citations, the `test_review_pass_gate.py` rows and the
+  `--questions` flag, two of them finished before the table was written. Each remaining row now
+  carries a one-command liveness check to run before building it.
+
+- **A build-order row read open for nine days after its work landed.** Sweep-plan row 3 (S3, the
+  per-thread connection in `pnk serve`) was fixed by `e526e29` on 20260831 22:22 UTC —
+  `src/pinakes/serve.py:107-153`, five tests, including one asserting S3's own symptom — and the row
+  never changed. A peer reading `src/` found it; no gate did. It is now marked BUILT with its commit.
+- **Every other open row in that build order was measured against the tree and is correctly open** —
+  one agent per row plus an independent spot-check of two verdicts. Rows 4, 5, 6, 8, 9 and 10 each
+  now carry a **dated measurement** with the citation that settles it, rather than a bare status:
+  `sync.py:693` for S1, `template.py:209-223` for S4, `cli.py:333` for S8/S9, `pairing.py:481-483`
+  for D-37, and so on.
+- **The two registers in that plan rot at very different rates, and the difference is readership.**
+  The build order — the table an implementer opens to pick up work — measured 1 stale row in 7 (14%).
+  The parked table below it, which exists so that nobody has to read it, measured 4 in 8 (50%). Both
+  numbers are now recorded in the plan with the audit that produced them.
+
+- **The live build order disagreed with itself, four hours after it landed.**
+  [`plans/20260901_1148-clear-the-user-facing-list.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260901_1148-clear-the-user-facing-list.md)
+  stated the number of pending fragments five times and no two agreed: its own measurement M5 said
+  11, row 3 said 15 twice, 10 once and 5 once, and the tree held 16. The cause was structural rather
+  than careless — **M5 was keyed to `HEAD` while M1–M4 each named a sha**, so the one measurement
+  that moves with every landing was the one nothing pinned, and row 3 restated its numbers instead of
+  citing it. M5 now names `9cc9bc1`, row 3 cites M5 and restates nothing, and a clause that conflated
+  "`retro.d/` fragments" with "records of 20260901" is now the quantity it meant. Also fixed in the
+  same file: a sentence beginning *"That expectation"* whose antecedent had been deleted in review,
+  and an unescaped `|` inside a code span in the M3 row, which GFM reads as a column delimiter and
+  which split that row. **And § 6's table of decisions owed by the user was wrong in three of its
+  four rows**, none of which had been checked against anything: `pnk adopt` was said to appear in no
+  top-level routing document when `docs/README.md` names it; the `fable` clause was carried as
+  *reported done, verify* when it has been present in that file all along; and the
+  `--autocompact 150000` row is named for a flag that does not exist, against a live setting
+  (`autoCompactWindow`) that reads twice that number. A table of open questions had itself gone
+  unread.
+
+- **`docs/KB-UPDATES.md` no longer opens by calling a shipped command a proposal.** Its status
+  header read *"What remains a proposal is `--apply`"*; `pnk upgrade --apply` shipped in **0.20.0**
+  and five places already said so, including that same file's §1, §2, §9 and its own §9 table
+  (*"Every row in this table is now built"*), plus
+  [`docs/README.md`](https://github.com/lucagattoni/pinakes/blob/main/docs/README.md) and
+  [`docs/STATUS.md`](https://github.com/lucagattoni/pinakes/blob/main/docs/STATUS.md). §1 even
+  wrote *"(see the header above)"* while the header contradicted it. The header is now **rewritten
+  to the current state rather than corrected by a further appended sentence** — which is how it
+  broke: four releases each added a clause to the end, and the stalest clause stayed first.
+  `Status: mostly proposal` is now `Status: mostly built`.
+- **`docs/README.md` no longer sources `pnk adopt` from a section that has never mentioned it.**
+  Its `KB-UPDATES.md` row said what remains a proposal is *"the rest of §8's shape — `pnk adopt`"*.
+  `KB-UPDATES.md` §8 is *Open questions* and proposes no such command: `git log -S'pnk adopt' --
+  docs/KB-UPDATES.md` is **empty over the whole history**, so the name was never there to lose. The
+  §8 that proposes it belongs to a different document —
+  [`docs/graph/PINAKES_APPROACH.md`](https://github.com/lucagattoni/pinakes/blob/main/docs/graph/PINAKES_APPROACH.md)
+  §8, *ClaudeKB: the first fleet* — whose release-mapping table carries `§8` in a **From** column
+  meaning its own sections. A section number was read out of one document's table and written into
+  a cell about another. Both rows now name the right note; `pnk adopt` is still unimplemented
+  (`grep -rn '"adopt"' src/` returns 0 where `"upgrade"` returns `cli.py:1799`) and D-8, *which
+  release owns it*, is still unanswered.
+
+- **The live build order gained rows 14 and 15, and one of them is a refusal.** Row 14 rules what a
+  retro fragment's *second* `## ` heading owes: a parenthesised `YYYYMMDD HH:MM` stamp ending the
+  heading, in the same spelling as the first — **not** the filename's prefix, and with nothing
+  constraining its value. The obvious stricter rule would have refused a real released fragment:
+  across the **129** fragment paths ever added under `retro.d/` — 239 distinct versions, read from
+  the object store — **two** carry two column-0 `## ` headings, and the only one whose author
+  stamped them at all made the second stamp differ from the filename prefix deliberately,
+  recording a second moment inside one incident. One instance licenses the existence of a later stamp; it does not
+  license a monotonicity rule, so none was written.
+- **Row 15 fixes a comment and declines to gate it.** One battery section out of thirty conforms to
+  neither reserved form for its version slot — it must read `0.30.0 · `, the release that shipped
+  the gate, **not** `unreleased, 20260823 · `, which the planner instructed and which would have
+  written a false claim into the one file whose job is recording which release shipped what. The comment is rowed for repair; the check that would
+  have caught it is **deliberately refused for now**, because adding a gate is new process and
+  whether this repo should freeze new process is a decision sitting with the user this minute. It is
+  recorded as a refusal rather than left as an oversight, and it may be proposed again once that
+  decision lands.
+
+- **A measurement behind a live ruling was taken over the wrong population, and is corrected
+  wherever it was written.** The build order's row 14 justified what a retro fragment's *second*
+  `## ` heading owes by counting fragments that carry one. It reported **116 fragments, exactly
+  one**; the real figures are **129 paths and 239 distinct versions, of which two**. The count had
+  been taken over the live `retro.d/` directory, which every release empties by splicing into
+  `docs/RETROSPECTIVES.md` — so it described the fragments written since the last release, not the
+  corpus the ruling reasoned about. The pending changelog entry carrying the same number is
+  corrected with it. **The ruling is unchanged:** the second of the two fragments stamps neither of
+  its headings, and is not a pre-convention artefact to set aside — 10 of 126 fragments have an
+  unstamped first heading, scattered to 20260831 — so it is ordinary non-compliance and licenses
+  nothing. One deliberately-stamped instance still licenses the existence of a later stamp and not a
+  monotonicity rule.
+- **The Markdown link gate and the renderer that builds the site disagree about what a heading is,
+  in four shapes of five** — rowed, not yet fixed. `tools/markdown_link_gate.py` matches headings
+  with CommonMark's up-to-three-leading-spaces rule; Python-Markdown, which renders the site,
+  refuses even one. So ` ## x`, `  ## x` and `\t## x` give the gate an anchor the site never
+  renders — a link to one **passes the gate** and resolves to nothing — while `##x` is a real
+  heading the gate cannot see, so nothing may link to it. Inside `docs/` this is caught by
+  `mkdocs build --strict`; outside it, in `CLAUDE.md`, `plans/`, `changelog.d/` and `retro.d/`,
+  nothing catches it — and those files are the gate's entire stated reason to exist.
+
+- **A ruling's stated basis was false, and both rows resting on it are corrected.** Build-order rows
+  17 and 18 justified treating one fragment-gate fix as in-scope, and a second as new process, by
+  the claim that `changelog.d` **already gates a fragment's filename prefix**. It does not — it
+  gates the **category**, and the case that separates them is `fixed-a-thing.md`, which carries no
+  prefix at all, has a category for its head, and is **accepted**, while `banana-a-thing.md` is
+  refused. A malformed prefix is refused there only incidentally, by shifting the first token out of
+  the six allowed categories. Nothing in this repo gates a prefix's format. The claim came from
+  reading the category arm's error text — which names the whole naming convention — as evidence of a
+  prefix arm, without ever testing the one fixture the two hypotheses disagree about.
+- **Both rulings survive on a discriminator that does not depend on the sibling.** The question is
+  whether a check enforces the **decided property** or a **different** one. A gate whose subject is
+  *the stamp is the filename's* states a copy relation, so closing an exemption that one substituted
+  character triggers implements that gate rather than extending it; calendar validity is a different
+  property and stays deferred. The superseded discriminator — *does the sibling already do this* —
+  is struck from both rows.
+- **The narrowing rule itself is widened on evidence, and its stated residual was the wrong string.**
+  It now exempts only a stem that does **not begin with a digit at all**, rather than one not
+  beginning with eight. `2026090_0710-x`, named as the residual, is already refused today by the slug
+  arm, because a failed prefix strip leaves an underscore in the stem and the slug pattern forbids
+  it; the real residual was the all-hyphen shapes, which the wider rule leaves none of. Measured over
+  all **310** fragment paths that have ever existed: of the **52** carrying no canonical prefix,
+  **none begins with a digit** under either form, so the wider rule costs nothing historically. Its
+  one real cost is named rather than left to be discovered — a name like `5-lessons.md` becomes
+  refused, which is correct, since every new fragment owes a prefix.
+
+- **`tools/markdown_link_gate.py` resolves a fragment's links from the document its body is spliced
+  into**, not from the directory the file sits in. `retro.d/` and `changelog.d/` are consuming
+  directories, so every link in a fragment has two resolutions and only the second one is published
+  — and they disagree in exactly the case both fragment READMEs forbid. `[x](20260902_0245-….md)`
+  names a real sibling inside `retro.d/` and a file that never existed inside `docs/`. **That form
+  reached `main` twice on 20260902** (`2fd47bc` 07:44, `394939d` 08:03 UTC) and would have failed
+  the next release build; nothing saw it, because no pre-splice instrument could. The gate is now
+  red on the branch instead.
+- **A `#…` anchor into a sibling fragment's heading is accepted**, which is the form both READMEs
+  prescribe and the form the gate used to refuse. The anchor universe is the destination document's
+  headings plus every pending fragment's; a slug two files both contribute is **refused** rather
+  than guessed at, because the anchor the site generates would depend on splice order. The
+  instruction to degrade these links to code spans is withdrawn from both READMEs, dated rather
+  than overwritten, and the four links written under it are restored.
+- **The two streams splice to different depths, and the gate knows it.** A retro fragment lands in
+  `docs/RETROSPECTIVES.md`; a changelog fragment lands in `CHANGELOG.md` at the repository root. So
+  `../docs/DESIGN.md` is correct from inside `changelog.d/` and climbs out of the repository once
+  the body has moved.
+
+- **One unreadable document no longer aborts the entire index.** `hash_file` let `PermissionError`
+  escape `walk_sources`, so a single file the process could not open ended `pnk sync` with a raw
+  Python traceback and **no index database at all** — every other document in the KB unreachable
+  because of one. The path is now carried out of the walk, and the run reports it as a per-document
+  failure with a `chmod +r` remedy. `report.ok` is `not failures`, so the sync still exits non-zero:
+  the file is not quietly dropped.
+- **An indexed document that becomes unreadable is held, never retired.** This is the half that
+  makes the first one safe. `pair()` reasons from absence — a path the walk stops reporting is a
+  path that is gone — so a walk that merely *skipped* the file would have emitted a `SoftDelete`,
+  dropped its chunks and printed `1 removed`. A permission change would have deleted a document
+  from search. The walk therefore carries the unreadable paths to `pair()`, which holds each row as
+  a `Skip` before any loop that reasons from absence runs.
+- **An unreadable document's sidecar is never listed as orphaned.** That list is printed with
+  `pnk doctor --prune` beside it, so counting a document that is sitting on disk hands the user a
+  command that destroys a permanent ULID.
+- **`--sidecars-only` reports it too** — the half that runs in a pre-commit hook, and the last place
+  an unreadable document should pass in silence.
+- **`pnk doctor` no longer dies on the same condition.** `_extraction_backend_drift` hashed the
+  source of every paid-recorded row through the same unguarded read, so the command `pnk sync`'s own
+  remedy sends you to ended in a traceback on exactly the state it exists to diagnose. A fourth
+  drift check, `paid extraction unreadable`, now names the document whose staleness could not be
+  decided — recorded rather than swallowed, because `paid extraction stale: none` would otherwise be
+  a claim about a file nothing could read.
+
 ## [0.31.1] — 20260831 23:01
 
 ### Fixed
@@ -4317,7 +4583,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.31.1...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.0...HEAD
+[0.32.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.0
 [0.31.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.31.1
 [0.31.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.31.0
 [0.30.3]: https://github.com/lucagattoni/pinakes/commit/d3a8f681afb23573a75e8299ecf112a8f158b848
