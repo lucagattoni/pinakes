@@ -26,7 +26,8 @@ READMEs forbid — `[x](20260902_0245-….md)` names a real sibling inside `retr
 never existed inside `docs/`. Nothing pre-splice could see it: this gate resolved it from
 `retro.d/`, `mkdocs build --strict` never reads `retro.d/` at all, and the failure therefore
 surfaced at the release cut with the whole build red. It happened at 0.12.0's cut and **twice more
-on 20260902**, the second time on `main`. Resolving a fragment's targets from its destination
+on 20260902, both of them on `main`** — `2fd47bc` and `394939d`, 07:44 and 08:03 UTC, neither
+caught by anything until a reader looked. Resolving a fragment's targets from its destination
 directory closes it, and the same move makes the *other* half legal: a `#…` anchor into a sibling
 fragment's heading is correct about the spliced document and was the thing this gate used to refuse,
 which is why the READMEs carried an instruction to degrade those links to code spans. The anchor

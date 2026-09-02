@@ -61,16 +61,25 @@ instead, with the anchor the site will generate:
 
     ([*measured the launcher, not the work*](#measure_sync_cpupy-measured-the-launcher-not-the-work-20260805-1737))
 
-The same applies to `changelog.d/`. Caught at 0.12.0's cut, by `make docs` and not before: nothing
-in `./check.sh` resolves a link that only becomes wrong at splice time, so the fragment was green on
-its own branch.
+The same applies to `changelog.d/`. It shipped anyway, three times: caught at 0.12.0's cut by
+`make docs`, then twice on 20260902, **both on `main`** — where the next release cut would have
+failed the docs build. That nothing saw it was structural rather than an oversight: inside
+`retro.d/` the sibling's filename resolves to a real file, so the link is only wrong once the body
+has moved. **Gated since 20260902**: `tools/markdown_link_gate.py` resolves a fragment's relative
+targets from `docs/RETROSPECTIVES.md`, so it is red in `./check.sh` on the branch, before the
+splice.
 
-**⚠️ Until build-order row 14 lands, write that anchor in a code span rather than as a live link.**
-The form above is right about the *destination* — `docs/RETROSPECTIVES.md:4034` links to `:3945` this
-way and `mkdocs --strict` passes — but `tools/markdown_link_gate.py` resolves a `#…` target against
-the fragment's **own** headings, so a cross-fragment anchor is red in `retro.d/` and green only after
-splicing. Name the sibling's title in prose and put the anchor in backticks; make it a link once the
-gate learns the destination. **Measured 20260901 11:16 UTC**: the first fragment to follow this
-instruction literally turned `main` red at `b6be317` (14 jobs green, 1 red) and blocked three
-branches at once — `check.sh` runs this gate under `set -e`, so everything after it stops running and
-you get no result for the remaining checks either.
+**Write it as a live link.** The gate resolves a `#…` target against the destination document's
+headings **plus every pending fragment's**, which is where the body is going, so the form that is
+correct after splicing is now correct before it. A slug two files both contribute is refused rather
+than guessed at — the anchor the site generates would depend on splice order, so rename one
+heading. There are no such collisions today.
+
+**This instruction was the opposite until 20260902, and the reversal is dated rather than
+overwritten.** The gate used to resolve `#…` against the fragment's *own* headings, so the correct
+form was red in `retro.d/` and green only after splicing, and this file told you to degrade the link
+to a code span. **Measured 20260901 11:16 UTC**: the first fragment to follow that instruction
+literally turned `main` red at `b6be317` (14 jobs green, 1 red) and blocked three branches at once —
+`check.sh` runs this gate under `set -e`, so everything after it stops running and you get no result
+for the remaining checks either. A rule that reverses is worth a date; the four links written under
+it were restored when it changed.

@@ -20,7 +20,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 21
+mutants = 22
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.30.0 · the gate's first cut — the ungated-Markdown surface
@@ -216,6 +216,16 @@ file = "tools/markdown_link_gate.py"
 old = '''        contributors.extend(sorted(p for p in source.glob("*.md") if p.name != "README.md"))'''
 new = '''        pass'''
 kills = "tests/test_markdown_link_gate.py::test_a_fragments_anchor_into_a_sibling_fragment_resolves"
+
+[[mutant]]
+name = "the stream README contributes headings the spliced document will never carry"
+file = "tools/markdown_link_gate.py"
+# The README is a contributor to the directory and not to the document. Counting it would accept a
+# link to a heading that exists only in the instruction file — green on the branch, dead in the
+# published one, which is the failure this arm exists to remove. Found reviewing this change.
+old = '''        contributors.extend(sorted(p for p in source.glob("*.md") if p.name != "README.md"))'''
+new = '''        contributors.extend(sorted(source.glob("*.md")))'''
+kills = "tests/test_markdown_link_gate.py::test_a_stream_readmes_headings_are_not_part_of_the_spliced_universe"
 
 [[mutant]]
 name = "an ambiguous slug is accepted, so the gate certifies an anchor it cannot predict"

@@ -48,10 +48,16 @@ not into a fragment — which is exactly the difference this section is about.) 
 20260825 by the gate, on a fragment whose links were right for where the text was going and wrong
 for where it was sitting.
 
-**Until build-order row 14 lands, a cross-fragment anchor goes in a code span, not a live link** —
-`tools/markdown_link_gate.py` resolves `#…` against the fragment's own headings, so the form that is
-correct after splicing is red before it. See `retro.d/README.md` for the measurement.
+**A cross-fragment anchor goes in a live link.** `tools/markdown_link_gate.py` resolves `#…` from
+the document the body is spliced into — `CHANGELOG.md` here — plus every pending fragment in this
+stream, so the form that is correct after splicing is correct before it too. This said the opposite
+until 20260902; `retro.d/README.md` keeps the measurement and the date.
+
+**The two streams splice to different depths, and this is the one place their rules differ.** A
+retro fragment lands in `docs/RETROSPECTIVES.md`; a changelog fragment lands in `CHANGELOG.md` at
+the repository root. So `../docs/DESIGN.md` is the correct spelling from *inside* `changelog.d/` and
+climbs out of the repository once the body has moved. The gate refuses it, and says so.
 
 **And never link to another fragment by filename**, for the reason
 [`retro.d/README.md`](../retro.d/README.md) gives: splicing puts every fragment into one document,
-where a sibling's filename no longer resolves. Link to the *heading* instead.
+where a sibling's filename no longer resolves. Link to the *heading* instead. **Gated since 20260902** — the same arm resolves a fragment's relative targets from `CHANGELOG.md`, so a sibling filename is red on the branch rather than at the release cut.

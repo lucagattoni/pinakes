@@ -401,6 +401,26 @@ def test_a_stream_readme_is_not_a_fragment_and_keeps_resolving_where_it_sits(rep
     assert _run(repo, "retro.d/README.md").returncode == 0
 
 
+def test_a_stream_readmes_headings_are_not_part_of_the_spliced_universe(repo: Path) -> None:
+    """The README is a contributor to the *directory* and not to the *document*: it is never
+    spliced, so its headings never reach `docs/RETROSPECTIVES.md`. Counting them would let a
+    fragment link to a heading that exists only in the instruction file — green on the branch,
+    dead in the published document, which is precisely the failure this arm exists to remove.
+    Found reviewing this change rather than writing it; the first draft globbed the directory and
+    excluded the README by name, and nothing here would have noticed if it had not.
+    """
+    _write(repo, "docs/RETROSPECTIVES.md", "# Retrospectives\n")
+    _write(repo, "retro.d/README.md", "## How to write a fragment\n")
+    _write(
+        repo,
+        "retro.d/20260102_0000-newer.md",
+        "## Newer (20260102 00:00)\n\nsee [that](#how-to-write-a-fragment)\n",
+    )
+    result = _run(repo, "retro.d/20260102_0000-newer.md")
+    assert result.returncode == 1
+    assert "no such heading anchor in docs/RETROSPECTIVES.md" in result.stderr
+
+
 def test_a_changelog_fragment_resolves_from_the_repository_root_not_from_its_directory(
     repo: Path,
 ) -> None:
