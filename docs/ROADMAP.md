@@ -29,14 +29,16 @@ precision nobody measured.
   [`0.32.0`](#0320--one-unreadable-file-no-longer-takes-the-kb-with-it--20260902-0948) is **on
   PyPI as of 20260902 10:07** — landed on `main` at 10:05 and published two minutes later, the
   third consecutive release to produce the hold marker and remove it only once the index had been
-  read. **Its `main` is red, which is a separate claim from its artifact being good**: **both**
-  `[pdf]` legs fail in `tests/test_pdf_trace.py`, on an assertion that straddles the ledger's
-  write-time quantisation and held only because the old rate made the EUR→USD→EUR round trip
-  land exactly. The file skips on `[pdf]` alone, so both legs run it and fail-fast cancels
-  whichever is slower — which is why the named job differs between runs. **A second, latent
-  instance of the same class sits four lines below it**: a test that rounds ties `HALF_EVEN`
-  against production's `HALF_UP`, green only because today's per-MTok prices happen to make the
-  value exactly representable. Nothing published is wrong; the difference is 1E-28 EUR.
+  read. **Then its `main` went red for 44 minutes, which is a separate claim from its artifact
+  being good** — green again at 10:51. **Both** `[pdf]` legs failed in `tests/test_pdf_trace.py`,
+  on an assertion that straddled the ledger's write-time quantisation and had held only because
+  the old rate made the EUR→USD→EUR round trip land exactly; the file skips on `[pdf]` alone, so
+  both legs ran it and fail-fast cancelled whichever was slower, which is why the named job
+  differed between runs. **A second, latent instance of the same class sat four lines below it**:
+  a test rounding ties `HALF_EVEN` against production's `HALF_UP`, green only because today's
+  per-MTok prices happen to make the value exactly representable. `cf1f1cb` fixed both. Nothing
+  published was wrong; the difference was 1E-28 EUR. **The durable lesson is that both hops were green for the value of a constant neither
+  test mentions**, one of which `docs/RELEASING.md` now refreshes at every release.
   [`0.31.1`](#0311--the-price-nobody-was-watching--20260831-2301) is **on PyPI as of
   20260831 23:10** — landed on `main` at 23:01 and published nine minutes later, with STATUS's
   headline hold marker covering that window and removed only once the index had been read.
