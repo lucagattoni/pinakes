@@ -1722,9 +1722,9 @@ def test_a_sidecar_that_appears_after_the_walk_asks_for_a_rerun(
 
     def walk_as_if_the_sidecar_arrived_late(
         manifest: Manifest,
-    ) -> tuple[list[Any], list[Any], Any, tuple[str, ...]]:
-        files, _sidecars, unmatched, escaping = real_walk(manifest)
-        return files, [], unmatched, escaping
+    ) -> tuple[list[Any], list[Any], Any, tuple[str, ...], tuple[str, ...]]:
+        files, _sidecars, unmatched, escaping, unreadable = real_walk(manifest)
+        return files, [], unmatched, escaping, unreadable
 
     monkeypatch.setattr(sync_module, "walk_sources", walk_as_if_the_sidecar_arrived_late)
     report = run(kb, rebuild=True)
