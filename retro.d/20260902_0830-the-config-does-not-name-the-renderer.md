@@ -40,8 +40,8 @@ the two-hyphen string appears nowhere among the 904 ids on the 30 pages built at
 no information until the selector is shown able to fire, and a positive one carries none until the
 instrument is shown to be the one that ships.
 
-This is the same defect as *A method is not a measurement point, and `--all` is not a corpus*
-(`#a-method-is-not-a-measurement-point-and---all-is-not-a-corpus-20260902-0245`), one layer down: not
+This is the same defect as [*A method is not a measurement point, and `--all` is not a
+corpus*](#a-method-is-not-a-measurement-point-and---all-is-not-a-corpus-20260902-0245), one layer down: not
 a number measured over the wrong population, but a string measured with the wrong program. The
 sentence that names it is the anchor to that fragment, which is the string I got wrong.
 
