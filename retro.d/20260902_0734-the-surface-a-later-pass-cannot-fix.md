@@ -61,11 +61,17 @@ about one population and its *30* about the other, and the two numbers in one se
 two different questions.
 
 **This is one class with the fragment landed beside it, not two.** `retro.d/` also carries
-`20260902_0245-a-method-is-not-a-measurement-point.md`, written the same night about the same
-defect — a number stated without the selector that produced it. It is on `main`; this branch is
-twelve commits behind it and the path is not in this tree yet, which is why it is named here rather
-than linked. Read them together: that one names the rule, this one is the rule failing in the
-hands of the reviewer applying it.
+[`20260902_0245-a-method-is-not-a-measurement-point.md`](20260902_0245-a-method-is-not-a-measurement-point.md),
+written the same night about the same defect — a number stated without the selector that produced
+it. Read them together: that one names the rule, this one is the rule failing in the hands of the
+reviewer applying it.
+
+This started as a bare path in prose, because when it was written the branch was twelve commits
+behind the file it cites and a link would have been red on its own gate. Green at the moment of
+landing beat the better reference. It is a link now that both are on `main`, and the reason is not
+tidiness: `tools/markdown_link_gate.py` reads `retro.d/`, so **a path in prose is unchecked text
+and a link is a gated reference** — this one goes red if either fragment is ever renamed, and the
+prose version would have gone quietly stale. Ruled by the planner.
 
 **The lesson is not "measure more".** All three parties — the writer, the corrector, and the
 reviewer who called the correction wrong — ran a count. Each ran a *different* count and none said
