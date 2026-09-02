@@ -30,6 +30,16 @@ precisely because neither of us had written the other's regex down. Earlier the 
 pair of us computed the same wrong anchor by the same wrong method and read that as corroboration
 too; this is the harder version, because here the methods really were different.
 
+**And a third, which is the one that generalises.** A peer measured a line at 254 characters and
+dismissed two neighbouring lines as *"2 characters over, not worth a commit"*. The line was 252
+characters and 254 **bytes** — `awk length` counts bytes in this locale — and the two neighbours
+were 99 and 100, never over at all. The headline survived the error: at 252 or 254 that line was
+two and a half times the file's width and had to be fixed either way. **That is exactly why the
+error was safe to keep.** A measurement can be wrong in a direction that does not touch the
+conclusion and still poison every judgement made beside it, and those judgements are the ones nobody
+re-checks, because the headline held. The number the conclusion rests on gets scrutinised; the
+numbers riding along beside it do not.
+
 **The find worth keeping came from reviewing the change after it was green.** A stream `README.md`
 is excluded from the fragment set — its own links resolve where it sits — and it must *also* be
 excluded from the anchor universe, because its headings never reach the spliced document. Two
