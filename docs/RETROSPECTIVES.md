@@ -8988,6 +8988,1596 @@ test green. It is asserted now.
   document audits over the same tree — including one that examined this plan's own file — had not
   looked at the value.
 
+## A population that could not have contained the thing I was looking for (20260831 22:59)
+
+- **I reported a zero from a population that structurally could not contain a non-zero.** The claim
+  was that `claude-fable-5` — which bills at exactly 2.00× `claude-opus-5` — had never been used by
+  a fan-out: *"subagent runs: 0; workflow agents: 0 of 868"*. It reached a planner, and it is on
+  `origin/main` in `plans/20260831_2242-agent-spend-two-findings.md` as **"an unguarded path, not a
+  realised cost."** It is false. Measured with the committed script: **316 fable-5 requests in
+  workflow agents and 235 in subagents**, all projects — **551 of 866, or 63.6%**, across 26
+  distinct transcripts, billing on three days between 20260709 and 20260821. The reason I saw
+  zero is that I was counting a
+  **main-loop-only** population: subagent transcripts live under `<session>/subagents/` and were
+  never in the file list. The query was sound, the domain was never named, and the answer was
+  exactly the shape that made it look confirmed.
+- **The same session had just written that rule down for someone else.** The document this error
+  landed in exists to record that a claim resting on a selected population must state the selector.
+  I supplied the zeros for it. **A rule you are enforcing on a peer is not a rule you have applied
+  to yourself**, and the direction of the failure — a zero, which reads as *nothing to worry about*
+  — is the direction that gets no scrutiny.
+- **Committing the script is what found it.** The figures were re-derived by the tool rather than
+  recalled, and the fan-out numbers appeared the moment `include_subagents` was a parameter someone
+  had to pass rather than an assumption nobody had written down. Two other reported figures did not
+  survive the same treatment: the cache-re-write counts (`135 events`, `43,946,201 excess units`)
+  reproduce at **no** cutoff time under any population tried — the nearest is Pinakes main-loop,
+  which now gives 149 and 45.1M. Those never reached a document; the fable zeros did.
+- **Before trusting a cross-file total, test the overlap.** Main-loop and subagent transcripts share
+  **0** request ids of 20,156 and 23,685, so the combined totals are sound rather than
+  double-counted. That check cost one query and was the difference between a reportable number and
+  a plausible one.
+- **The fix is a default, not a caveat.** The tool as first landed hardcoded its file list per
+  subcommand, so the main-loop-only dollar share a document needs to cite was not reachable by any
+  flag — the committed instrument could not reproduce the number the committed document quotes,
+  which is the whole failure it was built to end. `--scope {all,main}` now selects it, **defaulting
+  to `all`**, and every subcommand prints the population it read. The direction of the default is
+  the lesson: the restricted population is the one that must be asked for by name, because a
+  restricted list does not announce itself — it just returns a zero.
+- **Then I did it again, in the sentence correcting it.** The retraction said the fan-out requests
+  sat "across 26 transcripts dated 20260803 and 20260821". The 26 is right — its selector is *all
+  projects, subagent and workflow transcripts only, matched on `message.model`*. **The dates are
+  wrong.** I printed the first six rows of a 26-row list and read the span off the part I could
+  see; the real span is three days, **20260709 · 20260803 · 20260821**. A truncated listing is a
+  selected population wearing different clothes, and it went into a commit message.
+- **A count is not a measurement until its selector is stated, and the selector fails in both
+  directions.** A peer scanning the same corpus got 59 files where I got 33. Neither was careless:
+  **59 is every file where the *string* `claude-fable-5` appears; 33 is every file with a line whose
+  `message.model` is `claude-fable-5`**, which is exactly the set that billed anything. The 26
+  extra files are ones that merely *discuss* it — **including the sessions doing the measuring**.
+  Measuring a model by grepping for its name counts your own analysis as data, and the more
+  carefully you write about it the larger the number gets.
+- **A split that cannot be reproduced does not get published, and the fix is a flag rather than a
+  footnote.** 316 workflow-agent and 235 subagent requests were true and unpublishable: `--scope`
+  offered `main` and `all` and nothing between, so quoting the split would have meant quoting a
+  number the committed instrument could not produce — the defect being corrected, one layer down.
+  `main`, `subagent` and `workflow` now **partition** the corpus, asserted by a test rather than by
+  arithmetic in a message: on one snapshot, 20,498 + 6,594 + 17,462 = 44,554 = `all`, file sets
+  disjoint and their union exact. Run across four invocations instead of one, the same sum is off
+  by two — the corpus grows while you measure it, which is why a figure carries the hour it was
+  taken.
+- **The same failure has a time axis, and the tool had no guard on it.** A peer read a workflow's
+  journal while the workflow was still running, saw 8 `started` against 7 `result`, and reported
+  the difference as a lost agent. It was the judge, mid-run; the workflow completed **9 of 9**
+  minutes later. The reading was correct and the question *when was this read* had not been asked
+  — the same defect as *out of what population*, one axis over. My own analysis had controlled for
+  it only by **observation** ("the most recent orphaned journal is 20260826, so none is in
+  flight"), which is a fact about that afternoon and not a property of the instrument. `workflows`
+  now excludes runs whose journal moved in the last `--settle-minutes` (default 60) and **prints
+  how many it excluded**, because a silent exclusion is another unstated population. Journal rows
+  carry no timestamp of their own — `agentId`, `key`, `result`, `type` — so the guard is the
+  file's mtime, and a journal whose age cannot be read counts as settled: the guard drops what it
+  can prove is recent, never what it merely cannot date. With the guard the corpus reads 55 runs /
+  868 agents / 157 no-terminal-row; without it, 57 / 881 / 159.
+- **An aggregate is an instrument too, and it has a selector of its own.** The span above was wrong
+  twice: first read off a truncated listing, then "corrected" using each transcript's **file
+  mtime**, which gave four days instead of three. A peer caught it, and checked the instrument the
+  obvious way — against the union, where mtime and the billing timestamps differed on exactly one
+  file in 26, an error rate small enough to write down and move on. Checked **per file** it is
+  **six of 33, four of them by 46 to 48 days**: sessions resumed or recompacted weeks after they
+  stopped billing. Five of the six were invisible because they landed on days the union already
+  held. So a union does not merely lose per-file error, it *reports the residue as the error rate*
+  — and validating an instrument through an aggregate understates it by whatever the aggregate
+  happens to swallow. That is the population failure one level down, found in the paragraph
+  written to correct the population failure. **This lesson is deliberately recorded twice** — here,
+  and in `plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md` § *An eighth instance*,
+  which registers the incident while this records the principle. The plan closes; this does not.
+  **Correct either and you must correct both.** The precedent is § *Reconciling the queues — two
+  registers of one fact, and an owner with nowhere to queue* above:
+  `plans/20260825_1252-plans-sweep-findings.md` kept two registers of the same facts, a later pass
+  updated the prose and not the table, and **twelve of its 27 rows stopped describing the tree**
+  with no gate able to see it. A second copy is a decision to maintain two things, not a free
+  backup.
+- **Four wrong spans in one night, none of them arithmetic, and every one caught by a re-run.** The
+  fable zeros (a borrowed denominator), a peer's 59 transcripts (a string match that counted the
+  measuring sessions), another's 14-of-100 (a denominator from a set the rule is undefined on), and
+  mtime-for-billing-day. Each was a correct measurement of something nobody had asked about. **None
+  was caught by re-reading a document**; three were caught by someone re-running the query
+  differently and one by re-running it on a corpus that had settled. That is the case for the
+  instrument being committed rather than its output being quoted — a number in a document cannot be
+  interrogated, and the disagreement between two people running two selectors is the only thing
+  that reliably surfaced the selector at all.
+
+## I corrected a document I had not read (20260831 23:26)
+
+- **The first version of this fragment was the defect it now records.** It opened by quoting *"the
+  queued row"* as calling this *"a probe silently measuring a question set a rebuild overwrote"*,
+  and spent its lead bullet correcting that framing as a size too big. **No plan has ever contained
+  that sentence.** `git log --all -S"silently measuring"` returns exactly one commit — the one that
+  added the fragment. The row (`plans/20260825_1240-run-pinakes-sweep.md:579`) says the probe
+  hardcodes its questions path *"with no way past it"*, which is precisely the framing I claimed it
+  lacked. The runbook (`plans/20260803_2239-corpus-probe-run.md:34`) does say *"silently"* — about
+  the file being clobbered by the next build, where the silent party is `build_rfc_corpus.py`,
+  which overwrites unconditionally and tells no one. **My sentence compressed two documents and
+  moved the adverb from the writer onto the reader.** The original text is in `1d5e7ac` and stays
+  there; a retraction whose original has been deleted is a claim nobody can check.
+- **It came from my own session's handoff table.** The previous coder session's handover, pasted in
+  at my start, summarised the row as *"stops a probe silently measuring a question set a rebuild
+  overwrote"* — one cell in a three-row table. I read a paraphrase as a quotation, corrected a
+  document for it, and put that correction into a retrospective, a commit message and a message to
+  the planner **before opening `plans/`**. A handoff table is a lossy summary of a document, and
+  the session receiving it cannot tell a paraphrase in one from a citation. The cheap defence is a
+  `file:line` in the handoff instead of a summary; the reliable one is opening the file.
+- **The ownership rule is what kept it out of `plans/`.** Documents here have one owner, so the
+  correction could only be *proposed*. It landed in the two places an implementer writes for itself
+  — a fragment and a commit message — and nowhere else. That is the mechanism working, and it is
+  worth saying because the rule usually reads as friction.
+- **What was actually true, verified rather than asserted:** the probe has recorded the golden
+  set's resolved path, `sha256`, question count and multi-hop count in *both* output formats since
+  `a6a931b` (20260804 04:13 UTC), three days before the runbook warning and 27 days before the row.
+  So nothing was ever misreported, and the row's own scoping — no route to re-measure a replaced
+  set — was right all along. Three lines, no guard.
+- **Two reviewers found it; neither found the half that mattered.** Both raised it as a fabricated
+  quotation, which it is. Going to the row myself, instead of accepting a confirmed verdict, is
+  what turned up that **the correction was also substantively wrong** — there was no oversized
+  framing to walk back. An adversarial pass that agrees with you about *what* is wrong can still be
+  a level short on *why*, and a confirmed finding is a place to start reading, not a conclusion.
+- **The same shape twice in ninety minutes, on a denominator this time.** Arguing against gating a
+  fragment's heading stamp, I measured *14 of 100* retro fragments whose stamp is not a copy of the
+  filename's prefix. The rule is undefined on the sixteen fragments that predate the naming
+  convention, so the population is **85, not 101**; the numerator was right and reproduced
+  independently, and only the denominator was borrowed. **A ratio is a claim about its
+  denominator.** Recounted on the population the rule actually covers, **18 of 85 were wrong at the
+  moment they were committed** — which is an argument *for* the gate I had just argued against.
+- **And that recount had an unstated selector of its own, which is the same failure one level in.**
+  *85* counts `git log --all`, so it includes fragments on branches nobody has merged — this one's
+  included. Re-run at a named commit: at **`d66acb8`**, 100 fragments ever added, **84 prefixed**,
+  16 not, and **18 of the 84 were wrong at the moment they were committed**. That is the planner's
+  published 18 of 84 exactly, reached by a different method. **`--all` and a ref are different
+  populations, and `retro.d/` gains files hourly** — a census of it that does not name its commit
+  is not a measurement. Caught before it was raised with the planner, by re-running with the
+  selector stated, which is the only step that has ever caught one of these.
+- **The total is robust and the breakdown is not, which is worth more than either number.** Three
+  independent counts agree on **18** and disagree on how it splits: 2/8/8, then 4/3/11, now
+  **4 with no heading at all, 5 with no stamp, 9 with a stamp that is not the filename's**. Nothing
+  is wrong in any of them — the boundary between *no stamp* and *wrong stamp* is a definition each
+  count drew for itself, and none stated it. **A breakdown inherits every ambiguity the total
+  averages out**, so the gate is argued from 18, and the split is not published. One byproduct:
+  reading each file at the sha that added it (`git show <sha>:<path>`) resolves **all 84**, so the
+  *three lost to rename detection* in the ruling are an artifact of the method, not of the corpus.
+
+## A composed number, again — and a test that was not a pin (20260901 06:31)
+
+Two findings from the adversarial pass over the `--questions` guard, kept because neither is about
+`--questions`.
+
+**HIGH — the third block of the guard's own test asserted nothing.** It claimed to catch the
+plausible widening of the guard to the KB's *default* golden set, and its KB was
+`tmp_path / "kb-without-a-golden-set"` with `mkdir()`. An empty directory has no `pinakes.toml`, so
+`load()` raised `ManifestError` and execution never reached the default questions path at all. Both
+assertions — `returncode != 2`, `"no golden set at" not in stderr` — were satisfied by that
+unrelated crash. The reviewer patched the widened guard in and the test **passed**. It is a real
+copy of the demo KB now, with only `eval/questions.yaml` removed, plus a third assertion that the
+default path was actually reached, and mutant 6 in the battery is the widening it now kills.
+
+The rule this breaks is the house one: *a test is a pin only if reverting the fix turns it red*. The
+subtler half is that I never applied it here, because there was no fix to revert — the block asserts
+a **non-**behaviour, that something is deliberately *not* guarded. A negative assertion has no fix to
+back out, so the pin test has to be run forward instead: **apply the change the block exists to
+forbid, and watch it go red.** Nothing in the procedure said to do that, and I did not.
+
+**MEDIUM — "a nine-frame `FileNotFoundError`". It is five.** Module, `main`, `load_questions`,
+`read_text`, `open`, measured on `b47eda6`. The number went into the commit message, into a comment
+in shipped code, and into the test's docstring, in the same phrasing three times. Nobody counted it.
+
+**That is the second composed number on this branch in one evening, and the fourth of the day
+across sessions.** The first was a quotation attributed to a plan row that the row does not contain;
+this one is an integer attributed to a traceback nobody ran. The pattern is not carelessness about
+facts in general — every *load-bearing* claim on this branch was measured. It is that a number used
+as **texture**, to make a sentence concrete, does not feel like a claim while it is being written.
+`retro.d/README.md` already names this exact failure for timestamps — *"composing it instead is the
+failure this rule exists to stop"* — and the timestamp rule works because it names the instrument:
+`date -u`, once, pasted twice. A frame count has no such instrument, so: **if a sentence contains a
+number, either it came from a command in this session's scrollback or it does not go in.**
+
+Both were found by review lenses, not by me, and neither would have been found by re-reading: one
+needed a patched mutant, the other needed `grep -c '  File '` on a traceback nobody had generated.
+That is the same conclusion the day's other four wrong claims reached from four different
+directions — **re-running is what catches these; re-reading is not.**
+
+**A third pass found the repair worse than the defect, in the way that matters most.** Repairing
+the frame count, I replaced *nine* with *five* — and *five* is the count on Python 3.14. On 3.13 it
+is six, because `pathlib` splits `read_text` across `_local.py` and `_abc.py` and 3.14 collapsed it.
+**This project runs both right now**: every fresh worktree and CI are 3.14, and the primary checkout
+is the 3.13 outlier. So the correction was the same defect at higher precision — a number measured
+once, on one machine, written down as a property of the thing rather than of the instrument. Both
+numbers are in the comment now, each with its interpreter.
+
+Worse, my own three attempts to measure it produced **two invalid numbers before a valid one**, and
+each looked like an answer: the first ran a 3.13 interpreter that could not import `pinakes` and
+reported *one* frame; the second ran the probe from a scratch directory, so its repo-relative
+default resolved to nothing and it died in `load()` — six frames, right number, wrong traceback
+entirely. A count is not a measurement until you have looked at what you counted.
+
+**And the same pass refuted a claim I had used to close a decision.** I wrote that a golden set
+which exists and cannot be read could not be pinned here, because `chmod(0o000)` is refused in this
+repository and *injection cannot cross the subprocess boundary* `_run_probe` uses. The first half is
+true. The second is false, and it took the reviewer ten lines to show it: `_run_probe` inherits this
+process's environment, so `PYTHONPATH` pointing at a `sitecustomize.py` runs arbitrary code in the
+child before the probe's first line. That is the same instrument `tests/test_doctor.py:1497`
+prescribes, for the same stated purpose — *what is under test is that an `OSError` out of the read
+becomes a message, so raise one* — reached through an env var instead of a `monkeypatch.setattr`.
+
+**The shape is worth more than the fix.** An impossibility claim is the most expensive kind of
+unchecked assertion, because it does not merely state something false — it *ends an inquiry*, and it
+looks like diligence while doing it. I had written a fifteen-line comment justifying the gap, which
+made the gap look considered rather than untested; a reviewer who trusted the comment would have
+stopped where I stopped. The guard now has two arms and the second one is pinned. **Before writing
+that something cannot be tested, spend ten minutes trying to test it** — the sentence is a claim
+like any other, and it is the one nobody re-derives.
+
+## Re-running a measurement is not enough when there are two artifacts to run it against (20260901 06:33)
+
+**The rule that has caught every one of these is "re-run the measurement".** It assumes there is
+one thing to re-run against. On the night of 20260831–0901 that assumption broke, and the break is
+worth more than the eight instances it sits at the end of.
+
+Two sessions disputed a count. One had reported `tools/agent_spend.py` at **2** mentions; the
+other counted **12**. Both numbers were right — different selectors, one stated and one not. In
+correcting the record, the first session asserted its table had carried the selector *on every row*.
+It checked, and reported that it had.
+
+**It had checked the wrong artifact.** The bash output it generated printed the selector on every
+row. The message it actually sent reformatted that and carried the selector **once**. Both artifacts
+were its own, both were to hand, and they differed in exactly the detail under dispute. The one it
+opened was the one that agreed with it.
+
+**So the mechanism is a substitution, not an omission** — and that is what makes it new. The other
+seven instances that night were a population going missing, a denominator borrowed from next door,
+a qualifier lost between evidence and conclusion, a ref left unstated. Each is *something absent*.
+This one is the right kind of evidence, examined carefully, **about the wrong object**.
+
+**The practical lesson, which is the reason this is written down:** *"check the artifact rather than
+your memory of it"* is an incomplete instruction, because it does not say **which** artifact. When
+several exist, the nearest to hand is the one that flatters. A check has to name its object before
+it runs, the same way a count has to name its selector.
+
+**It happened inside the correction.** The claim was made in a message correcting another session's
+record of unstated selectors, in the sentence inviting that session to check the artifact rather
+than the memory of it, on the night whose entire subject was this failure family. The timestamps
+carry that without it needing to be argued.
+
+**What actually recovered it, both times, was a peer checking a claim that cut against itself.**
+The second session verified the table, found it reproduced exactly, and struck its own sentence.
+The first session then re-checked its own correction and found the substitution. Neither was caught
+by a gate. **Of the eight instances that night, exactly one was caught by its own author before it
+left a worktree** — by running a grep before committing rather than after — and it cost one command.
+
+## The rule I quoted verbatim had been deleted a minute after I started (20260901 07:13)
+
+**HIGH — the file you are told is authoritative is a copy, and the copy has no clock on it.**
+
+I settled a disagreement with a peer by quoting the governing rule out of `~/.claude/CLAUDE.md`. I
+quoted it verbatim. I read the surrounding argument. I said which clause carved out my case and why
+the peer's narrower reading was not what the sentence said. Every discipline this repository has
+written down for quoting a source, I applied — and I was wrong, because **the sentence had been
+deleted 40 minutes earlier.**
+
+| | |
+|---|---|
+| My session started | 20260901 **07:00** UTC |
+| `~/.claude/CLAUDE.md` last modified | 20260901 **07:01** UTC (`TZ=UTC stat -f "%Sm"`) |
+| What my system prompt held | the text as of 07:00 |
+| What was on disk | its replacement, ruling my case the other way, *deliberately* |
+
+**The injected `CLAUDE.md` in a session's context is a copy, and the copy has no knowable age.** The
+old text read *"it does not cover a lone adversarial reviewer judging one finding on its merits"* —
+which reads as a per-finding carve-out, and I built a fan-out of eleven top-tier judges on it. The
+user had replaced it that minute with a clause naming exactly that case and ruling against it: *"a
+lone reviewer ruling on a single finding on its own merits **is** a refuter, not the judge — then
+**one Opus pass** over the refuters' collected verdicts."* The new sentence exists *because* the old
+one was ambiguous. I found the ambiguity and resolved it in the direction that had just been closed.
+
+**The first version of this entry said the copy "never refreshes". That is false, and the truth is
+worse.** A peer holding the *post*-edit text in its own injected block corrected it, and both halves
+are checkable on this machine within the same hour:
+
+| | My session | The peer's session |
+|---|---|---|
+| Injected copy holds | `Audits and large analyses ALWAYS run on Sonnet 5` | `env.CLAUDE_CODE_SUBAGENT_MODEL … verified 20260901 07:00 UTC` |
+| That string on disk | **no match** — the heading is gone | present — it is the 07:01 replacement |
+| Vintage | pre-edit | post-edit |
+
+Same file, same machine, same hour, **two live sessions holding different vintages, refreshed on a
+trigger neither could observe.** Not "old session, old copy" — my start time did not tell me my copy
+was stale, and the peer's would not have told it that its copy was fresh. Nobody has isolated the
+trigger and this entry does not guess one.
+
+**This is not the relayed-claim failure this repo already has three instances of.** Nothing was
+relayed; I read the primary source. It is one layer under that: the primary source I read was a
+cached copy of the primary source, of indeterminate age. The rule that falls out is narrow and cheap,
+and the *reason* is what the correction changes:
+
+> **Before quoting `CLAUDE.md` to settle a dispute, `grep` it on disk** — not because a long session
+> is likely to be stale, but because **no session can determine from the inside whether it is.**
+
+The peer caught it by grepping the file; I had not, because I believed I was already looking at it.
+
+**Two things I did right and one I did not.** I stopped the run rather than let the fan-out spawn,
+edited the stage out, and resumed from the run id — the eleven measure and eleven refute legs were
+already explicit `model: 'sonnet'` and cached, so the cost was the eight legs in flight. I did not
+check the file before asserting from it, and in the same message I raised *a sound argument over an
+unexamined domain* against the peer's cost table — whose scope was stated in the message and one
+grep from confirmable. **Invoking the rule is not applying it**, and I was the one not applying it
+while naming it.
+
+**The resume geometry, since it is not obvious.** Workflow resume caches on `(prompt, opts)`, so
+editing a late stage leaves earlier legs cached and free. But a stage gated by a `parallel()` barrier
+after a `pipeline()` spawns milliseconds after the last leg returns — there is no window to "let the
+fan-out finish, then kill before the next stage". With a barrier the choice is *stop now and lose
+what is in flight*, or *let it complete*. Which of `pipeline` and `parallel` gates the stage decides
+whether a zero-waste edit exists at all.
+
+---
+
+**Three findings from peers this increment, verified here rather than taken on report.** Each was
+handed over with a wrong cause attached, and in every case the conclusion survived and the
+explanation did not — which is the argument for re-running rather than re-reading.
+
+- **A suspiciously clean result is a reason to check the harness, not to write it down.** A peer's
+  4×4 measurement matrix returned sixteen identical rows. Four programs with different argument
+  parsers do not agree to the character; the uniformity was the tell, not the content. This is a
+  *positive* test for harness breakage, and it sits beside the mutation rule this repo already
+  has — *a run with no kills is a broken harness, not a clean bill* — discovered independently, in a
+  different instrument.
+- **A null result from a selector you did not validate carries no information at all.** Two
+  instances, one peer, one hour. First: it grepped for a sentence, got `0`, and nearly reported
+  landed work as unlanded — the sentence spans a source line-break, so the contiguous string does
+  not exist even though the text does. Second: it grepped `retro.d/` for three phrases it
+  remembered writing, got `0`, and was one keystroke from telling the user a landed fragment had
+  been lost — **the file is named `checking-the-wrong-artifact.md` and was in the directory being
+  searched.** None of the remembered phrases survived into the committed text. What caught it was
+  an `ls` in the same command block printing the filename; not the grep, and not a gate.
+
+  Distinct from the six refutations ruled against on 20260831: those failed on *semantics* (the
+  string matched, the claim behind it differed); these fail on *encoding* (the claim was true, the
+  string could not match). The operational form is testable where "read the surroundings" is not,
+  and the second instance adds an edge to it:
+
+  > **Prove the selector can match something before trusting that it did not** — and when searching
+  > for a *document*, list the directory before grepping its contents. **A filename is a selector
+  > you did not choose**, which is exactly what makes it useful.
+
+  The asymmetry is what makes this worth the entry — a false negative on *did this land?* invites
+  rebuilding landed work, and this repository has come within one message of that twice. The
+  substitution half of the same family — running the right measurement against the wrong artifact,
+  and why *the nearest to hand is the one that flatters* — is already recorded and is not restated
+  here, in the sibling fragment spliced just above this one: [*Re-running a measurement is not
+  enough when there are two artifacts to run it
+  against*](#re-running-a-measurement-is-not-enough-when-there-are-two-artifacts-to-run-it-against-20260901-0633)
+  (20260901 06:33). **This was a code span when it was written, and the link was the correct form
+  even then** — it resolves once both fragments are spliced, exactly as
+  `docs/RETROSPECTIVES.md:4034` already does. `tools/markdown_link_gate.py` resolved a `#…` target
+  against the fragment's own headings, so writing it as a link turned `main` red at `b6be317`.
+  Restored here: the gate now resolves a fragment's targets from the document its body is spliced
+  into.
+- **`uv run --frozen $cmd` cannot work in this shell, and the error message hides why.** zsh does
+  not word-split unquoted parameter expansions; bash does. Measured here: `c2="python -c"; for w in
+  $c2` yields **one** word under zsh 5.9 and **two** under bash. So uv is handed a single argv
+  element named `python3 -c` and reports `Failed to spawn:` with the whole string as the command
+  name — which reads as *that command failed* rather than *that is not a command*. **Build commands
+  as arrays or `"$@"`, never as a string expanded unquoted.** Not uv-specific; it is a trap for any
+  loop over commands on this machine.
+
+**The near-miss worth recording**: that peer's first diagnosis was *"`python3` is not on the project
+environment's path, only `python` is"*, and `RESUME.md` carries an instruction to use
+`uv run --frozen python3`. Acting on the report would have deleted a correct instruction on the
+strength of a quoting bug. `uv run --frozen python3 -c "import pinakes"` prints `0.31.1` in the
+primary checkout and in a synced worktree alike. **A wrong cause with a right conclusion is more
+dangerous than a wrong conclusion**, because the conclusion gets checked and the cause gets copied.
+
+## A suspiciously clean result is a reason to check the harness, not to write it down (20260901 07:15)
+
+**Sixteen runs agreed to the character, and not one of them had started.** Measuring how four
+programs handle a mistyped `--questions`, I built the commands in a shell variable and expanded it
+unquoted: `uv run --frozen $cmd --questions …`. The result was a table of sixteen rows, every one
+`exit=2  Caused by: No such file or directory (os error 2)`. It reads as a finding — four tools
+agreeing on a failure mode — and it is uv never having spawned an interpreter once.
+
+**This shell is zsh, and zsh does not word-split unquoted parameter expansions.** `c2="python -c";
+for w in $c2; do …` iterates **once**, over the single word `python -c`. So uv was handed one argv
+element named after the whole command line and reported, accurately, that no such program exists.
+Every run of mine that failed built its command in a string; every run that worked used `"$@"`,
+already split. **Build commands as arrays or `"$@"` — never as a string expanded unquoted.**
+
+**What caught it was the uniformity, not the content.** Four programs with four argument parsers do
+not agree to the character; that is not agreement, it is a shared failure upstream of all four.
+This repository already has the negative form of the rule — *a mutation run with no kills is a
+broken harness, not a clean bill* — and this is the same shape in a different instrument. **A
+result too clean to be interesting is evidence about the instrument.**
+
+**The cost was not the wasted runs; it was the two wrong causes I published in between.** First
+that `python3` is absent from the project environment and only `python` works — false, both import
+`pinakes` fine in a synced worktree and in the primary checkout. Then, implicitly, that background
+execution was to blame — also false, and both were plausible enough that a peer nearly deleted a
+**correct** line from `RESUME.md` on the strength of the first. **An invalid measurement produces a
+confident wrong cause, and the wrong cause travels further than the measurement does**, because it
+is short, it is quotable, and nothing about it looks provisional. Both were caught by someone
+re-running the thing rather than re-reading my sentence, which is now the fourth time this week.
+
+**And the corpus could not have caught the defect this increment fixes.** `retro.d/` holds only
+*unreleased* fragments; the rest are spliced into `docs/RETROSPECTIVES.md` and deleted at each
+release. When the gate was built the live directory held **4 files and all 4 passed**, so a green
+run over the corpus proved nothing — the only live counter-example anywhere was a *fixture* in
+`tests/test_fragments.py`, which the new rule promptly turned red. A gate whose population is
+"whatever is unreleased at this moment" cannot be validated by that population, and the census of
+the *historical* fragments is a different denominator that must not be used to predict it.
+
+**The same shape again, one instrument along: a kill is not evidence until you check which
+assertion did the killing.** The battery for this gate reported **27 of 27 killed**, and one of
+those kills was false. The mutant was named *"the stamp is compared by date alone, so the time may
+be anything"* and was written as `clock = ""`, which makes `wanted` the string `(20260901 :)` — a
+value that matches **nothing**, so the mutated gate refused *every* fragment, including correct
+ones. It is the opposite of the laxity its name claims. It still died, and the report still printed
+the name beside the test, so the battery carried a coverage claim for an axis nothing tested. The
+faithful mutant *was* `wanted = f"({day}"` — and it stopped being faithful inside this same
+increment, when the fourth pass anchored the comparison to the end of the line. `wanted` is
+`re.escape`d, so `(20260901` then had to be the heading's trailing token, matched nothing, and
+refused every fragment exactly as its predecessor had, the control among them. Nobody re-measured
+it, because it was still *killed*. The row now mutates the anchored comparison itself. **A mutant
+is faithful only against the code it currently runs against; a kill does not carry forward across
+an edit to a line the mutant does not name.**
+
+**A wrongly-credited kill is worse than a survivor.** A survivor is loud — the report says
+SURVIVED and somebody looks. A kill is silent, it is what you wanted to see, and nobody rechecks a
+green row. This repository already holds the negative form of the rule, *a mutation run with no
+kills is a broken harness rather than a clean bill*; this is its inverse, and the two together say
+the same thing about every instrument: **the output agreeing with you is not the check.**
+
+Two independent things caught it, and neither was a test. Reading the mutation *report* rather than
+the code showed the substituted string, and an adversarial reviewer later reproduced it and found
+the part I had missed — under that mutant the pre-existing control
+`test_the_real_documents_are_clean_which_is_this_checkers_only_control` **also** fails, because the
+repository's own correctly-stamped fragments are refused. So the `kills` attribution was not merely
+mis-named, it was not even exclusive.
+
+**And a stamp read correctly off the clock can still be wrong by the time it lands.** A peer's
+closure banner said 07:32 UTC — a true reading when written — and a session-limit stop landed the
+merge at 11:14, leaving a document naming a time no commit exists at. The clock rule stops you
+composing a number; it does not stop the world moving between the reading and the write. When a
+stamp is about *when something landed*, it can only be written after it lands, or it must name both
+times and the gap.
+
+**I read a runner's summary instead of the gate's own exit status — in the increment whose whole
+subject is reading the thing itself.** `./check.sh > log 2>&1; echo "CHECK_EXIT=$?" >> log`, run in
+the background. The harness reported *completed (exit code 0)*: the **wrapper's** status, and the
+wrapper ends in an `echo`, which always succeeds. I reported the branch green to a peer while
+`CHECK_EXIT=1` sat in my own `tail` output in the same message. The `; echo "$?"` appended
+*specifically* to preserve the status is what destroyed it — preserved in the file, discarded in the
+wrapper. This repository already rules that **a gate is only a gate when its exit status is what the
+next command reads**; the new edge is that wrapping a gate in order to *record* its status mints a
+second, always-zero status for whoever is watching the wrapper. **Read the log's last line, never a
+runner's summary.**
+
+**`set -e` makes a failing gate produce no result for every gate after it, and an absence reads as a
+pass.** `check.sh` stopped at the link gate, so overlap, nul-scan and template-drift never ran.
+Anyone reading *check.sh failed on the link gate* concludes the rest was fine. It was **unmeasured**
+— the same class as the wrapper above: a status nobody read, and an absence that looks like a pass.
+
+**Two agents mutating one checkout measure each other, and the run reports kills either way.** The
+first draft of this increment's review ran two source-mutating lenses concurrently in one worktree;
+both apply a mutant to `tools/fragments.py` and restore it, and a restore by one is a false SURVIVED
+for the other with nothing in the report able to tell. Rewritten before either finished: the
+mutators serialized, the other lenses probing a *copy* through `tools/fragments.py --repo <tmpdir>`.
+That is possible only because the tool takes its own root as an argument — **a tool parameterised by
+its repository root is testable by agents that must not touch the tree**, which is worth knowing
+while writing the next one.
+
+**Two selectors, no dispute to have — and both numbers wrong anyway.** A peer measured five drifted
+heading stamps shipping; I measured three; we agreed each was right under a different selector, and
+neither of us had stated one. Re-measured over a population I can name — every `retro.d/` path that ever
+carried a `YYYYMMDD_HHMM-` prefix, each read at its own adding commit — the triple is **six** drifted
+*when written*, **three** still wrong in the published document, and **three** fixed by hand between
+fragment and splice (`fbf17da` wrote `(20260826 07:31)` and the shipped line reads `(20260826 07:33)`;
+`a54b304`, whose subject is *"applying the new rule to my own fragments found three"*, makes exactly
+those three stamp corrections — it changes a fourth file and appends thirty-eight lines of new
+prose to one of the three above that file's own one-line stamp fix, neither of them a stamp, so it
+*touches* four).
+
+**And the population needs a measurement point and a selector, because it has both and I wrote
+neither.** `git rev-list <sha> --objects`, deduplicated, paths matching
+`^retro\.d/\d{8}_\d{4}-.*\.md$`: **111** at `56a970c` and still 111 at this branch's tip
+`6cb80b4` — 107 at the branch point `8540e27`, so the number moved inside this branch alone. Three
+other defensible spellings of the same question, all at `6cb80b4`: adding a `-- retro.d` pathspec
+gives **102**, because a pathspec turns on history simplification and prunes merge sides (adding
+`--full-history` back restores 111, which is how that was confirmed rather than assumed);
+`git log --full-history --diff-filter=A` gives **109**, because a path introduced by a merge was
+never *added* by any commit it walks; and plain `git log --diff-filter=A` gives **100**, losing
+both. Four selectors, spread eleven apart, and the sentence above named none of them until now. The arithmetic was the tell we both walked past: five minus two
+is not three, and six minus three is.
+**State the selector even when the other party agrees with you**: agreement between two unstated
+populations is a coincidence, not a confirmation.
+
+**The general shape of the defect this gate sits beside.** This gate reads a relation whose **both**
+operands are inside its input — the heading against the filename, one file, nothing else consulted.
+`tools/markdown_link_gate.py` reads one operand of a relation whose other operand lives in the
+*destination* document. A gate holding half a relation can always be wrong about a form that is
+correct where it lands, and it is wrong in **both** directions: green on the branch and broken after
+splicing, or red on the branch and correct after. One missing operand, two signs. The fix is not a
+new rule for that gate; it is handing it the operand it never had.
+
+## Build the instrument that can call a fan-out wrong before you read what it found (20260901 07:36)
+
+A fan-out re-measured 34 open documentation findings and proposed **2** closures. I could not have
+judged those 2 from their own text — every closure arrives with a named commit and a passing grep,
+which is exactly what a wrong closure also looks like. So before reading any of them I measured
+something the fan-out could not influence: **how much each audited file had changed since the
+audit's own baseline.**
+
+| File | Commits since `c45ffa8` | Findings | Closed |
+|---|---|---|---|
+| `docs/VERIFICATION.md` | **42** | 2 | **2** |
+| `docs/CLI.md` · `docs/KB-UPDATES.md` | 4 | 9 · 4 | 0 |
+| `docs/GUIDE.md` · `docs/DESIGN.md` | 2 · 1 | 5 · 6 | 0 |
+| `MANIFEST` · `MEASUREMENT-RUN` · both `README`s | **0** | 9 | **0** |
+
+**Both closures landed in the single most-churned file, and every byte-identical file closed
+nothing.** A prior built before the verdict, from git rather than from the findings, turned two
+unfalsifiable claims into two predicted ones. Had a closure come back for `docs/MANIFEST.md` —
+**0 commits, byte-identical** — it would have had to explain how a document nobody edited stopped
+being wrong, and no per-finding judge could have asked that: each sees one finding, and the rate is
+the thing no single finding contains.
+
+**The cheap general form:** when delegated work returns a verdict you cannot check directly, find a
+*second* measurement of the same population that the delegates did not produce, and check the two
+against each other. Here it cost one `git log --oneline <range> -- <file> | wc -l` per file.
+
+---
+
+**Three smaller things, all self-inflicted, all caught by measuring.**
+
+- **35 findings, 35 refuter agreements, zero disagreement — and it was fine.** My own rule from an
+  hour earlier says a suspiciously clean result is a reason to check the harness. I checked. The
+  refuters had run 263 commands between them and their reasoning showed independent re-reproduction.
+  **The uniformity was real agreement, which is what the rule is for: it says *check*, not
+  *disbelieve*.** A clean result that survives the check is stronger than one nobody questioned.
+- **My check for "did the refuters do any work?" returned zero, and the zero was mine.** I summed
+  the length of each verdict's `evidence` field; the schema names that field `why`. Every length was
+  0 and I was one inference from reporting a rubber-stamp harness. What caught it was printing the
+  key list beside the values in the same command. **This is the null-selector rule, hit within the
+  hour by the agent that had just written it down** — and the operational half held: printing the
+  keys is the `ls` before the grep.
+- **`make docs 2>&1 | tail -15` then `echo $?` reads `tail`. Twice in one session.** The repo's
+  own rule says run a gate bare. Both times the real status happened to be 0, so nothing broke and
+  nothing would have told me if it had. **A gate misread as green is indistinguishable from a gate
+  that is green** — which is the entire reason the rule exists, and no reason at all to relax it.
+
+---
+
+**A number can be wrong in two places for weeks while three routes to it all agree.** This audit
+recorded `39` findings in a heading and a table cell. Counting says **40**, and so do the
+`# Medium — 13` / `# Low — 27` dividers, and so does 34 open + 6 closed. A correction filed
+20260825 had already reasoned it out — *"the 34 is right and the 39 is wrong"* — and the two cells
+still said 39 today, because the correction was filed in a third register and nothing read it back.
+**Filing a correction is not making one**, and the register that receives a correction is the least
+likely place anyone will look for it.
+
+**The rule that falls out is narrower than "remove counts", and a peer sharpened it while this was
+being written.** Landing beside me, it checked its own new rows in the same file against my decision
+and found they were exempt — every digit in them belonged to *one dated measurement* rather than to
+the tree:
+
+> **A count of what is in the tree today decays silently; a dated measurement of something that
+> happened once does not, because the tree changing cannot make it false.** Take out the first kind.
+> The second kind is why a record can carry numbers at all.
+
+That distinction is the difference between `test_eval.py carries 32 rows` — false within weeks of
+being written, twice — and *three headings out by 1 minute, 2 minutes and 3 hours 30 minutes on
+20260826*, which will be true forever. **Both are numbers in a document; only one of them is a
+claim about now.**
+
+## When a gate and a convention disagree, the shipped artifact is the tiebreaker — and it costs one grep (20260901 11:25)
+
+`main` went red on a link I wrote. The gate said the anchor did not exist; the gate's own error
+message said to put it in a code span. Two peers reproduced it independently, diagnosed it
+identically, and both recommended the same fix. Everything pointed one way: **my fragment was
+wrong, correct it.**
+
+It was not wrong. `retro.d/README.md:40-48` *instructs* fragment authors to write exactly that form,
+and one grep settled which of the two was defective:
+
+    $ grep -c '](#[a-z0-9_-]*-20[0-9]\{6\}-[0-9]\{4\})' docs/RETROSPECTIVES.md
+    2
+    $ sed -n '4034p' docs/RETROSPECTIVES.md      # links to the heading at :3945
+    ([*measured the launcher, not the work*](#measure_sync_cpupy-measured-the-launcher-not-the-work-20260805-1737))
+
+The form is **live in the published document and `mkdocs --strict` passes over it**. So the link was
+right about where it was going, and the gate is half-built: `tools/markdown_link_gate.py` models a
+fragment's *disappearance* at splice time (`:296-305`, because `--apply` deletes it) and not its
+*destination*. The fix I applied is still the code span — `main` was blocking three branches — but it
+is now recorded as **a temporary degradation of a correct link**, with a build-order row to remove
+it, rather than as a correction. Those are different entries in the register, and only one of them
+gets undone later.
+
+**Two things to keep.**
+
+**A gate is evidence about the tree, not about the convention.** When a checker and a documented
+instruction contradict each other, at least one is a defect and the checker is not automatically the
+survivor. The tiebreaker is the artifact the convention exists to produce — here, the published
+document, where the disputed form already worked. That is a grep, not an argument, and it is
+available before any of the reasoning starts.
+
+**Two peers agreeing is not two independent checks when the error message framed them both.** Both
+reproduced the failure faithfully and neither asked whether the form already shipped, because the
+gate's message had already named the fragment as the thing to fix. Convergence measured agreement
+with the framing, not with the tree. The question that separated them from it — *does this form
+already work somewhere?* — was not a better inference; it was a different population, and nobody had
+named one. It is the sibling of *a null result carries no information until the selector is shown
+able to fire*: **a shared premise makes independent agents into one agent.**
+
+Related, and the reason this fragment exists at all: the same landing found that four of the eight
+rows parked in `plans/20260825_1240-run-pinakes-sweep.md` were already done — a register whose
+stated purpose is to stop work ageing, ageing at 50%. Every remaining row now carries a command that
+says whether it is still live, because a row is a claim about the tree on the day it was written and
+nothing re-checks it.
+
+## A register decays at the speed of its neglect, and the rate is measurable (20260901 11:40)
+
+Two registers live in one file. I measured both against the tree on the same morning, with the same
+method — one agent per open row, plus a spot-check of two verdicts by hand.
+
+| Register | Rows checked | Stale | Rate |
+|---|---|---|---|
+| `## Build order` — the table an implementer opens to pick up work | 7 | 1 | **14%** |
+| *Decided work with an owner and no build order* — the parked table | 8 | 4 | **50%** |
+
+**Same file, same author, same discipline, three and a half times the rot.** The variable is not care;
+it is readership. A stale row in the build order meets a reader who can falsify it, because that table
+is what somebody opens when they want work. The parked table's stated purpose is that nobody has to
+read it — and half of it described finished work, two rows of it finished *before the table was
+written*.
+
+The one stale build-order row is the more interesting half. Row 3 said the per-thread connection in
+`pnk serve` was still to do; `e526e29` had landed it nine days earlier, with five tests, one of them
+asserting the row's own symptom. It was found by a peer reading `src/`. **No gate saw it, and no gate
+can**: a row is a claim about the tree on the day it was written, and nothing re-reads it.
+
+**So the two fixes are different, deliberately.** The parked table got a liveness *command* per row —
+one `grep` that says whether the row is still live, because the cost of the check is a minute and the
+cost of skipping it is rebuilding landed work. The build order got a **dated measurement** per row,
+with the citation that settles it. That distinction is a peer's and it is worth keeping exactly as
+they put it: *a count of what is in the tree today decays silently; a dated measurement of something
+that happened once does not, because the tree changing cannot make it false.* A row saying "open"
+rots. A row saying "measured still open, 20260901 11:35 UTC, `sync.py:693` catches `PinakesError`
+only" cannot — it stays true about that morning, and its staleness becomes visible rather than silent.
+
+The general form: **a register nobody reads is not a register, it is a backlog with better
+punctuation.** If a list exists so that work is not forgotten, and the list is never read back, then
+the list has become the thing that forgets. Either give it a reader or give each row a check that a
+reader would have run.
+
+## I typed the counterevidence myself, then named the wrong mechanism anyway (20260901 11:41)
+
+Both published documents in the primary checkout were truncated to zero and every `retro.d/` fragment
+deleted, `README.md` included. I measured it, checked no process was still writing, backed up what was
+untracked, restored from `HEAD`, and verified. That part was right.
+
+Then I explained it, and the explanation was wrong. I said a peer's in-flight test had written a
+fixture into the real `retro.d/` and run the splice against the real repo root — a test-isolation
+defect in their code. I wrote it into the build order as a work row assigned to them, and sent it to a
+second peer who publishes a document that updates in place.
+
+**The refutation was already in my own message.** I had written, to argue this was not a normal
+splice: *"a real `--apply` adds content and never touches the README."* Both halves are true, and both
+halves kill the theory I went on to state in the same paragraph. One `grep` confirms it:
+
+    tools/fragments.py:121   fragments_of ... if p.name != "README.md"   -> a consume step cannot delete it
+    tools/fragments.py:590   (repo / stream.target).write_text(spliced)  -> --apply GROWS the target
+    tests/test_fragments.py:40   def run(repo: Path, ...) -> `repo` is a required positional; there is
+                                 no default to forget, so the route I was guarding does not exist
+
+The actual cause was **one agent, one block, one failed `cd`** — four newline-separated shell lines in
+a probe: a `cd` into a directory that did not exist, followed by `rm -f retro.d/*.md` and `: >` on both
+targets, the pair of them twice in the one run. The `cd` failed and stopped nothing, so all of it ran
+in the session's cwd, which was the repository.
+
+**That sentence is the second version of this paragraph, and the first was worse than the error it
+replaced.** Told that a second agent had run the same recipe six times three minutes earlier, I ran a
+census over every transcript, found six more `rm -f retro.d/*.md` calls, and rewrote the cause as two
+agents authoring one symptom each. A peer then read the tool *results* — which neither of us had
+opened — and the account collapsed: all six of the other agent's runs succeeded inside their probe
+directory, the first result opening `no matches found: retro.d/*.md` because that directory was empty.
+It deleted nothing. The one block whose result reads `(eval):cd:1: no such file or directory` is the
+only one that ran anywhere near the repository, and it is the one that did all of the damage.
+
+**A command's text is not evidence that it ran where you think it ran.** That is the lesson, and it
+generalises past this recipe in a way that nothing about `cd` does. My census was one layer short of
+right: it correctly separated the executions from the two of us grepping for the string during the
+investigation — eight of the sixteen recorded calls are the investigation — and then treated all eight
+executions as equivalent, because I was still reading intent. The result is the event. Pair each
+`tool_use` with its `tool_result` on `id` and read the first line; it costs the same query.
+
+**And the argument I did check was one that could not have distinguished the cases.** I reasoned that
+the surviving backup held `two-spaces-after-hash.md` and no `leading-tab.md`, so the later block must
+have run elsewhere — true, and I was right about that block. But the same evidence is equally
+explained by the damaging block's *own* second `rm -f` deleting the file its first half had written,
+which is what actually happened. I took a correct conclusion from an argument with no discriminating
+power and counted it as verification.
+
+**The failure is not that I guessed.** It is that I reasoned from symptoms to a *named mechanism in
+someone else's file* without opening the file, while holding — and having already stated — the fact
+that refuted it. An hour earlier I had written a fragment congratulating myself for running exactly
+this `grep` against `docs/RETROSPECTIVES.md` before deciding which side of a contradiction was
+defective. I did not run it against `fragments.py`.
+
+**Two things to keep.**
+
+**A fact you state in passing is not a fact you have used**, and the test is mechanical: *would the
+conclusion survive if that sentence were true?* Mine would not have. The counterevidence was not
+missing, or buried, or expensive — it was in my own outgoing sentence, deployed for a smaller purpose,
+and never turned on the larger claim. When a paragraph contains both "X cannot do this" and "X did
+this", the paragraph is the alarm; nothing else has to fire. The testable form is a peer's, and it
+beats "be more careful" precisely because it can be run against a draft.
+
+That peer also drew the distinction I would have missed about my own error: this is not the failure of
+*not looking*. I looked, wrote down what I found, and then reached past it for a cause that fit the
+symptoms. It is the harder one to catch, because the usual remedy — go and read the file — has already
+been performed. Three of us reasoned from symptom to named mechanism on this incident, and only an
+agent transcript settled it. **The missing instrument was not a gate.**
+
+**A diagnosis that assigns work to another agent's file is a claim about that file, so open it.**
+Naming a mechanism converts a symptom into a task with an owner, and the owner then has to spend a
+message refuting it. The bar for "I think this is what happened" and for "row 15, owner: coder" is not
+the same bar, and I used the first to write the second. The row is removed; the correction cost two
+peers a round trip each, which is the cheap version of this mistake.
+
+## Two of us searched for how a file was deleted; it had never been deleted (20260901 11:53)
+
+A fixture written into the real `retro.d/` by a runaway probe was gone by the time anyone looked for
+it. A peer went after the mechanism properly: `grep -r 'git clean'` across **every** `*.jsonl` under
+the project's session directory, then `grep -r` for any `rm` naming the file. Both returned nothing.
+They reported it honestly — *"an untracked file with no `git` record and no `rm` on record is exactly
+the class of event that leaves no evidence, which is itself the finding"* — and I had reached the same
+dead end from the other side.
+
+The file was in my own scratchpad. I had moved it there during recovery, when I backed up what was
+untracked, and neither of us thought to look in the place the recovery notes said it went.
+
+**The error is not that we missed a directory.** It is what we did with a null result. The standing
+rule here is that *a null result carries no information until the selector is shown able to fire* — and
+these selectors **had** fired: the same greps, over the same files, returned a583's six `rm -f
+retro.d/*.md` calls and acea's two. The instrument was proven on the run that produced the zero. So
+the zero was not an absence of evidence; it was evidence, and what it said was **the premise is
+wrong** — nothing deleted the file because the file was never deleted.
+
+That is the half of the rule I had never written down. Once the selector is proven, a null stops being
+a gap and becomes a finding, and the finding is usually about the question rather than the world. We
+each kept the question ("what deleted it?") and spent the result on doubting our coverage.
+
+**The tell was available and cheap.** Both of us had already searched for the deletion; neither of us
+had searched for the *file*. One `find` over the enclosing directories would have ended it in seconds,
+and `find` is the query that does not presuppose the event. When a mechanism search comes back empty on
+a proven instrument, the next query should drop the mechanism, not widen it — ask where the thing is,
+not what removed it.
+
+Fourth time on this one incident that a symptom was matched to a named mechanism before the premise was
+checked, and the first where the unchecked premise was mine.
+
+## An options table can be honest, complete, and wrong about the question (20260901 12:00)
+
+A survey session put a process decision to the user: freeze the register layer, freeze nothing, or
+consolidate. Four columns, real pros and cons for each, costs, reversibility, a marked recommendation,
+and the author volunteered that they benefited from the recommendation being adopted. By this
+repository's rule for putting a decision to a user, it was correct work — and it was the best-argued
+option table I have been handed here.
+
+**All three options shared a premise none of them stated.** The evidence was a ratio: over eight days
+`src/` took 5.5% of inserted lines while `plans/` grew 44%. Every option treats that as a measurement
+of *appetite for process* — too much, acceptable, or a thing to consolidate. It may instead be a
+measurement of **queue position**. Over that same window the code work was decided-but-unstarted and
+the document work was unblocked, and agents write what is available to write. If that is what
+happened, freezing the register layer does not cause the unbuilt defects to be built; only building
+them does, and the ratio corrects itself when the queue drains.
+
+That reading is not a fourth option. It is an argument that the question does not need answering yet,
+and it cannot appear as a row in a table whose rows are all answers.
+
+**What generalises.** A pros-and-cons table is a strong instrument for choosing *between* framings and
+a weak one for noticing you are inside one — every option inherits the framing, so the framing is the
+one thing the comparison cannot test. The check that works is cheap and does not require a fourth
+column: **take the evidence and ask what else it would look like this if it were true.** Here the
+evidence was a ratio, and a stalled queue produces the same ratio as an appetite for process.
+
+**It is the same failure the rest of today was made of, one level up.** A symptom was matched to a
+named mechanism — a ratio to a cause — and the alternative mechanism was never enumerated. The
+difference is only that this time the reasoning was laid out in a table with its costs priced, which
+made it look like the enumeration had already happened.
+
+I added the reading to the file and left the recommendation standing, because the decision is the
+user's and a third reading is information rather than a ruling. Recording the conflict of interest in
+the document, not only in the handover message, is part of that: the person choosing should see who
+benefits from the recommendation without having to read the correspondence.
+
+## A watcher outlived the session that armed it, and reported green on a red build (20260901 12:26)
+
+A monitor fired into this session saying `CI 9cc9bc1: success`. The CI workflow on `9cc9bc1`
+concluded **failure**. The event was not wrong about a different sha and not stale — it named the
+sha under discussion and asserted the opposite of the truth.
+
+**It had no owner.** Its task belonged to the planner session this one replaced. That session's
+context was cleared; its monitors were not. They keep running, keep matching, and keep emitting into
+whoever occupies the project next — with nobody left who knows what filter was armed or why.
+
+**That is worse than a stale document, and the reason is about how each is read.** A document is
+dated, and a reader discounts it. An event arrives looking current, and a watcher's whole purpose is
+to be believed *without* being re-checked. Every other disputed claim today was settled by running a
+command; this one arrived pre-packaged as the output of one.
+
+**Then two agents got the attribution wrong in opposite directions, and one `cat` settled it.**
+
+| | Claim | Actual |
+|---|---|---|
+| Me | "your watcher reported a false green" | Not theirs |
+| The peer | "that was my watcher, mislabelled — a true statement about `docs` read as CI" | Their two watchers said exactly what they said; the event came from a third session |
+
+Their defence of their own instrument was correct and my accusation was not. Their inference that the
+event must therefore be theirs was also not. **Neither of us opened the file before asserting**, and
+the file is three lines long. It is the day's shape for the sixth time: a symptom matched to a named
+mechanism before the premise was checked.
+
+**What the file cannot tell us, stated because the temptation is to close the story.** `CI <sha>:
+success` does not reveal *which* defect produced it — a match on the first completed run (the
+`docs` workflow) mislabelled, or a read of the CI workflow with the wrong field. Those are different
+bugs. Without that session's monitor command the mechanism stays open, and the checkable part is
+enough: the file says success, the workflow failed, and no live session can correct it.
+
+**One more, caught before it landed rather than after.** Writing the fix for a register that decayed
+because its measurement was unpinned, I stamped my own replacement measurement `12:26 UTC` — a
+minute that had not happened yet. I caught it by reading the clock before writing the fragment, re-ran
+the measurement, and took the stamp from the same invocation as the command. The values were
+unchanged, so nothing shipped wrong; the process was still the exact failure the edit was repairing.
+**Reading the clock and reading it *at the moment of the measurement* are different disciplines, and
+only the second one survives being audited.**
+
+**And the run that failed is worth separating from the failure.** `upload-artifact` timed out
+against GitHub's own service; every test and gate passed. But `eval-cross-machine-compare` then
+**skipped**, so for the length of attempt 1 cross-machine eval determinism was *unverified* at that
+sha — not failed, unverified. Had the upload succeeded and the comparison failed, the summary would
+have looked identical. **A gate that did not run is not a green gate**, and a re-run can clear the
+red X while leaving the same hole.
+
+It did not, here: attempt 2 concluded `success` with all 15 jobs green and
+`eval-cross-machine-compare` **ran** rather than skipping — checked against the jobs API, because the
+run's own conclusion is the number that would have hidden the skip in the first place. **The
+distinction still cost nothing and bought the only question worth asking about a re-run**, which is
+not *did the red X go away* but *did the job that was missing execute*. And it does not carry
+forward: both are properties of `9cc9bc1`, not of the day, so a later sha re-opens both.
+
+## A section number is only meaningful inside its own document (20260901 18:26)
+
+**A cross-document reference lost its document and kept its number.** `docs/README.md` described
+what `KB-UPDATES.md` still leaves unbuilt as *"the rest of §8's shape — `pnk adopt`"*.
+`KB-UPDATES.md` §8 is *Open questions*, and it has never contained `pnk adopt` — not in the
+current file and not in any commit, which `git log -S` settles in one command. The §8 that
+proposes the command is `docs/graph/PINAKES_APPROACH.md`'s, and the reason the number travelled
+is visible in that file: its release-mapping table has a **From** column whose cells read `§3`,
+`§8`, `R1 R6` — *its own* sections. Someone read `the template release ⚠️ | `pnk adopt` … | §8`
+and carried `§8` into a sentence about a different note. **The bare `§N` form is what made it
+portable.** A reference that had read *PINAKES_APPROACH §8* could not have been misfiled.
+
+**Two registers agreed with each other and neither was checked against the tree.** The dangling
+`§8` had been repeated between `docs/README.md` and my own draft rewrite of the
+`KB-UPDATES.md` header — I was about to propagate it into a *second* file, sourced from the first,
+because the first was a document I trust. What broke the loop was not scepticism about the claim.
+It was checking whether the string was in the file at all: `grep -n 'pnk adopt' docs/KB-UPDATES.md`
+returned only the line I had just written. **The selector was proven able to fire** — the same
+pattern across the repo returns eight other hits — so the empty result was a result.
+
+**And the header that prompted all this failed by accretion, not by error.** Every clause in
+`KB-UPDATES.md`'s status header was true when it was written; four releases each appended one, and
+the reader meets them in the order they were added rather than the order they matter. The final
+clause said `--apply` remains a proposal; it had shipped two releases before, and §1 of the same
+file cited *"the header above"* as agreeing with it. **An append-only status line degrades even
+when nobody writes anything false into it** — which is the case for rewriting to the current state
+rather than layering a correction, and the reason that convention exists.
+
+## A gate spoke correctly about an input nobody had edited (20260901 18:40)
+
+**MEDIUM — `./check.sh` went red on a branch that had touched nothing near the failing gate, and
+the cause was not in the source tree at all.** The repository's standing rule is *assume other
+agents run concurrently*, and the failure mode it names is a clean-but-wrong **merge**. This is one
+layer below that. Nothing was merged. Nothing was edited. `git status` was clean throughout. What
+changed was which tree the worktree's virtualenv resolved `pinakes` to.
+
+**The facts, which are two runs on one tree an hour apart.**
+
+| | |
+|---|---|
+| Earlier run, nothing else touching the worktree | `2420 passed, 4 skipped`, no failures |
+| Later run, six review agents working against the same worktree | `1 failed, 2419 passed`, `CHECK_EXIT=1` |
+| The failure | `test_the_real_package_is_refused_from_the_source_tree` expected `"resolved to the source tree"` |
+| What it got | `wheel-import: pinakes resolved to an unpacked tree at /private/tmp/claude-501/…` — a **scratchpad** path |
+| Re-run alone, minutes later | `23 passed`; the gate invoked directly names this worktree's own `src` |
+| The venv | two `.pth` files, the editable one pointing at this worktree's `src`, by then correct |
+
+**The inference, which is an inference.** Between the two runs the venv's editable `pinakes` install
+pointed at a copy of the tree in a scratchpad, and `uv run --frozen` put it back. Six agents were
+running against that worktree under an instruction to copy it into their own scratch directory
+before experimenting. **Which one, and by what command, is not established, and no agent is named
+here** — the honest limit of the evidence is that six were running under that instruction.
+
+**The repair was visible, and that is the sharper half.** `uv run --frozen` printed `Uninstalled 1
+package … Installed 1 package` above the test output before the tests ran. So the log held both
+the damage and its cure, in order, and a reader scrolling to the failure would have found a red gate
+a branch that never went near it. A *silent* repair leaves a mystery; a visible one leaves something
+worse — a plausible wrong answer, in the log, above the evidence against it. **The line that
+explains a failure is often printed before the failure, where nobody is looking yet.**
+
+**The rule.** *A red `./check.sh` is not evidence until you have re-run it with nothing else
+touching the tree.* The same holds for a green one: a run made while agents work in the same
+worktree is measuring a tree that was not the tree at any single moment. Landing on such a run is
+landing on a measurement of something that no longer exists.
+
+**Why `git status` cannot catch this class.** Every guard this repository has for concurrency reads
+*tracked files* — `tools/shared_file_overlap.py` compares file sets, a monitor watches the primary
+checkout going dirty, `land.py` refuses a worktree holding an untracked file. `.venv/` is
+gitignored, so the one piece of state deciding what `import pinakes` means is invisible to all of
+them. The seam is not the source; it is everything the source is resolved *through*.
+
+**What it cost and what it nearly cost.** Twenty minutes, and one report to a peer that would have
+read as *this branch broke the wheel-import gate*. It did not go out that way, because the first
+move was to re-run the single file rather than to explain the failure — the same discipline as
+reading a gate's own exit status instead of a runner's summary, applied to a gate whose *input*
+rather than whose *status* had been substituted.
+
+## `git merge-base` is not the branch point after a rebase (20260901 20:03)
+
+**Four agents in one review pass raised the same false finding, and every command each of them ran
+was correct.** A comment in a mutation battery said the live `retro.d/` directory *"was 4 files when
+this was built and all 4 already passed"*. Two independent lenses reported it false; two independent
+refuters, told to refute, each confirmed it false instead. One went further and re-ran the gate at
+the merge-base to produce a measured count of 12. The sentence was true.
+
+**The branch had been rebased.** `git merge-base HEAD origin/main` returned `8540e27`, and everyone
+read that as the branch point. The reflog says otherwise:
+
+    …@{8}: branch: Created from main      -> 0aea036
+    …@{2}: rebase (finish): … onto 8540e27be…
+
+`0fd4a86`, the commit that wrote the sentence, has author date `2026-09-01T08:19`. `8540e27` has
+author date `19:00` — **eleven hours later**. The merge-base was a commit that did not exist when
+the sentence was written, and eight retro fragments landed on `main` during those eleven hours. At
+`0aea036`, `retro.d/` holds exactly four fragments and the gate passes all four.
+
+**A rebase moves the merge-base forward and leaves no trace in the commit graph.** After it, the
+merge-base names *where the branch was replayed onto*, never where its work began. Any claim of the
+form "when this was written, the tree held X" must be measured at the reflog's `branch: Created
+from`, or at the authoring commit's own parent — never at `merge-base`.
+
+**What makes this worth recording is not the wrong number, it is the four-agent agreement.** The
+finder and the refuter are supposed to be independent, and they were: they ran different commands in
+different orders. They agreed because they shared a *premise* nobody stated — that merge-base is the
+branch point — and no amount of independent re-measurement can catch an error in the population you
+both selected. This repository already carries the rule: **a claim resting on a set you selected or
+an instrument you chose must state the selector.** Here the reviewers failed it and the author had
+not: the sentence names its own selector, *"when this was built"*, and the reviewers substituted a
+different one.
+
+**The cheap defence is to make the selector executable.** The sentence now reads with its sha in the
+neighbouring comment, so the next reader is told which tree to measure rather than left to infer it.
+
+## I broke the table I was adding a row to, twice in one day (20260901 20:36)
+
+**A row appended before the right anchor is not in the table.** I inserted two rows immediately
+before the paragraph that follows the § 3 build order — which put them **after the blank line that
+ends the table**. Markdown then reads them as a second, headerless table. The rows were correct, the
+cell count was correct, every pipe was escaped, and the result rendered as two tables where the
+build order is supposed to be one.
+
+**What caught it was counting, not reading.** `awk` over the section printed a line number for
+every table row: `…168, 169, 171, 172`. The gap at 170 is the whole finding. Reading the file would
+not have shown it — a blank line between two table rows looks like nothing, and both halves render.
+The check that works is *is the sequence contiguous*, which is a property of the sequence and not of
+any row, and every check I habitually run reads rows.
+
+**That is the second table-structure defect here today and the first had the same shape**: an
+unescaped `|` inside a code span in a measurement row, where GFM splits cells *before* inline
+parsing, so a pipe inside backticks still ends a cell. Both are invisible to a reader, invisible to
+the link gate, invisible to `mkdocs build --strict`, and fatal to the thing the table is for.
+**Nothing in this repository checks that a table is well-formed** — not `check.sh`, not CI. The
+counting one-liner is not a gate; it is what I happened to run.
+
+**And the file this happened in is the plan about registers decaying.** Its own § 0 note records
+that a register decayed inside the plan about registers decaying, within four hours of landing. This
+is the same file, six hours later, decaying structurally rather than numerically while I added a row
+ruling how careful other people should be with headings.
+
+**Postscript, same hour, worse.** Ruling on that table's row 15 I told the coder to write
+`unreleased, 20260823 ·` into a battery section. The gate it describes **shipped in 0.30.0** — the
+coder checked, refused the instruction, and gave me the ancestry. I re-derived it rather than accept
+it: `v0.30.0` is the earliest tag containing `6d7c9e3`, and `v0.29.0` is not, so the selector
+discriminates. My instruction would have written *unreleased* over a released property in the one
+file whose job is recording which release shipped which property.
+
+**I had the convention in front of me and read the wrong half of it.** `tools/batteries/README.md`
+says sections *name the release that shipped the property*, and only unshipped work says
+`unreleased, YYYYMMDD`. The bare date `20260823` is raw material for both spellings, and it reads as
+unreleased-ish precisely because the unreleased form is the one that carries a date — the version
+form carries none. That is the coder's observation, and it is the useful part.
+
+**The rule I take from it:** a non-conformance does not tell you which conforming form it should
+have been. I inferred the target from the shape of the defect instead of from the fact — and the
+fact was one `git merge-base --is-ancestor` away, in a repository whose standing rule is that a
+peer's claim is not evidence until checked. The peer checked mine.
+
+## A clean result from an instrument that never ran (20260902 00:04)
+
+Twice within twenty minutes, two unrelated instruments returned a clean result over a population
+neither had reached.
+
+The first was this increment's eighth adversarial pass. It returned `verdict: CLEAN, findings: []`.
+Its five lenses had all been killed by a session limit before doing any work: `agents_done: 0,
+agents_error: 5`. The verdict was not wrong about its input — my own script returns CLEAN when the
+finding list is empty, and the list was empty. It was wrong about what an empty list meant. Passes
+5, 6 and 7 had each found a false sentence, so this CLEAN would have ended the loop. Reviewing the
+same commit by hand instead found two more false sentences, both written by me in the pass before.
+
+The second was a probe I wrote minutes later, asking how many `retro.d/` fragments have ever carried
+a second `## ` heading. It read each fragment at the last commit that *touched* it. For a fragment
+consumed into `docs/RETROSPECTIVES.md` at a release, the last commit that touched it is the one that
+**deleted** it, where `git show <commit>:<path>` yields nothing — so it examined 15 of 127 and
+skipped 112 in silence. It reported `0 of 127`. Reading each at the newest commit where the file still
+existed reports `2 of 127`, and those two turned out to be exactly the evidence a peer's open
+question needed.
+
+**And that denominator names no measurement point, so writing it down falsified it.** `127` is the
+count reachable from `2914b09`. The commit that recorded `2 of 127` added the 128th path, and the
+path it added was **this file**. Pinned: 127 at `2914b09`, 128 at `04497a9` and at this branch's
+tip, 129 at `origin/main` today, 133 under `git rev-list --all --objects` — which counts whatever
+every ref happens to hold and so moves under other people's commits, not just your own. **State the
+sha.** The numerator never moved: the same two fragments at every point measured.
+
+**The standing rule here covers the step after this one.** It says a null result carries no
+information until the selector is shown able to fire, and that once the selector is proven a null
+becomes a finding. Both selectors here were fine. `grep`ping for a second heading works; an
+adversarial lens works. What neither run established is that the instrument ever **reached** its
+population — a different question from whether it can fire, and the one that failed.
+
+So the number to demand is the denominator, and it is never the default output. `agents_done`
+against `agent_count`; `examined` and `skipped` against the list you started from. I had to add both
+by hand, and in both cases the honest count is what exposed the result. Until an instrument says how
+many items it actually looked at, it has not reported a result — because `CLEAN, 0 findings` and
+`0 of 127` are precisely what a real clean run looks like, and nothing in either output distinguishes
+the two.
+
+## I measured the live directory and answered about the corpus (20260902 00:07)
+
+A ruling needed to know how often a retro fragment carries a second `## ` heading. I counted the
+live directory — **0 of 14** — and told a peer the question was "entirely prospective". The number
+was right. The sentence was about a different population, and it was wrong: across every fragment
+that has ever existed there are **two**, and one of them is the case the ruling turns on.
+
+`retro.d/` is a **consuming** directory. Every release splices its fragments into
+`docs/RETROSPECTIVES.md` and deletes them, so the live directory is not a sample of the corpus —
+it is the handful written since the last release. Counting it and generalising is not a small
+extrapolation from a large sample; it is a claim about 129 things made by looking at 14. The peer
+found the two, and had it not, the ruling would have been justified by a population that excluded
+its own counterexample.
+
+**Then the correction repeated the mistake one level down.** Asked to check the full history, I
+walked `git log` per path and read each fragment at the newest commit that *touched* it. For a
+consumed fragment that commit is the one that **deleted** it, so `git show` returns empty. My probe
+reported "0 commits touched" for six paths — a self-contradiction, since those paths came out of the
+log — and I only noticed because my total disagreed with the peer's. Their probe had the same defect
+and skipped 115 of 127 silently. Two independent probes, the same blind spot, because it is a
+property of the directory and not of either implementation.
+
+What settled it was changing instrument rather than fixing the query: `git rev-list --all --objects`
+enumerates every blob ever reachable and `git cat-file` reads one by hash. There is no path-to-commit
+lookup, so there is nothing to get wrong — **129 paths, 239 distinct versions, `unreadable: 0`**, and
+the count fires twice. A probe that cannot report what it failed to read is worth less than one that
+reads less and says so.
+
+**The last step was the one that nearly went wrong in the other direction.** Two instances looked
+like enough to weaken the ruling, since the second fragment stamps neither heading. The obvious move
+was to set it aside as pre-convention — and that is false: **10 of 126 fragments have an unstamped
+first heading, scattered to the day before this was written**. Stamping never became universal, so
+there is no cohort boundary to hide behind. It is ordinary non-compliance, it licenses nothing about
+second headings, and the ruling stands at n=1. The reason it stands is not the reason I first had.
+
+**The rule.** Before generalising a count, name the population the number came from and ask whether
+the directory deletes. Where a probe can silently skip, prefer the instrument with no lookup to get
+wrong — and make it report what it could not read, because a zero and an unreachable set look
+identical in the output.
+
+## I read an error message as evidence of the arm that raised it (20260902 02:04)
+
+I ruled that closing a hole in a fragment gate was not new process, because *"the sibling stream
+already gates this"*. The evidence was three filenames through `changelog.d`: the canonical one
+passed, a typo'd prefix and a prefix-less one were both refused, and the refusal said **"filename
+must be `YYYYMMDD_HHMM-<category>-<slug>.md`"**. Prefix gate, plainly.
+
+There is no prefix gate. It is a **category** gate, and one more fixture separates them:
+`fixed-a-thing.md` — no prefix at all, but its head *is* a category — is **accepted**, while
+`banana-a-thing.md` is refused. A malformed prefix is refused there only *incidentally*, by shifting
+the first hyphen-separated token out of the six allowed categories. The message names the whole
+convention because the convention is what the author wanted the reader to go and read; it is not a
+statement about which arm fired.
+
+**Two refusals confirmed a mechanism that one more row would have falsified**, and the missing row
+was cheap and obvious in hindsight: hold "prefix-less" fixed and vary only whether the head is a
+category. I varied two things at once in every fixture I wrote, so no comparison in the set could
+isolate either.
+
+I have a rule that a null result proves nothing until the selector is shown able to fire, and I
+applied it that same hour to someone else's work. **This is its mirror and I did not recognise it: a
+refusal proves nothing about *which* arm refused.** A firing selector and a firing gate are the same
+problem — output that is consistent with the hypothesis is not evidence for it unless something in
+the set could have come out the other way.
+
+The peer who found it did the thing I had not: constructed the case where the two hypotheses
+disagree, rather than adding another case where they agree.
+
+**And a second slip in the same edit, from the same family.** I wrote `20260902 00:35` into three
+places, composed from my previous clock read rather than taken from the clock. The machine had slept
+about ninety minutes; the real time was `02:04`. Every stamp I write carries a rule saying read the
+clock, never compose it — and the failure mode is not forgetting the rule, it is *believing you
+already know the answer* well enough not to check. Which is exactly what the error message did to me
+one paragraph up.
+
+**The rule.** When output is consistent with what you expect, ask what the *other* hypothesis would
+have produced, and go and build that case. If nothing in your fixture set could have come out the
+other way, you have collected agreement, not evidence.
+
+## A method is not a measurement point, and `--all` is not a corpus (20260902 02:45)
+
+I corrected a count by naming a better *instrument* and thought that finished the job. It did not.
+The first version of row 14 said **116 fragments, exactly one**, measured over the live directory and
+stated as a fact about the corpus. The correction replaced it with **129 paths, 239 versions**, taken
+from the object store — the right instrument, and the row said so: `git rev-list --all --objects`.
+
+Re-checking my own branch before landing it, that number reproduced against nothing. `--all` is not a
+corpus. It is *every ref any branch happens to hold at the instant it runs*, so it counted unlanded
+work on my branch and on a peer's, and it had drifted to **132 paths / 243 versions** inside an hour —
+without a single fragment being written to `main`.
+
+The tell was visible in the row and I had not looked: **three denominators for one directory**. Row 14
+said 129 and, four sentences later, *10 of 126*. Row 17 said 131. One of those was all-refs, one was
+`main`, one was a moment. A row whose whole argument is that a count must state its population was
+carrying a numerator and a denominator drawn from two different ones.
+
+Pinned to `origin/main` at `7751f96`, landed history only, everything reconciles: **126 retro.d paths,
+233 versions**, `changelog.d` **177**, combined **303**. Both of row 14's denominators become the same
+126. The conclusions all survive — still exactly **two** two-heading fragments, still the same two
+files, still `10 of 126` unstamped at **7.9%**, still `0 of 52` unprefixed stems beginning with any
+digit. Only the totals were wrong, and only because they had no anchor.
+
+**The rule this leaves:** a measurement is reproducible when it states an instrument *and* a point —
+a ref and a sha, not `--all` and not `HEAD`. Prefer the landed history as the population, because it
+is the only one that does not change when someone else commits. And when a single row carries two
+numbers about the same set, check they came from the same run before checking they are right: I
+verified the instrument and never verified that the two halves were counting the same things.
+
+The same defect, three times in one day, each time caught by someone re-running rather than re-reading.
+
+## The one surface a later pass cannot fix is the one nobody reviews (20260902 07:34)
+
+**MEDIUM — three pushed commit messages on this branch carry four false sentences between them, and
+a commit message is the only artefact here that cannot be corrected in place.** Every review pass on this branch has
+read the diff. Pass 9 read the *messages*, and found that the surface holding this increment's
+reasoning — the surface a future reader reaches for when asking why a line is the way it is — had
+never been checked by anything.
+
+| commit | the sentence | measured |
+|---|---|---|
+| `0e424c7` | `markdown-links: 113 files, 375 links` | the gate on that exact tree says **114** files. The link count is right |
+| `2914b09` | "All five test names they name resolve" | the three `docs/VERIFICATION.md` cells that commit added name **11** distinct tests |
+| `2914b09` | "`startswith("## ")` shipped in eight of them and the pass-3 lookaround in three" | over the population it names — every commit from `50dd420` to `6bc8078` — **5** and **2** |
+| `f1de4c1` | the mutant "is killed by the negative assertion rather than the positive one" | it dies at the **positive** one, `tests/test_fragments.py:1005`, and pytest never reaches the negative |
+
+**And the pass that wrote this fragment put two more onto the same unfixable surface, within the
+hour.** Both were caught by re-reading my own diff before landing, which is the only reason they are
+here as a record and not as a fifth and sixth row somebody finds next week:
+
+| commit | the sentence | measured |
+|---|---|---|
+| `f48e1cf` | the unclosed-`<div>` fixture renders "**one** `<h2>` where the source has four" | the source has **three** `## ` headings. The four is `anchors_of`'s count, which includes the `# ` heading — two instruments, one number, and I carried the number from the wrong one |
+| `bc68475` | "four of them carry a false sentence", of commit messages | four *sentences* across **three** messages; `2914b09` carries two. The table underneath it has always been right, and the sentence summarising the table was not |
+
+Neither is a hard number to check. Both were written in a commit whose subject is other people's
+false counts, and both survived the writing of that commit. **A pass that is looking outward does
+not look at itself**, and the cheapest defence found so far is a mechanical one: before landing,
+re-read your own diff for every number in it and re-derive each, treating your own prose exactly as
+you would treat a claim raised by a lens.
+
+The fourth is the one with a lesson beyond arithmetic. **The false sentence was in the test's own
+docstring first, and the commit message copied it** — *"The negative assertion is the load-bearing
+one"*, written from reading the two assertions rather than from applying the mutant to them. Both
+would fail against a stripped message; only the first one reached reports. So the claim was not a
+slip made in a hurry at commit time: it was a plausible reading of the code that nobody executed,
+duplicated into a surface where it could no longer be edited. The docstring is corrected in this
+increment; the commit message is not correctable.
+
+The third is the sharpest, because it was *corrected once already and not by that route*. `04497a9`
+replaced the selector — "every commit from `50dd420` to `6bc8078`" was a range nobody had examined —
+and re-measured over full history, getting 4 and 1. It never re-derived 8 and 3 over the original
+population, so it left a false pair standing while reporting that it had fixed the sentence
+containing them. **Replacing a claim's population is not checking its numbers.** Three populations
+here, three answers — 8/3 written, 5/2 true for that population, 4/1 true for the one that replaced
+it — and only the first is wrong.
+
+**LOW — and one of the thirteen findings did not survive being checked, which is the reason the rule
+exists.** A reviewer reported that `6bc8078` had replaced a *correct* census — pass 5's "28 of the
+tree's 30 battery sections carry the prefix" — with a false 27/19. Measured at `5329d24^`, the tree
+pass 5 was describing: **30 sections, 27 carrying** (19 `unreleased, YYYYMMDD ·` and 8 `X.Y.Z ·`).
+`6bc8078` was right. Pass 5's 28-of-30 is the pair that matches no single selector.
+
+**And the reason it matches none is a section every census so far has silently dropped.** Count a
+section as a comment line sandwiched between two `# ─────` rules and there are 30. Accept ASCII
+hyphens as rule characters too and there are **32** — because
+`tools/batteries/src-pinakes-pairing.toml:369` draws its rules with `-` and writes
+`# unreleased, 20260831 - S16's residue…`, a hyphen where the convention has `·`. It is
+non-conforming twice over, it predates this branch, and **it is still non-conforming at this
+branch's tip**. Under the loose selector the pre-fix tree reads 28 of 32. So pass 5's *28* is right
+about one population and its *30* about the other, and the two numbers in one sentence come from
+two different questions.
+
+**This is one class with the fragment landed beside it, not two.** `retro.d/` also carries
+[*A method is not a measurement point, and `--all` is not a
+corpus*](#a-method-is-not-a-measurement-point-and---all-is-not-a-corpus-20260902-0245),
+written the same night about the same defect — a number stated without the selector that produced
+it. Read them together: that one names the rule, this one is the rule failing in the hands of the
+reviewer applying it.
+
+This started as a bare path in prose, because when it was written the branch was twelve commits
+behind the file it cites and a link would have been red on its own gate. Green at the moment of
+landing beat the better reference. It is a link now that both are on `main`, and the reason is not
+tidiness: `tools/markdown_link_gate.py` reads `retro.d/`, so **a path in prose is unchecked text
+and a link is a gated reference** — this one goes red if either fragment is ever renamed, and the
+prose version would have gone quietly stale. Ruled by the planner.
+
+**The lesson is not "measure more".** All three parties — the writer, the corrector, and the
+reviewer who called the correction wrong — ran a count. Each ran a *different* count and none said
+which. **A census of a corpus with two spellings of its own delimiter has two answers, and the one
+you get is chosen by the regex you happened to write.** Naming the selector is what makes two
+measurements comparable; it is also what makes a disagreement resolvable instead of a standoff.
+
+**What to do about a false sentence that is already pushed.** It cannot be amended — the branch is
+shared and the sha is cited in this fragment and in `docs/VERIFICATION.md` rows. So the correction
+lives here, in the retrospective, which is the only append-only record of the same events. That is
+weaker than a fix and it is what is available. The stronger move is upstream: **a commit message
+asserting a count is asserting something checkable, and nothing on this branch checked one until the
+ninth pass.** Reading the message alongside the diff costs one command and would have caught all
+four before they were pushed.
+
+## The census I called correct was the one mixing selectors (20260902 07:41)
+
+Reviewing a branch's commit messages, I raised that `6bc8078` had replaced a correct census with a
+false one: an earlier pass had written *"28 of the tree's 30 battery sections carry the prefix"*, and
+the later commit said 27, of which 19 and 8. I filed it as a regression — a right number made wrong.
+
+The coder re-measured and refuted it, and I re-derived it independently rather than accept the
+refutation on report. At `5329d24^`, over 11 battery files: counting sections delimited by box-drawing
+`# ────` rules gives **30 total, 27 carrying (19 + 8), 3 not**. Also accepting ASCII `# ----` rules
+gives **32 total, 28 carrying, 4 not**.
+
+So `6bc8078` is exactly right under the strict selector. The sentence I called correct — *28 of 30* —
+is the one that matches **no selector at all**: its 28 comes from the loose count and its 30 from the
+strict one. I had promoted an incoherent pair over a coherent one because the incoherent pair was
+older, and "a later commit changed a number" is a shape that reads as regression before it is checked.
+
+**Neither census stated its selector, and that is the whole defect** — the same one I had landed a
+retro fragment about ninety minutes earlier: [*A method is not a measurement point, and `--all` is
+not a corpus*](#a-method-is-not-a-measurement-point-and---all-is-not-a-corpus-20260902-0245).
+I wrote the rule and then failed to apply it to the very next thing I looked at, in a review whose
+purpose was to catch exactly this.
+
+Why the selector is load-bearing here rather than pedantic: the coder found
+`tools/batteries/src-pinakes-pairing.toml:369` uses ASCII rules, and across `tools/batteries/` there
+are **56 box-drawing rules against 6 ASCII**. A `─`-delimited census is therefore structurally blind
+to that file. The two counts are not rounding of one another; they see different trees.
+
+**The rule this leaves:** when two measurements of one set disagree, do not assume the older is the
+baseline. Ask which selector each used first — the disagreement is usually the population, not the
+arithmetic, and the number that survives is the one whose selector was stated.
+
+## I armed a CI watcher on a sha I had composed, not read (20260902 08:11)
+
+Three consecutive tips had their CI verdicts lost to supersession, so I armed a bounded watcher on
+`main`'s tip and told the user I would land nothing until it reported. It polled and reported
+nothing. I read that silence as correct and said so in as many words: *"My bounded poll has produced
+no output yet, which is correct — it only writes when every workflow on that sha reports."*
+
+It was not correct. The watcher was polling
+`6a9245aca7bb5aeb0d0b30ba1c4ab4a5bd9b5cbb`. The tip is `6a9245aff04805cff66ed3d1c4f17d72b6fab4dc`.
+The two agree on the seven characters I had in front of me and diverge on the thirty-three I did not.
+**I expanded a short sha into a full one by writing plausible hex.** `gh run list --commit <that>`
+returns `[]`, the loop's `[ -n "$row" ]` guard never passes, and the watcher runs to exhaustion
+printing an empty verdict block. It could not have reported a red build. It could not have reported
+anything.
+
+The verdict arrived from the coder's watcher instead, and I verified it myself: run 33606706108, CI
+completed/success, 15 of 15 jobs green, headSha matching the real tip. So the outcome was fine and the
+instrument was worthless, which is the worst pairing — nothing about the result told me the tool was
+broken. I found it only when stopping the task printed the command back to me.
+
+**Two failures, and the second is the bad one.**
+
+The first is composing an identifier instead of reading it — `git rev-parse` was one call away, and the
+repo already carries this rule for timestamps (*read the clock, never compose it*). It generalises: a
+sha, a run id, a version, a line number. If it identifies something, read it from the thing.
+
+The second is that I had a null result and treated it as a measurement. Zero rows from `gh` and zero
+output from the watcher are the same shape as *not finished yet*, and I picked the reading that
+matched what I expected. **A selector that has never been shown to fire cannot report absence** — this
+is written down, and I had cited it in this very session while reviewing someone else's work.
+
+**What would have caught it, cheaply:** before arming any watcher, run its query once in the
+foreground and confirm it returns a non-empty row. A watcher whose first poll matches nothing is not
+waiting; it is misaddressed. That check costs one command and is the difference between a hold that
+means something and a hold that is decoration.
+
+This is the third instance in one night of the same family: a status list read without asking what it
+was capable of containing (a false RED), a workflow absent rather than cancelled because its path
+filter never matched, and now a query addressed at nothing. In all three the empty or partial answer
+was read as information about the instrument's world rather than about the instrument.
+
+**A postscript, because it happened while this file was being written.** Investigating the above, I
+found two landed fragments linking a sibling by filename — forbidden by `retro.d/README.md` because
+the path stops resolving once everything is spliced into one document. I proved it (`make docs` exit
+2, two strict-mode warnings naming that link), fixed both, and then ran `git checkout -- retro.d/` to
+undo the splice. That restored the two fragments to `HEAD`, **discarding the fix I had just made**,
+and deleted this file, which was untracked and had been consumed by `--apply`. The repo warns about
+exactly this — *commit before mutating; `git checkout` restores to the last commit, not to the
+pre-mutation state.* I had also been told the count: `ls retro.d/*.md | wc -l` printed **24** where
+25 was correct, and I read the number without checking it against what should have been there. **A
+count you do not predict before you read it cannot surprise you**, which is the same defect as the
+watcher — an instrument consulted with no expectation attached reports nothing either way.
+
+**And a fourth instance, inside the fix for the third.** Rewriting those two links needed the
+sibling's anchor, so I computed it *"with the renderer that builds the site"* — and wrote exactly that
+sentence into `b4fa8e8`'s commit message, where it stands, false. What I actually built was a
+`markdown.Markdown` from `mkdocs.yml`'s `markdown_extensions` list. That is not the site's renderer:
+`mkdocs.yml` installs GitHub's slug algorithm through `mkdocs_hooks.py`, and says so in a comment
+eight lines above the `toc` block — *"neither Python-Markdown's default nor pymdownx's matches it"*.
+My two greps windowed on `markdown_extensions` and on `  - toc`, and between them excluded the one
+comment written for somebody doing what I was doing. Python-Markdown's default collapses runs of
+hyphens; GitHub's does not, because it discards the backticks and keeps the spaces around them. The
+anchor I wrote was `…-and-all-…` where the site emits `…-and---all-…`. The coder caught it, having
+made the identical mistake an hour earlier and reported the identical wrong string to me as verified.
+
+**Two things kept that one invisible, and both are worth naming.** A code span is not a link, so
+`make docs` returns 0 whatever the string says — *the fix for a link that fails loudly was checked by
+a build that cannot see the replacement*, which is a seam I introduced in the act of closing one.
+And neither of us lacked an instrument: we each had one, ran it correctly, and it was one config
+short of the thing it claimed to reproduce. **A reproduction is a claim about coverage, not about
+effort.** Corrected against `tools/markdown_link_gate.py`'s `github_slugify()` and against the built
+`site/RETROSPECTIVES/index.html`, which agree — with a control that the non-collapsing is systematic
+rather than a quirk of this heading: three ids on that page contain `---`.
+
+**A fifth instance, three hours later, and this one is the mirror of the first.** Checking whether
+two of the morning's tips had passed CI, I ran `gh run list --commit 5654cc4` and
+`gh run list --commit 293d434`. Both returned `[]`. For about a minute I believed two landings had
+never triggered CI at all. **`gh run list --commit` requires the full 40-character sha**; an
+abbreviated one — valid to every `git` command in the repository, and the form the tool itself prints
+in `gh run list` output — matches nothing, exits 0, and says nothing. The control settles it:
+`gh run list --commit $(git rev-parse 5654cc4)` returns two runs. So the first failure in this file
+was an identifier I composed and this is an identifier I *read correctly*, in a form the tool
+rejects silently. **The rule that survives both is not "read the sha" but "prove the query fires."**
+`git rev-parse` before any `--commit`, and the first poll is still the assertion.
+
+**A sixth, and it is a defect in the alerting rule I wrote, not in a command.** My standing CI-watcher
+guidance alerts on `failure`, `timed_out`, `startup_failure` and `action_required`, and deliberately
+excludes `cancelled` as *"normally supersession."* Under that rule this morning was silent, and this
+is what it was silent about:
+
+    5654cc4  07:55:49 -> 07:58:23  push/cancelled     the retro heading + stamp gate
+    4e13d6f  07:57:47 -> 08:03:34  push/cancelled
+    6a9245a  08:03:31 -> 08:08:27  push/success
+
+`.github/workflows/ci.yml:8-10` sets `concurrency: group: ci-${{ github.ref }}` with
+`cancel-in-progress: true`, so every push to `main` kills the run before it. Two consecutive tips —
+one of them a **new gate's own landing** — got no verdict, 2m34s and 5m47s in. Coverage did hold:
+`6a9245a` is a descendant of both, ran 15 of 15 green, and `293d434` later did the same. **But it
+held by ancestry, and ancestry is not what the watcher was checking.** Nobody asked. I had written
+*"three consecutive green tips"* into my own resume file naming the three that completed, without
+noticing that between them sat two that had not.
+
+**`cancelled` is not a state, it is two states wearing one word:** a superseded run whose commit a
+later completed run contains, and a lost verdict whose commit nothing has yet certified. Telling them
+apart costs one ancestry check — *is there a completed, successful run whose sha has this commit as an
+ancestor?* — and without it the exclusion converts an unverified tip into silence. That is the same
+defect as every other one in this file: an instrument that cannot distinguish "fine" from "never
+looked", consulted with no expectation attached. **It is worse here than in the others**, because
+this instrument's whole purpose is to be trusted while nobody is watching, and because I am the one
+who wrote the exclusion into the rule.
+
+**A seventh, and it is the sharpest one here, because I built it while fixing the sixth.** Twenty
+minutes after writing the paragraph above, I armed a v2 watcher whose whole purpose was to stop
+reporting `cancelled` as if it were nothing. It ran, polled thirteen times, and printed this where
+the verdict belonged:
+
+    SyntaxError: unexpected character after line continuation character
+
+`python3 -c 'import json,sys; [print(f"  {r[\"workflowName\"]} …")]'` — inside a **single-quoted**
+`-c`, the shell passes the backslashes through, and `{r[\"workflowName\"]}` is not valid inside an
+f-string. Every other query in the same script used `--jq` and worked; this one line reached for
+Python because I wanted two fields on one row. The rest of the script survived: the job count printed
+`15`, the non-success selector printed nothing, and the run really was green — **confirmed
+independently, `gh run list` giving `completed/success` and the job list's non-success set empty.**
+
+So the shape is exact: *the instrument written to stop an instrument reporting falsely, reported
+falsely.* And it failed in the one direction that is hardest to notice — it suppressed the line
+naming the workflows and their conclusions, which is the line the `cancelled` finding was about, while
+still printing a reassuring `15` underneath. Had a run actually been cancelled, the discharge check
+would have run and its output would have sat directly below a stack trace I might have skimmed past
+on the way to the green number.
+
+**The rule this file has been circling, stated plainly at the seventh attempt:** a checking tool needs
+its own control, and the control is not *"does it run"* — all seven of these ran. It is **make it
+print the thing you already know**. One green sha through the watcher before arming it; one known-red
+mutant before believing a mutation run; one heading you have already resolved before trusting a
+slugifier. Each of the seven would have died in under a minute against a case whose answer I held.
+I have written that sentence three times tonight in three different registers and then not done it,
+which suggests the failure is not knowing the rule.
+
+## The config does not name the renderer (20260902 08:30)
+
+A peer replaced a forbidden link with an anchor and asked me to check the string. I built a renderer
+from `mkdocs.yml`, ran the heading through it, and reported the anchor correct. It was wrong by two
+hyphens, and I had certified it.
+
+**The site's slugifier is not in `mkdocs.yml`.** `mkdocs_hooks.py`'s `on_config` installs
+`_github_slugify` onto the `toc` extension at load time, so `markdown_extensions` — the list I read —
+describes every part of the renderer except the one part the question was about. Measured against the
+heading in question:
+
+| instrument | result |
+|---|---|
+| `mkdocs_hooks._github_slugify` — what the site runs | `…-and---all-is-not-a-corpus-…` |
+| Python-Markdown's default `toc` slugify — what I ran | `…-and-all-is-not-a-corpus-…` |
+| `pymdownx.slugs.slugify` | `A-method-…` — keeps the run, keeps the capital |
+
+Two of the three reconstructions are wrong, in two different ways. Only the hook is right, and the
+hook is exactly what is not declared. The repository already knew this: `mkdocs.yml` lines 86–88
+at `6a9245a` say *"The slugifier is installed by mkdocs_hooks.py, not named here"*, three lines above `- toc:`.
+
+**The warning was inside the region I read, and my reader could not represent it.** I loaded the
+block with `yaml.safe_load`, and a YAML parser discards comments by construction — the one sentence
+written for this mistake was invisible to the instrument making it, not somewhere else in the file.
+A peer reconstructing the same string independently windowed two greps from `markdown_extensions` to
+`  - toc` and excluded the comment between them. Different reader, same blind spot, same wrong
+string. **For about an hour we treated that agreement as corroboration.** Two instruments built from
+the same incomplete source do not check each other; they repeat each other.
+
+One correction I owe my own notes: I first recorded the cause as a `SafeLoader` subclass I had
+written to stub `!!python/name:` tags past a `ConstructorError`. Checking it to write this, it is
+not — those tags carry the emoji index, and the slugifier was never in the YAML for a stub to drop.
+The stub was a near miss, not the mechanism: it is the moment I started patching around the config's
+irregularities and read them as noise.
+
+**The rule is cheap and I had it available the whole time: when you need the site's renderer, build
+the site.** `make docs`, then read the `id=` attribute out of the built HTML. That is what settled it
+in the end — the correct anchor read off `site/RETROSPECTIVES/index.html`, with a control confirming
+the two-hyphen string appears nowhere among the 904 ids on the 30 pages built at `8d71489`. A null result carries
+no information until the selector is shown able to fire, and a positive one carries none until the
+instrument is shown to be the one that ships.
+
+This is the same defect as [*A method is not a measurement point, and `--all` is not a
+corpus*](#a-method-is-not-a-measurement-point-and---all-is-not-a-corpus-20260902-0245), one layer down: not
+a number measured over the wrong population, but a string measured with the wrong program. The
+sentence that names it is the anchor to that fragment, which is the string I got wrong.
+
+**Three more in the same hour, all caught before they cost anything, all the same shape.** A
+`--check` run through `grep -v` returned an empty `FRAGCHECK_EXIT=`. A `nohup ./check.sh > log 2>&1 &`
+discarded the gate's status entirely, leaving me about to read *"all gates green"* off stdout and
+call it a gate — **a backgrounding form eating the exit status is the pipe rule wearing different
+clothes**, and it is not a trap peculiar to `nohup`. And a public-repo secrets vet used a lookahead
+`ugrep` rejects: the pattern errored, the `||` branch fired, and it printed **"clean: no paths,
+addresses, secrets or external URLs"** — a false all-clear from a check that never ran, on the one
+gate where a false clean is worst. Each was found by asking the same question the anchor needed: not
+*what did it say*, but *was it able to say anything else*.
+
+## The restore command is the one that eats the work (20260902 08:53)
+
+I proved a change by running the thing it changes: splice both fragment streams, build the site,
+read the anchors out of the built HTML. Then I ran `git checkout -- .` to put the consumed fragments
+back, and **destroyed my own uncommitted increment** — the gate, its nine tests, and four link
+restorations. `git status` came back empty and that was the whole report.
+
+The rule is already written, in the mutation section: *"`git checkout <file>` restores to the last
+commit, not to the pre-mutation state, and silently reverts uncommitted fixes."* I had read it. What
+it did not stop is the reason it did not stop me: **the operation felt like a read.** Splicing and
+building are a measurement, and the command that undoes a measurement does not present itself as a
+write. A peer did the identical thing four hours earlier on the same night, lost a fragment, and
+rewrote it. Two agents, one command, both having read the rule — that is a defect in the remedy
+rather than in either of us. The remedy that would have worked is one word longer: **commit before
+the measurement, not before the mutation**, because a splice is a mutation whatever it feels like.
+
+Recovery cost about ten minutes, and only because I had copied `retro.d/` and the gate to scratch
+first — for reasons unrelated to this, and not the test file, which I rewrote. Everything was then
+re-verified from the restored tree rather than from the earlier run's output, since the earlier run
+had measured a tree that no longer existed.
+
+**A second instrument failure the same hour, and it is the sharper one.** A peer and I each counted
+the live `](#…)` links in `docs/RETROSPECTIVES.md`. We both got **2**. The population is **3**.
+Their pattern, `\]\(#[a-z0-9][a-z0-9-]*\)`, misses `#measure_sync_cpupy-…` because of the
+underscore. The pattern I attributed to them — a grep quoted inside another fragment — misses
+`#design-review-passes-17-pre-implementation` because it requires a `-YYYYMMDD-HHMM` suffix. **Two
+selectors, two unrelated blind spots, one agreeing wrong answer.** Agreement between instruments is
+worth nothing until the instruments are shown to be independent, and these looked independent
+precisely because neither of us had written the other's regex down. Earlier the same night the same
+pair of us computed the same wrong anchor by the same wrong method and read that as corroboration
+too; this is the harder version, because here the methods really were different.
+
+**And a third, which is the one that generalises.** A peer measured a line at 254 characters and
+dismissed two neighbouring lines as *"2 characters over, not worth a commit"*. The line was 252
+characters and 254 **bytes** — `awk length` counts bytes in this locale — and the two neighbours
+were 99 and 100, never over at all. The headline survived the error: at 252 or 254 that line was
+two and a half times the file's width and had to be fixed either way. **That is exactly why the
+error was safe to keep.** A measurement can be wrong in a direction that does not touch the
+conclusion and still poison every judgement made beside it, and those judgements are the ones nobody
+re-checks, because the headline held. The number the conclusion rests on gets scrutinised; the
+numbers riding along beside it do not.
+
+**The find worth keeping came from reviewing the change after it was green.** A stream `README.md`
+is excluded from the fragment set — its own links resolve where it sits — and it must *also* be
+excluded from the anchor universe, because its headings never reach the spliced document. Two
+exclusions, two functions, and only the first had a test. Without the second a fragment could link
+`#how-to-write-a-fragment`, pass on the branch, and die at the release cut: the exact failure the
+new gate exists to remove, produced by the gate. Nothing about it was visible in the diff, and the
+suite was green when I went looking.
+
+## The fix for a loud crash was a silent deletion, and only a probe said so (20260902 09:27)
+
+S1 read as a one-line fix: `hash_file` lets `PermissionError` escape the walk, so catch it and skip
+the file. The crash is loud, the traceback is ugly, and skipping is obviously kinder.
+
+It is not. `pair()` decides what to do with an indexed document by whether the walk still reports
+its path — absence means gone. A walk that skips an unreadable file therefore emits `SoftDelete`:
+the row retired, its chunks deleted, `pnk sync` printing `1 removed` and exiting about something
+else entirely. **A `chmod 000` would have removed the document from search.** The obvious fix turns
+a loud crash into silent index loss, which is the shape this repository ranks worst, and it would
+have shipped green.
+
+Nothing in the plan said this. It was found by writing eleven lines of throwaway script that built
+an `IndexSnapshot` and a `WalkSnapshot` by hand and printed what `pair()` returned — before a line
+of the fix existed. The whole finding cost one tool call.
+
+**The rule that generalises: when a fix changes what a downstream consumer is told, ask the consumer
+before writing the fix.** Not after, and not by reading it. Reading `pair()` would have worked too —
+the vanished-path loop is right there — but reading is what produced the one-line plan in the first
+place. The probe answered a question I already believed I knew the answer to, which is the only kind
+of question worth spending a tool call on.
+
+## The fix's own first output was a command that destroys a ULID
+
+Running it printed `orphaned sidecar (kept; remove with pnk doctor --prune): docs/c.md.pnk.yaml`
+for a document sitting on disk, readable sidecar and all. `_orphans` derives orphanhood from the
+walked file set, and the unreadable document had just left it. Following that remedy deletes the
+sidecar, and with it a permanent id that other KBs may link to.
+
+It was found by *running* the fix on a real KB with the real `[light]` backend, not by reading the
+diff — the diff is three lines and every one of them is correct. This is the seam rule paying out:
+unit tests prove a component honours a parameter, and only running proves what the user is told.
+
+## An exit 0 from an instrument that never reached its population
+
+`pnk doctor` was checked against an unreadable document and came back clean — exit 0, no traceback.
+The conclusion "doctor is fine" was one keystroke away and would have been wrong.
+
+The row had been marked `extraction_backend='claude'`, and the only paid backend name is
+`claude-vision`. So `recorded_is_paid` was false, the loop body never ran, and the unguarded
+`hash_file` was never reached. The tell was in the output and easy to skim past: `paid extraction
+not requested: none`. With the real name substituted, `doctor` died in a `PermissionError`
+traceback.
+
+That is the fourth time in two days a null result nearly became a finding here. The others were a
+`grep` pattern with a lookahead the tool rejected, a `sed` range using `\b` that BSD `sed` does not
+support, and a `grep 'walk_sources('` over `tests/` that returned nothing because the call site
+aliases it to `real_walk`. **Same shape every time: the instrument could not reach what it claimed
+to have checked, and its silence read as an answer.** A control that must fire is the cheapest
+insurance in this repository, and it is still not automatic for me.
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings
