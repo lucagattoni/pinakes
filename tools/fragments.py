@@ -124,6 +124,11 @@ def fragments_of(stream: Stream, repo: Path) -> list[Path]:
 #: `YYYYMMDD_HHMM-`, the timestamp prefix every fragment and plan carries.
 _STAMP = re.compile(r"^\d{8}_\d{4}-")
 
+#: A retrospective fragment's opening line: two hashes, **one** space, then the heading text.
+#: `startswith("## ")` drew a line here that matched neither the ruled form nor the renderer —
+#: it accepted `"##  A lesson"` and refused `"##\tA lesson"`, and nothing said why.
+_OPENING = re.compile(r"^## \S")
+
 
 def body_of(path: Path) -> str:
     """The filename with its `YYYYMMDD_HHMM-` prefix removed.
@@ -288,6 +293,183 @@ def document_problems(stream: Stream, text: str) -> list[str]:
     return problems
 
 
+def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
+    r"""Two ways a retrospective fragment joins the incident above it without saying so.
+
+    **Two, not *the* two.** The count was written as exhaustive and is not — a third way is
+    measured at the foot of this docstring and is not checked anywhere.
+
+    **Neither is visible to `document_problems`, and that is not an oversight — it is the
+    mechanism.** A fragment carrying no `##` heading is not malformed once spliced. It is
+    *absorbed*: `render` joins bodies with a blank line, so its prose lands under whichever
+    fragment sorts before it and reads as a continuation of that incident. The result is
+    well-formed markdown making a false claim about whose retrospective it is, every existing gate
+    stays green, and the reader who would notice is the one who no longer can. A checker reading
+    the assembled document is reading the evidence after it has been destroyed, so this reads the
+    fragments going in.
+
+    The stamp is the second half and a different failure. `retro.d/README.md` requires the
+    heading's `(YYYYMMDD HH:MM)` to be a **copy** of the filename's prefix — one reading of the
+    clock written twice — because a second reading is a second chance to be wrong. On 20260826
+    three headings were typed from memory in one morning, out by 1 minute, 2 minutes and **3 hours
+    30 minutes**, in fragments whose own subject was measurement discipline; the largest drift is
+    the one nothing prompts you to check. Only the filename can settle it, so only a fragment that
+    has a prefix is checked here — the fragments predating the naming rule are exempt from this
+    arm and **not** from the first.
+
+    Nothing looser than the ruled form passes: not a date without a time, not an em-dash in place
+    of the parentheses, not a trailing `UTC`. A gate that accepts three spellings of a stamp is
+    not checking the stamp, it is checking that somebody typed a date.
+
+    **The three near-miss openings fail three different ways, and only one of them is the way this
+    docstring first claimed.** Measured 20260901, against Python-Markdown with `mkdocs.yml`'s own
+    extension list, and against `anchors_of` in `tools/markdown_link_gate.py`:
+
+    | opening | what the built site shows | what `anchors_of` returns |
+    |---|---|---|
+    | `' ## A lesson'` | a **paragraph** under the previous heading — *absorbed* | an anchor |
+    | `'\t## A lesson'` | a **code block**, heading text and all | an anchor |
+    | `'##A lesson'` | a correct `<h2 id=…>` | **nothing** |
+
+    So absorption is not the wrong mechanism for the space form — it is exactly the mechanism, and
+    Python-Markdown is stricter than CommonMark here: one leading space is enough, where CommonMark
+    allows three. The tab form is worse than absorbed. And both whitespace forms fail a *second*
+    way nothing else here catches: `anchors_of` matches `^\s{0,3}(#{1,6})\s+`, so the link gate
+    mints an anchor the built page does not have — a link to it passes the gate and 404s on the
+    site, a false green. `'##A lesson'` inverts that: a real heading the link gate cannot see. All
+    three are refused, for three different reasons, which is why the message names the *form* and
+    leaves the consequence to the README.
+
+    **The separator is one space, and here the gate is deliberately stricter than the renderer.**
+    `'##  A lesson'` (two spaces) and `'##\tA lesson'` (a tab between the hashes and the text)
+    render *byte-identically* to the ruled form — same `<h2>`, same anchor, measured 20260901 —
+    and both are refused anyway. The renderer's tolerance is not the rule: `retro.d/README.md`
+    § Contents says the opening is `## ` exactly and that `--check` refuses anything else, and a
+    gate accepting a form that sentence excludes makes the sentence false. `startswith("## ")`
+    accepted the two-space form and refused the tab — a line matching neither the ruled form nor
+    the renderer, drawn by an idiom rather than by a decision, and stated nowhere.
+
+    **Quoting the offending line back `.strip()`ped was the second defect.** The message said the
+    fragment does not open with `## ` and then displayed a string that plainly does — unfixable to
+    read, reproduced from a leading space and from a leading tab. **The raw line goes in the
+    message, `repr` and all.**
+
+    **This paragraph has been wrong twice, both times written from reading the code.** The first
+    draft named absorption for every form. The second deleted absorption as "the wrong mechanism"
+    and credited `startswith("## ")` to `anchors_of`, which is a regex allowing what the claim said
+    it excluded. The table above was *run*. `site/RETROSPECTIVES/index.html` is the authority for
+    what a fragment becomes, and asking it costs one command.
+
+    **The messages name the defect, show the line, and cite `retro.d/README.md` § Contents. They do
+    not restate the rule** — a gate that restates one owns a second copy of it, and the copy rots.
+    Ruled by the planner, 20260901. The byte-order-mark arm is the exception and must stay
+    self-explaining, because the README does not mention a BOM at all.
+
+    Reported separately because they are separate mistakes with separate fixes, and a fragment can
+    have either without the other.
+
+    **The third way, measured 20260902 and refused by nothing.** A fragment containing an unclosed
+    block-level raw HTML tag — `<div class="note">` with no `</div>` — passes every arm here *and*
+    `document_problems`: `--check` prints *all well-formed* and exits 0, and `--apply` splices it.
+    Rendered with `mkdocs.yml`'s own extension list the raw block runs to end of file. The next
+    fragment's `## ` heading, its prose, and the protected `## Design review passes` footer all
+    come out as literal text inside the div: **one** `<h2>` on the page where the source has three.
+    That is absorption again, one layer lower and with a wider blast radius — it swallows the
+    footer these arms were written to protect. `prose_lines` knows ` ``` ` and `~~~` and nothing
+    about HTML blocks, and `anchors_of` mints all four anchors regardless, so the link gate stays
+    green on two headings the site does not have — the same false green the whitespace forms
+    produce, arrived at from a different direction. **Not fixed here**, for the reason the
+    paragraph below gives about widening a branch on its ninth review pass; rowed with the
+    planner.
+
+    **This is the retrospectives stream only.** `changelog.d/` fragments are `- ` bullets merged
+    under a category heading `render` synthesises for them, so requiring a heading of their own
+    would refuse the format that stream is for.
+
+    **That reason covers two of the three arms, and not the mark.** The byte-order arm's own
+    justification — `render` splices the mark into the middle of the target — is true of both
+    streams, and a BOM'd changelog bullet is worse than invisible: the mark precedes the `- `, so
+    the entry's first bullet renders as a paragraph. The mark arm is scoped to this stream by its
+    *position* below the return above, not by an argument that holds. Widening it is its own
+    increment, rowed with the planner — adding scope to a branch already on its fifth review pass
+    is how the next pass finds what this one would have.
+    """
+    if stream.name != "retrospectives":
+        return []
+
+    problems: list[str] = []
+    if text.startswith("\ufeff"):
+        # Stripped from the *text*, before the opening line is chosen — not from the line, which
+        # is where the pass-2 review found the second half of this. `"\ufeff".strip()` is truthy,
+        # so a mark sitting alone on line 1 is itself selected as the opening line; lstripping it
+        # there leaves `""`, and the heading two lines down is never read. That fragment collected
+        # three messages, two of them about a heading and a stamp which were already correct.
+        # Refusing it is right either way — `render` would splice the mark into the *middle* of
+        # the document, where it is invisible and belongs to nothing — but a message sending the
+        # writer to fix what is correct is the exact failure this arm was added to prevent, one
+        # input shape further in. `tools/build_rfc_corpus.py` already strips a BOM from ingested
+        # text, so this is an input class the repository has met before.
+        problems.append(
+            f"{stream.directory}/{path.name}: opens with a UTF-8 byte-order mark, which "
+            f"`render` would splice into the middle of {stream.target}. Save it as UTF-8 "
+            "without a BOM."
+        )
+        text = text.lstrip("\ufeff")
+    # `splitlines()` also breaks on \x0b \x0c \x1c \x1d \x1e \x85 \u2028 \u2029, none of which
+    # Markdown treats as a line break: `## A lesson (…)\x0cmore text` is ONE `<h2>` whose visible
+    # text runs past the stamp, and `splitlines()` handed the arm below only the part before the
+    # form feed, so it read as a trailing stamp and passed. Split on `\n` alone — the renderer's
+    # notion of a line is the one this gate is about.
+    #
+    # **One split, read twice.** Both selectors below take their lines from here, because when the
+    # heading selector was added with a `text.split("\n")` of its own the pass-8 mutant stopped
+    # being killed: mutating one copy left the other correct, and the battery reported SURVIVED
+    # over an assertion that was still true. A property living in two expressions is pinned by
+    # neither.
+    lines = text.split("\n")
+    first = next((line for line in lines if line.strip()), "")
+    if _OPENING.match(first) is None:
+        problems.append(
+            f"{stream.directory}/{path.name}: must open with its own `## ` heading, and opens "
+            f"with {first[:60]!r}. See `{stream.directory}/README.md` § Contents."
+        )
+
+    stamp = _STAMP.match(path.stem)
+    if stamp is None:
+        return problems
+    day, clock = stamp.group(0)[:8], stamp.group(0)[9:13]
+    wanted = f"({day} {clock[:2]}:{clock[2:]})"
+    # The stamp arm is about the *heading*, so it reads the heading rather than whatever line
+    # happens to be first. A fragment opening with an HTML comment above a perfectly correct
+    # stamped heading was told its heading lacked the stamp it carries: one true message and one
+    # false one, the same pair the byte-order-mark arm was fixed to stop producing, one input
+    # shape further in. The `first` fallback is load-bearing, not defensive — a fragment with no
+    # `## ` line at all has no heading to read, so it earns *both* messages, which is what
+    # `test_a_fragment_that_is_neither_reports_both_problems` pins. A *malformed* opening
+    # (`##  A lesson`) has no `_OPENING` match either, so it also falls back and is judged on the
+    # line the writer actually typed.
+    heading = next((line for line in lines if _OPENING.match(line)), first)
+    # The stamp is the heading's **trailing token**: the start of the line or whitespace before it,
+    # nothing but whitespace after. Pass 3 replaced a containment test with a one-character
+    # lookaround for `(` and `)` and a comment claiming it was anchored; pass 4 measured four
+    # wrappers and three still passed — `[(20260901 07:10)]`, `x(20260901 07:10)x` and
+    # `( (20260901 07:10) )`, only the tight `((…))` being caught. A lookaround inspecting one
+    # character on each side is not anchoring, and the sentence it was written to make true is in
+    # the docstring above and in `docs/VERIFICATION.md`. Anchoring costs nothing here, and the
+    # selector is the load-bearing half: of the 148 `## ` headings in `docs/RETROSPECTIVES.md` at
+    # `0aea036`, 136 carry a parenthesised stamp and all 136 carry it as the *trailing* token —
+    # none carries one anywhere else. Of the other 12, three use the em-dash form, one carries
+    # the date-only `(20260823)` this arm also refuses, and eight carry no date at all.
+    # Every fragment in `retro.d/` passed too. Measured 20260901 before the rule was tightened,
+    # not assumed after. ("All 136 stamped headings are stamped" would be true by construction.)
+    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", heading) is None:
+        problems.append(
+            f"{stream.directory}/{path.name}: its heading must carry `{wanted}`, the filename's "
+            f"own prefix. See `{stream.directory}/README.md` § Contents."
+        )
+    return problems
+
+
 #: The two places a problem carries a line number: its `file:line:` prefix, and the `on line N`
 #: back-reference inside a duplicate-heading message. Both shift when the same fault is seen in the
 #: assembled document instead of the one on disk, and stripping only the prefix left the *other*
@@ -375,6 +557,8 @@ def check(stream: Stream, repo: Path) -> list[str]:
                 f"spliced verbatim into {stream.target}. The category lives in the filename, "
                 "never inside the file — delete the fence and start with the entry body."
             )
+        else:
+            problems.extend(heading_problems(stream, path, body))
     return problems
 
 

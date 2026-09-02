@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 20
+mutants = 40
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -205,3 +205,257 @@ new = '''        spliced = (
             splice(stream, render(stream, repo) + "\n", repo) if render(stream, repo) else None
         )'''
 kills = "tests/test_fragments.py::test_check_validates_the_exact_bytes_apply_writes"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260901 · a retro fragment carries its own `##` heading, stamped from its filename
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# **`document_problems` cannot see either of these, and that is the mechanism rather than an
+# oversight.** A fragment with no heading is not spliced malformed — it is *absorbed*: `render`
+# joins bodies with a blank line, so its prose lands under whichever fragment sorts before it and
+# reads as that incident's. The assembled document is correct markdown making a false claim, so a
+# checker reading the result is reading the evidence after it was destroyed. Hence `check`, which
+# reads the fragments going in.
+#
+# The stamp is a *copy* of the filename's prefix, because a second reading of the clock is a second
+# chance to be wrong — 20260826, three headings typed from memory in one morning, out by 1 minute,
+# 2 minutes and 3 hours 30 minutes.
+#
+# **The corpus cannot substitute for these rows.** `retro.d/` holds only *unreleased* fragments —
+# the rest were spliced into `docs/RETROSPECTIVES.md` and deleted at each release — so the live
+# directory was 4 files at `0aea036`, where this branch began, and all 4 already passed. The one live counter-example
+# anywhere was a *fixture*, in `test_apply_is_one_step_or_none_across_every_stream`.
+
+[[mutant]]
+name = "the gate never runs, so a headingless fragment is absorbed exactly as it was before"
+file = "tools/fragments.py"
+old = '''            problems.extend(heading_problems(stream, path, body))'''
+new = '''            pass'''
+kills = "tests/test_fragments.py::test_a_retro_fragment_with_no_heading_of_its_own_is_refused"
+
+[[mutant]]
+name = "the rule widens to `changelog.d/`, refusing the bullet format that stream exists for"
+file = "tools/fragments.py"
+old = '''    if stream.name != "retrospectives":'''
+new = '''    if False:'''
+kills = "tests/test_fragments.py::test_the_heading_rule_never_reaches_the_changelog_stream"
+
+[[mutant]]
+name = "DISCRIMINATING — any heading level opens a fragment, so a `###` section passes"
+file = "tools/fragments.py"
+old = '''    if _OPENING.match(first) is None:'''
+new = '''    if re.match(r"^#", first) is None:'''
+kills = "tests/test_fragments.py::test_a_third_level_heading_does_not_open_a_fragment"
+
+[[mutant]]
+name = "the stamp arm is dropped, leaving the heading free to name any time at all"
+file = "tools/fragments.py"
+old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", heading) is None:'''
+new = '''    if False:'''
+kills = "tests/test_fragments.py::test_a_heading_whose_stamp_disagrees_with_the_filename_is_refused"
+
+[[mutant]]
+name = "DISCRIMINATING — the stamp is compared by date alone, so the time may be anything"
+file = "tools/fragments.py"
+old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", heading) is None:'''
+new = '''    if re.search(rf"(?:^|\s)\({day}[^)]*\)\s*$", heading) is None:'''
+kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_accepted"
+
+[[mutant]]
+name = "the exemption widens: a fragment with no prefix skips the heading arm as well as the stamp"
+file = "tools/fragments.py"
+old = '''    first = next((line for line in lines if line.strip()), "")'''
+new = '''    if _STAMP.match(path.stem) is None:
+        return problems
+    first = next((line for line in lines if line.strip()), "")'''
+kills = "tests/test_fragments.py::test_a_fragment_with_no_prefix_owes_a_heading_and_not_a_stamp"
+
+[[mutant]]
+name = "DISCRIMINATING — the first problem short-circuits the second, so one fix is reported at a time"
+file = "tools/fragments.py"
+old = '''    stamp = _STAMP.match(path.stem)'''
+new = '''    if problems:
+        return problems
+    stamp = _STAMP.match(path.stem)'''
+kills = "tests/test_fragments.py::test_a_fragment_that_is_neither_reports_both_problems"
+
+# A fragment saved as UTF-8-with-BOM opens with `\ufeff## …`. Refusing it is right — `render`
+# would splice the mark into the middle of the document — but the *reason* has to be the mark,
+# not a missing heading, or the writer is sent to fix the one thing that is correct.
+
+[[mutant]]
+name = "the byte-order mark is neither reported nor stripped, so a correct heading reads as missing"
+file = "tools/fragments.py"
+old = '''    if text.startswith("\ufeff"):'''
+new = '''    if False:'''
+kills = "tests/test_fragments.py::test_a_byte_order_mark_is_named_rather_than_reported_as_a_missing_heading"
+
+[[mutant]]
+name = "DISCRIMINATING — the mark is reported but not stripped, so the heading arm fires about it too"
+file = "tools/fragments.py"
+old = '''        text = text.lstrip("\ufeff")'''
+new = '''        pass'''
+kills = "tests/test_fragments.py::test_a_byte_order_mark_is_named_rather_than_reported_as_a_missing_heading"
+
+# The refusal was already right; the *message* quoted the offending line `.strip()`ped, so it
+# complained that the fragment does not open with `## ` and then displayed a string that does.
+# Found by running the gate against a leading space and a leading tab, not by reading it.
+
+[[mutant]]
+name = "DISCRIMINATING — the line is quoted stripped, so the message contradicts itself"
+file = "tools/fragments.py"
+old = '''            f"with {first[:60]!r}. See `{stream.directory}/README.md` § Contents."'''
+new = '''            f"with {first.strip()[:60]!r}. See `{stream.directory}/README.md` § Contents."'''
+kills = "tests/test_fragments.py::test_a_heading_hidden_by_leading_whitespace_is_quoted_with_the_whitespace_showing"
+
+# The three below all come from the second adversarial pass, and two of them are about the arm the
+# *first* pass added. A gate written to stop a fragment being sent to fix what is already correct
+# did exactly that to the next input shape along, and the row for it did not exist until a reviewer
+# fed the mark in on its own line.
+#
+# The stamp row above read `wanted = f"({day}"` until the fifth pass, and it was never a laxity
+# mutant. `wanted` is `re.escape`d, so once the fourth pass anchored the comparison with
+# `(?:^|\s)…\s*$` the mutant required `(20260901` to be the heading's *trailing* token, which no
+# real heading is. It refused everything: 21 of 64 tests failed under it — the control
+# `test_the_real_documents_are_clean_which_is_this_checkers_only_control` among them, reporting
+# every live fragment in `retro.d/` malformed — 14 of them at `0e424c7`, where this was measured —
+# and all eight sub-cases of the looseness test died on the message
+# text rather than on the return code. That is the same defect the retro fragment for this
+# increment records for the predecessor `clock = ""`, recreated one pass later by an edit to a line
+# the mutant does not name. **A mutant is faithful only against the code it currently runs
+# against**, so anchoring a regex re-scopes every mutant feeding it and the earlier kill does not
+# carry forward — while the row went on reporting KILLED. The row now mutates the anchored
+# comparison itself: 4 tests fail under it, the control passes, and the three laxity sub-cases die
+# on the return code, which is the axis its name claims.
+
+[[mutant]]
+name = "DISCRIMINATING — a mark on its own line is neither reported nor stripped, so the heading two lines down is never read"
+file = "tools/fragments.py"
+old = '''    if text.startswith("\ufeff"):'''
+new = '''    if text.startswith("\ufeff") and not text.startswith("\ufeff\n"):'''
+kills = "tests/test_fragments.py::test_a_byte_order_mark_alone_on_the_first_line_reports_only_itself"
+
+[[mutant]]
+name = "DISCRIMINATING — the stamp is contained rather than anchored, so `((20260901 07:10))` passes"
+file = "tools/fragments.py"
+old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", heading) is None:'''
+new = '''    if wanted not in heading:'''
+kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_accepted"
+
+[[mutant]]
+name = "the no-prefix exemption is dropped, so a fragment with no prefix crashes the checker on `stamp.group(0)`"
+file = "tools/fragments.py"
+old = '''    if stamp is None:
+        return problems'''
+new = '''    if False:
+        return problems'''
+kills = "tests/test_fragments.py::test_a_fragment_with_no_prefix_owes_a_heading_and_not_a_stamp"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260901 · the fourth pass — the separator, the anchor, and the line the arms name
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Two of these four rows are the *previous* fix, restored. Pass 3 wrote `(?<!\()…(?!\))` under a
+# comment saying "anchored, not contained"; pass 4 measured `[(…)]`, `x(…)x` and `( (…) )` and
+# three of the four wrappers still passed. Pass 1 wrote `startswith("## ")`, which accepted two
+# spaces and refused a tab — a line drawn by an idiom, matching neither the ruled form nor the
+# renderer. **A row whose `new` is the code that shipped last week is the only kind that proves the
+# correction was a correction**, and neither of those two had one.
+#
+# The other two restore nothing, because neither shape ever shipped. Pass 1 already required the
+# separator, so no committed version ever opened a fragment on `##A lesson`, and that row is fresh
+# coverage for the separator itself — the two-spaces-and-a-tab half is the `startswith` row above
+# it, not this one. And the last row is the selector the other arms depend on and nothing covered:
+# pass 4 mutated `if line.strip()` to `if line` and all 56 tests stayed green, while the mutated
+# gate told a writer with a correct heading and a correct stamp that both were missing.
+#
+# The population is every committed version of `tools/fragments.py` reachable from this branch's
+# tip — `git log --full-history 9ac95fc -- tools/fragments.py`: 31 commits, 21 distinct contents,
+# back to `f588f03` — each searched for the row's own `new` string verbatim. `startswith("## ")`
+# appears in four of them and the pass-3 lookaround in one; `re.compile(r"^##")` and the unstripped
+# `if line` appear in none.
+#
+# **Name the sha, not just the selector.** An earlier draft claimed a commit *range* nobody had
+# examined. The draft that replaced it named `--full-history` but no measurement point, said
+# "30 commits, 20 distinct", and was falsified one commit later by pass 8 editing this very file:
+# 30/20 at `04497a9`, 31/21 at `9ac95fc`. The four verbatim counts above were 4/0/1/0 at *both*
+# shas, which is what makes the census the part that rotted and not the finding it carries.
+
+[[mutant]]
+name = "DISCRIMINATING — the opening reverts to `startswith`, which accepts two spaces and refuses a tab"
+file = "tools/fragments.py"
+old = '''    if _OPENING.match(first) is None:'''
+new = '''    if not first.startswith("## "):'''
+kills = "tests/test_fragments.py::test_the_separator_is_one_space_and_the_gate_is_stricter_than_the_renderer"
+
+[[mutant]]
+name = "the separator is not required at all, so `##A lesson` opens a fragment"
+file = "tools/fragments.py"
+old = '''_OPENING = re.compile(r"^## \S")'''
+new = '''_OPENING = re.compile(r"^##")'''
+kills = "tests/test_fragments.py::test_the_separator_is_one_space_and_the_gate_is_stricter_than_the_renderer"
+
+[[mutant]]
+name = "DISCRIMINATING — the anchor is one character wide again, so a wrapper with a separator evades it"
+file = "tools/fragments.py"
+old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", heading) is None:'''
+new = '''    if re.search(rf"(?<!\(){re.escape(wanted)}(?!\))", heading) is None:'''
+kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_accepted"
+
+[[mutant]]
+name = "DISCRIMINATING — any line may be the opening, so a blank first line is refused as a missing heading"
+file = "tools/fragments.py"
+old = '''    first = next((line for line in lines if line.strip()), "")'''
+new = '''    first = next((line for line in lines if line), "")'''
+kills = "tests/test_fragments.py::test_a_whitespace_only_first_line_is_not_read_as_the_opening"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260902 · the eighth pass — the line the renderer sees
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# One row, and it is the first on this file to come from asking what the *renderer* does rather than
+# what the code does. `splitlines()` breaks on eight characters Markdown treats as ordinary text, so
+# `## A lesson (20260901 07:10)\x0cmore` reached the stamp arm as `## A lesson (20260901 07:10)` and
+# passed, while python-markdown 3.10.3 rendered one `<h2>` whose visible text ran past the stamp.
+# Two sentences already asserted this could not happen — the comment at the arm, and
+# `docs/VERIFICATION.md`'s row 2 — and both were false for those eight characters. The fix makes
+# them true; this row is what keeps them true.
+
+[[mutant]]
+name = "DISCRIMINATING — the opening is chosen with `splitlines`, so a form feed ends the heading and trailing text after the stamp passes"
+file = "tools/fragments.py"
+old = '''    lines = text.split("\n")'''
+new = '''    lines = text.splitlines()'''
+kills = "tests/test_fragments.py::test_the_stamp_must_end_the_real_line_not_a_break_python_invents"
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260902 · the ninth pass — the stamp arm reads the heading
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# The stamp arm ran against `first` — whatever line happened to be non-blank first — so a fragment
+# opening with an HTML comment above a *correct* stamped heading was told its heading lacked the
+# stamp it carries. One true message and one false one, the pair the byte-order-mark arm was fixed
+# to stop producing, reached from a different input. Four rows above had to be repointed from
+# `first` to `heading` for this, which is why these two matter: an anchor that moves for a fix is a
+# row that stopped testing what it was written for until somebody re-derived it.
+#
+# The second row is the one that is easy to get wrong. Falling back to `""` rather than `first`
+# looks equivalent — a headingless fragment still collects both messages either way, so
+# `test_a_fragment_that_is_neither_reports_both_problems` stays green. It is the *malformed*
+# opening that separates them: `##  A lesson (20260901 07:10)` has no `_OPENING` match, so an empty
+# fallback sends it to the stamp arm with nothing to read and it is told its stamp is missing when
+# it is correct. Measured, not reasoned — which test dies was read off a run, after a first draft
+# of the test's own docstring named the wrong one.
+
+[[mutant]]
+name = "the stamp arm reads whatever line is first again, so a correct heading below a comment is called unstamped"
+file = "tools/fragments.py"
+old = '''    heading = next((line for line in lines if _OPENING.match(line)), first)'''
+new = '''    heading = first'''
+kills = "tests/test_fragments.py::test_the_stamp_arm_reads_the_heading_and_not_whatever_line_is_first"
+
+[[mutant]]
+name = "DISCRIMINATING — the fallback is empty rather than the opening line, so a malformed heading loses its correct stamp"
+file = "tools/fragments.py"
+old = '''    heading = next((line for line in lines if _OPENING.match(line)), first)'''
+new = '''    heading = next((line for line in lines if _OPENING.match(line)), "")'''
+kills = "tests/test_fragments.py::test_the_separator_is_one_space_and_the_gate_is_stricter_than_the_renderer"

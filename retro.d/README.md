@@ -35,6 +35,23 @@ from memory in one morning, out by 1 minute, 2 minutes and **3 hours 30 minutes*
 whose own subject was measurement discipline. The largest drifts furthest precisely because nothing
 prompts you to look. **`date -u "+%Y%m%d_%H%M"` once; paste it into both places.**
 
+**The opening is `## ` exactly — two hashes, one space, and nothing before them.** `python3
+tools/fragments.py --check` refuses anything else. The three near misses are refused because each
+would break the spliced document a different way — measured 20260901 against the renderer that
+builds the site, and re-derived independently before this was written:
+
+| what you saved | what `docs/RETROSPECTIVES.md` would show |
+|---|---|
+| `' ## A lesson'` (one leading space) | a **paragraph** under the previous fragment's heading — your lesson, filed as somebody else's incident |
+| `'\t## A lesson'` (a leading tab) | a **code block**, heading text and all |
+| `'##A lesson'` (no space) | a correct heading that `tools/markdown_link_gate.py` cannot see, so nothing may link to it |
+
+One leading space is enough: Python-Markdown is stricter here than CommonMark, which would allow
+three.
+
+**Save the file as UTF-8 without a byte-order mark.** The mark is invisible in an editor, and
+`render` splices it into the middle of the document, where it belongs to nothing.
+
 Fragments are spliced **before** the design-review-passes section, which stays at the foot.
 
 **Never link to another fragment by filename.** Splicing puts every fragment into one

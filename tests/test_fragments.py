@@ -470,7 +470,14 @@ def test_the_bullet_rule_never_reaches_the_free_form_stream(repo: Path) -> None:
     **The `###` heading in the fixture is load-bearing.** The bullet rule only ever reads a `###`,
     so a fixture built from `##` alone exercises nothing and the scoping guard could be deleted
     with this test still green — which is what the mutation pass reported. The real document
-    carries thirty-four `###` headings, every one of them opening with prose."""
+    carried 42 `###` headings at `0aea036` (`grep -c '^### ' docs/RETROSPECTIVES.md`), 41 of
+    them opening with prose. The forty-second is `### Smaller things` at line 2679, which opens
+    with a `- ` bullet — the exact shape the changelog arm refuses, sitting in the stream this
+    test says the arm never reaches, so the scoping is load-bearing and not decorative.
+    **The count is stamped with the commit it was measured
+    at, because it grows at every release** — an unstamped one was written here as
+    *thirty-four*, copied from here into a second docstring, and was 42 by the time anybody
+    counted."""
     write(
         repo,
         "docs/RETROSPECTIVES.md",
@@ -478,7 +485,7 @@ def test_the_bullet_rule_never_reaches_the_free_form_stream(repo: Path) -> None:
         "A paragraph, which is what this document is made of.\n\n"
         "### The review pass over I1's own diff\n\n"
         "Three defects, all in the new check — prose under a `###`, which the real document does "
-        "thirty-four times.\n\n"
+        "dozens of times.\n\n"
         "## Design review passes 1-7 (pre-implementation)\n\nfooter\n",
     )
 
@@ -593,7 +600,7 @@ def test_apply_is_one_step_or_none_across_every_stream(repo: Path) -> None:
         "## Design review passes 1-7 (pre-implementation)\n\nfooter\n",
     )
     write(repo, "changelog.d/added-one.md", "- **A changelog thing.**")
-    write(repo, "retro.d/a-lesson.md", "Retro prose.")
+    write(repo, "retro.d/a-lesson.md", "## A lesson\n\nRetro prose.")
     before = changelog(repo)
 
     result = run(repo, "--apply")
@@ -727,3 +734,400 @@ def test_check_validates_the_exact_bytes_apply_writes(repo: Path) -> None:
         assert predicted[name] == (repo / target).read_text(encoding="utf-8"), (
             f"{name}: --check validated bytes --apply did not write"
         )
+
+
+def test_a_retro_fragment_with_no_heading_of_its_own_is_refused(repo: Path) -> None:
+    """The fragment does not become malformed — it becomes **somebody else's retrospective**.
+
+    `render` joins bodies with a blank line, so prose with no `##` of its own lands under whichever
+    fragment sorts before it. The spliced document is well-formed markdown asserting something
+    false about which increment the lesson came from, and the reader who could have noticed is the
+    one who no longer can: by release time the fragment that would have explained it is deleted."""
+    write(repo, "retro.d/20260901_0710-a-lesson.md", "Prose that starts straight in.\n")
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "20260901_0710-a-lesson.md" in result.stderr
+    assert "must open with its own `## ` heading" in result.stderr
+
+
+def test_a_headingless_fragment_is_invisible_to_the_checker_that_reads_the_document(
+    repo: Path,
+) -> None:
+    """**Why the rule lives in `check` and not in `document_problems`** — the ruling's own words,
+    turned into the assertion that holds them.
+
+    `document_problems` reads the assembled document, and absorption leaves nothing there to find:
+    the result is a correct document. So this asserts the negative directly — the document checker
+    returns *no* problems on the very assembly the fragment checker refuses — and then asserts the
+    absorption itself, that the orphaned prose really does land under the previous fragment's
+    heading. Without both halves, "put it in `document_problems` instead" reads as a free
+    simplification.
+
+    A test asserting a **non**-behaviour has no fix to revert, so reverting proves nothing about
+    it. It is run forward instead: delete the `heading_problems` call from `check` and the first
+    assertion below still passes, which is the point — that is the state this test describes."""
+    spec = importlib.util.spec_from_file_location("_fragments", TOOL)
+    assert spec is not None and spec.loader is not None
+    module: Any = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+
+        write(repo, "retro.d/20260901_0700-first.md", "## First (20260901 07:00)\n\nIts own body.")
+        write(repo, "retro.d/20260901_0710-orphan.md", "Prose belonging to nobody.")
+
+        stream = module.STREAMS["retrospectives"]
+        assembled = module.prospective(stream, repo)
+        assert assembled is not None
+        document = module.document_problems(stream, assembled)
+    finally:
+        del sys.modules[spec.name]
+
+    assert document == [], (
+        "the assembled document is well-formed — absorption is invisible to a checker that reads "
+        f"the result, which is why the rule reads the fragments going in: {document}"
+    )
+
+    orphan = assembled.index("Prose belonging to nobody.")
+    heading = assembled.index("## First (20260901 07:00)")
+    assert heading < orphan, "the orphan follows the heading it would be read as belonging to"
+    assert "##" not in assembled[heading + 2 : orphan], (
+        "nothing separates them: the orphaned prose reads as part of the first fragment's incident"
+    )
+
+    assert run(repo, "--stream", "retrospectives", "--check").returncode == 1
+
+
+def test_a_third_level_heading_does_not_open_a_fragment(repo: Path) -> None:
+    """The heading arm on its own, with the stamp arm satisfied — the only way to isolate it, since
+    the stamp lives inside the heading and a fragment with no heading fails both.
+
+    `###` is the level `render` gives a *changelog* category, and `docs/RETROSPECTIVES.md` carries
+    42 of them at `0aea036` **inside** entries. A fragment opening at that level is a section of
+    something, and the something is whatever precedes it."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        "### A lesson (20260901 07:10)\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "must open with its own `## ` heading" in result.stderr
+    assert "must carry" not in result.stderr, "the stamp is correct; only the level is wrong"
+
+
+def test_a_heading_whose_stamp_disagrees_with_the_filename_is_refused(repo: Path) -> None:
+    """One minute out, which is the drift nothing prompts you to check.
+
+    The stamp is a *copy* of the filename's prefix — one reading of the clock written twice — and
+    a second reading is a second chance to be wrong. On 20260826 three headings were typed from
+    memory in one morning, out by 1 minute, 2 minutes and 3 hours 30 minutes; only the filename can
+    settle which was meant."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        "## A lesson (20260901 07:11)\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "(20260901 07:10)" in result.stderr, "the message names the stamp the filename requires"
+    assert "must open with its own" not in result.stderr, "the heading is fine; the stamp is not"
+
+
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "## A lesson (20260901)",
+        "## A lesson — 20260901 07:10",
+        "## A lesson (20260901 07:10 UTC)",
+        "## A lesson ((20260901 07:10))",
+        "## A lesson (20260901 0710)",
+        "## A lesson ( (20260901 07:10) )",
+        "## A lesson [(20260901 07:10)]",
+        "## A lesson x(20260901 07:10)x",
+    ],
+)
+def test_nothing_looser_than_the_ruled_stamp_is_accepted(repo: Path, heading: str) -> None:
+    """**A gate that accepts three spellings of a stamp is not checking the stamp.** Each of these
+    is a plausible near-miss a writer would defend, and each breaks the property the rule is for:
+    the heading and the filename can no longer be compared by equality, so nothing can tell a
+    correct stamp from a remembered one. Accepting the ruled form and nothing else was the
+    decision, so this is the assertion that keeps it from being loosened by sympathy."""
+    write(repo, "retro.d/20260901_0710-a-lesson.md", f"{heading}\n\nProse.\n")
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "(20260901 07:10)" in result.stderr
+
+
+def test_a_fragment_with_no_prefix_owes_a_heading_and_not_a_stamp(repo: Path) -> None:
+    """The exemption, and its exact width. Fragments predating the naming rule have no prefix to
+    copy, so there is nothing to compare a stamp against and the stamp arm cannot run. The heading
+    arm is unaffected — absorption does not care when the file was named."""
+    write(repo, "retro.d/a-lesson.md", "## A lesson\n\nProse.\n")
+
+    assert run(repo, "--stream", "retrospectives", "--check").returncode == 0
+
+    write(repo, "retro.d/a-lesson.md", "Prose with no heading.\n")
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "must open with its own `## ` heading" in result.stderr
+    assert "must carry" not in result.stderr, "there is no prefix to require a stamp against"
+
+
+def test_a_fragment_that_is_neither_reports_both_problems(repo: Path) -> None:
+    """Two mistakes with two fixes, so two messages. A single "malformed fragment" line would send
+    a writer who adds a heading straight back for a second round over the stamp."""
+    write(repo, "retro.d/20260901_0710-a-lesson.md", "Prose with no heading at all.\n")
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "must open with its own `## ` heading" in result.stderr
+    assert "(20260901 07:10)" in result.stderr
+
+
+def test_the_stamp_arm_reads_the_heading_and_not_whatever_line_is_first(repo: Path) -> None:
+    """A comment above a *correct* stamped heading was told the heading lacked its stamp.
+
+    One true message — the fragment does not open with its `## ` heading, and `render` splices it
+    under whichever fragment sorts before it — and one false one, about a stamp sitting three lines
+    down and spelled exactly right. That pair is the failure the byte-order-mark arm was fixed to
+    stop producing, reached from a different input: a writer who obeys the false half edits a
+    correct line, and a message that sends someone to break working text costs more than the
+    silence it replaces.
+
+    The refusal itself is unchanged and must stay — `retro.d/README.md` § Contents says the
+    fragment *opens* with its heading, and an HTML comment above it means it does not. Only the
+    second message goes.
+
+    Pinned against the fallback too, and the fallback's guard is not the test it looks like.
+    Falling back to `""` instead of `first` leaves *this* test green, and leaves
+    `test_a_fragment_that_is_neither_reports_both_problems` green as well — a fragment with no
+    heading collects both messages either way. What dies is
+    `test_the_separator_is_one_space_and_the_gate_is_stricter_than_the_renderer`: a *malformed*
+    opening has no `_OPENING` match either, so an empty fallback hands the stamp arm nothing to
+    read and it condemns a stamp that is spelled correctly. Read off a run — a first draft of this
+    paragraph reasoned its way to the other test and was wrong."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        "<!-- an editorial note -->\n\n## A lesson (20260901 07:10)\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "must open with its own `## ` heading" in result.stderr
+    assert "must carry" not in result.stderr, "the heading three lines down carries the stamp"
+    assert result.stderr.count("20260901_0710-a-lesson.md") == 1, "one fault, named once"
+
+
+def test_the_heading_rule_never_reaches_the_changelog_stream(repo: Path) -> None:
+    """`changelog.d/` fragments are `- ` bullets that `render` merges under a category heading it
+    synthesises for them; a heading of their own is the defect `document_problems` already
+    refuses. Requiring one here would refuse the format that stream exists for — the mirror of the
+    bullet rule's scoping, and the same reason."""
+    write(repo, "changelog.d/20260901_0710-added-one.md", "- **A new thing.**")
+
+    assert run(repo, "--stream", "changelog", "--check").returncode == 0
+
+
+def test_a_byte_order_mark_is_named_rather_than_reported_as_a_missing_heading(repo: Path) -> None:
+    """A fragment saved as "UTF-8 with BOM" opens with `\\ufeff## …`, so `startswith("## ")` is
+    False about a heading that is plainly there.
+
+    **Refusing it is right and the first draft's reason was wrong.** `render` would splice the mark
+    into the *middle* of `docs/RETROSPECTIVES.md`, where it is invisible and belongs to nothing —
+    so the fragment must not pass. But a message sending the writer to add the heading they already
+    wrote is worse than no message: it is the failure
+    `test_the_duplicate_message_names_the_mechanism_that_belongs_to_the_stream` already rules
+    against, an error naming the wrong cause. `tools/build_rfc_corpus.py` strips a BOM from
+    ingested text with a comment saying why, so this is an input class this repository has met."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        "﻿## A lesson (20260901 07:10)\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "byte-order mark" in result.stderr
+    assert "must open with its own" not in result.stderr, "the heading is there; the mark is not it"
+    assert "must carry" not in result.stderr, "and the stamp is right once the mark is stripped"
+
+
+@pytest.mark.parametrize(
+    ("opener", "shown"),
+    [
+        (" ## A lesson (20260901 07:10)", "' ##"),
+        ("\t## A lesson (20260901 07:10)", "'\\t##"),
+    ],
+    ids=["leading-space", "leading-tab"],
+)
+def test_a_heading_hidden_by_leading_whitespace_is_quoted_with_the_whitespace_showing(
+    repo: Path, opener: str, shown: str
+) -> None:
+    """The refusal was right and the message was unreadable, which is the same defect as the BOM.
+
+    Refusing both is right, and not for one reason. Measured 20260901 against Python-Markdown with
+    `mkdocs.yml`'s own extension list: `" ## A lesson"` renders as a **paragraph** under the
+    previous fragment's heading — absorbed, the mechanism the gate exists for, and one leading
+    space is enough because Python-Markdown is stricter than CommonMark — while `"\t## A lesson"`
+    renders as a **code block**. Both also mint an anchor from `anchors_of`
+    (`tools/markdown_link_gate.py`, a regex allowing three leading spaces) that the built page does
+    not have, so a link to either passes the link gate and 404s on the site.
+
+    **What it said was not.** The message quoted the offending line `.strip()`ped, so it read *must
+    open with its own `## ` heading, and opens with `'## A lesson (20260901 07:10)'`* — a complaint
+    and a counter-example to itself, naming the one character the writer cannot see and then
+    deleting it. Found by running the gate, not by reading it: a probe fed it a leading space and a
+    leading tab and both came back with the same self-contradicting line.
+
+    **The positive assertion is the one that kills the mutant, and this paragraph said the
+    opposite until it was run.** Restore the `.strip()` and the message shows `'## A lesson …'`:
+    the whitespace is missing, so `assert shown in result.stderr` fails first and pytest never
+    reaches the line below it. The negative assertion is not redundant — it is what would catch a
+    message showing the raw line *and* the stripped one beside it, which the positive assertion
+    alone would accept — but it is a guard against a defect nobody has written, not the killer of
+    the one in the battery. The false version of this sentence was copied into `f1de4c1`'s commit
+    message, where it cannot be edited."""
+    write(repo, "retro.d/20260901_0710-a-lesson.md", f"{opener}\n\nProse.\n")
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "must open with its own `## ` heading" in result.stderr
+    assert shown in result.stderr, "the message shows the whitespace that caused the refusal"
+    assert "opens with '## " not in result.stderr, (
+        "quoted stripped, the message contradicts itself and names nothing to fix"
+    )
+    assert "must carry" not in result.stderr, "the stamp is correct; only the opening is hidden"
+
+
+def test_a_byte_order_mark_alone_on_the_first_line_reports_only_itself(repo: Path) -> None:
+    """The same defect as the mark itself, one input shape further in — and it took a second review.
+
+    A mark on its own line leaves `"\\ufeff\\n## A lesson …"`, and `"\\ufeff".strip()` is
+    truthy — so that line was chosen as the fragment's opening line, stripping the mark *there*
+    left `""`, and the heading two lines down was never read. The fragment collected three
+    messages: the true one, plus a missing heading and a missing stamp, about a heading and a
+    stamp that were both already correct.
+
+    Pass 1 added the mark arm precisely so a fragment would not be sent to fix what is right, and
+    then did exactly that to the next input shape. The fix strips the mark from the *text* before
+    the opening line is chosen, which is the only place the choice is not already poisoned."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        "﻿\n## A lesson (20260901 07:10)\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "byte-order mark" in result.stderr
+    assert "must open with its own" not in result.stderr, "the heading is two lines down, and fine"
+    assert "must carry" not in result.stderr, "so is the stamp inside it"
+    assert result.stderr.count("20260901_0710-a-lesson.md") == 1, "one fault, named once"
+
+
+@pytest.mark.parametrize(
+    "opener",
+    [
+        "##  A lesson (20260901 07:10)",
+        "##\tA lesson (20260901 07:10)",
+        "##\t A lesson (20260901 07:10)",
+        "##A lesson (20260901 07:10)",
+    ],
+    ids=["two-spaces", "tab", "tab-then-space", "no-space"],
+)
+def test_the_separator_is_one_space_and_the_gate_is_stricter_than_the_renderer(
+    repo: Path, opener: str
+) -> None:
+    """All four of these render *byte-identically* to the ruled form, and all four are refused.
+
+    Measured 20260902 against Python-Markdown with `mkdocs.yml`'s own extension list: all four —
+    two spaces, a tab, a tab then a space, and no space at all — produce the same
+    `<h2 id="a-lesson-20260901-0710">` as the ruled opening, byte for byte. `anchors_of` mints
+    that anchor for the first three and **nothing** for `"##A lesson"`, which is the only
+    difference between the four that anything downstream can see. **This sentence said *three*
+    until 20260902**: the three whitespace forms had been rendered and the fourth inferred from
+    `anchors_of`'s silence, which answers a different question than the renderer does. So this
+    arm is not about a
+    consequence in the built page — it is about `retro.d/README.md` § Contents saying the opening is
+    `## ` **exactly** and that this checker refuses anything else. A gate accepting a form that
+    sentence excludes makes the sentence false, and the sentence is the thing writers read.
+
+    **The line the code drew before this was drawn by an idiom, not by a decision.**
+    `first.startswith("## ")` accepted `"##  A lesson"` and refused `"##\tA lesson"` — neither the
+    ruled form nor the renderer's tolerance, and stated nowhere. `"##A lesson"` is the fourth case
+    and the only one with a consequence of its own: it renders as a correct heading that
+    `tools/markdown_link_gate.py` cannot see, so nothing may link to it."""
+    write(repo, "retro.d/20260901_0710-a-lesson.md", f"{opener}\n\nProse.\n")
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "must open with its own `## ` heading" in result.stderr
+    assert "must carry" not in result.stderr, "the stamp is correct; only the separator is not"
+
+
+def test_a_whitespace_only_first_line_is_not_read_as_the_opening(repo: Path) -> None:
+    """An editor leaves one behind routinely, and the heading is on the next line.
+
+    `next((line for line in text.split("\n") if line.strip()), "")` picks the first line with
+    something on it, so `"   \n## A lesson …"` opens with the heading and the fragment is correct.
+    Drop the `.strip()` and the blank line becomes the opening: the writer is told the fragment has
+    no `## ` heading *and* no stamp, about a heading and a stamp that are both already right — the
+    exact false-positive class the mark arms exist to prevent, reintroduced by the selector that
+    chooses which line the arms are about.
+
+    Pinned here because it was not pinned anywhere: pass 4 mutated `if line.strip()` to `if line`
+    and all 56 tests stayed green."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        "   \n## A lesson (20260901 07:10)\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    "breaker",
+    ["\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029"],
+)
+def test_the_stamp_must_end_the_real_line_not_a_break_python_invents(
+    repo: Path, breaker: str
+) -> None:
+    """`str.splitlines()` breaks on eight characters Markdown does not, and the arm above asks
+    whether the stamp ends the line it is given. Hand it the part before a form feed and a heading
+    whose visible text runs well past the stamp reads as correctly stamped: python-markdown renders
+    `## A lesson (20260901 07:10)\x0c- trailing text` as a single `<h2>` containing all of it.
+
+    The gate's own comment and `docs/VERIFICATION.md` both say the stamp must *end* the heading, so
+    this is the assertion that makes those two sentences true rather than nearly true. Splitting on
+    `\n` alone is what the renderer does, and it is what the checker now does."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        f"## A lesson (20260901 07:10){breaker}- trailing text after the stamp\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "(20260901 07:10)" in result.stderr
