@@ -7,19 +7,32 @@ neither the `[pdf]` nor the `[claude]` extra installed, and CI's `check` job is 
 over `[light]`, `[light,pdf]` and `[light,pdf,claude]`. The failure was in
 `tests/test_pdf_trace.py` — inside the skipped set, by construction.
 
-**The defect it found was real and had been dormant for a month.**
-`estimate.per_request_eur` computes `(input_usd/r + output_usd/r) / requests`;
-`reservation.cost_eur` computes `(input_usd + output_usd) / r`. A test asserts the two are
-**equal**. They are not the same expression, and in 28-digit `Decimal` they need not agree:
+**The defect it found was real and had been dormant for a month.** A test asserts
+`reservation.cost_eur == estimate.per_request_eur`, and that comparison **straddles the ledger's
+write-time quantisation**: `accountant.py:193` multiplies the EUR estimate back by the rate,
+`ledger.py:139` quantises on write at `1e-6` `ROUND_HALF_UP`, `ledger.py:127` divides back on read.
 
-| rate | `(a/r)+(b/r)` | `(a+b)/r` | equal |
-|---|---|---|---|
-| `1.1596` (seeded) | `0.3048464987926871334943083822` | same | **yes** |
-| `1.159` (2026-09-01 ECB) | `…5452976` | `…5452977` | **no** |
+| rate | `per_request_eur × r` | quantised | read back | equal |
+|---|---|---|---|---|
+| `1.1596` (seeded) | `0.3535000000000000000000000000` | no-op | `…3083822` | **yes** |
+| `1.08` (the original seed) | `0.3535000000000000000000000000` | no-op | `…8148148` | **yes** |
+| `1.159` (2026-09-01 ECB) | `0.3534999999999999999999999999` — one short | snaps **up** | `…5452977` | **no** |
 
-So the assertion had never held *by construction*. It held because one constant happened to make two
-different routes round to the same 28th digit. Refreshing that constant — a step `docs/RELEASING.md`
-requires at every release — is what falsified it.
+So the assertion had never held *by construction*. It held because two successive rates happened to
+make the round trip land exactly on the quantum. Refreshing that constant — a step
+`docs/RELEASING.md` requires at every release — is what falsified it.
+
+**And I published a different mechanism before checking this one.** I read
+`cost_eur = cost_usd / usd_per_eur`, assumed `cost_usd` was the summed USD, and wrote up an
+arithmetic-ordering story — `(a/r)+(b/r)` against `(a+b)/r` — in three documents and a commit
+message. It is a coherent account that predicts the observed digits, which is exactly why it
+survived my own reading. A peer reproduced the real route and refuted it. The fix I recommended on
+the strength of it would have removed the `…9999` from *this fixture* and left the assertion false
+for 66% of a 40 000-case sweep; restricted to `requests == 1` it does hold, which is the trap,
+because the fixture is `requests == 1` and so is any sweep someone writes to check it.
+
+**The rule I am taking from that: an explanation that fits the numbers is a hypothesis, and the
+discriminating step is reading the code path that produces them, not the code path that would.**
 
 **Three things follow, and only the first is about me.**
 

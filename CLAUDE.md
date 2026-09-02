@@ -158,11 +158,13 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   its § 3 is the queue, and its § 4 is a decision that is **the user's, not an agent's**. Read it
   before picking anything up. **Everything below this bullet is background, not a queue.**
 - **🔴 `main` is RED and 0.32.0 is published** (20260902 10:07) — two claims, and only the
-  second is good. The artifact is verified three ways; `fe58be3`'s `check (light pdf claude)`
-  leg fails in `tests/test_pdf_trace.py`, run `33617680970`. Refreshing `usd_per_eur` to
-  `1.159` separated `(a/r)+(b/r)` from `(a+b)/r` in the 28th digit — a test that had been
-  passing on a coincidence of the old rate. **Fix in flight; do not build on `main` until it
-  is green.** The **20260830** red build, that release and its
+  second is good. The artifact is verified three ways; **both** `[pdf]` legs fail in
+  `tests/test_pdf_trace.py` (runs `33617680970`, `33619808323` — the named job differs only
+  because fail-fast cancels the slower leg). Refreshing `usd_per_eur` to `1.159` made the
+  estimate's EUR→USD round trip land on `…9999`, which `ledger.py`'s write-time `quantise`
+  snaps **up**: the value read back is one ULP above the estimate. The assertion straddles that
+  quantisation boundary and is unholdable in general — it fails for 66% of a 40 000-case sweep.
+  **Fix in flight; do not build on `main` until it is green.** The **20260830** red build, that release and its
   fourteen document defects are all **closed** — but read
   [`plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md`](plans/20260830_0927-main-is-red-and-a-review-that-half-ran.md)
   anyway, because what it now carries is not that incident. It holds the **22 findings nobody had ever
