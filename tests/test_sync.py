@@ -3224,7 +3224,9 @@ def test_an_indexed_document_that_becomes_unreadable_is_held_not_deleted(
     assert after["docs/c.md"]["state"] == "active", "a permission change became a deletion"
     assert after["docs/c.md"]["content_hash"] == before["docs/c.md"]["content_hash"]
     assert report.deleted == 0
-    assert chunks_for(kb, "docs/c.md") > 0, "held means its chunks stay searchable"
+    assert chunks_for(kb, "docs/c.md") > 0, (
+        "its chunks are still in the index — what is measured here is the count, not a search hit"
+    )
 
 
 def test_an_unreadable_documents_sidecar_is_never_offered_to_prune(
