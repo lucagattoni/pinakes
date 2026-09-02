@@ -229,10 +229,37 @@ def _toml_basic(value: object) -> object:
     variable carrying user text inherits this without anyone remembering to, and that is the whole
     reason it lives here instead of beside the one call site (S4, in the sweep plan).
 
-    **Non-strings are returned untouched**, and one of them is load-bearing:
+    **What passes through bare is an allow-list, and it is one entry long.** `int` — because
     `dim = {{ embedding_dim }}` is the only variable this build interpolates *outside* a quoted
     string, and `Manifest.embedding.dim` is an `int`. Escaping is a string operation on a string
-    position; a bare `int` has neither.
+    position; a bare `int` has neither. **Everything else is stringified and escaped**, which is
+    the half a review pass found missing: the guard used to read *not a `str`*, so a `Path`
+    carrying a quote went out raw and wrote the same unparseable manifest S4 exists to prevent.
+    Jinja calls `str()` on whatever this returns, so declining to inspect a value is declining to
+    make it safe.
+
+    **`bool` is inside the allow-list, and excluding it was tried and measured out.** It is an
+    `int` in Python, so `isinstance` admits it; `str(True)` is `True` where TOML's literal is
+    `true`, which reads like a reason to escape it instead. It is not one: **this function escapes
+    content and never adds quotes**, so a bool renders `True` from either branch — bare at
+    `dim = {{ embedding_dim }}`, and inside the template's own quotes at `name = "{{ name }}"`.
+    The exclusion had no observable effect at any interpolation in this file, which made it code
+    no test could pin and a battery row that would have survived. It was removed for that reason.
+
+    **Some values have no TOML representation at all, and those raise.** A lone surrogate
+    (U+D800-U+DFFF) cannot appear in a basic string raw — the grammar admits `%x80-D7FF` and
+    `%xE000-10FFFF` and skips the gap — and cannot appear escaped either, since `\\uXXXX` must name
+    a Unicode scalar value. It reaches here routinely rather than exotically: POSIX decodes an
+    invalid UTF-8 byte in `sys.argv` or in a directory name with `surrogateescape` (PEP 383), so
+    `pnk init --name $'kb-\\xff'` and a non-UTF-8 directory name both produce one. Left alone it
+    crashed `init` with a raw `UnicodeEncodeError` from `Path.write_text` **after** the manifest
+    had been created and truncated — a zero-byte `pinakes.toml`, a directory `init` then refuses as
+    *already a KB*, which is S4's own end state reproduced by S4's own fix. Raising here fires
+    inside `render_manifest`, before `init` creates anything.
+
+    **The message names the code point and never echoes the value.** A name that carries an
+    unpaired surrogate can carry an ANSI escape beside it, and this message is printed to a
+    terminal.
 
     **The region this cannot reach, stated rather than implied.** Escaping makes a value safe inside
     a basic string. It does not make a value safe interpolated into a *literal* string (`'...'`,
@@ -241,13 +268,23 @@ def _toml_basic(value: object) -> object:
     supplies lands inside a basic string except `embedding_dim`, which is never user text; a
     third-party template that arranges otherwise is outside what this can promise.
     """
-    if not isinstance(value, str):
+    if isinstance(value, int):
         return value
+    # `str()` on a `StrictUndefined` raises `UndefinedError`, which is what `_render` turns into a
+    # message. Stringifying here does not swallow that; it is how the raise reaches the handler.
+    text = value if isinstance(value, str) else str(value)
     out: list[str] = []
-    for character in value:
+    for character in text:
         escape = _TOML_ESCAPES.get(character)
         if escape is not None:
             out.append(escape)
+        elif "\ud800" <= character <= "\udfff":
+            raise TemplateError(
+                f"a value for this manifest holds U+{ord(character):04X}, an unpaired surrogate, "
+                "which TOML cannot represent raw or escaped.",
+                remedy="This is what an invalid UTF-8 byte becomes when Python decodes an argument "
+                "or a filename. Pass a --name that is valid UTF-8, or rename the directory.",
+            )
         elif character != "\t" and (character < " " or character == "\x7f"):
             # No legal raw form in a basic string, and no single-letter escape reserved for it.
             out.append(f"\\u{ord(character):04x}")

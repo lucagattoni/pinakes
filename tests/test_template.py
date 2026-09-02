@@ -7,9 +7,14 @@ The KB was bricked at the moment of creation and there was no repair: `pnk init`
 that is already a KB, so the remedy surface was empty and recovery meant hand-editing TOML.
 
 **These tests are about the mechanism, not about `--name`.** The fix is a `finalize` hook on the
-Jinja template, so the property under test is *every interpolated value is safe*, and the tests that
-matter most are the ones that would still pass if someone re-broke `--name` alone: the controls at
-the bottom of this file.
+Jinja template, so the property under test is *every interpolated value is either made safe or
+refused*, and the tests that matter most are the ones that would still pass if someone re-broke
+`--name` alone: the controls at the bottom of this file.
+
+**"Or refused" is not a hedge — it is a class the first pass of this file missed.** A lone
+surrogate has no TOML representation raw or escaped, so there is nothing for an escaper to
+produce; it used to reach `Path.write_text` and leave a zero-byte manifest behind. Escaping is
+what most values need. Some need a message.
 """
 
 import tomllib
@@ -111,7 +116,8 @@ def test_a_backslash_path_that_stays_valid_toml_still_reads_back_unchanged() -> 
     `C:\\notes` is the quiet one. Its only backslash sequence is `\\n`, which **is** legal — so
     without escaping it parses cleanly and reads back as `C:`, a newline, and `otes`. `pnk doctor`
     would call that KB healthy under a name nobody typed. Nothing in this file reached that case
-    until the battery's row 3 died on a `TOMLDecodeError` instead of on an equality — the same
+    until the battery's *a backslash is left raw* row died on a `TOMLDecodeError` instead of on
+    an equality — the same
     mutant passing for the wrong reason.
     """
     value = "C:\\notes"
@@ -207,3 +213,54 @@ def test_a_variable_this_build_does_not_supply_still_raises_a_message_not_a_trac
         template.render_manifest("notes", {"name": "kb"})
 
     assert "needs a variable this build does not supply" in str(raised.value)
+
+
+def test_a_name_holding_an_unpaired_surrogate_is_refused_before_anything_is_created(
+    tmp_path: Path,
+) -> None:
+    """The one value class escaping cannot rescue, and the state it used to leave behind.
+
+    TOML admits `%x80-D7FF` and `%xE000-10FFFF` raw and skips the surrogate gap, and `\\uXXXX`
+    must name a Unicode scalar value — so U+D800-U+DFFF has no representation either way.
+    Unescaped it reached `Path.write_text`, which **creates and truncates before the UTF-8
+    encoder raises**: a zero-byte `pinakes.toml`, a directory `init` then refuses as *already a
+    KB*, and a raw traceback. That is S4's own end state, reproduced by S4's own fix.
+
+    The assertion on `exists()` is the load-bearing half. A refusal that still left the directory
+    behind would satisfy the `raises` alone while leaving the KB exactly as bricked.
+    """
+    root = tmp_path / "kb"
+
+    with pytest.raises(TemplateError):
+        init(root, name="kb-\udcff-name", now="20260902 11:29")
+
+    assert not root.exists()
+
+
+def test_the_refusal_names_the_code_point_and_never_echoes_the_value(tmp_path: Path) -> None:
+    """A name that carries an unpaired surrogate can carry an ANSI escape beside it.
+
+    This message is printed to a terminal, so it identifies the character by code point rather
+    than by showing it. Echoing the value would make the remedy for one unprintable-byte problem
+    into a delivery mechanism for another.
+    """
+    with pytest.raises(TemplateError) as raised:
+        init(tmp_path / "kb", name="kb-\udcff-\x1b[31m", now="20260902 11:29")
+
+    message = f"{raised.value} {raised.value.remedy}"
+    assert "U+DCFF" in message
+    assert "\udcff" not in message
+    assert "\x1b" not in message
+
+
+def test_a_context_value_that_is_not_a_string_is_escaped_rather_than_passed_through() -> None:
+    """The guard is an allow-list, and this is the half that used to be missing.
+
+    It read *not a `str`*, so anything that was not one went out untouched — and Jinja calls
+    `str()` on whatever `finalize` returns, so declining to inspect a value is declining to make
+    it safe. A `Path` carrying a quote wrote the same unparseable manifest S4 exists to prevent.
+    No call site in this build supplies one; the mechanism claim is what makes it a defect.
+    """
+    rendered = template.render_manifest("notes", _context(name=Path('a"b')))
+
+    assert tomllib.loads(rendered)["kb"]["name"] == 'a"b'

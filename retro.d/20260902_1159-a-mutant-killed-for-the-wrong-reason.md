@@ -6,7 +6,7 @@ not measuring what its row claimed, and the count could not say so.
 The row is named *"a backslash is left raw, so a Windows-style path parses as a name nobody
 typed"*. It removes the `\\` entry from `_TOML_ESCAPES`, and its whole point is the **quiet**
 failure — a manifest that parses, that `pnk doctor` calls healthy, holding a name the user never
-typed. It killed through the eleven-character corpus, whose backslash value is `C:\notes\kb`.
+typed. It killed through the eleven-value corpus, whose backslash value is `C:\notes\kb`.
 
 **That value cannot demonstrate the property.** It contains `\k`, which TOML defines as nothing at
 all, so `tomllib` **rejects** the file:

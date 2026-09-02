@@ -15,9 +15,10 @@
 #
 # The claim is true of a *different* value. `C:\notes` alone contains only `\n`, which is legal, so
 # without escaping it parses cleanly and means `C:`, a newline, `otes`. That case reached no test
-# until the mutation run exposed it, and row 3 below now kills through
+# until the mutation run exposed it, and *a backslash is left raw, so a Windows-style path parses as a name nobody typed*
+# now kills through
 # `test_a_backslash_path_that_stays_valid_toml_still_reads_back_unchanged` rather than through the
-# eleven-character corpus — so the row asserts *round-trips*, which is what its name claims, instead
+# eleven-value corpus — so the row asserts *round-trips*, which is what its name claims, instead
 # of passing on *parses*, which is the weaker property it was accidentally resting on.
 #
 # **Four of the tests these rows kill through are controls that pass without the fix**, so they can
@@ -46,7 +47,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 6
+mutants = 9
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260902 · a value a user typed cannot change what the manifest MEANS
@@ -74,7 +75,7 @@ kills = "tests/test_template.py::test_a_name_in_any_class_the_sweep_named_render
 # **The row that distinguishes parsing from meaning**, and the only one whose `kills` deliberately
 # names a single-value test rather than the corpus. `C:\notes` is syntactically fine without any
 # escaping — `\n` is a legal TOML escape — so it parses and means `C:`, a newline, `otes`, and a
-# KB reports healthy under a name nobody typed. Pointed at the eleven-character corpus this row
+# KB reports healthy under a name nobody typed. Pointed at the eleven-value corpus this row
 # died on `\k` being an illegal escape instead, which is the mutant passing for the wrong reason.
 [[mutant]]
 name = "a backslash is left raw, so a Windows-style path parses as a name nobody typed"
@@ -116,8 +117,51 @@ kills = "tests/test_template.py::test_a_tab_is_left_raw_rather_than_escaped"
 [[mutant]]
 name = "the non-string guard quotes what it passes through, so the bare dimension becomes a string"
 file = "src/pinakes/template.py"
-old = """    if not isinstance(value, str):
+old = """    if isinstance(value, int):
         return value"""
-new = """    if not isinstance(value, str):
+new = """    if isinstance(value, int):
         return f'"{value}"'"""
 kills = "tests/test_template.py::test_the_embedding_dimension_stays_a_bare_integer"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260902 · and a value TOML cannot represent is refused before anything is created
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Added by an adversarial review's second pass, which found the arm the first six rows had no
+# reason to look at: **not every value can be escaped.** A lone surrogate (U+D800-U+DFFF) has no
+# TOML form raw or escaped, and POSIX hands one over routinely — `surrogateescape` is what an
+# invalid UTF-8 byte in `sys.argv` or a directory name becomes. Unescaped it reached
+# `Path.write_text`, which creates and truncates *before* the encoder raises: a zero-byte
+# `pinakes.toml` and a directory `init` then refuses as *already a KB*. **S4's own end state,
+# reproduced by S4's own fix**, which is why these rows exist rather than a note.
+#
+# The same review found the guard was a deny-list — *not a `str`* — so anything that was not one
+# went out untouched, and Jinja stringifies whatever `finalize` returns. Two of the rows below
+# aim at the allow-list that replaced it.
+
+[[mutant]]
+name = "the surrogate arm is removed, so an unrepresentable value reaches Path.write_text again"
+file = "src/pinakes/template.py"
+old = "        elif \"\\ud800\" <= character <= \"\\udfff\":"
+new = '        elif False:'
+kills = "tests/test_template.py::test_a_name_holding_an_unpaired_surrogate_is_refused_before_anything_is_created"
+
+# The refusal message is printed to a terminal, and the value that triggered it is by definition
+# one nobody can print safely — a name carrying an unpaired surrogate can carry an ANSI escape
+# beside it. This mutant is the obvious "helpful" edit: show the user what they typed.
+[[mutant]]
+name = "the refusal echoes the value it is refusing, straight to the terminal"
+file = "src/pinakes/template.py"
+old = '                f"a value for this manifest holds U+{ord(character):04X}, an unpaired surrogate, "'
+new = '                f"a value for this manifest holds {text!r}, an unpaired surrogate, "'
+kills = "tests/test_template.py::test_the_refusal_names_the_code_point_and_never_echoes_the_value"
+
+# **The regression this whole section exists for.** Reverting the allow-list to the deny-list it
+# replaced is a one-line edit that looks like a simplification and reopens S4 for every value that
+# is not already a `str`.
+[[mutant]]
+name = "the allow-list reverts to the deny-list, so a non-string goes out unescaped again"
+file = "src/pinakes/template.py"
+old = '    if isinstance(value, int):'
+new = '    if not isinstance(value, str):'
+kills = "tests/test_template.py::test_a_context_value_that_is_not_a_string_is_escaped_rather_than_passed_through"
