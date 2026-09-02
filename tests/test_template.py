@@ -22,9 +22,12 @@ from pinakes.errors import TemplateError
 from pinakes.init import init
 from pinakes.manifest import load
 
-#: One value per class the sweep named, plus the two the verifier widened it with. A `str` here is
-#: a *user's KB name*: it reaches `render_manifest` through `pnk init --name`, and through
-#: `root.name` when no flag is passed at all.
+#: The three classes S4 named — `"`, `\`, and control characters other than tab — opened out into
+#: eleven values. The eight control characters are four with a single-letter TOML escape (`\n`,
+#: `\r`, `\b`, `\f`) and four with none, which must take `\uXXXX`, so both arms of the escaper are
+#: exercised. `backslash` is the verifier's widening (a Windows-style path is far likelier than a
+#: quoted name) and `both at once` is the pair. A `str` here is a *user's KB name*: it reaches
+#: `render_manifest` through `pnk init --name`, and through `root.name` when no flag is passed.
 CLASSES: dict[str, str] = {
     "double quote": 'Bob\'s "Special" KB',
     "backslash": r"C:\notes\kb",
@@ -188,9 +191,17 @@ def test_a_variable_this_build_does_not_supply_still_raises_a_message_not_a_trac
     """Regression control on `StrictUndefined`, which the `finalize` hook now runs in front of.
 
     `finalize` is called on the value of every expression *before* Jinja converts it to a string —
-    so it is handed the `StrictUndefined` itself. A hook that stringified its argument, or that
-    tested truthiness rather than type, would swallow the raise here and turn a precise
-    `TemplateError` back into the traceback this arm was written to prevent.
+    so it is handed the `StrictUndefined` itself, and what it does with that decides whether the
+    raise survives.
+
+    **Most wrong hooks are safe by accident, and the review pass measured which.** `str(value)`
+    and a truthiness test both raise `UndefinedError` on the undefined themselves, so neither
+    swallows anything; `isinstance(value, str)` is `False` for it, so `_toml_basic` returns it
+    untouched and Jinja raises when it stringifies. Only a hook that returns something *without
+    ever touching* the undefined — a constant, a sentinel, a caught exception — turns this precise
+    `TemplateError` back into the traceback the arm was written to prevent. That narrow shape is
+    what this test guards, and an earlier version of this docstring named the two safe ones
+    instead.
     """
     with pytest.raises(TemplateError) as raised:
         template.render_manifest("notes", {"name": "kb"})

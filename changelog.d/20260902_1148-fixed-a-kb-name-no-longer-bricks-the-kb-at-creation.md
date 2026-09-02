@@ -17,11 +17,12 @@
   which is never user text — so the promise holds because of what the shipped template looks like,
   not because anything asserts it. Closing that region needs a check that does not go through the
   escaper, and is its own increment.
-- **Added:** `tests/test_template.py` — 30 tests over the eleven characters the sweep named, end to
-  end through `load()` as well as at the render. **Four of them assert that nothing changed** and
-  pass without the fix on purpose: over-escaping is the direction the obvious fix fails in, and a
-  test that only proves the escaper fires cannot catch it. Removing the hook turns 25 red and leaves
-  exactly those four green.
+- **Added:** `tests/test_template.py` — 30 tests over the **three** classes the sweep named (`"`,
+  `\`, and control characters other than tab), opened out into eleven values, end to end through
+  `load()` as well as at the render. **Four of them assert that nothing changed** and pass without
+  the fix on purpose: over-escaping is the direction the obvious fix fails in, and a test that only
+  proves the escaper fires cannot catch it. Removing the hook turns **26** red and leaves exactly
+  those four green — measured by applying `finalize=None` and running the file, not counted.
 - **Added:** `tools/batteries/src-pinakes-template.toml`, the first mutation battery over
   `template.py` — 6 mutants, 6 killed, run rather than inferred from anchors. It found a gap in its
   own increment's tests: the row named *a backslash is left raw* was dying on a `TOMLDecodeError`
