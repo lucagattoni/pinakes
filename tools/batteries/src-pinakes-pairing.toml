@@ -17,7 +17,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 22
+mutants = 32
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -127,23 +127,30 @@ kills = "tests/test_sync.py::test_a_rename_cycle_that_fails_halfway_never_destro
 # unreleased, 20260825 · the population walk opens nothing
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 #
-# `pnk doctor` needs to know *which* documents the KB collects, never their content. Hashing them
-# there would import the walk's own unreadable-file failure into the command you run when the KB is
-# already broken — a raw traceback out of the diagnostic. The mutant is the easy accident: someone
-# simplifies the conditional away and every assertion about `doctor`'s *output* still passes,
-# because the output is identical. Only a test that watches for the `open()` can see it.
+# `pnk doctor` needs to know *which* documents the KB collects, never their content. The mutant is
+# the easy accident: someone simplifies the fast path away and every assertion about `doctor`'s
+# *output* still passes, because the output is identical. Only a test that watches for the `open()`
+# can see it.
+#
+# **This paragraph used to rest on a second reason that is no longer true, and the row is kept for
+# the first.** It read that hashing here "would import the walk's own unreadable-file failure into
+# the command you run when the KB is already broken — a raw traceback out of the diagnostic". S1
+# closed that on 20260902: an unreadable document is now recorded, not raised. What survives is the
+# cost, which was always the stronger half — `MAX_PROBED_PER_ROOT`'s own comment calls opening files
+# here "the worst place to start opening files", and on an SMB or NFS mount each one is a round
+# trip.
 
 [[mutant]]
 name = "the population walk hashes every document again, so `pnk doctor` reads the whole corpus"
 file = "src/pinakes/sync.py"
-old = '''                files[relative] = WalkedFile(
-                    path=relative,
-                    content_hash="" if _documents_only else hash_file(candidate),
-                )'''
-new = '''                files[relative] = WalkedFile(
-                    path=relative,
-                    content_hash=hash_file(candidate),
-                )'''
+# Anchor rewritten 20260902: S1 split this expression into a fast path and a guarded read, so the
+# conditional the row was written against no longer exists as one line. The breakage is unchanged —
+# remove the fast path and every population walk hashes.
+old = '''                if _documents_only:
+                    files[relative] = WalkedFile(path=relative, content_hash="")
+                    continue
+                try:'''
+new = '''                try:'''
 kills = "tests/test_sync.py::test_the_population_walk_never_opens_a_document"
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -433,3 +440,128 @@ file = "src/pinakes/sync.py"
 old = """    return exc.sqlite_errorname == "SQLITE_CONSTRAINT_UNIQUE" and "documents.path" in str(exc)"""
 new = """    return exc.sqlite_errorname == "SQLITE_CONSTRAINT_UNIQUE\""""
 kills = "tests/test_sync.py::test_only_the_documents_path_collision_is_caught_and_every_other_constraint_escapes"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260902 · S1 — an unreadable document is present, not absent
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# `hash_file` let `PermissionError` escape `walk_sources`, so one `chmod 000` file ended `pnk sync`
+# with a raw traceback and no index database at all. That half is loud and rows 1 and 9 cover it.
+#
+# **The other half is why this section belongs in *this* battery and not a new one.** The obvious
+# fix — skip what cannot be read — is a worse defect than the crash, and it is silent: `pair()`
+# retires a row whose path the walk stops reporting, so a permission change would soft-delete the
+# document and drop its chunks while `pnk sync` printed `1 removed`. Every row below 2 is a way to
+# reintroduce exactly that, and each of them leaves a plausible summary behind. That is the
+# guarantee this battery already spans two files for.
+#
+# Rows 3–6 are the hold itself, row 7 the orphan list — which is printed with `pnk doctor --prune`
+# beside it, so getting it wrong hands the user a command that deletes a live document's permanent
+# id.
+
+[[mutant]]
+name = "THE SHIPPED DEFECT — the read is unguarded, so one unreadable file aborts the whole walk"
+file = "src/pinakes/sync.py"
+old = '''                try:
+                    content_hash = hash_file(candidate)
+                except OSError:
+                    # **Caught around the hash, not around the walk.** The read is the only
+                    # operation here that can fail on permissions, and catching wider would swallow
+                    # a genuine `OSError` from `glob` — a walk that quietly returned half a KB is
+                    # the failure this whole channel exists to prevent, not a fix for it.
+                    unreadable.add(relative)
+                    continue
+                files[relative] = WalkedFile(path=relative, content_hash=content_hash)'''
+new = '''                files[relative] = WalkedFile(path=relative, content_hash=hash_file(candidate))'''
+kills = "tests/test_sync.py::test_one_unreadable_document_does_not_abort_the_sync_of_every_other"
+
+[[mutant]]
+name = "the path is skipped but never recorded, so a chmod becomes a deletion instead of a crash"
+file = "src/pinakes/sync.py"
+# The naive fix, and the reason this battery has ten rows rather than one. Nothing raises, the walk
+# completes, `pnk sync` reports `1 removed`, and the document leaves search.
+old = '''                    unreadable.add(relative)
+                    continue'''
+new = '''                    continue'''
+kills = "tests/test_sync.py::test_an_indexed_document_that_becomes_unreadable_is_held_not_deleted"
+
+[[mutant]]
+name = "the hold loop goes entirely, so every unreadable document is retired as vanished"
+file = "src/pinakes/pairing.py"
+old = '''    for path in sorted(unreadable):
+        document = before_by_path.get(path)
+        if document is None or document.state == DELETED:
+            continue  # never indexed, or already retired: there is no row to hold
+        actions.append(Skip(doc_id=document.id, path=path))
+        handled_ids.add(document.id)
+        handled_paths.add(path)'''
+new = '''    for path in sorted(unreadable):
+        _ = path'''
+kills = "tests/test_pairing.py::test_an_unreadable_document_is_held_rather_than_soft_deleted"
+
+[[mutant]]
+name = "the id is not marked handled, so the vanished-path loop still reaches the held document"
+file = "src/pinakes/pairing.py"
+# Emitting the `Skip` is not the guard; marking the id is. Without this line the rename loop matches
+# the held document's *recorded* hash against a genuinely new file and carries the id to it — one
+# id at two paths, in a plan that still looks reasonable.
+old = '''        actions.append(Skip(doc_id=document.id, path=path))
+        handled_ids.add(document.id)
+        handled_paths.add(path)'''
+new = '''        actions.append(Skip(doc_id=document.id, path=path))
+        handled_paths.add(path)'''
+kills = "tests/test_pairing.py::test_an_unreadable_document_is_not_offered_to_another_file_as_a_rename"
+
+[[mutant]]
+name = "a retired row is revived by being unreadable, on the strength of a failed read"
+file = "src/pinakes/pairing.py"
+old = '''        if document is None or document.state == DELETED:
+            continue  # never indexed, or already retired: there is no row to hold'''
+new = '''        if document is None:
+            continue  # never indexed, or already retired: there is no row to hold'''
+kills = "tests/test_pairing.py::test_an_already_retired_row_is_not_revived_by_becoming_unreadable"
+
+[[mutant]]
+name = "a never-indexed unreadable path is not tolerated, so a new locked file crashes the plan"
+file = "src/pinakes/pairing.py"
+old = '''        if document is None or document.state == DELETED:
+            continue  # never indexed, or already retired: there is no row to hold'''
+new = '''        if document.state == DELETED:
+            continue  # never indexed, or already retired: there is no row to hold'''
+kills = "tests/test_pairing.py::test_an_unreadable_path_that_was_never_indexed_produces_no_action"
+
+[[mutant]]
+name = "the orphan set forgets unreadable documents, so --prune is offered a live document's sidecar"
+file = "src/pinakes/pairing.py"
+# Pruning that sidecar destroys a permanent id for a file still on disk. Ids are permanent by
+# invariant; a chmod is not a deletion.
+old = '''    documents = {file.path for file in after.files} | unreadable'''
+new = '''    documents = {file.path for file in after.files}'''
+kills = "tests/test_pairing.py::test_an_unreadable_documents_sidecar_is_not_reported_as_orphaned"
+
+[[mutant]]
+name = "the orphan check is called without the set, which is the same defect one layer out"
+file = "src/pinakes/pairing.py"
+old = '''        orphaned_sidecars=_orphans(after, unreadable),'''
+new = '''        orphaned_sidecars=_orphans(after),'''
+kills = "tests/test_sync.py::test_an_unreadable_documents_sidecar_is_never_offered_to_prune"
+
+[[mutant]]
+name = "the remedy names only the permission, leaving a reader of someone else's tree no way out"
+file = "src/pinakes/sync.py"
+old = '''                "Restore read permission (`chmod +r`), or exclude it in `[sources] exclude`. "
+                "Any index row it already has is held meanwhile, not deleted.",'''
+new = '''                "Restore read permission (`chmod +r`). "
+                "Any index row it already has is held meanwhile, not deleted.",'''
+kills = "tests/test_sync.py::test_the_unreadable_failure_carries_a_remedy_that_names_both_ways_out"
+
+[[mutant]]
+name = "the failure is recorded below the --sidecars-only return, so the pre-commit half goes quiet"
+file = "src/pinakes/sync.py"
+# The half that runs in a git hook, which is the last place an unreadable document should pass in
+# silence — and the placement is invisible in a diff that reads correctly line by line.
+old = '''    report.escaping_patterns = escaping
+    for path in unreadable:'''
+new = '''    report.escaping_patterns = escaping
+    for path in () if options.sidecars_only else unreadable:'''
+kills = "tests/test_sync.py::test_the_pre_commit_half_also_reports_an_unreadable_document"

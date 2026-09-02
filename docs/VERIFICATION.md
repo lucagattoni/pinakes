@@ -1357,3 +1357,40 @@ as the status.
 | a fan-out **still in flight** is not reported as dead, and the override that allows outstanding agents stops applying once the run has ended | — | `tests/test_review_pass_gate.py::test_a_running_fan_out_is_not_reported_as_dead`, `tests/test_review_pass_gate.py::test_a_quiet_fan_out_is_judged_without_the_override` |
 | a dead agent is not *also* reported as empty — the two states carry opposite remedies (a dead agent is **resumed** from cache, an empty one must be **re-run**), so double-reporting prints the wrong instruction beside the right one. Found by mutation; the mutant survived the whole suite | — | `tests/test_review_pass_gate.py::test_a_dead_agent_is_not_also_reported_as_empty` |
 | a bare word after a redirect is not reported as a file — also mutation-found. Against a real fan-out the redirect scan called `0`, `c` and `15,}` recoverable artifacts, picked out of `head -c`, a `2>&1` and a dict literal in a heredoc; the filter that removed them had no test and could have been deleted in silence | — | `tests/test_review_pass_gate.py::test_a_bare_word_after_a_redirect_is_not_reported_as_a_file` |
+
+## One unreadable document does not take down the KB (S1)
+
+A `PermissionError` on a single file aborted the entire walk: `pnk sync` exited on a raw traceback
+out of `sync.py`, `.pinakes/` was never created at all, and `pnk doctor` — the command you run once
+the KB is already broken — died on the same read one layer over. **The rows below exist because the
+obvious fix is worse than the defect.** A walk that merely *skips* an unreadable path emits
+`SoftDelete` for it: the document leaves the index, its chunks are dropped, and `pnk sync` reports
+`1 removed` for a file nobody touched — a loud crash traded for silent index loss. So the path is
+carried out of the walk and held as a `Skip` before any branch that reasons from absence runs, and
+every row here asserts what is **kept**, not merely that nothing raised.
+
+| What must be true | Increment | Where it is checked |
+|---|---|---|
+| a KB holding one unreadable document still gets an index, and every readable document in it is indexed | S1 | `tests/test_sync.py::test_one_unreadable_document_does_not_abort_the_sync_of_every_other` |
+| the run names the file and offers both ways out — restore the permission, or stop collecting it | S1 | `tests/test_sync.py::test_the_unreadable_failure_carries_a_remedy_that_names_both_ways_out` |
+| a document that becomes unreadable keeps its row `active` and its recorded hash unchanged, nothing is counted as removed, its chunks stay in the index, and `pnk search` still answers from them | S1 | `tests/test_sync.py::test_an_indexed_document_that_becomes_unreadable_is_held_not_deleted` |
+| Pinakes never offers to prune the sidecar of a document that is on disk — `--prune` would destroy a live ULID | S1 | `tests/test_sync.py::test_an_unreadable_documents_sidecar_is_never_offered_to_prune`, `tests/test_pairing.py::test_an_unreadable_documents_sidecar_is_not_reported_as_orphaned` |
+| restoring the permission is the whole remedy: nothing is recorded that a later sync has to undo | S1 | `tests/test_sync.py::test_restoring_the_permission_returns_the_sync_to_clean` |
+| `--sidecars-only`, the half that runs inside a git hook, reports it rather than passing in silence | S1 | `tests/test_sync.py::test_the_pre_commit_half_also_reports_an_unreadable_document` |
+| `--rebuild` cannot index what it cannot read and says so, and the document keeps its **permanent ID** when it becomes readable again — this is the only row that reads an ID before and after | S1 | `tests/test_sync.py::test_a_rebuild_cannot_index_an_unreadable_document_and_does_not_invent_it_a_new_id` |
+| an unreadable path is not treated as a deleted one — absence is a `SoftDelete`, and this is not absence | S1 | `tests/test_pairing.py::test_an_unreadable_document_is_held_rather_than_soft_deleted` |
+| a held document's ID cannot be carried off to a different file that happens to share its recorded hash | S1 | `tests/test_pairing.py::test_an_unreadable_document_is_not_offered_to_another_file_as_a_rename` |
+| a failed read never revives a document whose row was already retired | S1 | `tests/test_pairing.py::test_an_already_retired_row_is_not_revived_by_becoming_unreadable` |
+| a file that was never indexed and cannot be read produces no plan at all | S1 | `tests/test_pairing.py::test_an_unreadable_path_that_was_never_indexed_produces_no_action` |
+| `pnk doctor` completes on a KB holding an unreadable paid-extracted document, rather than dying in the command you reach for when things are already wrong | S1 | `tests/test_doctor.py::test_an_unreadable_paid_document_does_not_crash_the_whole_diagnosis` |
+| `doctor` names the document whose staleness it could not decide, instead of reporting `stale: none` and being silent about it | S1 | `tests/test_doctor.py::test_paid_extraction_unreadable_names_the_document_whose_staleness_is_undecided` |
+
+**Two of these pin less than they appear to, recorded because a row claiming more than its test
+delivers is worse than no row.** Every `test_pairing.py` test above fails on `main` with a
+`TypeError` — `pair()` has no `unreadable=` keyword there — so the red is unavoidable and is not by
+itself evidence of a behavioural difference. Three of the five open with a control assertion that
+passes on `main` and carries the claim: absence is a `SoftDelete`, a hash match becomes a `Rename`,
+a sidecar beside no walked file is an orphan. **The two that have none** —
+`test_an_unreadable_path_that_was_never_indexed_produces_no_action` and
+`test_an_already_retired_row_is_not_revived_by_becoming_unreadable` — demonstrate that the guard is
+reachable in those branches, and nothing more.

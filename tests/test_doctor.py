@@ -400,6 +400,73 @@ def test_paid_extraction_stale_lists_a_changed_file(kb: Path) -> None:
     assert "pnk sync --extract=" in found.remedy
 
 
+def test_an_unreadable_paid_document_does_not_crash_the_whole_diagnosis(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """S1, one command over. `_extraction_backend_drift` hashes the source of every paid-recorded
+    row, and that read was unguarded — so a KB with one unreadable paid document ended `pnk doctor`
+    in a `PermissionError` traceback.
+
+    That is worse than the same crash in `pnk sync`, because `doctor` is what the sync's own remedy
+    sends you to: the diagnosis died on exactly the condition it existed to diagnose.
+
+    **Injected, not chmod'd**, per this file's own unreadable-partner test.
+    """
+    _add_pdf(kb)
+    (kb / "docs" / "a.pdf").write_bytes(b"placeholder")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:31")
+    _mark_paid(kb, "a.pdf")
+
+    real = Path.read_bytes
+
+    def denied(self: Path) -> bytes:
+        if self.name == "a.pdf":
+            raise PermissionError(13, "Permission denied", str(self))
+        return real(self)
+
+    monkeypatch.setattr(Path, "read_bytes", denied)
+    produced = checks(kb)
+
+    assert "sqlite" in produced, "the diagnosis stopped before it finished"
+    assert "paid extraction stale" in produced
+
+
+def test_paid_extraction_unreadable_names_the_document_whose_staleness_is_undecided(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Recorded rather than skipped, and that is the whole point of the check.
+
+    Swallowing the `OSError` would leave `paid extraction stale` reporting `none` — true of the
+    documents it could read and silent about the one it could not, which is a check answering the
+    question next to the one that matters. So the undecided document gets said out loud, and the
+    stale check stays honest by not counting it either way.
+    """
+    _add_pdf(kb)
+    (kb / "docs" / "a.pdf").write_bytes(b"placeholder")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:31")
+    _mark_paid(kb, "a.pdf")
+
+    real = Path.read_bytes
+
+    def denied(self: Path) -> bytes:
+        if self.name == "a.pdf":
+            raise PermissionError(13, "Permission denied", str(self))
+        return real(self)
+
+    monkeypatch.setattr(Path, "read_bytes", denied)
+
+    found = next(c for c in diagnose(load(kb)).checks if c.name == "paid extraction unreadable")
+    assert found.status is Status.WARN
+    assert "docs/a.pdf" in found.detail
+    assert found.remedy is not None and "chmod +r" in found.remedy
+    assert checks(kb)["paid extraction stale"] == (Status.OK, "none")
+
+    monkeypatch.undo()
+    assert checks(kb)["paid extraction unreadable"] == (Status.OK, "none"), (
+        "control: a readable paid document leaves nothing undecided"
+    )
+
+
 def test_extraction_cache_check_is_ok_with_nothing_orphaned(kb: Path) -> None:
     _add_pdf(kb)
     (kb / "docs" / "a.pdf").write_bytes(b"placeholder")
@@ -1065,6 +1132,9 @@ def test_every_doctor_check_is_exercised_by_a_test(kb: Path) -> None:
             "test_paid_extraction_not_requested_lists_a_paid_indexed_pdf_when_manifest_wants_free"
         ),
         "paid extraction stale": "test_paid_extraction_stale_lists_a_changed_file",
+        "paid extraction unreadable": (
+            "test_paid_extraction_unreadable_names_the_document_whose_staleness_is_undecided"
+        ),
         "pdf extractor": (
             "test_pdf_extractor_check_warns_when_include_can_match_pdf_and_backend_is_missing"
         ),

@@ -213,12 +213,19 @@ def pair(
     paid_backend_names: frozenset[str] = frozenset(),
     force: bool = False,
     explicit_extract: bool = False,
+    unreadable: frozenset[str] = frozenset(),
 ) -> PairingResult:
     """`effective_backend`/`paid_backend_names` classify only the *recorded-paid* direction here
     (decision 9's other two clauses): a document whose `IndexedDocument.extraction_backend` is
     paid, compared against whether the backend in effect *for this run* is paid too. Left at their
     defaults, no document can ever be "recorded paid" against an empty `paid_backend_names`, so
     every existing call site and test that never heard of backends keeps its exact old behaviour.
+
+    `unreadable` names paths the walk *found* and could not open. They are absent from `after`
+    because there is no hash to describe them with, and absence here means "gone" — so without this
+    set a document the owner merely `chmod 000`-ed would be soft-deleted and its chunks dropped.
+    Held rather than retired, and held rather than re-embedded: the recorded row is the last honest
+    description of a file nobody can currently read.
     """
     _reject_duplicate_ids(after.sidecars)
 
@@ -244,6 +251,19 @@ def pair(
     paid_extraction_overwritten: list[str] = []
     handled_ids: set[DocId] = set()
     handled_paths: set[str] = set()
+
+    # --- Unreadable: held exactly as it was ----------------------------------------------------
+    # Before every other loop, because each of them reasons from *absence*: the vanished-path loop
+    # would retire the row, and the rename loop would offer its content hash to another file as a
+    # move. Marking the id and the path handled here is what keeps both from firing on a document
+    # that is still sitting on disk.
+    for path in sorted(unreadable):
+        document = before_by_path.get(path)
+        if document is None or document.state == DELETED:
+            continue  # never indexed, or already retired: there is no row to hold
+        actions.append(Skip(doc_id=document.id, path=path))
+        handled_ids.add(document.id)
+        handled_paths.add(path)
 
     # --- Same path: skip, refresh, or re-embed -------------------------------------------------
     for path, file in after_by_path.items():
@@ -491,7 +511,7 @@ def pair(
     return PairingResult(
         actions=tuple(_order_for_path_availability(actions, before_by_path)),
         ambiguities=tuple(ambiguities),
-        orphaned_sidecars=_orphans(after),
+        orphaned_sidecars=_orphans(after, unreadable),
         moved_without_sidecar=tuple(sorted(moved_without_sidecar)),
         paid_extraction_protected=tuple(sorted(paid_extraction_protected)),
         paid_extraction_overwritten=tuple(sorted(paid_extraction_overwritten)),
@@ -644,9 +664,15 @@ def _order_for_path_availability(
     return ordered
 
 
-def _orphans(after: WalkSnapshot) -> tuple[str, ...]:
-    """Sidecars whose document is gone. Reported, never deleted — that needs `--prune` (§6.4)."""
-    documents = {file.path for file in after.files}
+def _orphans(after: WalkSnapshot, unreadable: frozenset[str] = frozenset()) -> tuple[str, ...]:
+    """Sidecars whose document is gone. Reported, never deleted — that needs `--prune` (§6.4).
+
+    `unreadable` documents are *present*, and the distinction is not cosmetic: this list is printed
+    with `pnk doctor --prune` beside it, so counting an unreadable document's sidecar as orphaned
+    hands the user a command that deletes the ULID of a document still sitting on disk. Ids are
+    permanent by invariant, and a `chmod` is not a deletion.
+    """
+    documents = {file.path for file in after.files} | unreadable
     return tuple(
         sorted(sidecar.path for sidecar in after.sidecars if sidecar.document_path not in documents)
     )

@@ -159,6 +159,19 @@ def index(kb: Path) -> list[dict[str, object]]:
         connection.close()
 
 
+def chunks_for(kb: Path, path: str) -> int:
+    """How many chunks one document still has. Connection closed before returning, as `index` is."""
+    connection = store.connect_ro(kb / ".pinakes" / "index.db")
+    try:
+        row = connection.execute(
+            "SELECT count(*) FROM chunks WHERE doc_id = (SELECT id FROM documents WHERE path = ?)",
+            (path,),
+        ).fetchone()
+        return int(row[0])
+    finally:
+        connection.close()
+
+
 def meta_of(kb: Path) -> dict[str, str]:
     """The index's `meta` table, connection closed before returning — same reason as `index`."""
     connection = store.connect_ro(kb / ".pinakes" / "index.db")
@@ -1709,9 +1722,9 @@ def test_a_sidecar_that_appears_after_the_walk_asks_for_a_rerun(
 
     def walk_as_if_the_sidecar_arrived_late(
         manifest: Manifest,
-    ) -> tuple[list[Any], list[Any], Any, tuple[str, ...]]:
-        files, _sidecars, unmatched, escaping = real_walk(manifest)
-        return files, [], unmatched, escaping
+    ) -> tuple[list[Any], list[Any], Any, tuple[str, ...], tuple[str, ...]]:
+        files, _sidecars, unmatched, escaping, unreadable = real_walk(manifest)
+        return files, [], unmatched, escaping, unreadable
 
     monkeypatch.setattr(sync_module, "walk_sources", walk_as_if_the_sidecar_arrived_late)
     report = run(kb, rebuild=True)
@@ -3124,3 +3137,191 @@ def test_a_rename_that_frees_a_path_a_new_document_then_takes(kb: Path) -> None:
     assert not report.failures, f"the walk recorded a failure: {report.failures}"
     active = {Path(str(row["path"])).name for row in index(kb) if row["state"] == "active"}
     assert active == {"b.md", "c.md", "keep.md"}
+
+
+# --- S1: one unreadable document must not take the whole index with it -------------------------
+
+
+def deny_reads_of(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    """Make one document unreadable the way this repository requires: **injected, not chmod'd**.
+
+    `chmod(0o000)` is ignored by root and produced a stat on CI's runner that neither succeeded nor
+    raised, so fixtures went red for being unable to build their own precondition
+    (`test_doctor.py`'s unreadable-partner test records it). `hash_file` reads a source with
+    `read_bytes`, so that is the call to deny — and denying it by *name* leaves the sidecar beside
+    it readable, which is the real shape: a `chmod` on a document does not touch its sidecar.
+    """
+    real = Path.read_bytes
+
+    def denied(self: Path) -> bytes:
+        if self.name == name:
+            raise PermissionError(13, "Permission denied", str(self))
+        return real(self)
+
+    monkeypatch.setattr(Path, "read_bytes", denied)
+
+
+def test_one_unreadable_document_does_not_abort_the_sync_of_every_other(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """S1, and the reason it was ranked as more than a cosmetic traceback.
+
+    `hash_file` let the `PermissionError` escape `walk_sources`, so the walk died before anything
+    was indexed: `pnk sync` exited 1 with a raw traceback and **no index database existed at all**.
+    One file the process could not open made every other document in the KB unreachable.
+    """
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "b.md", "# Beta\n\nSecond body.\n")
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    deny_reads_of(monkeypatch, "c.md")
+
+    report = run(kb)
+
+    assert (kb / ".pinakes" / "index.db").exists(), "the walk died before the index was created"
+    assert {Path(str(row["path"])).name for row in index(kb)} == {"a.md", "b.md"}
+    assert [path for path, _error, _remedy in report.failures] == ["docs/c.md"]
+    assert not report.ok, "an unreadable document must not let the run read as clean"
+
+
+def test_the_unreadable_failure_carries_a_remedy_that_names_both_ways_out(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failure with an empty remedy is how this channel reports a bare `OSError`, and that is
+    exactly what this used to be. The user can restore the permission or stop collecting the file;
+    both belong in the message, because only one of them is available to someone syncing a tree
+    they do not own."""
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    deny_reads_of(monkeypatch, "c.md")
+
+    [(path, error, remedy)] = run(kb).failures
+
+    assert path == "docs/c.md"
+    assert "Permission denied" in error
+    assert "chmod +r" in remedy
+    assert "exclude" in remedy
+
+
+def test_an_indexed_document_that_becomes_unreadable_is_held_not_deleted(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The half that makes skipping safe, and the reason a skip alone would have been a worse bug.
+
+    `pair()` retires a row whose path the walk stops reporting, so without the hold a `chmod` would
+    soft-delete the document and drop its chunks — the KB losing a file it still has, reported as
+    `1 removed` on a run that exits about something else.
+    """
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    run(kb)
+    before = {str(row["path"]): dict(row) for row in index(kb)}
+    assert before["docs/c.md"]["state"] == "active"
+
+    deny_reads_of(monkeypatch, "c.md")
+    report = run(kb)
+
+    after = {str(row["path"]): dict(row) for row in index(kb)}
+    assert after["docs/c.md"]["state"] == "active", "a permission change became a deletion"
+    assert after["docs/c.md"]["content_hash"] == before["docs/c.md"]["content_hash"]
+    assert report.deleted == 0
+    assert chunks_for(kb, "docs/c.md") > 0
+
+    # **A search, not a chunk count** — chunks can sit in the index while the document is
+    # unreachable through the thing a user actually types.
+    #
+    # **`lexical_rank`, not mere presence, and that distinction was measured.** `FakeBackend`
+    # returns an identical vector for every chunk, so the vector half of the fusion returns the
+    # whole corpus and `docs/c.md` appears in `passages` for *any* query at all — the first version
+    # of this assertion passed for the term "Zebrafish", which appears in no document. A non-`None`
+    # `lexical_rank` is the part that requires the query to have matched this document's own
+    # indexed text, and it is the part that goes silent when a held row is retired.
+    connection = store.connect_ro(kb / ".pinakes" / "index.db")
+    try:
+        answered = search.search(connection, load(kb), "Gamma", backend=FakeBackend())
+    finally:
+        connection.close()
+
+    held = [passage for passage in answered.passages if passage.path == "docs/c.md"]
+    assert held, "a held document must still answer `pnk search` from the chunks it kept"
+    assert any(passage.lexical_rank is not None for passage in held), (
+        "matched only by the uniform fake vector, so this asserts nothing about the held chunks"
+    )
+
+
+def test_an_unreadable_documents_sidecar_is_never_offered_to_prune(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`orphaned_sidecars` prints `pnk doctor --prune` beside it, and pruning a live document's
+    sidecar destroys a permanent id. The first version of this fix printed exactly that line for a
+    document sitting on disk — found by running it, not by reading it."""
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    run(kb)
+    deny_reads_of(monkeypatch, "c.md")
+
+    assert run(kb).orphaned_sidecars == ()
+
+
+def test_restoring_the_permission_returns_the_sync_to_clean(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The failure is a state of the tree, not a mark on the index: nothing is recorded that a
+    later run has to undo."""
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    deny_reads_of(monkeypatch, "c.md")
+    assert not run(kb).ok
+
+    monkeypatch.undo()
+    report = run(kb)
+
+    assert report.ok
+    assert {Path(str(row["path"])).name for row in index(kb)} == {"a.md", "c.md"}
+
+
+def test_the_pre_commit_half_also_reports_an_unreadable_document(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--sidecars-only` returns before the index is touched at all, so the failure is recorded
+    above that return. It is the half that runs in a pre-commit hook, which is the last place an
+    unreadable document should pass in silence."""
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    deny_reads_of(monkeypatch, "c.md")
+
+    report = run(kb, sidecars_only=True)
+
+    assert [path for path, _error, _remedy in report.failures] == ["docs/c.md"]
+    assert not report.ok
+
+
+def test_a_rebuild_cannot_index_an_unreadable_document_and_does_not_invent_it_a_new_id(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The one place the fix is *worse* than the crash, measured rather than assumed — and the
+    reason it is still the right trade.
+
+    `--rebuild` starts from an empty database, so there is no row to hold: the unreadable document
+    is simply not in the rebuilt index, where the old crash would have aborted before the swap and
+    left the previous index intact. That loss is real. What makes it acceptable is that it is
+    reported, non-zero, and **recoverable without cost**: the sidecar is committed truth for
+    identity, it is untouched on disk, and the next readable sync re-adopts the *same* ULID rather
+    than minting a fresh one. A rebuild that renamed the document's permanent id would be an
+    invariant breach, and that is the assertion at the end.
+    """
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    run(kb)
+    original = {str(row["path"]): str(row["id"]) for row in index(kb)}["docs/c.md"]
+
+    deny_reads_of(monkeypatch, "c.md")
+    rebuilt = run(kb, rebuild=True)
+
+    assert [path for path, _error, _remedy in rebuilt.failures] == ["docs/c.md"]
+    assert {Path(str(row["path"])).name for row in index(kb)} == {"a.md"}
+    assert rebuilt.orphaned_sidecars == (), "a document on disk is not an orphan to prune"
+
+    monkeypatch.undo()
+    recovered = run(kb)
+
+    assert recovered.ok
+    assert {str(row["path"]): str(row["id"]) for row in index(kb)}["docs/c.md"] == original

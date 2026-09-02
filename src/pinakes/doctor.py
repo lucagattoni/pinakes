@@ -607,6 +607,7 @@ def _extraction_backend_drift(
     awaiting_paid: list[str] = []
     paid_not_requested: list[str] = []
     paid_stale: list[str] = []
+    paid_unreadable: list[str] = []
     for row in rows:
         path = str(row["path"])
         recorded_is_paid = str(row["extraction_backend"]) in paid_names
@@ -618,8 +619,19 @@ def _extraction_backend_drift(
 
         if recorded_is_paid:
             source = manifest.root / path
-            if source.is_file() and hash_file(source) != str(row["content_hash"]):
-                paid_stale.append(path)
+            try:
+                if source.is_file() and hash_file(source) != str(row["content_hash"]):
+                    paid_stale.append(path)
+            except OSError:
+                # The same condition `pnk sync` stopped dying on (S1), one command over. `doctor`
+                # is what you reach for *when the KB is already broken*, so a traceback here puts
+                # the crash back exactly where the remedy is supposed to be — and this is the only
+                # read in the drift pass, reached only for a paid-recorded row.
+                #
+                # **Recorded, not skipped.** Dropping the path would leave `paid extraction stale`
+                # reporting `none` — a claim about a document nothing could read, which is the
+                # adjacent-question shape this repository ranks worst.
+                paid_unreadable.append(path)
 
     yield _drift_check(
         "awaiting paid extraction",
@@ -633,6 +645,13 @@ def _extraction_backend_drift(
         "kept at their paid extraction though the manifest currently asks for a free backend",
         "Nothing to do — decision 9's protection is working. `pnk sync --force "
         "--extract=<free-backend>` overwrites it deliberately, printing what it discards.",
+    )
+    yield _drift_check(
+        "paid extraction unreadable",
+        paid_unreadable,
+        "recorded as paid-extracted and unreadable, so staleness could not be decided",
+        "Restore read permission (`chmod +r`). Until then `paid extraction stale` is answering "
+        "about the documents it could read, not about all of them.",
     )
     yield _drift_check(
         "paid extraction stale",
