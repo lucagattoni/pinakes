@@ -34,11 +34,13 @@ SELECTOR = re.compile(r"^(tests/[\w/]+\.py)::(\w+)(?:::(\w+))?$")
 #: than by anything TOML can see — `tomllib` drops comments, so the section structure is only ever
 #: readable from the raw bytes.
 #:
-#: **Both rule shapes, because the tree has both.** Nine batteries fence with the box-drawing
-#: `U+2500` and `tools-mcp_handshake_gate.toml` fences with ASCII hyphens. Matching only the
-#: box-drawing form left this gate reading 34 of the tree's 35 section headers and reporting a
-#: clean sweep — a gate against unnoticed drift that had silently skipped the one file that drifted
-#: is the failure it exists to prevent, so the shapes are counted rather than assumed.
+#: **Both rule shapes, because the tree has both, and two files mix them.** Eleven batteries fence
+#: with the box-drawing `U+2500`; `src-pinakes-pairing.toml` and `tools-mcp_handshake_gate.toml`
+#: each *also* carry ASCII-hyphen fences, so the shape is not even a per-file property. Matching
+#: only the box-drawing form left this gate reading **34 of the tree's 36** section headers and
+#: reporting a clean sweep — and one of the two it could not see was the header that had drifted.
+#: A gate against unnoticed drift, silently skipping the drift, is the failure it exists to
+#: prevent, so the shapes are counted rather than assumed.
 RULE = re.compile(r"^#\s*(?:\u2500{10,}|-{10,})\s*$")
 
 #: The two forms `tools/batteries/README.md` reserves for a section header: the release that

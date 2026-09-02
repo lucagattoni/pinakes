@@ -13,8 +13,19 @@ concluded this was *"the only one matching neither"*. It was not. `src-pinakes-p
 belongs. The audit had searched for headers containing `·`, so the one other non-conforming header
 in the tree was the single shape its query could not return. The gate found it on its first run.
 **A selector defined by the correct form cannot find a violation that consists of that form being
-absent.** Row 15's counts were wrong for the same reason and by the same amount: 30 sections
-counted, 36 on disk; one non-conformance, two.
+absent.** The row's other numbers fail the same way, and its own arithmetic said so without any
+re-measurement: it reported *30 sections, 19 `unreleased, YYYYMMDD ·`, 8 `X.Y.Z ·`, one matching
+neither* — and 19 + 8 + 1 is 28, two short of its own stated total. Measured at `a4077b5`, the
+commit that wrote it, the tree held 30 sections: **20** unreleased, 8 version, **two** matching
+neither. One invisible header is missing from exactly two tallies, which is exactly the two the row
+was short.
+
+**And I made the neighbouring error while correcting it.** My first correction tabulated *36
+sections, 26, 9, 2* against the row's *30, 19, 8, 1* and called the total wrong. It was not: the
+tree grew from 30 to 36 between `a4077b5` and today, and the row's 30 and its 8 were both right for
+the tree it was measuring. What was wrong was 19 and *only one*. Comparing today's tree against a
+claim about a past tree turns growth into error and hides the real defect — so a count correction
+has to name the commit it was measured at, not just the selector.
 
 **Then the gate itself nearly shipped with the identical defect.** Battery sections are fenced by
 horizontal rules, and the first `RULE` regex matched only the box-drawing `U+2500`. Nine batteries
