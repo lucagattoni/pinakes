@@ -470,8 +470,11 @@ def test_the_bullet_rule_never_reaches_the_free_form_stream(repo: Path) -> None:
     **The `###` heading in the fixture is load-bearing.** The bullet rule only ever reads a `###`,
     so a fixture built from `##` alone exercises nothing and the scoping guard could be deleted
     with this test still green — which is what the mutation pass reported. The real document
-    carried 42 `###` headings at `0aea036` (`grep -c '^### ' docs/RETROSPECTIVES.md`), every
-    one of them opening with prose. **The count is stamped with the commit it was measured
+    carried 42 `###` headings at `0aea036` (`grep -c '^### ' docs/RETROSPECTIVES.md`), 41 of
+    them opening with prose. The forty-second is `### Smaller things` at line 2679, which opens
+    with a `- ` bullet — the exact shape the changelog arm refuses, sitting in the stream this
+    test says the arm never reaches, so the scoping is load-bearing and not decorative.
+    **The count is stamped with the commit it was measured
     at, because it grows at every release** — an unstamped one was written here as
     *thirty-four*, copied from here into a second docstring, and was 42 by the time anybody
     counted."""
@@ -893,6 +896,42 @@ def test_a_fragment_that_is_neither_reports_both_problems(repo: Path) -> None:
     assert "(20260901 07:10)" in result.stderr
 
 
+def test_the_stamp_arm_reads_the_heading_and_not_whatever_line_is_first(repo: Path) -> None:
+    """A comment above a *correct* stamped heading was told the heading lacked its stamp.
+
+    One true message — the fragment does not open with its `## ` heading, and `render` splices it
+    under whichever fragment sorts before it — and one false one, about a stamp sitting three lines
+    down and spelled exactly right. That pair is the failure the byte-order-mark arm was fixed to
+    stop producing, reached from a different input: a writer who obeys the false half edits a
+    correct line, and a message that sends someone to break working text costs more than the
+    silence it replaces.
+
+    The refusal itself is unchanged and must stay — `retro.d/README.md` § Contents says the
+    fragment *opens* with its heading, and an HTML comment above it means it does not. Only the
+    second message goes.
+
+    Pinned against the fallback too, and the fallback's guard is not the test it looks like.
+    Falling back to `""` instead of `first` leaves *this* test green, and leaves
+    `test_a_fragment_that_is_neither_reports_both_problems` green as well — a fragment with no
+    heading collects both messages either way. What dies is
+    `test_the_separator_is_one_space_and_the_gate_is_stricter_than_the_renderer`: a *malformed*
+    opening has no `_OPENING` match either, so an empty fallback hands the stamp arm nothing to
+    read and it condemns a stamp that is spelled correctly. Read off a run — a first draft of this
+    paragraph reasoned its way to the other test and was wrong."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        "<!-- an editorial note -->\n\n## A lesson (20260901 07:10)\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "must open with its own `## ` heading" in result.stderr
+    assert "must carry" not in result.stderr, "the heading three lines down carries the stamp"
+    assert result.stderr.count("20260901_0710-a-lesson.md") == 1, "one fault, named once"
+
+
 def test_the_heading_rule_never_reaches_the_changelog_stream(repo: Path) -> None:
     """`changelog.d/` fragments are `- ` bullets that `render` merges under a category heading it
     synthesises for them; a heading of their own is the defect `document_problems` already
@@ -1010,11 +1049,16 @@ def test_a_byte_order_mark_alone_on_the_first_line_reports_only_itself(repo: Pat
 def test_the_separator_is_one_space_and_the_gate_is_stricter_than_the_renderer(
     repo: Path, opener: str
 ) -> None:
-    """Three of these four render *byte-identically* to the ruled form, and all four are refused.
+    """All four of these render *byte-identically* to the ruled form, and all four are refused.
 
-    Measured 20260901 against Python-Markdown with `mkdocs.yml`'s own extension list: two spaces, a
-    tab, and a tab followed by a space each produce the same `<h2 id="a-lesson-20260901-0710">` as
-    the ruled opening, and `anchors_of` mints the same anchor for them. So this arm is not about a
+    Measured 20260902 against Python-Markdown with `mkdocs.yml`'s own extension list: all four —
+    two spaces, a tab, a tab then a space, and no space at all — produce the same
+    `<h2 id="a-lesson-20260901-0710">` as the ruled opening, byte for byte. `anchors_of` mints
+    that anchor for the first three and **nothing** for `"##A lesson"`, which is the only
+    difference between the four that anything downstream can see. **This sentence said *three*
+    until 20260902**: the three whitespace forms had been rendered and the fourth inferred from
+    `anchors_of`'s silence, which answers a different question than the renderer does. So this
+    arm is not about a
     consequence in the built page — it is about `retro.d/README.md` § Contents saying the opening is
     `## ` **exactly** and that this checker refuses anything else. A gate accepting a form that
     sentence excludes makes the sentence false, and the sentence is the thing writers read.

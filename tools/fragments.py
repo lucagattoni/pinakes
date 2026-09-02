@@ -294,7 +294,10 @@ def document_problems(stream: Stream, text: str) -> list[str]:
 
 
 def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
-    r"""The two ways a retrospective fragment joins the incident above it without saying so.
+    r"""Two ways a retrospective fragment joins the incident above it without saying so.
+
+    **Two, not *the* two.** The count was written as exhaustive and is not — a third way is
+    measured at the foot of this docstring and is not checked anywhere.
 
     **Neither is visible to `document_problems`, and that is not an oversight — it is the
     mechanism.** A fragment carrying no `##` heading is not malformed once spliced. It is
@@ -365,6 +368,20 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
     Reported separately because they are separate mistakes with separate fixes, and a fragment can
     have either without the other.
 
+    **The third way, measured 20260902 and refused by nothing.** A fragment containing an unclosed
+    block-level raw HTML tag — `<div class="note">` with no `</div>` — passes every arm here *and*
+    `document_problems`: `--check` prints *all well-formed* and exits 0, and `--apply` splices it.
+    Rendered with `mkdocs.yml`'s own extension list the raw block runs to end of file. The next
+    fragment's `## ` heading, its prose, and the protected `## Design review passes` footer all
+    come out as literal text inside the div: **one** `<h2>` on the page where the source has four.
+    That is absorption again, one layer lower and with a wider blast radius — it swallows the
+    footer these arms were written to protect. `prose_lines` knows ` ``` ` and `~~~` and nothing
+    about HTML blocks, and `anchors_of` mints all four anchors regardless, so the link gate stays
+    green on two headings the site does not have — the same false green the whitespace forms
+    produce, arrived at from a different direction. **Not fixed here**, for the reason the
+    paragraph below gives about widening a branch on its ninth review pass; rowed with the
+    planner.
+
     **This is the retrospectives stream only.** `changelog.d/` fragments are `- ` bullets merged
     under a category heading `render` synthesises for them, so requiring a heading of their own
     would refuse the format that stream is for.
@@ -415,6 +432,16 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
         return problems
     day, clock = stamp.group(0)[:8], stamp.group(0)[9:13]
     wanted = f"({day} {clock[:2]}:{clock[2:]})"
+    # The stamp arm is about the *heading*, so it reads the heading rather than whatever line
+    # happens to be first. A fragment opening with an HTML comment above a perfectly correct
+    # stamped heading was told its heading lacked the stamp it carries: one true message and one
+    # false one, the same pair the byte-order-mark arm was fixed to stop producing, one input
+    # shape further in. The `first` fallback is load-bearing, not defensive — a fragment with no
+    # `## ` line at all has no heading to read, so it earns *both* messages, which is what
+    # `test_a_fragment_that_is_neither_reports_both_problems` pins. A *malformed* opening
+    # (`##  A lesson`) has no `_OPENING` match either, so it also falls back and is judged on the
+    # line the writer actually typed.
+    heading = next((line for line in text.split("\n") if _OPENING.match(line)), first)
     # The stamp is the heading's **trailing token**: the start of the line or whitespace before it,
     # nothing but whitespace after. Pass 3 replaced a containment test with a one-character
     # lookaround for `(` and `)` and a comment claiming it was anchored; pass 4 measured four
@@ -428,7 +455,7 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
     # the date-only `(20260823)` this arm also refuses, and eight carry no date at all.
     # Every fragment in `retro.d/` passed too. Measured 20260901 before the rule was tightened,
     # not assumed after. ("All 136 stamped headings are stamped" would be true by construction.)
-    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", first) is None:
+    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", heading) is None:
         problems.append(
             f"{stream.directory}/{path.name}: its heading must carry `{wanted}`, the filename's "
             f"own prefix. See `{stream.directory}/README.md` § Contents."

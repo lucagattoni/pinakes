@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 38
+mutants = 40
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -250,15 +250,15 @@ kills = "tests/test_fragments.py::test_a_third_level_heading_does_not_open_a_fra
 [[mutant]]
 name = "the stamp arm is dropped, leaving the heading free to name any time at all"
 file = "tools/fragments.py"
-old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", first) is None:'''
+old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", heading) is None:'''
 new = '''    if False:'''
 kills = "tests/test_fragments.py::test_a_heading_whose_stamp_disagrees_with_the_filename_is_refused"
 
 [[mutant]]
 name = "DISCRIMINATING — the stamp is compared by date alone, so the time may be anything"
 file = "tools/fragments.py"
-old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", first) is None:'''
-new = '''    if re.search(rf"(?:^|\s)\({day}[^)]*\)\s*$", first) is None:'''
+old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", heading) is None:'''
+new = '''    if re.search(rf"(?:^|\s)\({day}[^)]*\)\s*$", heading) is None:'''
 kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_accepted"
 
 [[mutant]]
@@ -338,8 +338,8 @@ kills = "tests/test_fragments.py::test_a_byte_order_mark_alone_on_the_first_line
 [[mutant]]
 name = "DISCRIMINATING — the stamp is contained rather than anchored, so `((20260901 07:10))` passes"
 file = "tools/fragments.py"
-old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", first) is None:'''
-new = '''    if wanted not in first:'''
+old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", heading) is None:'''
+new = '''    if wanted not in heading:'''
 kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_accepted"
 
 [[mutant]]
@@ -398,8 +398,8 @@ kills = "tests/test_fragments.py::test_the_separator_is_one_space_and_the_gate_i
 [[mutant]]
 name = "DISCRIMINATING — the anchor is one character wide again, so a wrapper with a separator evades it"
 file = "tools/fragments.py"
-old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", first) is None:'''
-new = '''    if re.search(rf"(?<!\(){re.escape(wanted)}(?!\))", first) is None:'''
+old = '''    if re.search(rf"(?:^|\s){re.escape(wanted)}\s*$", heading) is None:'''
+new = '''    if re.search(rf"(?<!\(){re.escape(wanted)}(?!\))", heading) is None:'''
 kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_accepted"
 
 [[mutant]]
@@ -427,3 +427,35 @@ file = "tools/fragments.py"
 old = '''    first = next((line for line in text.split("\n") if line.strip()), "")'''
 new = '''    first = next((line for line in text.splitlines() if line.strip()), "")'''
 kills = "tests/test_fragments.py::test_the_stamp_must_end_the_real_line_not_a_break_python_invents"
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260902 · the ninth pass — the stamp arm reads the heading
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# The stamp arm ran against `first` — whatever line happened to be non-blank first — so a fragment
+# opening with an HTML comment above a *correct* stamped heading was told its heading lacked the
+# stamp it carries. One true message and one false one, the pair the byte-order-mark arm was fixed
+# to stop producing, reached from a different input. Four rows above had to be repointed from
+# `first` to `heading` for this, which is why these two matter: an anchor that moves for a fix is a
+# row that stopped testing what it was written for until somebody re-derived it.
+#
+# The second row is the one that is easy to get wrong. Falling back to `""` rather than `first`
+# looks equivalent — a headingless fragment still collects both messages either way, so
+# `test_a_fragment_that_is_neither_reports_both_problems` stays green. It is the *malformed*
+# opening that separates them: `##  A lesson (20260901 07:10)` has no `_OPENING` match, so an empty
+# fallback sends it to the stamp arm with nothing to read and it is told its stamp is missing when
+# it is correct. Measured, not reasoned — which test dies was read off a run, after a first draft
+# of the test's own docstring named the wrong one.
+
+[[mutant]]
+name = "the stamp arm reads whatever line is first again, so a correct heading below a comment is called unstamped"
+file = "tools/fragments.py"
+old = '''    heading = next((line for line in text.split("\n") if _OPENING.match(line)), first)'''
+new = '''    heading = first'''
+kills = "tests/test_fragments.py::test_the_stamp_arm_reads_the_heading_and_not_whatever_line_is_first"
+
+[[mutant]]
+name = "DISCRIMINATING — the fallback is empty rather than the opening line, so a malformed heading loses its correct stamp"
+file = "tools/fragments.py"
+old = '''    heading = next((line for line in text.split("\n") if _OPENING.match(line)), first)'''
+new = '''    heading = next((line for line in text.split("\n") if _OPENING.match(line)), "")'''
+kills = "tests/test_fragments.py::test_the_separator_is_one_space_and_the_gate_is_stricter_than_the_renderer"

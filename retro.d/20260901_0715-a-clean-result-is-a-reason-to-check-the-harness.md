@@ -97,12 +97,24 @@ while writing the next one.
 
 **Two selectors, no dispute to have — and both numbers wrong anyway.** A peer measured five drifted
 heading stamps shipping; I measured three; we agreed each was right under a different selector, and
-neither of us had stated one. Re-measured over a population I can name — the 111 `retro.d/` fragments
-that ever carried a `YYYYMMDD_HHMM-` prefix, each read at its own adding commit — the triple is **six**
-drifted *when written*, **three** still wrong in the published document, and **three** fixed by hand
-between fragment and splice (`fbf17da` wrote `(20260826 07:31)` and the shipped line reads
-`(20260826 07:33)`; `a54b304`, whose subject is *"applying the new rule to my own fragments found
-three"*, touches exactly those three). The arithmetic was the tell we both walked past: five minus two
+neither of us had stated one. Re-measured over a population I can name — every `retro.d/` path that ever
+carried a `YYYYMMDD_HHMM-` prefix, each read at its own adding commit — the triple is **six** drifted
+*when written*, **three** still wrong in the published document, and **three** fixed by hand between
+fragment and splice (`fbf17da` wrote `(20260826 07:31)` and the shipped line reads `(20260826 07:33)`;
+`a54b304`, whose subject is *"applying the new rule to my own fragments found three"*, makes exactly
+those three stamp corrections — it changes a fourth file and adds forty lines to one of the three,
+neither of them a stamp, so it *touches* four).
+
+**And the population needs a measurement point and a selector, because it has both and I wrote
+neither.** `git rev-list <sha> --objects`, deduplicated, paths matching
+`^retro\.d/\d{8}_\d{4}-.*\.md$`: **111** at `56a970c` and still 111 at this branch's tip
+`6cb80b4` — 107 at the branch point `8540e27`, so the number moved inside this branch alone. Three
+other defensible spellings of the same question, all at `6cb80b4`: adding a `-- retro.d` pathspec
+gives **102**, because a pathspec turns on history simplification and prunes merge sides (adding
+`--full-history` back restores 111, which is how that was confirmed rather than assumed);
+`git log --full-history --diff-filter=A` gives **109**, because a path introduced by a merge was
+never *added* by any commit it walks; and plain `git log --diff-filter=A` gives **100**, losing
+both. Four selectors, spread eleven apart, and the sentence above named none of them until now. The arithmetic was the tell we both walked past: five minus two
 is not three, and six minus three is.
 **State the selector even when the other party agrees with you**: agreement between two unstated
 populations is a coincidence, not a confirmation.
