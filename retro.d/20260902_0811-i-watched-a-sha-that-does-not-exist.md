@@ -71,3 +71,40 @@ short of the thing it claimed to reproduce. **A reproduction is a claim about co
 effort.** Corrected against `tools/markdown_link_gate.py`'s `github_slugify()` and against the built
 `site/RETROSPECTIVES/index.html`, which agree — with a control that the non-collapsing is systematic
 rather than a quirk of this heading: three ids on that page contain `---`.
+
+**A fifth instance, three hours later, and this one is the mirror of the first.** Checking whether
+two of the morning's tips had passed CI, I ran `gh run list --commit 5654cc4` and
+`gh run list --commit 293d434`. Both returned `[]`. For about a minute I believed two landings had
+never triggered CI at all. **`gh run list --commit` requires the full 40-character sha**; an
+abbreviated one — valid to every `git` command in the repository, and the form the tool itself prints
+in `gh run list` output — matches nothing, exits 0, and says nothing. The control settles it:
+`gh run list --commit $(git rev-parse 5654cc4)` returns two runs. So the first failure in this file
+was an identifier I composed and this is an identifier I *read correctly*, in a form the tool
+rejects silently. **The rule that survives both is not "read the sha" but "prove the query fires."**
+`git rev-parse` before any `--commit`, and the first poll is still the assertion.
+
+**A sixth, and it is a defect in the alerting rule I wrote, not in a command.** My standing CI-watcher
+guidance alerts on `failure`, `timed_out`, `startup_failure` and `action_required`, and deliberately
+excludes `cancelled` as *"normally supersession."* Under that rule this morning was silent, and this
+is what it was silent about:
+
+    5654cc4  07:55:49 -> 07:58:23  push/cancelled     the retro heading + stamp gate
+    4e13d6f  07:57:47 -> 08:03:34  push/cancelled
+    6a9245a  08:03:31 -> 08:08:27  push/success
+
+`.github/workflows/ci.yml:8-10` sets `concurrency: group: ci-${{ github.ref }}` with
+`cancel-in-progress: true`, so every push to `main` kills the run before it. Two consecutive tips —
+one of them a **new gate's own landing** — got no verdict, 2m34s and 5m47s in. Coverage did hold:
+`6a9245a` is a descendant of both, ran 15 of 15 green, and `293d434` later did the same. **But it
+held by ancestry, and ancestry is not what the watcher was checking.** Nobody asked. I had written
+*"three consecutive green tips"* into my own resume file naming the three that completed, without
+noticing that between them sat two that had not.
+
+**`cancelled` is not a state, it is two states wearing one word:** a superseded run whose commit a
+later completed run contains, and a lost verdict whose commit nothing has yet certified. Telling them
+apart costs one ancestry check — *is there a completed, successful run whose sha has this commit as an
+ancestor?* — and without it the exclusion converts an unverified tip into silence. That is the same
+defect as every other one in this file: an instrument that cannot distinguish "fine" from "never
+looked", consulted with no expectation attached. **It is worse here than in the others**, because
+this instrument's whole purpose is to be trusted while nobody is watching, and because I am the one
+who wrote the exclusion into the rule.
