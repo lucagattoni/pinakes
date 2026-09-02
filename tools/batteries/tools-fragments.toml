@@ -369,12 +369,17 @@ kills = "tests/test_fragments.py::test_a_fragment_with_no_prefix_owes_a_heading_
 # pass 4 mutated `if line.strip()` to `if line` and all 56 tests stayed green, while the mutated
 # gate told a writer with a correct heading and a correct stamp that both were missing.
 #
-# The population is every committed version of `tools/fragments.py` — 30 commits in full history,
-# 20 distinct contents, back to `f588f03` — each searched for the row's own `new` string verbatim.
-# `startswith("## ")` appears in four of them and the pass-3 lookaround in one;
-# `re.compile(r"^##")` and the unstripped `if line` appear in none. Naming the selector is the point: an earlier draft of
-# this paragraph claimed a commit *range* nobody had examined, and two probes over two different
-# populations then disagreed about the counts while agreeing about the facts.
+# The population is every committed version of `tools/fragments.py` reachable from this branch's
+# tip — `git log --full-history 9ac95fc -- tools/fragments.py`: 31 commits, 21 distinct contents,
+# back to `f588f03` — each searched for the row's own `new` string verbatim. `startswith("## ")`
+# appears in four of them and the pass-3 lookaround in one; `re.compile(r"^##")` and the unstripped
+# `if line` appear in none.
+#
+# **Name the sha, not just the selector.** An earlier draft claimed a commit *range* nobody had
+# examined. The draft that replaced it named `--full-history` but no measurement point, said
+# "30 commits, 20 distinct", and was falsified one commit later by pass 8 editing this very file:
+# 30/20 at `04497a9`, 31/21 at `9ac95fc`. The four verbatim counts above were 4/0/1/0 at *both*
+# shas, which is what makes the census the part that rotted and not the finding it carries.
 
 [[mutant]]
 name = "DISCRIMINATING — the opening reverts to `startswith`, which accepts two spaces and refuses a tab"

@@ -18,6 +18,13 @@ skipped 112 in silence. It reported `0 of 127`. Reading each at the newest commi
 existed reports `2 of 127`, and those two turned out to be exactly the evidence a peer's open
 question needed.
 
+**And that denominator names no measurement point, so writing it down falsified it.** `127` is the
+count reachable from `2914b09`. The commit that recorded `2 of 127` added the 128th path, and the
+path it added was **this file**. Pinned: 127 at `2914b09`, 128 at `04497a9` and at this branch's
+tip, 129 at `origin/main` today, 133 under `git rev-list --all --objects` — which counts whatever
+every ref happens to hold and so moves under other people's commits, not just your own. **State the
+sha.** The numerator never moved: the same two fragments at every point measured.
+
 **The standing rule here covers the step after this one.** It says a null result carries no
 information until the selector is shown able to fire, and that once the selector is proven a null
 becomes a finding. Both selectors here were fine. `grep`ping for a second heading works; an
