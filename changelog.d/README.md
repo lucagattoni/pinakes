@@ -60,4 +60,6 @@ climbs out of the repository once the body has moved. The gate refuses it, and s
 
 **And never link to another fragment by filename**, for the reason
 [`retro.d/README.md`](../retro.d/README.md) gives: splicing puts every fragment into one document,
-where a sibling's filename no longer resolves. Link to the *heading* instead. **Gated since 20260902** — the same arm resolves a fragment's relative targets from `CHANGELOG.md`, so a sibling filename is red on the branch rather than at the release cut.
+where a sibling's filename no longer resolves. Link to the *heading* instead. **Gated since
+20260902** — the same arm resolves a fragment's relative targets from `CHANGELOG.md`, so a sibling
+filename is red on the branch rather than at the release cut.

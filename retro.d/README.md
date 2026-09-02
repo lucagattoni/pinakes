@@ -61,6 +61,11 @@ instead, with the anchor the site will generate:
 
     ([*measured the launcher, not the work*](#measure_sync_cpupy-measured-the-launcher-not-the-work-20260805-1737))
 
+**The example above is indented on purpose.** `README.md` is not a fragment: it is never spliced,
+so the gate resolves its links from `retro.d/`, where that anchor does not exist — written as a
+live link it would turn `main` red, from the file explaining how to avoid exactly that. The rule
+above is about a real reference in a real fragment; keep the illustration indented or code-spanned.
+
 The same applies to `changelog.d/`. It shipped anyway, three times: caught at 0.12.0's cut by
 `make docs`, then twice on 20260902, **both on `main`** — where the next release cut would have
 failed the docs build. That nothing saw it was structural rather than an oversight: inside
