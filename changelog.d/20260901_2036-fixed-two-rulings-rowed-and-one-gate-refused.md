@@ -2,9 +2,10 @@
   retro fragment's *second* `## ` heading owes: a parenthesised `YYYYMMDD HH:MM` stamp ending the
   heading, in the same spelling as the first — **not** the filename's prefix, and with nothing
   constraining its value. The obvious stricter rule would have refused a real released fragment:
-  across **116** fragments ever added under `retro.d/`, exactly **one** carries two column-0 `## `
-  headings, and its second stamp differs from its filename prefix deliberately, recording a second
-  moment inside one incident. One instance licenses the existence of a later stamp; it does not
+  across the **129** fragment paths ever added under `retro.d/` — 239 distinct versions, read from
+  the object store — **two** carry two column-0 `## ` headings, and the only one whose author
+  stamped them at all made the second stamp differ from the filename prefix deliberately,
+  recording a second moment inside one incident. One instance licenses the existence of a later stamp; it does not
   license a monotonicity rule, so none was written.
 - **Row 15 fixes a comment and declines to gate it.** One battery section out of thirty conforms to
   neither reserved form for its version slot — it must read `0.30.0 · `, the release that shipped
