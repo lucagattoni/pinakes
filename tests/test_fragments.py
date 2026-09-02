@@ -994,8 +994,14 @@ def test_a_heading_hidden_by_leading_whitespace_is_quoted_with_the_whitespace_sh
     deleting it. Found by running the gate, not by reading it: a probe fed it a leading space and a
     leading tab and both came back with the same self-contradicting line.
 
-    The negative assertion is the load-bearing one. Showing the whitespace is only worth anything
-    if the stripped form is *gone* — and the stripped form is the one a reader takes for correct."""
+    **The positive assertion is the one that kills the mutant, and this paragraph said the
+    opposite until it was run.** Restore the `.strip()` and the message shows `'## A lesson …'`:
+    the whitespace is missing, so `assert shown in result.stderr` fails first and pytest never
+    reaches the line below it. The negative assertion is not redundant — it is what would catch a
+    message showing the raw line *and* the stripped one beside it, which the positive assertion
+    alone would accept — but it is a guard against a defect nobody has written, not the killer of
+    the one in the battery. The false version of this sentence was copied into `f1de4c1`'s commit
+    message, where it cannot be edited."""
     write(repo, "retro.d/20260901_0710-a-lesson.md", f"{opener}\n\nProse.\n")
 
     result = run(repo, "--stream", "retrospectives", "--check")
