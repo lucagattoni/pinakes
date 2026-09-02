@@ -10,13 +10,19 @@
 # computes depends on it, and a rate with its own, different staleness would make "the prices are
 # fresh" a claim about only half of what an estimate actually uses.
 #
-# The rate is the ECB euro foreign-exchange reference rate for the stamp date, read from
-# api.frankfurter.dev (which republishes the ECB series). Named here because docs/RELEASING.md's
-# re-verification step asks for "a named FX source, on the day you stamp", and an unnamed source is
-# not re-checkable by the next release. It sat at the seed value 1.08 from 20260728 to
-# 20260831 22:52 while as_of moved once beneath it -- the exact falsification that step warns about.
-as_of = "20260831 22:52"
-usd_per_eur = "1.1596"
+# The rate is the ECB euro foreign-exchange reference rate, read from api.frankfurter.dev (which
+# republishes the ECB series). Named here because docs/RELEASING.md's re-verification step asks for
+# "a named FX source, on the day you stamp", and an unnamed source is not re-checkable by the next
+# release. It sat at the seed value 1.08 from 20260728 to 20260831 22:52 while as_of moved once
+# beneath it -- the exact falsification that step warns about.
+#
+# The ECB fixing date is not always as_of's date, and the difference is recorded rather than
+# implied. The ECB publishes around 16:00 CET, so a release cut in the morning necessarily carries
+# the previous business day's fixing; letting as_of imply the fixing it read is the quiet half of
+# the same falsification. 0.32.0 was stamped on 20260902 and carries the 2026-09-01 fixing, the
+# newest published at that moment. The value it replaces, 1.1596, was the 2026-08-31 fixing.
+as_of = "20260902 09:48"
+usd_per_eur = "1.159"
 
 # Measured against the live API on 20260729 03:17 with claude-opus-5, over the synthetic corpus
 # (docs/MEASUREMENT-RUN.md). Recorded here rather than only in a retrospective because the next

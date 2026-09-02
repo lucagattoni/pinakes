@@ -17,10 +17,18 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260831 23:14 UTC
+## Where things stand right now — 20260902 09:55 UTC
 
-- **58 releases in 37 days**, and **one** landed without ever reaching PyPI.
-  [`0.1.0`](#010--the-engine--20260725-1527) on 20260725;
+- **60 releases in 39 days** — **counted from `CHANGELOG.md`, not incremented from this
+  sentence's own previous value**, which is exactly how it drifted: it read **58** while the file
+  held **59**. Across the **109** commits that have carried this sentence it agreed with the
+  CHANGELOG in **70** and was wrong in **39** — all but two of them low, because a release added one
+  to the printed number instead of counting the entries. The three registers now reconcile: **60**
+  entries = **58** git tags + `0.30.3`, prepared and never tagged, + `0.32.0`, this release.
+  [`0.1.0`](#010--the-engine--20260725-1527) on 20260725.
+  [`0.32.0`](#0320--one-unreadable-file-no-longer-takes-the-kb-with-it--20260902-0948) landed on
+  `main` on 20260902 and is **not on PyPI yet** — STATUS's headline carries the hold marker until
+  the index has been read, which is the whole point of the marker.
   [`0.31.1`](#0311--the-price-nobody-was-watching--20260831-2301) is **on PyPI as of
   20260831 23:10** — landed on `main` at 23:01 and published nine minutes later, with STATUS's
   headline hold marker covering that window and removed only once the index had been read.
@@ -31,10 +39,12 @@ precision nobody measured.
   0.31.0 itself, so 0.31.0 was its own first customer and 0.31.1 is the first release to inherit it.
   [`0.31.0`](#0310--the-gates-that-could-not-fail--20260830-1446) is **on PyPI as of
   20260830 14:54**, verified by installing it from the index.
-  [`0.30.3`](#0303--the-question-the-probes-could-not-ask--20260825-0827) never will be — it was
-  prepared on 20260825, never tagged, and **its fix ships inside `0.31.0`**; its entry is kept
+  **Exactly one release cut since publishing was switched on has never reached PyPI:**
+  [`0.30.3`](#0303--the-question-the-probes-could-not-ask--20260825-0827) — prepared on 20260825,
+  never tagged, and **its fix ships inside `0.31.0`**; its entry is kept
   rather than folded away, because the record was written honestly and deleting it would erase the
-  gap instead of correcting it.
+  gap instead of correcting it. The **seven** tags below `v0.2.2` are not a second exception: they
+  predate publishing altogether, since `PUBLISH_TO_PYPI` became `true` on 20260728 17:15.
 - **Latest on PyPI: `0.31.1`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
@@ -219,6 +229,7 @@ number belongs to a release only when it is cut
 | **[0.30.3](#0303--the-question-the-probes-could-not-ask--20260825-0827)** | 20260825 08:27 | the question the probes could not ask | • `pnk init` reports a `.pinakes/` git is already **tracking** — 0.30.2's check could not see it<br>• `check-ignore` consults the index, and the opaque probes are never *in* it, so it answered only *would a new file be ignored*<br>• A KB committed before its ignore rule reads as **protected** while `git commit -a` republishes the **verbatim questions**<br>• A second **question** (`git ls-files`), asked whether or not the `.gitignore` was adopted<br>• **Remedy order is load-bearing** — ignore line first, or the next `git add -A` re-adds; absolute path, or it fails from the repo root<br>• Says index-not-disk, and claims nothing about pushed history<br>• **Two of three specified constraints were corrections to the plan**: the prescribed test could not fail (68/69 survived the mutant), and `rc=128` needed asserting below a `bool`<br>• `pnk doctor` re-checking, and WARN-vs-note, **still undecided** (D-31 to D-33)<br>• ships in the wheel |
 | **[0.31.0](#0310--the-gates-that-could-not-fail--20260830-1446)** | 20260830 14:46 | the gates that could not fail | • `make release-check` was **three `echo`s** — it now refuses a missing, duplicated, lightweight, empty, disagreeing or **already-pushed** tag<br>• The tag is created **before** the gate and pushed **after** — the push is the irreversible half<br>• A review fan-out that **lost agents reported success**; `review_pass_gate.py` exits 1 on an unfinished pass<br>• `review_ledger.py` — a later review pass no longer starts from zero<br>• STATUS's headline could claim a hold that was over, or hide one that was not — **the *removal* was the uncatchable half**<br>• The procedure never asked for the hold marker, which is why it had **never once been written**<br>• The suite read the **wall clock** against the committed price table — 25 tests red on the calendar, no commit involved<br>• `docs/RELEASING.md` gains the price-refresh step; `as_of` had **never been refreshed since the file was created**<br>• A sidecar whose id no longer matches its path **stops wedging the index** — `doctor` had reported healthy at exit 0<br>• No plan places one id at two paths; **renaming past each other still fails**, but now costs nothing<br>• `pnk doctor` gains a **retired documents** check<br>• no `schema_version`, no rebuild |
 | **[0.31.1](#0311--the-price-nobody-was-watching--20260831-2301)** | 20260831 23:01 | the price nobody was watching | • `usd_per_eur` held its **seed value `1.08`** from 20260728 to 20260831 while `as_of` was re-stamped over it at 0.31.0<br>• The falsification `docs/RELEASING.md` step 3 names — and step 3 was written **five hours earlier the same day**<br>• ECB reference rate for 20260831 is **1.1596**; every EUR figure was **over-stated by 7.4%** and every EUR cap bit early<br>• Nothing overspent — but ledger lines since 20260728 carry a rate that was never true, and re-deriving euros from them is faithful to a wrong record<br>• **The staleness guard was healthy and guarded the wrong thing**: `max_price_age_days` and `pnk doctor` both key on `as_of`<br>• `prices.toml` now **names its FX source**, in the file — an unnamed source is not re-checkable by the next release<br>• **Nothing in the suite asserted the committed rate**; one literal was its alarm **by accident**, and it fires on *movement*, never on *staleness*<br>• Rowed as two parts on purpose — decoupling it alone would delete the only alarm the rate has ever had<br>• Two `retro.d/` fragments would have spliced malformed; one carried **no `##` heading** and the stream synthesises none<br>• no `schema_version`, no rebuild; `prices.toml` ships in the wheel |
+| **[0.32.0](#0320--one-unreadable-file-no-longer-takes-the-kb-with-it--20260902-0948)** | 20260902 09:48 | one unreadable file no longer takes the KB with it | • One file the process could not open ended `pnk sync` with a raw traceback and **no index database at all** — `hash_file` let `PermissionError` escape `walk_sources`<br>• The path is carried out of the walk and reported per-document with a `chmod +r` remedy; `report.ok` is `not failures`, so the run still exits non-zero<br>• **The second half is what makes the first safe** — `pair()` reasons from *absence*, so a skipped file would have emitted a `SoftDelete` and **deleted the document from search**<br>• `pnk doctor` died on the same condition: the remedy `pnk sync` prints sent you to a traceback. A fourth drift check, `paid extraction unreadable`, names what it could not decide<br>• An unreadable document's sidecar is no longer listed as orphaned — that list is printed with `pnk doctor --prune` beside it, and pruning destroys a permanent ULID<br>• The other eleven entries are tooling and documents: `tools/agent_spend.py`, the probe's `--questions` flag, a `retro.d/` heading gate, the 34-finding 20260807 audit closed as one unit, and the link gate learning where a fragment's body is spliced to |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -2403,6 +2414,52 @@ document audits over the same tree had not looked at the value.
 
 **No `schema_version` bump and no rebuild.** `prices.toml` ships in the wheel, so an installed copy
 gets the corrected rate; nothing about any KB changes.
+
+## 0.32.0 — one unreadable file no longer takes the KB with it · 20260902 09:48
+
+**One file the process could not open ended `pnk sync` with a raw Python traceback and no index
+database at all — every other document in the KB unreachable because of one.**
+
+**The defect.** `hash_file` let `PermissionError` escape `walk_sources`, so the walk aborted on the
+first unreadable path it met. The KB was not degraded by one bad file; it was absent.
+
+**The fix has two halves, and the second is what makes the first safe.** The unreadable path is
+carried out of the walk and reported as a per-document failure with a `chmod +r` remedy — and it is
+carried as far as `pair()`, which reasons from **absence**: a path the walk stops reporting is a
+path that is gone. A walk that merely *skipped* the file would have emitted a `SoftDelete`, dropped
+its chunks and printed `1 removed`, so a permission change would have **deleted a document from
+search**. `pair()` therefore holds each such row as a `Skip` before any loop that reasons from
+absence runs. `report.ok` is `not failures`, so `pnk sync` still exits non-zero: the file is
+reported, never quietly dropped.
+
+**`pnk doctor` died on the same condition**, which is the part that closes the loop.
+`_extraction_backend_drift` hashed the source of every paid-recorded row through the same unguarded
+read — so the command `pnk sync`'s own remedy sends you to ended in a traceback on exactly the state
+it exists to diagnose. A fourth drift check, `paid extraction unreadable`, now names the document
+whose staleness could not be decided, because `paid extraction stale: none` would otherwise be a
+claim about a file nothing could read. An unreadable document's sidecar is also no longer listed as
+orphaned: that list is printed with `pnk doctor --prune` beside it, and pruning destroys a permanent
+ULID. `--sidecars-only` reports it too — that is the half that runs in a pre-commit hook.
+
+**The other eleven entries are tooling and documents.** `tools/agent_spend.py` measures what the
+agents working on this repository cost, from their own transcripts, after two properties of that
+format were got wrong on the first pass — one response is written as several lines sharing a
+`requestId`, so a per-line sum inflates spend **2.14×**, and `output_tokens` is a running partial,
+so a request's first line undercounts output **1.7755×**. `tools/reachable_ceiling_probe.py` gained
+`--questions`, the flag every sibling already had. `tools/fragments.py --check` refuses a `retro.d/`
+fragment with no `## ` heading of its own — headingless, such a fragment was not malformed once
+spliced but **absorbed**, reading as the preceding incident's lesson with every gate green. And
+`tools/markdown_link_gate.py` learned that a fragment's links resolve from the document its body is
+spliced **into**, not from the directory the file sits in: `[x](20260902_0245-….md)` names a real
+sibling inside `retro.d/` and a file that never existed inside `docs/`. That form reached `main`
+twice on 20260902 and would have failed this release's own build.
+
+**Every remaining finding of the 20260807 documentation audit is fixed** — 34 findings across ten
+files, landed as one unit rather than 34 rows, each re-measured against `f3303fc` before a character
+changed.
+
+**No `schema_version` bump and no rebuild.** The `sync` and `doctor` fixes ship in the wheel; the
+gates do not.
 
 # Part 5 · What is not built
 
