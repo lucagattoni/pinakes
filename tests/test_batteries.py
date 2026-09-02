@@ -30,6 +30,26 @@ BATTERIES = REPO / "tools" / "batteries"
 #: holds six, and they are the tests that die when the extraction floors move.
 SELECTOR = re.compile(r"^(tests/[\w/]+\.py)::(\w+)(?:::(\w+))?$")
 
+#: The horizontal rules that fence a section. A battery's sections are delimited by these rather
+#: than by anything TOML can see — `tomllib` drops comments, so the section structure is only ever
+#: readable from the raw bytes.
+#:
+#: **Both rule shapes, because the tree has both, and two files mix them.** Eleven batteries fence
+#: with the box-drawing `U+2500`; `src-pinakes-pairing.toml` and `tools-mcp_handshake_gate.toml`
+#: each *also* carry ASCII-hyphen fences, so the shape is not even a per-file property. Matching
+#: only the box-drawing form left this gate reading **34 of the tree's 36** section headers and
+#: reporting a clean sweep — and one of the two it could not see was the header that had drifted.
+#: A gate against unnoticed drift, silently skipping the drift, is the failure it exists to
+#: prevent, so the shapes are counted rather than assumed.
+RULE = re.compile(r"^#\s*(?:\u2500{10,}|-{10,})\s*$")
+
+#: The two forms `tools/batteries/README.md` reserves for a section header: the release that
+#: shipped the property, or `unreleased, YYYYMMDD` for work not yet cut. **Shape, not calendar** —
+#: `unreleased, 20261345` conforms here, deliberately. What this gate asserts is that a section
+#: says *which release it belongs to*; whether a date is a real date is a different property, and
+#: one this repository has ruled on separately for fragment filenames.
+SECTION = re.compile(r"^# (?:\d+\.\d+\.\d+|unreleased, \d{8}) \u00b7 \S")
+
 
 def _batteries(directory: Path | None = None) -> list[tuple[Path, dict[str, Any]]]:
     """`directory` exists for the control at the foot of this file, which points every check here
@@ -62,6 +82,25 @@ def _defined_in(path: Path) -> set[str]:
     """
     text = path.read_text(encoding="utf-8")
     return set(re.findall(r"^\s*(?:def|class) (\w+)", text, re.MULTILINE))
+
+
+def _section_headers(path: Path) -> list[str]:
+    """Every comment line sitting directly under one of the fence rules.
+
+    A battery is mostly prose, so `^# ` alone would sweep up explanation as well. Being **fenced
+    on both sides** is what makes a header a header, and it is the shape an increment copies when
+    it appends a section. A rule above alone is not enough: the line following the *closing* rule
+    is a bare `#`, and taking it would have this gate reporting 34 non-conforming headers in a
+    tree where every real one conforms.
+    """
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return [
+        line
+        for index in range(1, len(lines) - 1)
+        if RULE.match(lines[index - 1])
+        and RULE.match(lines[index + 1])
+        and not RULE.match(line := lines[index])
+    ]
 
 
 def test_the_directory_is_not_empty_and_every_battery_carries_mutants() -> None:
@@ -279,6 +318,40 @@ def test_the_committed_batteries_cover_only_tools_and_the_readme_says_so() -> No
     )
 
 
+def test_every_section_header_names_the_release_it_belongs_to() -> None:
+    """A section says which release shipped its mutants, or that none has yet.
+
+    `tools/batteries/README.md` reserves two forms and no third: `X.Y.Z · ` for a property that has
+    shipped, `unreleased, YYYYMMDD · ` for one that has not. The distinction is the whole value of
+    the header — a battery is the record of *which release* a property became true in, and a bare
+    date reads as unreleased-ish precisely because the unreleased form is the one carrying a date
+    while the version form carries none.
+
+    **This gate was refused once, deliberately**, when the only known instance was a single comment
+    and adding a check counted as new process. Both halves of that have changed: the process
+    question was settled, and the instance was not single. Two were on disk when this was written.
+    `tools-markdown_link_gate.toml` carried `# 20260823 · …` where the release was already cut
+    (`0.30.0` — writing `unreleased` there would have replaced a non-conformance with a false
+    claim), and `src-pinakes-pairing.toml` carried `# unreleased, 20260831 - …`, a hyphen where the
+    separator belongs. **The second was invisible to the audit that found the first**, whose
+    selector required the `·` that the offending line was missing.
+
+    **What this does not check:** that the dates are real dates, and that sections run oldest-first.
+    Both are different properties from *the header names its release*, and a gate that quietly grew
+    a second subject would be harder to reason about than a second gate.
+    """
+    offenders = [
+        f"{path.name}: {header}"
+        for path, _ in _batteries()
+        for header in _section_headers(path)
+        if not SECTION.match(header)
+    ]
+    assert not offenders, (
+        "battery section header(s) matching neither reserved form — use `X.Y.Z · ` for a property "
+        f"that has shipped, `unreleased, YYYYMMDD · ` for one that has not: {offenders}"
+    )
+
+
 # ---------------------------------------------------------------------------------------------
 # The control: every check above, pointed at a directory built to trip it
 # ---------------------------------------------------------------------------------------------
@@ -291,6 +364,10 @@ def test_the_committed_batteries_cover_only_tools_and_the_readme_says_so() -> No
 # and the assertion that each check finds its own violation there.
 
 BROKEN = '''\
+# ------------------------------------------------------------------------------------------
+# 20260823 · a bare date, which is the real instance and neither reserved form
+# ------------------------------------------------------------------------------------------
+
 mutants = 3
 
 [[mutant]]
@@ -373,3 +450,10 @@ def test_every_check_here_fails_on_a_directory_built_to_break_it(tmp_path: Path)
 
     miscounted = [path.name for path, data in parsed if data["mutants"] != len(data["mutant"])]
     assert miscounted == ["not-named-for-any-target.toml"], miscounted
+
+    assert [
+        header
+        for path, _ in parsed
+        for header in _section_headers(path)
+        if not SECTION.match(header)
+    ], "the section-header check would not notice a header naming neither a release nor a date"
