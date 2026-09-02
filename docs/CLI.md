@@ -414,11 +414,11 @@ Health check. Reports environment (SQLite version, FTS5, loadable extensions), b
 weights and the PDF extractor, template drift, linked KBs, sidecar readability, the index itself,
 index/model coherence, extraction coherence, calibration validity, orphaned sidecars, duplicate
 IDs, retired documents, dangling links and link coverage, recorded failures, extraction cache
-stats, awaiting paid extraction, paid extraction not requested, paid extraction stale, PDF text
-yield, the completeness audit's below-median pages, the 50k-chunk NumPy threshold, held sync
-locks, hook status, the price table's age, unknown-outcome ledger records, whether a paid backend
-is configured on a KB whose hooks force the free one, the highest-degree structural edge hubs,
-heading coverage, chunking coherence, and titles.
+stats, awaiting paid extraction, paid extraction not requested, paid extraction stale, paid
+extraction unreadable, PDF text yield, the completeness audit's below-median pages, the 50k-chunk
+NumPy threshold, held sync locks, hook status, the price table's age, unknown-outcome ledger
+records, whether a paid backend is configured on a KB whose hooks force the free one, the
+highest-degree structural edge hubs, heading coverage, chunking coherence, and titles.
 
 **`titles` counts documents still carrying the title `sync` minted from their filename, and is
 always OK.** A **Markdown** document titles itself from its own `# ` heading — but **only when the
