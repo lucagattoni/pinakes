@@ -150,6 +150,79 @@ def test_money_is_quantised_once_and_below_the_cent(path: Path) -> None:
     assert read_back.cost_eur == Decimal("0.004322") / RATE
 
 
+#: The two consecutive ECB fixings that bracket 20260901, hard-coded so that no price refresh can
+#: reach them. Under `1.1596` the money trace in `tests/test_pdf_trace.py` compared a reservation's
+#: `cost_eur` against the estimate's own `per_request_eur` and was green; the refresh to `1.159`
+#: turned that comparison red and took `main` with it. Neither rate is read from `prices.toml` on
+#: purpose — a guard whose inputs a release-day refresh can move is a guard that can go quiet on
+#: the day it is needed, which is exactly what the trace did.
+BRACKETING_RATES = (Decimal("1.1596"), Decimal("1.159"))
+
+#: One slice of that paid call in USD, before any conversion: 2 200 input tokens at $3/Mtok and
+#: 8 000 output tokens at $15/Mtok.
+SLICE_INPUT_USD = Decimal("0.0066")
+SLICE_OUTPUT_USD = Decimal("0.12")
+
+
+def estimated_eur(rate: Decimal, requests: int = 1) -> Decimal:
+    """`estimate.py`'s arithmetic rather than a shortcut for it: each leg is divided into euros
+    separately, the legs are summed, and the sum is split across requests. Dividing the summed USD
+    once instead lands on a different 28th digit — that near-miss is the whole subject here."""
+    return (SLICE_INPUT_USD / rate + SLICE_OUTPUT_USD / rate) / requests
+
+
+@pytest.mark.parametrize("rate", BRACKETING_RATES)
+def test_a_reservation_stores_the_quantised_dollar_at_either_rate(
+    path: Path, rate: Decimal
+) -> None:
+    """The invariant that replaced the euro comparison: whatever the rate, the line carries the
+    estimate's dollars at the ledger's own quantum."""
+    reserved_usd = estimated_eur(rate) * rate
+    append(
+        path,
+        record(RecordKind.RESERVATION, call_id="C", cost_usd=str(reserved_usd), rate=rate),
+    )
+    assert read(path).records[0].cost_usd == quantise(reserved_usd)
+
+
+def test_the_euro_read_back_matches_the_estimate_at_one_rate_and_not_at_the_next(
+    path: Path,
+) -> None:
+    """Why the trace pins dollars and not euros — and the guard a refresh cannot silence.
+
+    `cost_eur` is `cost_usd / usd_per_eur` computed at read time, so it is the *quantised* dollar
+    divided back. `per_request_eur` is the unquantised euro the estimate reached through two
+    divisions and a sum. Whether the two agree is a property of where 28-digit arithmetic lands,
+    and it moves with the rate: at `1.1596` the multiply back is exactly `0.1266`, at `1.159` it is
+    one unit in the last place below that. **Both quantise to the same stored `0.126600`** — the
+    divergence is entirely on the euro side, which is the side the old assertion compared.
+
+    Both outcomes are asserted, not just the failure. If a future Decimal context or a reshaped
+    estimate made the round trip exact at *both* rates, the euro comparison would be holdable again
+    and somebody should be told — rather than left with a guard that quietly keeps passing.
+    """
+    for index, rate in enumerate(BRACKETING_RATES):
+        append(
+            path,
+            record(
+                RecordKind.RESERVATION,
+                call_id=f"C{index}",
+                cost_usd=str(estimated_eur(rate) * rate),
+                rate=rate,
+            ),
+        )
+
+    records = read(path).records
+    round_trips = {
+        rate: records[index].cost_eur == estimated_eur(rate)
+        for index, rate in enumerate(BRACKETING_RATES)
+    }
+    assert round_trips == {Decimal("1.1596"): True, Decimal("1.159"): False}, (
+        "the euro round trip's exactness is rate-dependent, which is why `test_pdf_trace.py`'s "
+        f"hop 2 asserts against the stored dollar instead; measured {round_trips}"
+    )
+
+
 def test_a_record_too_large_for_one_atomic_append_is_refused(path: Path) -> None:
     oversize = record(RecordKind.RESERVATION, call_id="C" * MAX_RECORD_BYTES)
     with pytest.raises(LedgerError) as exc_info:
