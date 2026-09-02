@@ -362,13 +362,19 @@ kills = "tests/test_fragments.py::test_a_fragment_with_no_prefix_owes_a_heading_
 # renderer. **A row whose `new` is the code that shipped last week is the only kind that proves the
 # correction was a correction**, and neither of those two had one.
 #
-# The other two restore nothing, because neither shape ever shipped: pass 1's check already
-# required the separator, so a bare `re.compile(r"^##")` is fresh coverage for the `\S` half of the
-# current opening rather than a revert. And the last row is the selector the other arms depend on
-# and nothing covered: pass 4 mutated `if line.strip()` to `if line` and all 56 tests stayed green,
-# while the mutated gate told a writer with a correct heading and a correct stamp that both were
-# missing. Verified across every commit from `50dd420` to `6bc8078`: `startswith("## ")` and the
-# pass-3 lookaround each shipped, `^##` and `if line` never did.
+# The other two restore nothing, because neither shape ever shipped. Pass 1 already required the
+# separator, so no committed version ever opened a fragment on `##A lesson`, and that row is fresh
+# coverage for the separator itself — the two-spaces-and-a-tab half is the `startswith` row above
+# it, not this one. And the last row is the selector the other arms depend on and nothing covered:
+# pass 4 mutated `if line.strip()` to `if line` and all 56 tests stayed green, while the mutated
+# gate told a writer with a correct heading and a correct stamp that both were missing.
+#
+# The population is every committed version of `tools/fragments.py` — 30 commits in full history,
+# 20 distinct contents, back to `f588f03` — each searched for the row's own `new` string verbatim.
+# `startswith("## ")` appears in four of them and the pass-3 lookaround in one;
+# `re.compile(r"^##")` and the unstripped `if line` appear in none. Naming the selector is the point: an earlier draft of
+# this paragraph claimed a commit *range* nobody had examined, and two probes over two different
+# populations then disagreed about the counts while agreeing about the facts.
 
 [[mutant]]
 name = "DISCRIMINATING — the opening reverts to `startswith`, which accepts two spaces and refuses a tab"
