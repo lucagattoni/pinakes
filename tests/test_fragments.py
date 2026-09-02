@@ -1036,7 +1036,7 @@ def test_the_separator_is_one_space_and_the_gate_is_stricter_than_the_renderer(
 def test_a_whitespace_only_first_line_is_not_read_as_the_opening(repo: Path) -> None:
     """An editor leaves one behind routinely, and the heading is on the next line.
 
-    `next((line for line in text.splitlines() if line.strip()), "")` picks the first line with
+    `next((line for line in text.split("\n") if line.strip()), "")` picks the first line with
     something on it, so `"   \n## A lesson …"` opens with the heading and the fragment is correct.
     Drop the `.strip()` and the blank line becomes the opening: the writer is told the fragment has
     no `## ` heading *and* no stamp, about a heading and a stamp that are both already right — the
@@ -1054,3 +1054,30 @@ def test_a_whitespace_only_first_line_is_not_read_as_the_opening(repo: Path) -> 
     result = run(repo, "--stream", "retrospectives", "--check")
 
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize(
+    "breaker",
+    ["\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029"],
+)
+def test_the_stamp_must_end_the_real_line_not_a_break_python_invents(
+    repo: Path, breaker: str
+) -> None:
+    """`str.splitlines()` breaks on eight characters Markdown does not, and the arm above asks
+    whether the stamp ends the line it is given. Hand it the part before a form feed and a heading
+    whose visible text runs well past the stamp reads as correctly stamped: python-markdown renders
+    `## A lesson (20260901 07:10)\x0c- trailing text` as a single `<h2>` containing all of it.
+
+    The gate's own comment and `docs/VERIFICATION.md` both say the stamp must *end* the heading, so
+    this is the assertion that makes those two sentences true rather than nearly true. Splitting on
+    `\n` alone is what the renderer does, and it is what the checker now does."""
+    write(
+        repo,
+        "retro.d/20260901_0710-a-lesson.md",
+        f"## A lesson (20260901 07:10){breaker}- trailing text after the stamp\n\nProse.\n",
+    )
+
+    result = run(repo, "--stream", "retrospectives", "--check")
+
+    assert result.returncode == 1
+    assert "(20260901 07:10)" in result.stderr

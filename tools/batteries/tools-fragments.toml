@@ -7,7 +7,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 37
+mutants = 38
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.27.1 · a fragment that opens with front matter is refused before `--apply` can splice it
@@ -223,7 +223,7 @@ kills = "tests/test_fragments.py::test_check_validates_the_exact_bytes_apply_wri
 #
 # **The corpus cannot substitute for these rows.** `retro.d/` holds only *unreleased* fragments —
 # the rest were spliced into `docs/RETROSPECTIVES.md` and deleted at each release — so the live
-# directory was 4 files when this was built and all 4 already passed. The one live counter-example
+# directory was 4 files at `0aea036`, where this branch began, and all 4 already passed. The one live counter-example
 # anywhere was a *fixture*, in `test_apply_is_one_step_or_none_across_every_stream`.
 
 [[mutant]]
@@ -264,10 +264,10 @@ kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_ac
 [[mutant]]
 name = "the exemption widens: a fragment with no prefix skips the heading arm as well as the stamp"
 file = "tools/fragments.py"
-old = '''    first = next((line for line in text.splitlines() if line.strip()), "")'''
+old = '''    first = next((line for line in text.split("\n") if line.strip()), "")'''
 new = '''    if _STAMP.match(path.stem) is None:
         return problems
-    first = next((line for line in text.splitlines() if line.strip()), "")'''
+    first = next((line for line in text.split("\n") if line.strip()), "")'''
 kills = "tests/test_fragments.py::test_a_fragment_with_no_prefix_owes_a_heading_and_not_a_stamp"
 
 [[mutant]]
@@ -343,7 +343,7 @@ new = '''    if wanted not in first:'''
 kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_accepted"
 
 [[mutant]]
-name = "the no-prefix exemption is dropped, so a fragment predating the naming rule is asked for a stamp it cannot have"
+name = "the no-prefix exemption is dropped, so a fragment with no prefix crashes the checker on `stamp.group(0)`"
 file = "tools/fragments.py"
 old = '''    if stamp is None:
         return problems'''
@@ -400,6 +400,25 @@ kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_ac
 [[mutant]]
 name = "DISCRIMINATING — any line may be the opening, so a blank first line is refused as a missing heading"
 file = "tools/fragments.py"
-old = '''    first = next((line for line in text.splitlines() if line.strip()), "")'''
-new = '''    first = next((line for line in text.splitlines() if line), "")'''
+old = '''    first = next((line for line in text.split("\n") if line.strip()), "")'''
+new = '''    first = next((line for line in text.split("\n") if line), "")'''
 kills = "tests/test_fragments.py::test_a_whitespace_only_first_line_is_not_read_as_the_opening"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260902 · the eighth pass — the line the renderer sees
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# One row, and it is the first on this file to come from asking what the *renderer* does rather than
+# what the code does. `splitlines()` breaks on eight characters Markdown treats as ordinary text, so
+# `## A lesson (20260901 07:10)\x0cmore` reached the stamp arm as `## A lesson (20260901 07:10)` and
+# passed, while python-markdown 3.10.3 rendered one `<h2>` whose visible text ran past the stamp.
+# Two sentences already asserted this could not happen — the comment at the arm, and
+# `docs/VERIFICATION.md`'s row 2 — and both were false for those eight characters. The fix makes
+# them true; this row is what keeps them true.
+
+[[mutant]]
+name = "DISCRIMINATING — the opening is chosen with `splitlines`, so a form feed ends the heading and trailing text after the stamp passes"
+file = "tools/fragments.py"
+old = '''    first = next((line for line in text.split("\n") if line.strip()), "")'''
+new = '''    first = next((line for line in text.splitlines() if line.strip()), "")'''
+kills = "tests/test_fragments.py::test_the_stamp_must_end_the_real_line_not_a_break_python_invents"

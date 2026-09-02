@@ -95,11 +95,15 @@ That is possible only because the tool takes its own root as an argument — **a
 its repository root is testable by agents that must not touch the tree**, which is worth knowing
 while writing the next one.
 
-**Two right numbers, two selectors, and no dispute to have.** A peer measured five drifted heading
-stamps shipping; I measured three. Both correct: five drifted *when written*, three are *still wrong
-in the published document*, and two were fixed by hand between fragment and splice (`fbf17da` wrote
-`(20260826 07:31)`; the shipped line reads `(20260826 07:33)`). Neither of us had stated the
-selector — in a measurement about a gate whose entire subject is stamps composed rather than copied.
+**Two selectors, no dispute to have — and both numbers wrong anyway.** A peer measured five drifted
+heading stamps shipping; I measured three; we agreed each was right under a different selector, and
+neither of us had stated one. Re-measured over a population I can name — the 111 `retro.d/` fragments
+that ever carried a `YYYYMMDD_HHMM-` prefix, each read at its own adding commit — the triple is **six**
+drifted *when written*, **three** still wrong in the published document, and **three** fixed by hand
+between fragment and splice (`fbf17da` wrote `(20260826 07:31)` and the shipped line reads
+`(20260826 07:33)`; `a54b304`, whose subject is *"applying the new rule to my own fragments found
+three"*, touches exactly those three). The arithmetic was the tell we both walked past: five minus two
+is not three, and six minus three is.
 **State the selector even when the other party agrees with you**: agreement between two unstated
 populations is a coincidence, not a confirmation.
 

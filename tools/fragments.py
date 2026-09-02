@@ -398,7 +398,12 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
             "without a BOM."
         )
         text = text.lstrip("\ufeff")
-    first = next((line for line in text.splitlines() if line.strip()), "")
+    # `splitlines()` also breaks on \x0b \x0c \x1c \x1d \x1e \x85 \u2028 \u2029, none of which
+    # Markdown treats as a line break: `## A lesson (…)\x0cmore text` is ONE `<h2>` whose visible
+    # text runs past the stamp, and `splitlines()` handed the arm below only the part before the
+    # form feed, so it read as a trailing stamp and passed. Split on `\n` alone — the renderer's
+    # notion of a line is the one this gate is about.
+    first = next((line for line in text.split("\n") if line.strip()), "")
     if _OPENING.match(first) is None:
         problems.append(
             f"{stream.directory}/{path.name}: must open with its own `## ` heading, and opens "
