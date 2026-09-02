@@ -273,7 +273,7 @@ def test_a_paid_slice_traces_from_estimate_to_the_budget_report(
     from test_extract_claude import MODEL, RecordedTransport, load_fixture
 
     from pinakes.budget.estimate import estimate_document
-    from pinakes.budget.ledger import RecordKind, ledger_path
+    from pinakes.budget.ledger import RecordKind, ledger_path, quantise
     from pinakes.budget.ledger import read as read_ledger
     from pinakes.budget.prices import load_prices
     from pinakes.budget.summary import euros
@@ -334,8 +334,31 @@ def test_a_paid_slice_traces_from_estimate_to_the_budget_report(
     reconciliations = [r for r in records if r.kind is RecordKind.RECONCILIATION]
     assert len(reservations) == 1 and len(reconciliations) == 1
 
-    # hop 2 — the reservation carries the estimate, in euros, for this one slice.
-    assert reservations[0].cost_eur == estimate.per_request_eur
+    # hop 2 — the reservation carries the estimate for this one slice, in USD at the quantum the
+    # ledger actually stores.
+    #
+    # **Not `cost_eur == per_request_eur`.** That assertion was green until 20260902 and could not
+    # be held: it compares a value taken *before* the ledger's deliberate quantisation against one
+    # taken *after* it. `accountant.py` multiplies the EUR estimate back by the rate, `ledger.py`
+    # quantises that to `QUANTUM` on write, and `cost_eur` divides it back on read. At
+    # `usd_per_eur = 1.1596` the multiply landed exactly on `0.3535000000000000000000000000` and the
+    # quantisation was a no-op, so the two agreed; refreshing the rate to the correct 20260901 ECB
+    # fixing of `1.159` made it land on `0.3534999999999999999999999999`, which `ROUND_HALF_UP`
+    # snaps *up* to `0.353500` — one ULP of difference, and a red build. **It was passing on the
+    # value of a constant it never mentions.** Over 40 000 randomised (rate, cost, requests) cases
+    # the old assertion fails 66% of the time; rearranging the arithmetic so the estimate divides
+    # once instead of twice fails 54%, and 0% at `requests == 1` — which is why that rearrangement
+    # looks like a principled fix and is not one. `(input_usd + output_usd) / requests` generally
+    # has more than six decimal places, quantisation discards the remainder **by design**, and no
+    # reordering recovers it.
+    #
+    # **What this pins, and what it no longer pins.** Both sides now go through `quantise`, so this
+    # cannot fail on arithmetic: it pins the *plumbing* — that the reservation carries **this**
+    # estimate and not some other number — and nothing about the arithmetic that produced it. That
+    # is a narrowing, and it is deliberate. The mutants it must survive are the ones that change
+    # *which* number is carried (a wrong model price, a wrong `input_tokens_per_request`, `requests`
+    # off by one), not ones that perturb a digit.
+    assert reservations[0].cost_usd == quantise(estimate.per_request_eur * prices.usd_per_eur)
 
     # hop 3 — the response's own `usage`, straight from the recorded fixture.
     usage = load_fixture("short-final-slice")["responses"][0]["usage"]
@@ -354,7 +377,13 @@ def test_a_paid_slice_traces_from_estimate_to_the_budget_report(
         Decimal(input_tokens) * price.input_per_mtok_usd
         + Decimal(output_tokens) * price.output_per_mtok_usd
     ) / Decimal(1_000_000)
-    assert reconciliations[0].cost_usd == expected_usd.quantize(reconciliations[0].cost_usd)
+    # `quantise`, not `.quantize(...)`. Bare `Decimal.quantize` takes the context default,
+    # `ROUND_HALF_EVEN`; the ledger writes with `ROUND_HALF_UP`. They disagree on exact ties — 1.81%
+    # of the same 40 000-case sweep, e.g. production stores `178.678903` where the bare form
+    # computes `178.678902`. It has never fired because today's prices make per-token USD exactly
+    # six decimals (`5.00/1e6`, `25.00/1e6`), so `expected_usd` needs no rounding and there is no
+    # tie to resolve — green for the same kind of reason hop 2 was, one constant away.
+    assert reconciliations[0].cost_usd == quantise(expected_usd)
 
     # hop 5 — and that is the number `pnk budget` reports, formatted by the report's own
     # formatter rather than by this test's idea of one.
