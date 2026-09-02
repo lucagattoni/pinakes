@@ -3271,3 +3271,36 @@ def test_the_pre_commit_half_also_reports_an_unreadable_document(
 
     assert [path for path, _error, _remedy in report.failures] == ["docs/c.md"]
     assert not report.ok
+
+
+def test_a_rebuild_cannot_index_an_unreadable_document_and_does_not_invent_it_a_new_id(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The one place the fix is *worse* than the crash, measured rather than assumed — and the
+    reason it is still the right trade.
+
+    `--rebuild` starts from an empty database, so there is no row to hold: the unreadable document
+    is simply not in the rebuilt index, where the old crash would have aborted before the swap and
+    left the previous index intact. That loss is real. What makes it acceptable is that it is
+    reported, non-zero, and **recoverable without cost**: the sidecar is committed truth for
+    identity, it is untouched on disk, and the next readable sync re-adopts the *same* ULID rather
+    than minting a fresh one. A rebuild that renamed the document's permanent id would be an
+    invariant breach, and that is the assertion at the end.
+    """
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    run(kb)
+    original = {str(row["path"]): str(row["id"]) for row in index(kb)}["docs/c.md"]
+
+    deny_reads_of(monkeypatch, "c.md")
+    rebuilt = run(kb, rebuild=True)
+
+    assert [path for path, _error, _remedy in rebuilt.failures] == ["docs/c.md"]
+    assert {Path(str(row["path"])).name for row in index(kb)} == {"a.md"}
+    assert rebuilt.orphaned_sidecars == (), "a document on disk is not an orphan to prune"
+
+    monkeypatch.undo()
+    recovered = run(kb)
+
+    assert recovered.ok
+    assert {str(row["path"]): str(row["id"]) for row in index(kb)}["docs/c.md"] == original
