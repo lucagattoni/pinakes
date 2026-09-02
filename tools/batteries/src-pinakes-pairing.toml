@@ -373,7 +373,7 @@ new = '''                        reason=RETIRED if retired else CHANGED,'''
 kills = "tests/test_pairing.py::test_a_retired_paid_row_whose_file_returns_changed_still_says_changed"
 
 # --------------------------------------------------------------------------------------------
-# unreleased, 20260831 - S16's residue: a path collision is recorded, and ONLY a path collision
+# unreleased, 20260831 · S16's residue: a path collision is recorded, and ONLY a path collision
 # --------------------------------------------------------------------------------------------
 #
 # Ordering a chain makes action N+1 depend on action N; `_apply` catches a per-document failure and
