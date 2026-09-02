@@ -1,7 +1,7 @@
 ## The one surface a later pass cannot fix is the one nobody reviews (20260902 07:34)
 
-**MEDIUM — four pushed commit messages on this branch carry a false sentence, and a commit message
-is the only artefact here that cannot be corrected in place.** Every review pass on this branch has
+**MEDIUM — three pushed commit messages on this branch carry four false sentences between them, and
+a commit message is the only artefact here that cannot be corrected in place.** Every review pass on this branch has
 read the diff. Pass 9 read the *messages*, and found that the surface holding this increment's
 reasoning — the surface a future reader reaches for when asking why a line is the way it is — had
 never been checked by anything.
@@ -12,6 +12,21 @@ never been checked by anything.
 | `2914b09` | "All five test names they name resolve" | the three `docs/VERIFICATION.md` cells that commit added name **11** distinct tests |
 | `2914b09` | "`startswith("## ")` shipped in eight of them and the pass-3 lookaround in three" | over the population it names — every commit from `50dd420` to `6bc8078` — **5** and **2** |
 | `f1de4c1` | the mutant "is killed by the negative assertion rather than the positive one" | it dies at the **positive** one, `tests/test_fragments.py:1005`, and pytest never reaches the negative |
+
+**And the pass that wrote this fragment put two more onto the same unfixable surface, within the
+hour.** Both were caught by re-reading my own diff before landing, which is the only reason they are
+here as a record and not as a fifth and sixth row somebody finds next week:
+
+| commit | the sentence | measured |
+|---|---|---|
+| `f48e1cf` | the unclosed-`<div>` fixture renders "**one** `<h2>` where the source has four" | the source has **three** `## ` headings. The four is `anchors_of`'s count, which includes the `# ` heading — two instruments, one number, and I carried the number from the wrong one |
+| `bc68475` | "four of them carry a false sentence", of commit messages | four *sentences* across **three** messages; `2914b09` carries two. The table underneath it has always been right, and the sentence summarising the table was not |
+
+Neither is a hard number to check. Both were written in a commit whose subject is other people's
+false counts, and both survived the writing of that commit. **A pass that is looking outward does
+not look at itself**, and the cheapest defence found so far is a mechanical one: before landing,
+re-read your own diff for every number in it and re-derive each, treating your own prose exactly as
+you would treat a claim raised by a lens.
 
 The fourth is the one with a lesson beyond arithmetic. **The false sentence was in the test's own
 docstring first, and the commit message copied it** — *"The negative assertion is the load-bearing

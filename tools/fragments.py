@@ -373,7 +373,7 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
     `document_problems`: `--check` prints *all well-formed* and exits 0, and `--apply` splices it.
     Rendered with `mkdocs.yml`'s own extension list the raw block runs to end of file. The next
     fragment's `## ` heading, its prose, and the protected `## Design review passes` footer all
-    come out as literal text inside the div: **one** `<h2>` on the page where the source has four.
+    come out as literal text inside the div: **one** `<h2>` on the page where the source has three.
     That is absorption again, one layer lower and with a wider blast radius — it swallows the
     footer these arms were written to protect. `prose_lines` knows ` ``` ` and `~~~` and nothing
     about HTML blocks, and `anchors_of` mints all four anchors regardless, so the link gate stays

@@ -102,8 +102,9 @@ carried a `YYYYMMDD_HHMM-` prefix, each read at its own adding commit — the tr
 *when written*, **three** still wrong in the published document, and **three** fixed by hand between
 fragment and splice (`fbf17da` wrote `(20260826 07:31)` and the shipped line reads `(20260826 07:33)`;
 `a54b304`, whose subject is *"applying the new rule to my own fragments found three"*, makes exactly
-those three stamp corrections — it changes a fourth file and adds forty lines to one of the three,
-neither of them a stamp, so it *touches* four).
+those three stamp corrections — it changes a fourth file and appends thirty-eight lines of new
+prose to one of the three above that file's own one-line stamp fix, neither of them a stamp, so it
+*touches* four).
 
 **And the population needs a measurement point and a selector, because it has both and I wrote
 neither.** `git rev-list <sha> --objects`, deduplicated, paths matching
