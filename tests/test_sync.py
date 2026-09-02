@@ -3224,8 +3224,27 @@ def test_an_indexed_document_that_becomes_unreadable_is_held_not_deleted(
     assert after["docs/c.md"]["state"] == "active", "a permission change became a deletion"
     assert after["docs/c.md"]["content_hash"] == before["docs/c.md"]["content_hash"]
     assert report.deleted == 0
-    assert chunks_for(kb, "docs/c.md") > 0, (
-        "its chunks are still in the index — what is measured here is the count, not a search hit"
+    assert chunks_for(kb, "docs/c.md") > 0
+
+    # **A search, not a chunk count** — chunks can sit in the index while the document is
+    # unreachable through the thing a user actually types.
+    #
+    # **`lexical_rank`, not mere presence, and that distinction was measured.** `FakeBackend`
+    # returns an identical vector for every chunk, so the vector half of the fusion returns the
+    # whole corpus and `docs/c.md` appears in `passages` for *any* query at all — the first version
+    # of this assertion passed for the term "Zebrafish", which appears in no document. A non-`None`
+    # `lexical_rank` is the part that requires the query to have matched this document's own
+    # indexed text, and it is the part that goes silent when a held row is retired.
+    connection = store.connect_ro(kb / ".pinakes" / "index.db")
+    try:
+        answered = search.search(connection, load(kb), "Gamma", backend=FakeBackend())
+    finally:
+        connection.close()
+
+    held = [passage for passage in answered.passages if passage.path == "docs/c.md"]
+    assert held, "a held document must still answer `pnk search` from the chunks it kept"
+    assert any(passage.lexical_rank is not None for passage in held), (
+        "matched only by the uniform fake vector, so this asserts nothing about the held chunks"
     )
 
 
