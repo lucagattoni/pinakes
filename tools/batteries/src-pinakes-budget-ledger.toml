@@ -1,0 +1,86 @@
+# Mutation battery — `src/pinakes/budget/ledger.py`, spanning `src/pinakes/budget/accountant.py`
+# and `src/pinakes/extract/claude.py`.
+#
+#     python3 tools/mutate.py tools/batteries/src-pinakes-budget-ledger.toml
+#
+# **The money path had no battery at all** until 20260902 — no row under `src/pinakes/budget/`
+# appeared in any of the eleven committed batteries. This closes that for one guarantee, not for
+# the area: what a reservation carries from the estimate to the stored line, and what the stored
+# line reads back as.
+#
+# **Read the survivor note before adding a row.** The trace's hop 2 recomputes the estimate from
+# `estimate_document` and compares it against what the ledger stored, so both sides of that
+# assertion move together whenever the mutation is *inside* `estimate_document`. Measured:
+# `PROMPT_TOKENS 700 -> 701` SURVIVES, and so does the ledger's rounding mode. Those are a seam,
+# not a gap — a region the assertion structurally cannot see — and a row written against either
+# would be a guaranteed survivor dressed as a coverage finding. **Every row here changes WHICH
+# number is carried, never a digit of it.**
+#
+# **What covers the seam instead**: rows 3 and 4, which kill through `tests/test_ledger.py` without
+# going through the trace at all. Those two tests carry the bracketing exchange rates themselves
+# rather than reading `prices.toml`, which is why row 3 can distinguish a quantised value from an
+# unquantised one — the distinction only exists at one of the two rates.
+#
+# **This battery's kills are gated behind an extra, and that nearly produced two false survivors.**
+# `uv run --frozen pytest` in a fresh worktree installs 45 packages and none of them is `[pdf]`, so
+# `tests/test_pdf_trace.py` SKIPS — and a skipped test kills nothing, which `mutate.py` can only
+# report as SURVIVED. Rows 1 and 2 are meaningless unless the environment was built with
+# `uv sync --extra light --extra pdf --extra claude` first. Check that the baseline actually ran
+# the selector before believing any survivor here.
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 4
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260902 · a reservation carries this estimate and not another number
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Hop 2 of the money trace was green for a month while asserting an equality quantisation cannot
+# hold, because the exchange rate happened to make the multiply back land exactly on six decimals.
+# It now asserts the reservation against the stored dollar at the ledger's own quantum, which
+# narrows it on purpose: it pins the plumbing, and nothing about the arithmetic that produced it.
+# These two rows are what "the plumbing" means — the number leaving the estimate and the number
+# reaching the line have to be the same one.
+
+[[mutant]]
+name = "the accountant reserves one quantum more USD than the estimate said"
+file = "src/pinakes/budget/accountant.py"
+old = "            reserved_usd=reserved_eur * self.prices.usd_per_eur,"
+new = '            reserved_usd=reserved_eur * self.prices.usd_per_eur + Decimal("0.000001"),'
+kills = "tests/test_pdf_trace.py::test_a_paid_slice_traces_from_estimate_to_the_budget_report"
+
+[[mutant]]
+name = "the extractor reserves a different field of the same estimate"
+file = "src/pinakes/extract/claude.py"
+old = "                reserved_eur=estimate.per_request_eur,"
+new = "                reserved_eur=estimate.input_eur,"
+kills = "tests/test_pdf_trace.py::test_a_paid_slice_traces_from_estimate_to_the_budget_report"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260902 · the quantum is the stored value, and euros are derived from it
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# `ledger.py`'s module docstring: amounts "are quantised exactly once, when a record is written",
+# and EUR is "computed at read time — never stored". Both halves are load-bearing, and the second
+# is what the deleted hop-2 assertion got wrong: `cost_eur` is the *quantised* dollar divided back,
+# not the euro the estimate started from.
+#
+# Row 3 kills only one of its selector's two parametrised cases, and that is correct rather than
+# weak: at `usd_per_eur = 1.1596` the unquantised product is numerically equal to its quantised
+# form, and `Decimal` compares by value. The 1.159 case is the one that can tell them apart — which
+# is the whole reason that test carries both rates and reads neither from `prices.toml`.
+
+[[mutant]]
+name = "the line is written unquantised, so the stored value keeps 28 digits"
+file = "src/pinakes/budget/ledger.py"
+old = '            "cost_usd": str(quantise(self.cost_usd)),'
+new = '            "cost_usd": str(self.cost_usd),'
+kills = "tests/test_ledger.py::test_a_reservation_stores_the_quantised_dollar_at_either_rate"
+
+[[mutant]]
+name = "cost_eur multiplies by the rate instead of dividing by it"
+file = "src/pinakes/budget/ledger.py"
+old = "        return self.cost_usd / self.usd_per_eur"
+new = "        return self.cost_usd * self.usd_per_eur"
+kills = "tests/test_ledger.py::test_the_euro_read_back_matches_the_estimate_at_one_rate_and_not_at_the_next"

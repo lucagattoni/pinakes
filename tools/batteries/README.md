@@ -33,10 +33,15 @@ survives — never for a number. **That clause read *"checks anchors and `kills`
 prose"* until 20260831**, which would send a session that had just tripped the gate to debug the
 wrong thing. It said
 *"Nine … Seven"* from 20260826, when three batteries landed in one day and one was never added to
-the total, until 20260830. **Two batteries are named for a module under `src/`** — `src-pinakes-init.toml`, over the check
-that decides whether a KB's `.pinakes/` can reach a remote, and `src-pinakes-pairing.toml`, which
+the total, until 20260830. **Three batteries are named for a module under `src/`** — `src-pinakes-init.toml`, over the check
+that decides whether a KB's `.pinakes/` can reach a remote; `src-pinakes-pairing.toml`, which
 spans **two** files, `src/pinakes/pairing.py` and `src/pinakes/sync.py`, because the guarantee it
-mutates spans both. **Named for is not covers**: five files under `src/` are mutated by some
+mutates spans both; and `src-pinakes-budget-ledger.toml`, which spans **three** —
+`src/pinakes/budget/ledger.py`, `src/pinakes/budget/accountant.py` and
+`src/pinakes/extract/claude.py` — because the money path's kills live *between* the estimate and
+the ledger rather than at either end of it. **It is the first battery over the paid path at all**,
+added 20260902 after a money assertion that had never held by construction went red on a refreshed
+exchange rate. **Named for is not covers**: eight files under `src/` are mutated by some
 battery, `src/pinakes/serve.py` among them via `tools-mcp_handshake_gate.toml` — which is why a
 `src-pinakes-serve.toml` proposed on 20260831 was refused by
 `test_no_file_is_claimed_by_two_batteries` and its rows appended to the handshake gate instead.

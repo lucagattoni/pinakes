@@ -280,11 +280,12 @@ def test_every_battery_declares_how_many_mutants_it_carries() -> None:
 def test_the_committed_batteries_cover_only_tools_and_the_readme_says_so() -> None:
     """A coverage index with a hidden denominator is the thing this repository keeps catching.
 
-    Eleven batteries over eleven primary targets — counted 20260831 23:19, when it read
-    *"Ten … Eight"*. Nine are under `tools/`; **two are named for a module under `src/`** —
-    `src-pinakes-init.toml` since 20260825, and `src-pinakes-pairing.toml` the same day, which is
-    also the first battery to span two files. **A name is not a coverage claim, and this sentence
-    is where that keeps being forgotten**: `tools-mcp_handshake_gate.toml` mutates
+    Twelve batteries over twelve primary targets — counted 20260902 10:56, when it read
+    *"Eleven … Two"*. Nine are under `tools/`; **three are named for a module under `src/`** —
+    `src-pinakes-init.toml` since 20260825, `src-pinakes-pairing.toml` the same day, which is
+    also the first battery to span two files, and `src-pinakes-budget-ledger.toml` since 20260902,
+    the first over the paid path and the first to span three. **A name is not a coverage claim,
+    and this sentence is where that keeps being forgotten**: `tools-mcp_handshake_gate.toml` mutates
     `src/pinakes/serve.py` and seven files besides, so the count below is of batteries, never of
     the area they reach. That is a starting point rather than a coverage claim, and the README has
     to say the number out loud — if this test fails because a new area arrived, the sentence there
