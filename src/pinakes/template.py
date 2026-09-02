@@ -206,6 +206,56 @@ def render_context(manifest: Manifest) -> dict[str, Any]:
     }
 
 
+#: What a TOML v1.0.0 basic string must escape, and the escape it must use. **Tab is deliberately
+#: absent**: it is the one control character a basic string may carry raw, so escaping it would
+#: rewrite a legal byte to no purpose. Every other character below U+0020, and U+007F, has no legal
+#: raw form and is escaped by the `\uXXXX` fallback in `_toml_basic`.
+_TOML_ESCAPES = {
+    '"': '\\"',
+    "\\": "\\\\",
+    "\b": "\\b",
+    "\f": "\\f",
+    "\n": "\\n",
+    "\r": "\\r",
+}
+
+
+def _toml_basic(value: object) -> object:
+    """Make one interpolated value safe inside a TOML basic string; pass everything else through.
+
+    Jinja calls this on the result of every `{{ ... }}` in the template, which is what makes it a
+    fix to the *mechanism* rather than to one variable. `name` is the value that reached here from
+    a user — `pnk init --name`, or the directory name via `root.name` — but the next template
+    variable carrying user text inherits this without anyone remembering to, and that is the whole
+    reason it lives here instead of beside the one call site (S4, in the sweep plan).
+
+    **Non-strings are returned untouched**, and one of them is load-bearing:
+    `dim = {{ embedding_dim }}` is the only variable this build interpolates *outside* a quoted
+    string, and `Manifest.embedding.dim` is an `int`. Escaping is a string operation on a string
+    position; a bare `int` has neither.
+
+    **The region this cannot reach, stated rather than implied.** Escaping makes a value safe inside
+    a basic string. It does not make a value safe interpolated into a *literal* string (`'...'`,
+    which TOML gives no escapes at all), nor bare into a key or a number — a template doing either
+    with user text is broken in a way no escape function can repair. Every variable this build
+    supplies lands inside a basic string except `embedding_dim`, which is never user text; a
+    third-party template that arranges otherwise is outside what this can promise.
+    """
+    if not isinstance(value, str):
+        return value
+    out: list[str] = []
+    for character in value:
+        escape = _TOML_ESCAPES.get(character)
+        if escape is not None:
+            out.append(escape)
+        elif character != "\t" and (character < " " or character == "\x7f"):
+            # No legal raw form in a basic string, and no single-letter escape reserved for it.
+            out.append(f"\\u{ord(character):04x}")
+        else:
+            out.append(character)
+    return "".join(out)
+
+
 def _render(source: str, context: dict[str, Any], *, name: str, version: str | None = None) -> str:
     """Render one manifest template, turning a missing variable into a message rather than a crash.
 
@@ -218,9 +268,12 @@ def _render(source: str, context: dict[str, Any], *, name: str, version: str | N
     second file read, and the successful render is the path that runs.
     """
     try:
-        return Template(source, undefined=StrictUndefined, keep_trailing_newline=True).render(
-            **context
-        )
+        return Template(
+            source,
+            undefined=StrictUndefined,
+            keep_trailing_newline=True,
+            finalize=_toml_basic,
+        ).render(**context)
     except TemplateSyntaxError as exc:
         # Raised by `Template(...)`, not by `render` — an unclosed `{{` is a fact about the file
         # rather than about the context, so it says the file is damaged rather than that a variable
