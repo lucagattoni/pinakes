@@ -18,6 +18,21 @@ fenced block or an inline code span, because a *quoted* link is not a link: a do
 another document's `[text](target)` verbatim would otherwise be told its quotation is broken, and
 the only way to satisfy the gate would be to corrupt the quote. Code-span it and it is inert.
 
+**A fragment is checked where its body is going, not where the file is.** `retro.d/` and
+`changelog.d/` are *consuming* directories: `tools/fragments.py --apply` copies each body into
+`docs/RETROSPECTIVES.md` or `CHANGELOG.md` and deletes the file. So a link written in a fragment has
+two resolutions and only the second one matters, and they disagree in exactly the case the fragment
+READMEs forbid — `[x](20260902_0245-….md)` names a real sibling inside `retro.d/` and a file that
+never existed inside `docs/`. Nothing pre-splice could see it: this gate resolved it from
+`retro.d/`, `mkdocs build --strict` never reads `retro.d/` at all, and the failure therefore
+surfaced at the release cut with the whole build red. It happened at 0.12.0's cut and **twice more
+on 20260902**, the second time on `main`. Resolving a fragment's targets from its destination
+directory closes it, and the same move makes the *other* half legal: a `#…` anchor into a sibling
+fragment's heading is correct about the spliced document and was the thing this gate used to refuse,
+which is why the READMEs carried an instruction to degrade those links to code spans. The anchor
+universe is the destination's own headings plus every pending fragment's; a slug two files both
+contribute is refused rather than guessed at.
+
 **The slug algorithm is GitHub's, and it is duplicated on purpose.** `mkdocs_hooks.py` installs the
 same function into the site build so the two renderings agree; this gate cannot import it (the repo
 root is not on `sys.path`, and the hook is deliberately outside pyright's `include`). Duplication
@@ -244,6 +259,17 @@ def exists_case_sensitively(repo: Path, target: Path) -> bool:
     return True
 
 
+#: Where each fragment stream's bodies end up. **Duplicated from `tools/fragments.py`'s `STREAMS`
+#: on purpose, for the reason the slug algorithm is** — this gate must run as a bare script from a
+#: repository root that is not on `sys.path`, and importing a sibling in `tools/` only works for
+#: some of the ways it is invoked. `tests/test_markdown_link_gate.py` asserts the two tables are
+#: identical, so the copies cannot drift in silence.
+SPLICE_TARGETS: dict[str, str] = {
+    "changelog.d": "CHANGELOG.md",
+    "retro.d": "docs/RETROSPECTIVES.md",
+}
+
+
 @dataclass(frozen=True)
 class Problem:
     path: Path
@@ -309,8 +335,63 @@ def ungated_markdown(repo: Path) -> list[Path]:
     return sorted(out)
 
 
-def check_file(repo: Path, path: Path, anchor_cache: dict[Path, set[str]]) -> list[Problem]:
+def splice_destination(repo: Path, path: Path) -> Path | None:
+    """The document this file's body ends up inside, or `None` if it stays where it is.
+
+    A fragment is not checked where it sits. `tools/fragments.py --apply` copies its body into
+    `CHANGELOG.md` or `docs/RETROSPECTIVES.md` and deletes the file, so every relative target in it
+    is resolved by a reader from *that* document's directory. The two READMEs are not fragments and
+    are excluded, along with anything nested deeper than the stream directory itself.
+    """
+    try:
+        rel = path.resolve().relative_to(repo)
+    except ValueError:
+        return None
+    if len(rel.parts) != 2 or rel.name == "README.md":
+        return None
+    target = SPLICE_TARGETS.get(rel.parts[0])
+    return None if target is None else repo / target
+
+
+def spliced_anchors(repo: Path, directory: str) -> tuple[set[str], set[str]]:
+    """Every heading anchor the spliced document will carry, and the ones it will carry twice.
+
+    A cross-fragment link is written before the document it will live in exists, so the universe is
+    the destination's own anchors plus every pending fragment's. **The ambiguous set is returned
+    rather than discarded**: two files contributing one slug means the rendered document numbers the
+    second `-1`, and which one keeps the bare form depends on where the splice lands. Refusing that
+    link is honest; accepting it would be this gate reporting a certainty it does not have. Measured
+    20260902 at `06d8a91`: zero such collisions across 25 `retro.d/` fragments, 11 `changelog.d/`
+    fragments and both destination documents, so the refusal costs nothing today.
+    """
+    contributors: list[Path] = []
+    target = repo / SPLICE_TARGETS[directory]
+    if target.is_file():
+        contributors.append(target)
+    source = repo / directory
+    if source.is_dir():
+        contributors.extend(sorted(p for p in source.glob("*.md") if p.name != "README.md"))
+    seen: dict[str, int] = {}
+    for contributor in contributors:
+        for slug in anchors_of(contributor):
+            seen[slug] = seen.get(slug, 0) + 1
+    return set(seen), {slug for slug, count in seen.items() if count > 1}
+
+
+def check_file(
+    repo: Path,
+    path: Path,
+    anchor_cache: dict[Path, set[str]],
+    spliced_cache: dict[str, tuple[set[str], set[str]]] | None = None,
+) -> list[Problem]:
     problems: list[Problem] = []
+    # **A fragment is checked where its body is going, not where the file is.** This is the whole
+    # of the splice-destination arm: `destination` is `None` for every other file in the repository
+    # and nothing below it changes behaviour for those.
+    destination = splice_destination(repo, path)
+    base = path.parent if destination is None else destination.parent
+    if spliced_cache is None:
+        spliced_cache = {}
     links, unparsed = links_of(path)
     for number in unparsed:
         problems.append(
@@ -330,10 +411,38 @@ def check_file(repo: Path, path: Path, anchor_cache: dict[Path, set[str]]) -> li
         if target == "#":
             continue  # "top of this page" — every renderer treats it as a no-op, not an anchor
         if target.startswith("#"):
-            anchors = anchor_cache.setdefault(path, anchors_of(path))
-            if unquote(target[1:]) not in anchors:
+            wanted = unquote(target[1:])
+            if destination is None:
+                anchors = anchor_cache.setdefault(path, anchors_of(path))
+                if wanted not in anchors:
+                    problems.append(
+                        Problem(path, link.line, target, "no such heading anchor in this file")
+                    )
+                continue
+            directory = path.resolve().relative_to(repo).parts[0]
+            if directory not in spliced_cache:
+                spliced_cache[directory] = spliced_anchors(repo, directory)
+            universe, ambiguous = spliced_cache[directory]
+            where = destination.relative_to(repo)
+            if wanted in ambiguous:
                 problems.append(
-                    Problem(path, link.line, target, "no such heading anchor in this file")
+                    Problem(
+                        path,
+                        link.line,
+                        target,
+                        f"two files contribute this heading to {where}, so the anchor the site "
+                        f"generates depends on splice order — rename one heading",
+                    )
+                )
+            elif wanted not in universe:
+                problems.append(
+                    Problem(
+                        path,
+                        link.line,
+                        target,
+                        f"no such heading anchor in {where} or in any pending "
+                        f"{directory}/ fragment — this body is spliced into {where}",
+                    )
                 )
             continue
         if target.startswith("/"):
@@ -348,7 +457,7 @@ def check_file(repo: Path, path: Path, anchor_cache: dict[Path, set[str]]) -> li
             continue
         rest, _, fragment = target.partition("#")
         rest = unquote(rest.split("?", 1)[0])
-        dest = path.parent if rest == "" else (path.parent / rest)
+        dest = base if rest == "" else (base / rest)
         if not dest.resolve().is_relative_to(repo):
             problems.append(
                 Problem(path, link.line, target, "resolves outside the repository root")
@@ -357,7 +466,17 @@ def check_file(repo: Path, path: Path, anchor_cache: dict[Path, set[str]]) -> li
         if not exists_case_sensitively(repo, dest):
             shown = dest.resolve()
             where = shown.relative_to(repo) if shown.is_relative_to(repo) else shown
-            problems.append(Problem(path, link.line, target, f"no such file or directory: {where}"))
+            reason = f"no such file or directory: {where}"
+            if destination is not None:
+                # Without this the message reads as a plain typo for the one case it exists to
+                # catch: `[x](20260902_0245-….md)` from inside `retro.d/` names a file that is
+                # right there on disk, and the gate is refusing it for where it is *going*.
+                reason += (
+                    f" — a fragment's relative links resolve from "
+                    f"{destination.relative_to(repo)}, where its body is spliced. Link to the "
+                    f"sibling's heading anchor instead of its filename."
+                )
+            problems.append(Problem(path, link.line, target, reason))
             continue
         if fragment and dest.suffix == ".md":
             anchors = anchor_cache.setdefault(dest.resolve(), anchors_of(dest))
@@ -390,11 +509,12 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     anchor_cache: dict[Path, set[str]] = {}
+    spliced_cache: dict[str, tuple[set[str], set[str]]] = {}
     problems: list[Problem] = []
     total = 0
     for path in paths:
         total += len(links_of(path)[0])
-        problems.extend(check_file(repo, path, anchor_cache))
+        problems.extend(check_file(repo, path, anchor_cache, spliced_cache))
 
     if problems:
         print(

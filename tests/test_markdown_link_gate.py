@@ -297,6 +297,140 @@ def test_an_explicit_html_id_is_a_valid_anchor(repo: Path) -> None:
 
 
 # --------------------------------------------------------------------------------------------
+# The splice destination: a fragment is checked where its body is going
+# --------------------------------------------------------------------------------------------
+
+
+def test_a_fragment_linking_a_sibling_by_filename_is_refused_before_anything_is_spliced(
+    repo: Path,
+) -> None:
+    """The acceptance test for this arm, and the shape that shipped twice on 20260902.
+
+    The link is **valid where it is written** — the sibling is right there in `retro.d/` — and dead
+    the moment `--apply` moves the body into `docs/`. Nothing pre-splice could see it before this:
+    the gate resolved from `retro.d/`, and `mkdocs build --strict` never reads `retro.d/` at all,
+    so the first report came from the release build with everything red. The requirement is that
+    this is caught **without splicing anything**.
+    """
+    _write(repo, "docs/RETROSPECTIVES.md", "# Retrospectives\n")
+    _write(repo, "retro.d/20260101_0000-older.md", "## Older (20260101 00:00)\n")
+    _write(
+        repo,
+        "retro.d/20260102_0000-newer.md",
+        "## Newer (20260102 00:00)\n\nsee [that](20260101_0000-older.md)\n",
+    )
+    result = _run(repo, "retro.d/20260102_0000-newer.md")
+    assert result.returncode == 1
+    assert "docs/20260101_0000-older.md" in result.stderr, "resolved from the destination"
+    assert "where its body is spliced" in result.stderr, "the message must name the mechanism"
+
+
+def test_the_identical_link_from_a_file_that_is_not_a_fragment_is_still_accepted(
+    repo: Path,
+) -> None:
+    """The scoping control. Without it the test above passes for a checker that broke every
+    relative link in the repository, and `plans/` legitimately links fragments by filename."""
+    _write(repo, "docs/RETROSPECTIVES.md", "# Retrospectives\n")
+    _write(repo, "retro.d/20260101_0000-older.md", "## Older (20260101 00:00)\n")
+    _write(repo, "plans/a-plan.md", "see [that](../retro.d/20260101_0000-older.md)\n")
+    assert _run(repo, "plans/a-plan.md").returncode == 0
+
+
+def test_a_fragments_anchor_into_a_sibling_fragment_resolves(repo: Path) -> None:
+    """The other half, and the reason both fragment READMEs carried an instruction to degrade
+    these to code spans: the anchor is right about the document that will exist, and this gate
+    used to resolve it against the fragment's own headings and call it dead."""
+    _write(repo, "docs/RETROSPECTIVES.md", "# Retrospectives\n")
+    _write(repo, "retro.d/20260101_0000-older.md", "## Older lesson (20260101 00:00)\n")
+    _write(
+        repo,
+        "retro.d/20260102_0000-newer.md",
+        "## Newer (20260102 00:00)\n\nsee [that](#older-lesson-20260101-0000)\n",
+    )
+    assert _run(repo, "retro.d/20260102_0000-newer.md").returncode == 0
+
+
+def test_a_fragments_anchor_into_the_destination_document_resolves(repo: Path) -> None:
+    _write(repo, "docs/RETROSPECTIVES.md", "# Retrospectives\n\n## An old entry (20250101 00:00)\n")
+    _write(
+        repo,
+        "retro.d/20260102_0000-newer.md",
+        "## Newer (20260102 00:00)\n\nsee [that](#an-old-entry-20250101-0000)\n",
+    )
+    assert _run(repo, "retro.d/20260102_0000-newer.md").returncode == 0
+
+
+def test_a_fragments_anchor_that_exists_in_neither_place_is_refused(repo: Path) -> None:
+    _write(repo, "docs/RETROSPECTIVES.md", "# Retrospectives\n")
+    _write(
+        repo,
+        "retro.d/20260102_0000-newer.md",
+        "## Newer (20260102 00:00)\n\nsee [that](#invented-20200101-0000)\n",
+    )
+    result = _run(repo, "retro.d/20260102_0000-newer.md")
+    assert result.returncode == 1
+    assert "no such heading anchor in docs/RETROSPECTIVES.md" in result.stderr
+    assert "any pending retro.d/ fragment" in result.stderr
+
+
+def test_an_anchor_two_files_both_contribute_is_refused_rather_than_guessed_at(repo: Path) -> None:
+    """The rendered document numbers the second occurrence `-1`, and which one keeps the bare
+    slug depends on where the splice lands — which this gate does not model. Accepting the link
+    would be reporting a certainty it does not have, so it is refused with the remedy."""
+    _write(repo, "docs/RETROSPECTIVES.md", "# Retrospectives\n")
+    _write(repo, "retro.d/20260101_0000-a.md", "## Shared title (20260101 00:00)\n")
+    _write(repo, "retro.d/20260101_0001-b.md", "## Shared title (20260101 00:00)\n")
+    _write(
+        repo,
+        "retro.d/20260102_0000-c.md",
+        "## C (20260102 00:00)\n\nsee [that](#shared-title-20260101-0000)\n",
+    )
+    result = _run(repo, "retro.d/20260102_0000-c.md")
+    assert result.returncode == 1
+    assert "two files contribute this heading" in result.stderr
+    assert "rename one heading" in result.stderr
+
+
+def test_a_stream_readme_is_not_a_fragment_and_keeps_resolving_where_it_sits(repo: Path) -> None:
+    """`retro.d/README.md` is never spliced and never deleted, so its own relative links are
+    correct exactly as written. Treating it as a fragment would break the instruction file that
+    explains the rule."""
+    _write(repo, "docs/RETROSPECTIVES.md", "# Retrospectives\n")
+    _write(repo, "retro.d/20260101_0000-older.md", "## Older (20260101 00:00)\n")
+    _write(repo, "retro.d/README.md", "see [one](20260101_0000-older.md)\n")
+    assert _run(repo, "retro.d/README.md").returncode == 0
+
+
+def test_a_changelog_fragment_resolves_from_the_repository_root_not_from_its_directory(
+    repo: Path,
+) -> None:
+    """The two streams splice to different depths — `CHANGELOG.md` is at the root — so this is not
+    the same rule with a different directory name. `../docs/X.md` is correct from `changelog.d/`
+    and climbs out of the repository from the root; `docs/X.md` is the reverse."""
+    _write(repo, "CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n")
+    _write(repo, "docs/DESIGN.md", "# Design\n")
+    _write(repo, "changelog.d/fixed-a.md", "- **a.** see [design](../docs/DESIGN.md)\n")
+    _write(repo, "changelog.d/fixed-b.md", "- **b.** see [design](docs/DESIGN.md)\n")
+    climbing = _run(repo, "changelog.d/fixed-a.md")
+    assert climbing.returncode == 1
+    assert "resolves outside the repository root" in climbing.stderr
+    assert _run(repo, "changelog.d/fixed-b.md").returncode == 0
+
+
+def test_a_code_spanned_link_in_a_fragment_is_still_inert(repo: Path) -> None:
+    """The exemption this arm must see through for a *reference* and must not abolish: several
+    fragments quote a link in order to say it was wrong, and a gate that resolved the quotation
+    could only be satisfied by corrupting it."""
+    _write(repo, "docs/RETROSPECTIVES.md", "# Retrospectives\n")
+    _write(
+        repo,
+        "retro.d/20260102_0000-newer.md",
+        "## Newer (20260102 00:00)\n\nI wrote `[that](20260101_0000-gone.md)` and it was wrong.\n",
+    )
+    assert _run(repo, "retro.d/20260102_0000-newer.md").returncode == 0
+
+
+# --------------------------------------------------------------------------------------------
 # Scope, and the two implementations that must not drift
 # --------------------------------------------------------------------------------------------
 
@@ -399,6 +533,39 @@ def test_the_gate_and_the_site_slugify_every_heading_in_the_repository_identical
     mismatched = [h for h in headings if site_slugify(h, "-") != gate_slugify(h, "-")]
     assert not mismatched, (
         f"gate and site slugifiers disagree on {len(mismatched)}: {mismatched[:5]}"
+    )
+
+
+def test_the_gates_splice_targets_are_the_ones_the_splicer_actually_uses() -> None:
+    """The second duplicated-on-purpose table, held against its original the same way the slug
+    algorithm is. If `tools/fragments.py` gains a stream, or moves one, this gate would go on
+    resolving that stream's fragments from the wrong directory and stay green while doing it —
+    which is the exact failure mode this arm exists to remove, one level up.
+    """
+    gate_spec = importlib.util.spec_from_file_location("_gate_targets", GATE)
+    assert gate_spec is not None and gate_spec.loader is not None
+    gate = importlib.util.module_from_spec(gate_spec)
+    gate_spec.loader.exec_module(gate)
+
+    frag_spec = importlib.util.spec_from_file_location(
+        "_fragments", REPO / "tools" / "fragments.py"
+    )
+    assert frag_spec is not None and frag_spec.loader is not None
+    fragments = importlib.util.module_from_spec(frag_spec)
+    # `Stream` is a dataclass whose annotations are resolved against `sys.modules[__module__]`,
+    # which is `None` for a module loaded by path alone — `dataclasses` then raises on `InitVar`
+    # detection rather than saying what is missing. Registering it first is the whole fix.
+    sys.modules[frag_spec.name] = fragments
+    try:
+        frag_spec.loader.exec_module(fragments)
+        splicer = {stream.directory: stream.target for stream in fragments.STREAMS.values()}
+    finally:
+        del sys.modules[frag_spec.name]
+
+    assert splicer, "no streams loaded — the comparison would pass against nothing"
+    assert splicer == gate.SPLICE_TARGETS, (
+        f"the gate resolves fragments against {gate.SPLICE_TARGETS} while the splicer writes them "
+        f"to {splicer}"
     )
 
 
