@@ -16,7 +16,7 @@ older, and "a later commit changed a number" is a shape that reads as regression
 
 **Neither census stated its selector, and that is the whole defect** — the same one I had landed a
 retro fragment about ninety minutes earlier: *A method is not a measurement point, and `--all` is not a corpus*
-(`#a-method-is-not-a-measurement-point-and-all-is-not-a-corpus-20260902-0245`).
+(`#a-method-is-not-a-measurement-point-and---all-is-not-a-corpus-20260902-0245`).
 I wrote the rule and then failed to apply it to the very next thing I looked at, in a review whose
 purpose was to catch exactly this.
 

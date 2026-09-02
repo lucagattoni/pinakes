@@ -50,3 +50,24 @@ pre-mutation state.* I had also been told the count: `ls retro.d/*.md | wc -l` p
 25 was correct, and I read the number without checking it against what should have been there. **A
 count you do not predict before you read it cannot surprise you**, which is the same defect as the
 watcher — an instrument consulted with no expectation attached reports nothing either way.
+
+**And a fourth instance, inside the fix for the third.** Rewriting those two links needed the
+sibling's anchor, so I computed it *"with the renderer that builds the site"* — and wrote exactly that
+sentence into `b4fa8e8`'s commit message, where it stands, false. What I actually built was a
+`markdown.Markdown` from `mkdocs.yml`'s `markdown_extensions` list. That is not the site's renderer:
+`mkdocs.yml` installs GitHub's slug algorithm through `mkdocs_hooks.py`, and says so in a comment
+eight lines above the `toc` block — *"neither Python-Markdown's default nor pymdownx's matches it"*.
+My two greps windowed on `markdown_extensions` and on `  - toc`, and between them excluded the one
+comment written for somebody doing what I was doing. Python-Markdown's default collapses runs of
+hyphens; GitHub's does not, because it discards the backticks and keeps the spaces around them. The
+anchor I wrote was `…-and-all-…` where the site emits `…-and---all-…`. The coder caught it, having
+made the identical mistake an hour earlier and reported the identical wrong string to me as verified.
+
+**Two things kept that one invisible, and both are worth naming.** A code span is not a link, so
+`make docs` returns 0 whatever the string says — *the fix for a link that fails loudly was checked by
+a build that cannot see the replacement*, which is a seam I introduced in the act of closing one.
+And neither of us lacked an instrument: we each had one, ran it correctly, and it was one config
+short of the thing it claimed to reproduce. **A reproduction is a claim about coverage, not about
+effort.** Corrected against `tools/markdown_link_gate.py`'s `github_slugify()` and against the built
+`site/RETROSPECTIVES/index.html`, which agree — with a control that the non-collapsing is systematic
+rather than a quirk of this heading: three ids on that page contain `---`.

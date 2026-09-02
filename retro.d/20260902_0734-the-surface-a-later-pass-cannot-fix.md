@@ -61,7 +61,7 @@ about one population and its *30* about the other, and the two numbers in one se
 two different questions.
 
 **This is one class with the fragment landed beside it, not two.** `retro.d/` also carries *A method is not a measurement point, and `--all` is not a corpus*
-(`#a-method-is-not-a-measurement-point-and-all-is-not-a-corpus-20260902-0245`),
+(`#a-method-is-not-a-measurement-point-and---all-is-not-a-corpus-20260902-0245`),
 written the same night about the same defect — a number stated without the selector that produced
 it. Read them together: that one names the rule, this one is the rule failing in the hands of the
 reviewer applying it.
