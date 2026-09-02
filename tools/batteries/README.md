@@ -17,7 +17,7 @@ Say it precisely, because the obvious reading is wrong in a way that matters:
 | | |
 |---|---|
 | **Committed** | the mutants, and the reasoning beside them |
-| **Gated in `./check.sh`** | that every anchor still **resolves**, that every `kills` selector names a **test that exists**, that no file is claimed twice, and that each battery still carries the number of mutants it declares |
+| **Gated in `./check.sh`** | that every anchor still **resolves**, that every `kills` selector names a **test that exists**, that no file is claimed twice, that each battery still carries the number of mutants it declares, and that every **section header** names one of the two reserved forms |
 | **NOT gated** | **that the mutants still get killed.** Nothing runs a battery automatically |
 
 **`tools/mutate.py` exits 0 when mutants SURVIVE** — deliberately: *"A SURVIVED row is a real
@@ -149,7 +149,15 @@ disagree. That is the whole reason these are one-file-per-target rather than one
 **An increment appends a section; it never starts a second file for a target that already has one.**
 Sections are ordered oldest release first and name the release that shipped the property; work that
 has not been released yet says `unreleased, YYYYMMDD` — a version number belongs to a release when
-it is cut.
+it is cut. The separator is a middle dot: `# 0.30.0 · what the section is about`.
+
+**The header is gated; the fence and the ordering are not.**
+`tests/test_batteries.py::test_every_section_header_names_the_release_it_belongs_to` refuses a third
+form. It reads the header out of the raw bytes — `tomllib` drops comments — so a section is whatever
+sits **fenced between two rule lines**, and a rule may be drawn with box-drawing `─` *or* ASCII `-`.
+Both shapes are in the tree and two batteries mix them internally, so the fence is not even a
+per-file property: a checker matching one shape read 34 of 36 headers and skipped a header that had
+drifted. Nothing checks that a date is a real date, or that sections actually run oldest-first.
 
 ## When an anchor rots
 
