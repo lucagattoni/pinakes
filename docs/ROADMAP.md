@@ -36,8 +36,9 @@ precision nobody measured.
   both legs ran it and fail-fast cancelled whichever was slower, which is why the named job
   differed between runs. **A second, latent instance of the same class sat four lines below it**:
   a test rounding ties `HALF_EVEN` against production's `HALF_UP`, green only because today's
-  per-MTok prices happen to make the value exactly representable. `cf1f1cb` fixed both. Nothing
-  published was wrong; the difference was 1E-28 EUR. **The durable lesson is that both hops were green for the value of a constant neither
+  per-MTok prices happen to make the value exactly representable. `cf1f1cb` fixed both, and `aeb32f2` gave the
+  money path its **first mutation battery** — before it, nothing under `src/pinakes/budget/`
+  was mutated by anything. Nothing published was wrong; the difference was 1E-28 EUR. **The durable lesson is that both hops were green for the value of a constant neither
   test mentions**, one of which `docs/RELEASING.md` now refreshes at every release.
   [`0.31.1`](#0311--the-price-nobody-was-watching--20260831-2301) is **on PyPI as of
   20260831 23:10** — landed on `main` at 23:01 and published nine minutes later, with STATUS's
