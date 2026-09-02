@@ -108,3 +108,32 @@ defect as every other one in this file: an instrument that cannot distinguish "f
 looked", consulted with no expectation attached. **It is worse here than in the others**, because
 this instrument's whole purpose is to be trusted while nobody is watching, and because I am the one
 who wrote the exclusion into the rule.
+
+**A seventh, and it is the sharpest one here, because I built it while fixing the sixth.** Twenty
+minutes after writing the paragraph above, I armed a v2 watcher whose whole purpose was to stop
+reporting `cancelled` as if it were nothing. It ran, polled thirteen times, and printed this where
+the verdict belonged:
+
+    SyntaxError: unexpected character after line continuation character
+
+`python3 -c 'import json,sys; [print(f"  {r[\"workflowName\"]} …")]'` — inside a **single-quoted**
+`-c`, the shell passes the backslashes through, and `{r[\"workflowName\"]}` is not valid inside an
+f-string. Every other query in the same script used `--jq` and worked; this one line reached for
+Python because I wanted two fields on one row. The rest of the script survived: the job count printed
+`15`, the non-success selector printed nothing, and the run really was green — **confirmed
+independently, `gh run list` giving `completed/success` and the job list's non-success set empty.**
+
+So the shape is exact: *the instrument written to stop an instrument reporting falsely, reported
+falsely.* And it failed in the one direction that is hardest to notice — it suppressed the line
+naming the workflows and their conclusions, which is the line the `cancelled` finding was about, while
+still printing a reassuring `15` underneath. Had a run actually been cancelled, the discharge check
+would have run and its output would have sat directly below a stack trace I might have skimmed past
+on the way to the green number.
+
+**The rule this file has been circling, stated plainly at the seventh attempt:** a checking tool needs
+its own control, and the control is not *"does it run"* — all seven of these ran. It is **make it
+print the thing you already know**. One green sha through the watcher before arming it; one known-red
+mutant before believing a mutation run; one heading you have already resolved before trusting a
+slugifier. Each of the seven would have died in under a minute against a case whose answer I held.
+I have written that sentence three times tonight in three different registers and then not done it,
+which suggests the failure is not knowing the rule.
