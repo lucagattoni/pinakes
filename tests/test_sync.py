@@ -159,6 +159,19 @@ def index(kb: Path) -> list[dict[str, object]]:
         connection.close()
 
 
+def chunks_for(kb: Path, path: str) -> int:
+    """How many chunks one document still has. Connection closed before returning, as `index` is."""
+    connection = store.connect_ro(kb / ".pinakes" / "index.db")
+    try:
+        row = connection.execute(
+            "SELECT count(*) FROM chunks WHERE doc_id = (SELECT id FROM documents WHERE path = ?)",
+            (path,),
+        ).fetchone()
+        return int(row[0])
+    finally:
+        connection.close()
+
+
 def meta_of(kb: Path) -> dict[str, str]:
     """The index's `meta` table, connection closed before returning — same reason as `index`."""
     connection = store.connect_ro(kb / ".pinakes" / "index.db")
@@ -3124,3 +3137,137 @@ def test_a_rename_that_frees_a_path_a_new_document_then_takes(kb: Path) -> None:
     assert not report.failures, f"the walk recorded a failure: {report.failures}"
     active = {Path(str(row["path"])).name for row in index(kb) if row["state"] == "active"}
     assert active == {"b.md", "c.md", "keep.md"}
+
+
+# --- S1: one unreadable document must not take the whole index with it -------------------------
+
+
+def deny_reads_of(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    """Make one document unreadable the way this repository requires: **injected, not chmod'd**.
+
+    `chmod(0o000)` is ignored by root and produced a stat on CI's runner that neither succeeded nor
+    raised, so fixtures went red for being unable to build their own precondition
+    (`test_doctor.py`'s unreadable-partner test records it). `hash_file` reads a source with
+    `read_bytes`, so that is the call to deny — and denying it by *name* leaves the sidecar beside
+    it readable, which is the real shape: a `chmod` on a document does not touch its sidecar.
+    """
+    real = Path.read_bytes
+
+    def denied(self: Path) -> bytes:
+        if self.name == name:
+            raise PermissionError(13, "Permission denied", str(self))
+        return real(self)
+
+    monkeypatch.setattr(Path, "read_bytes", denied)
+
+
+def test_one_unreadable_document_does_not_abort_the_sync_of_every_other(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """S1, and the reason it was ranked as more than a cosmetic traceback.
+
+    `hash_file` let the `PermissionError` escape `walk_sources`, so the walk died before anything
+    was indexed: `pnk sync` exited 1 with a raw traceback and **no index database existed at all**.
+    One file the process could not open made every other document in the KB unreachable.
+    """
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "b.md", "# Beta\n\nSecond body.\n")
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    deny_reads_of(monkeypatch, "c.md")
+
+    report = run(kb)
+
+    assert (kb / ".pinakes" / "index.db").exists(), "the walk died before the index was created"
+    assert {Path(str(row["path"])).name for row in index(kb)} == {"a.md", "b.md"}
+    assert [path for path, _error, _remedy in report.failures] == ["docs/c.md"]
+    assert not report.ok, "an unreadable document must not let the run read as clean"
+
+
+def test_the_unreadable_failure_carries_a_remedy_that_names_both_ways_out(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failure with an empty remedy is how this channel reports a bare `OSError`, and that is
+    exactly what this used to be. The user can restore the permission or stop collecting the file;
+    both belong in the message, because only one of them is available to someone syncing a tree
+    they do not own."""
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    deny_reads_of(monkeypatch, "c.md")
+
+    [(path, error, remedy)] = run(kb).failures
+
+    assert path == "docs/c.md"
+    assert "Permission denied" in error
+    assert "chmod +r" in remedy
+    assert "exclude" in remedy
+
+
+def test_an_indexed_document_that_becomes_unreadable_is_held_not_deleted(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The half that makes skipping safe, and the reason a skip alone would have been a worse bug.
+
+    `pair()` retires a row whose path the walk stops reporting, so without the hold a `chmod` would
+    soft-delete the document and drop its chunks — the KB losing a file it still has, reported as
+    `1 removed` on a run that exits about something else.
+    """
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    run(kb)
+    before = {str(row["path"]): dict(row) for row in index(kb)}
+    assert before["docs/c.md"]["state"] == "active"
+
+    deny_reads_of(monkeypatch, "c.md")
+    report = run(kb)
+
+    after = {str(row["path"]): dict(row) for row in index(kb)}
+    assert after["docs/c.md"]["state"] == "active", "a permission change became a deletion"
+    assert after["docs/c.md"]["content_hash"] == before["docs/c.md"]["content_hash"]
+    assert report.deleted == 0
+    assert chunks_for(kb, "docs/c.md") > 0, "held means its chunks stay searchable"
+
+
+def test_an_unreadable_documents_sidecar_is_never_offered_to_prune(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`orphaned_sidecars` prints `pnk doctor --prune` beside it, and pruning a live document's
+    sidecar destroys a permanent id. The first version of this fix printed exactly that line for a
+    document sitting on disk — found by running it, not by reading it."""
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    run(kb)
+    deny_reads_of(monkeypatch, "c.md")
+
+    assert run(kb).orphaned_sidecars == ()
+
+
+def test_restoring_the_permission_returns_the_sync_to_clean(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The failure is a state of the tree, not a mark on the index: nothing is recorded that a
+    later run has to undo."""
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    deny_reads_of(monkeypatch, "c.md")
+    assert not run(kb).ok
+
+    monkeypatch.undo()
+    report = run(kb)
+
+    assert report.ok
+    assert {Path(str(row["path"])).name for row in index(kb)} == {"a.md", "c.md"}
+
+
+def test_the_pre_commit_half_also_reports_an_unreadable_document(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--sidecars-only` returns before the index is touched at all, so the failure is recorded
+    above that return. It is the half that runs in a pre-commit hook, which is the last place an
+    unreadable document should pass in silence."""
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "c.md", "# Gamma\n\nThird body.\n")
+    deny_reads_of(monkeypatch, "c.md")
+
+    report = run(kb, sidecars_only=True)
+
+    assert [path for path, _error, _remedy in report.failures] == ["docs/c.md"]
+    assert not report.ok

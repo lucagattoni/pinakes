@@ -1085,3 +1085,88 @@ def test_vacates_reports_every_way_a_path_is_freed() -> None:
     )
     assert _vacates(Mint(path="docs/n.md", content_hash="h")) is None
     assert _vacates(Skip(doc_id=doc, path="docs/a.md")) is None
+
+
+# --- Unreadable: present on disk, and therefore never retired ----------------------------------
+#
+# `pair()` reasons from absence: a path the walk stops reporting is a path that is gone. An
+# unreadable document is absent from `after.files` for a different reason — there is no hash to
+# describe it with — and every test below exists because the two readings are indistinguishable
+# without the `unreadable` set. Each one asserts the unguarded result first, so the guard is pinned
+# by the difference rather than by the outcome alone.
+
+
+def test_an_unreadable_document_is_held_rather_than_soft_deleted() -> None:
+    """The whole reason the walk carries these paths out rather than dropping them.
+
+    A dropped path retires the row and `_apply` deletes its chunks, so a `chmod 000` would take the
+    document out of search and leave `pnk sync` exiting 0 about it. That is silent index loss, the
+    shape this repository ranks worst, and it would have been the *fix* for a loud crash.
+    """
+    doc = mint_doc_id()
+    before = IndexSnapshot((indexed(doc, "docs/c.md", "hc"),))
+
+    assert describe(pair(before, WalkSnapshot())) == {"SoftDelete": 1}, (
+        "control: without the set, an absent path is a deletion"
+    )
+
+    result = pair(before, WalkSnapshot(), unreadable=frozenset({"docs/c.md"}))
+    assert describe(result) == {"Skip": 1}
+    assert actions_of(result, Skip)[0].doc_id == doc
+
+
+def test_an_unreadable_document_is_not_offered_to_another_file_as_a_rename() -> None:
+    """Holding the id is not enough on its own — the rename loop matches on content hash.
+
+    An unreadable document has no hash this run, but its *recorded* one is still in `before`, so a
+    genuinely new file that happens to share it would have claimed the id and carried the row to
+    its path. Marking the id handled before that loop runs is what prevents it.
+    """
+    doc = mint_doc_id()
+    before = IndexSnapshot((indexed(doc, "docs/c.md", "hc"),))
+    after = WalkSnapshot((walked("docs/d.md", "hc"),), ())
+
+    assert describe(pair(before, after)) == {"Rename": 1}, (
+        "control: without the set, the id follows the matching hash to the new path"
+    )
+
+    assert describe(pair(before, after, unreadable=frozenset({"docs/c.md"}))) == {
+        "Skip": 1,
+        "Mint": 1,
+    }
+
+
+def test_an_unreadable_path_that_was_never_indexed_produces_no_action() -> None:
+    """There is no row to hold, and inventing one would assert an id nothing recorded."""
+    assert (
+        describe(pair(IndexSnapshot(), WalkSnapshot(), unreadable=frozenset({"docs/new.md"}))) == {}
+    )
+
+
+def test_an_already_retired_row_is_not_revived_by_becoming_unreadable() -> None:
+    """A `Skip` here would re-assert a deleted document as live on the strength of a failed read."""
+    doc = mint_doc_id()
+    result = pair(
+        IndexSnapshot((indexed(doc, "docs/c.md", "hc", state=DELETED),)),
+        WalkSnapshot(),
+        unreadable=frozenset({"docs/c.md"}),
+    )
+    assert describe(result) == {}
+
+
+def test_an_unreadable_documents_sidecar_is_not_reported_as_orphaned() -> None:
+    """`orphaned_sidecars` is printed with `pnk doctor --prune` beside it.
+
+    Counting this one hands the user a command that deletes the sidecar — and therefore the
+    permanent id — of a document still sitting on disk. Ids are permanent by invariant and a
+    `chmod` is not a deletion, so the orphan test takes the same set.
+    """
+    doc = mint_doc_id()
+    before = IndexSnapshot((indexed(doc, "docs/c.md", "hc"),))
+    after = WalkSnapshot((), (sidecar("docs/c.md", doc),))
+
+    assert pair(before, after).orphaned_sidecars == ("docs/c.md.pnk.yaml",), (
+        "control: a sidecar beside no walked file is an orphan"
+    )
+
+    assert pair(before, after, unreadable=frozenset({"docs/c.md"})).orphaned_sidecars == ()
