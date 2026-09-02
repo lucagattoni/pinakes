@@ -264,10 +264,10 @@ kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_ac
 [[mutant]]
 name = "the exemption widens: a fragment with no prefix skips the heading arm as well as the stamp"
 file = "tools/fragments.py"
-old = '''    first = next((line for line in text.split("\n") if line.strip()), "")'''
+old = '''    first = next((line for line in lines if line.strip()), "")'''
 new = '''    if _STAMP.match(path.stem) is None:
         return problems
-    first = next((line for line in text.split("\n") if line.strip()), "")'''
+    first = next((line for line in lines if line.strip()), "")'''
 kills = "tests/test_fragments.py::test_a_fragment_with_no_prefix_owes_a_heading_and_not_a_stamp"
 
 [[mutant]]
@@ -405,8 +405,8 @@ kills = "tests/test_fragments.py::test_nothing_looser_than_the_ruled_stamp_is_ac
 [[mutant]]
 name = "DISCRIMINATING — any line may be the opening, so a blank first line is refused as a missing heading"
 file = "tools/fragments.py"
-old = '''    first = next((line for line in text.split("\n") if line.strip()), "")'''
-new = '''    first = next((line for line in text.split("\n") if line), "")'''
+old = '''    first = next((line for line in lines if line.strip()), "")'''
+new = '''    first = next((line for line in lines if line), "")'''
 kills = "tests/test_fragments.py::test_a_whitespace_only_first_line_is_not_read_as_the_opening"
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -424,8 +424,8 @@ kills = "tests/test_fragments.py::test_a_whitespace_only_first_line_is_not_read_
 [[mutant]]
 name = "DISCRIMINATING — the opening is chosen with `splitlines`, so a form feed ends the heading and trailing text after the stamp passes"
 file = "tools/fragments.py"
-old = '''    first = next((line for line in text.split("\n") if line.strip()), "")'''
-new = '''    first = next((line for line in text.splitlines() if line.strip()), "")'''
+old = '''    lines = text.split("\n")'''
+new = '''    lines = text.splitlines()'''
 kills = "tests/test_fragments.py::test_the_stamp_must_end_the_real_line_not_a_break_python_invents"
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260902 · the ninth pass — the stamp arm reads the heading
@@ -449,13 +449,13 @@ kills = "tests/test_fragments.py::test_the_stamp_must_end_the_real_line_not_a_br
 [[mutant]]
 name = "the stamp arm reads whatever line is first again, so a correct heading below a comment is called unstamped"
 file = "tools/fragments.py"
-old = '''    heading = next((line for line in text.split("\n") if _OPENING.match(line)), first)'''
+old = '''    heading = next((line for line in lines if _OPENING.match(line)), first)'''
 new = '''    heading = first'''
 kills = "tests/test_fragments.py::test_the_stamp_arm_reads_the_heading_and_not_whatever_line_is_first"
 
 [[mutant]]
 name = "DISCRIMINATING — the fallback is empty rather than the opening line, so a malformed heading loses its correct stamp"
 file = "tools/fragments.py"
-old = '''    heading = next((line for line in text.split("\n") if _OPENING.match(line)), first)'''
-new = '''    heading = next((line for line in text.split("\n") if _OPENING.match(line)), "")'''
+old = '''    heading = next((line for line in lines if _OPENING.match(line)), first)'''
+new = '''    heading = next((line for line in lines if _OPENING.match(line)), "")'''
 kills = "tests/test_fragments.py::test_the_separator_is_one_space_and_the_gate_is_stricter_than_the_renderer"

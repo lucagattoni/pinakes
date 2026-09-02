@@ -420,7 +420,14 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
     # text runs past the stamp, and `splitlines()` handed the arm below only the part before the
     # form feed, so it read as a trailing stamp and passed. Split on `\n` alone — the renderer's
     # notion of a line is the one this gate is about.
-    first = next((line for line in text.split("\n") if line.strip()), "")
+    #
+    # **One split, read twice.** Both selectors below take their lines from here, because when the
+    # heading selector was added with a `text.split("\n")` of its own the pass-8 mutant stopped
+    # being killed: mutating one copy left the other correct, and the battery reported SURVIVED
+    # over an assertion that was still true. A property living in two expressions is pinned by
+    # neither.
+    lines = text.split("\n")
+    first = next((line for line in lines if line.strip()), "")
     if _OPENING.match(first) is None:
         problems.append(
             f"{stream.directory}/{path.name}: must open with its own `## ` heading, and opens "
@@ -441,7 +448,7 @@ def heading_problems(stream: Stream, path: Path, text: str) -> list[str]:
     # `test_a_fragment_that_is_neither_reports_both_problems` pins. A *malformed* opening
     # (`##  A lesson`) has no `_OPENING` match either, so it also falls back and is judged on the
     # line the writer actually typed.
-    heading = next((line for line in text.split("\n") if _OPENING.match(line)), first)
+    heading = next((line for line in lines if _OPENING.match(line)), first)
     # The stamp is the heading's **trailing token**: the start of the line or whitespace before it,
     # nothing but whitespace after. Pass 3 replaced a containment test with a one-character
     # lookaround for `(` and `)` and a comment claiming it was anchored; pass 4 measured four
