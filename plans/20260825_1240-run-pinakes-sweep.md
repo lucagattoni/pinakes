@@ -6,8 +6,8 @@ S17 falsified it again, and checking the arithmetic on 20260826 03:55 found the 
 already wrong independently of that: *High — three* stood over **four** entries (S16 was filed there
 without updating it), and *Low — five* is a prose sentence naming **four** classes.
 
-**What is countable, and is therefore all this file asserts: thirteen numbered findings — S1–S9,
-S16, S17, S18, S19.** There is no S10–S15; the Low section describes its findings in prose rather
+**What is countable, and is therefore all this file asserts: fourteen numbered findings — S1–S9,
+S16, S17, S18, S19, S20.** There is no S10–S15; the Low section describes its findings in prose rather
 than numbering them, which is why no total in this file has ever been reproducible. **Do not quote a
 total from here, and do not add one** — count the numbered findings, or say "the Low section's
 classes" and leave them uncounted. Fixing the taxonomy properly means deciding whether an unnumbered
@@ -140,6 +140,7 @@ function and testable exhaustively. **Read S2's status before touching this.**
 | **S7** ‡ | `doctor` | The failure ledger **never clears**, and its own remediation text is wrong. **The verifier strengthened this**: it does not clear when the document is *repaired* either, which is the normal user path |
 | **S8** ‡ | `search` | Negative `-k` is passed through as a **raw Python negative-slice bound**: `-k -1` returns 19 passages, `-k -100` prints `no passages matched.` at **exit 0**. **A third arm, found 20260903 by the coder building this row and not part of the original finding: `-k 0` silently means "use the default"** — `search.py:492` is `limit or manifest.retrieval.final_k`, and `0` is falsy, so the manifest's `final_k` is substituted with nothing said. It is the same missing positivity check, and it is the arm that returns a plausible answer rather than a wrong count or a traceback. **Refusing it is a behaviour change, not only a fix** — anything scripted against `-k 0` gets an error where it used to get default-k results |
 | **S9** ‡ | `ask` | `pnk ask -k -1` raises an **unhandled traceback** from `deep/estimate.py:456`. Held at medium because it is loud and immediate rather than silent |
+| **S20** | `sync` | **`--sidecars-only` alone writes N sidecars into the user's `docs/` tree and reports five zeros.** `SyncReport.lines()` prints exactly `embedded, renamed, refreshed, skipped, deleted`; **`minted` is a field on the same dataclass (`sync.py:188`), incremented at `sync.py:1720`, and printed nowhere**. So the counter that would name the only thing this flag *does* is the one counter the summary omits. **Found 20260903 by the coder building row 7, and deliberately left out of that row** — S5's fix refuses the contradictory `--sidecars-only --index-only` pair and does not touch this, so this survives it. **It is a separate row because it needs a decision row 7 was not given**: *what the report should count* is user-facing output, `test_docs_quote_the_shipped_sentences.py` pins the shipped wording, and widening a summary line is not something an increment fixing a different defect gets to choose. Declining to widen it was correct |
 
 ### S2's abandoned first attempt — what it established, preserved before the branch is deleted
 
@@ -500,6 +501,26 @@ following its own pointer to the bounds list.
 The message is wrong, but the right message depends on what the repository wants *"source gone,
 sidecar present"* to mean — a move whose other half has not been seen yet, or a deletion. **Choosing the
 wording is implementation; choosing the meaning is not.**
+
+**What `_orphaned_documents` buys at that gate is a maintenance guarantee, not a behavioural one —
+measured 20260903, and not by reading.** The coder's own battery put the obvious mutant on option E's
+gate: widen `document.path in orphaned_documents` to `document.path in sidecar_by_document`. It
+**survived** 2398 tests, so they proposed withdrawing the row as an equivalent mutant. I tried to
+refute that and failed, which is the useful part of the record. The state I built to break it — a
+document still on disk whose sidecar has been replaced by one carrying a different id, and whose
+content changed so no rename candidate matches — **never reaches the gate at all**: `pairing.py:313`
+adds `document.id` to `handled_ids` in exactly that branch, so the row is retired one loop earlier.
+**Every route that leaves a present-path document unhandled requires its id to be in
+`claimed_by_id`, and every such route hands the id to an adoption or to the `handled_ids.add(sidecar.id)`
+at `pairing.py:325`.** That is the argument the equivalence actually rests on. It is *not* the
+one-step "the path vanished, so the extra term is vacuous", and it is worth writing down precisely
+because a future reader would otherwise re-derive it — or, more likely, narrow the predicate back and
+believe they had changed behaviour.
+
+So the helper stays for the reason its own docstring gives — the hint and `--prune`'s remedy cannot
+drift into disagreeing about what *orphaned* means — and **not** because the two predicates differ at
+that call site today. A withdrawn SURVIVED row is right here: a permanent false alarm is what teaches
+people to skim the real ones, and this repository has no expected-survivor mechanism.
 
 ## What held up under adversarial testing
 
