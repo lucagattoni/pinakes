@@ -907,6 +907,27 @@ def sync(
             ),
         )
 
+    if options.sidecars_only and options.index_only:
+        # The same refusal as above, for the same reason, on the pair that states it most plainly:
+        # these are the two halves of one sync and each names what the other does. `--sidecars-only`
+        # is "write into `docs/`, never touch the index"; `--index-only` is "update the index, never
+        # write into `docs/`". Together they ask for both and for neither.
+        #
+        # Sweep finding S5: they were not refused, and `--sidecars-only` simply won — it returns
+        # before the index is opened, and `_write_missing_sidecars` never reads `index_only` at all.
+        # So the run wrote sidecars into `docs/`, which is the one thing `--index-only` exists to
+        # promise it will not do, and then printed "0 indexed, 0 renamed, 0 metadata-only, 0
+        # unchanged, 0 removed" and exited 0 — a report in which every number is truthful and the
+        # whole is a lie, because the count of files written into `docs/` is not among them.
+        raise SyncError(
+            "--sidecars-only and --index-only are the two halves of one sync.",
+            remedy=(
+                "`--sidecars-only` writes into `docs/` and never opens the index; `--index-only` "
+                "opens the index and never writes into `docs/`. Run whichever half you meant on "
+                "its own, or plain `pnk sync` for both."
+            ),
+        )
+
     if options.clear_cache:
         # A standalone mode: empties `cache/extract/` and nothing else (§6.3) — never the walk,
         # never the index, never `ledger.jsonl`. Needs no extraction backend to be valid, so it is

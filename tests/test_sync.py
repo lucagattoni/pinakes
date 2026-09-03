@@ -21,7 +21,7 @@ from conftest import pdf_extraction_runnable
 from pinakes import search, store
 from pinakes.chunk import PREFIX_SEPARATOR
 from pinakes.embed import EmbeddingBackend, ModelInfo, Vectors
-from pinakes.errors import DuplicateIdsError, ManifestError
+from pinakes.errors import DuplicateIdsError, ManifestError, SyncError
 from pinakes.extract import (
     ExtractedText,
     ExtractionContext,
@@ -425,6 +425,30 @@ def test_index_only_never_writes_into_docs(kb: Path) -> None:
     assert report.embedded == 1
     assert not (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").exists()
     assert list(index(kb))
+
+
+def test_sidecars_only_with_index_only_is_refused(kb: Path) -> None:
+    """Sweep S5. The two flags are halves of one sync and each names what the other does.
+
+    Unrefused, `--sidecars-only` simply won: it returns before the index is opened and
+    `_write_missing_sidecars` never reads `index_only`, so the run wrote into `docs/` — the one
+    thing `--index-only` exists to promise it will not do — and reported "0 indexed, 0 renamed, 0
+    metadata-only, 0 unchanged, 0 removed" at exit 0. Every number in that line was truthful; the
+    line was still a lie, because the count of files written into `docs/` is not one of them.
+
+    Asserting the *tree* and not only the exception is the point: a refusal that raised after the
+    sidecar was already on disk would satisfy a `pytest.raises` and leave the defect exactly where
+    it was.
+    """
+    write(kb, "a.md", "# Alpha\n\nText.\n")
+
+    with pytest.raises(SyncError) as caught:
+        run(kb, sidecars_only=True, index_only=True)
+
+    assert "two halves of one sync" in caught.value.message
+    assert "on its own" in caught.value.remedy
+    assert not (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").exists()
+    assert not (kb / ".pinakes" / "index.db").exists()
 
 
 def test_stage_limits_to_staged_files_and_adds_the_sidecars(kb: Path) -> None:
