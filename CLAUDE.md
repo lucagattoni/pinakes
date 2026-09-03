@@ -162,37 +162,62 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   them — 9, 23, 25 and 28. **This clause said *two* while the bullet below it said three**,
   which is the shape to distrust: a count in one place and a list in another.
   **Everything below this bullet is background, not a queue.**
-- **🛑 EVERY PUBLISHED RELEASE CRASHES `pnk sync` ON PYTHON 3.13, THE MINIMUM SUPPORTED
-  INTERPRETER — and CI has never once run 3.13.** `Path.is_file()` and `Path.exists()` raise
-  `PermissionError` on 3.13, and return `False` on 3.14, for a symlink whose target sits under a
-  directory without `+x`. `walk_sources` calls `is_file()` on every glob hit, so the command ends in
-  a raw traceback. **Found by the coder 20260903 13:23; reproduced independently by the planner against the
-  *published* wheel**, not against a working tree: `uvx --python 3.13 --from "pinakes[light]==0.32.2"
-  pnk sync` exits on `PermissionError`, and **the control fires** — the same wheel on `--python 3.14`
-  completes, and the primitive itself splits the same way on the two interpreters. The coder measured
-  it back through **0.32.1, 0.30.0 and 0.25.0**, so it is not a 0.32.2 regression and **the bump for
-  its fix is a PATCH**. Row 8 did not cause it; row 8's symlink test is the first thing in this repo
-  that ever walked a link into an unreadable directory, which is why it surfaced now.
-  **Why nothing caught it: no `.python-version`, no `setup-python`, and `uv sync --frozen` resolves
-  to the newest interpreter available — 3.14 on the runner.** The `check` matrix varies *extras*,
-  never interpreters, so the floor named in `pyproject.toml` has never been executed by CI. **A
-  fresh worktree runs 3.14 and the primary checkout runs 3.13**, so the same commit answers
-  differently in two directories on this machine, which is the asymmetry that hid it.
-  **What is false right now is not a testing claim but a support claim**: nothing in `docs/` says
-  3.13 is tested, and `docs/DESIGN.md` line 3, `docs/GUIDE.md`, `README.md`'s badge and this file all
-  say 3.13 is **supported**. Audited 20260903 13:23 — do not "fix" those lines by lowering the floor; the fix
-  is the code, and the coder has it in flight with a `minimum-python` CI job that asserts the
-  interpreter it actually got.
-- **🚦 0.32.2 is published and swept — and a release is DUE again, seven fragments deep.** The cut
-  landed 13:07:54 and the wheel was on the index 47 seconds later, verified with a control that
-  fires: `pnk search -k 0` exits **2** at the parser on 0.32.2 and **1** on *no pinakes.toml found*
-  on 0.32.1. **`changelog.d/` (3) and `retro.d/` (4) refilled 88 seconds after the cut** with sweep
-  row 8's three fixes — a mistyped `--source-type` is a usage error, an empty KB stops blaming
-  filters nobody passed, and a broken symlink is reported rather than skipped. **Cut them as
-  0.32.3, a PATCH**, once whatever is in flight has landed. **Do not re-litigate 0.32.2's bump if
-  you are reading its record**: refusing `-k 0` *is* a breaking CLI change, and this project ruled
-  that exact case at **0.7.1** and **0.20.1** on the ground that the previous behaviour was the
-  defect. **`pnk sync --sidecars-only` reporting five zeros is S20, filed with no build-order row on
+- **🛑 EVERY PUBLISHED RELEASE OFFERS TO DELETE A PERMANENT ULID, AND CRASHES ON THE MINIMUM
+  SUPPORTED PYTHON. Both are fixed on `main` at `934190c` and in **no published wheel**.** Two
+  defects, one condition: a document that is present on disk but that this process cannot reach —
+  a symlink whose target sits under a directory lacking `+x`.
+  **The worse one is not the crash, and it is interpreter-independent.** `pnk doctor`'s orphan
+  check asked whether the document was a *readable* file, so a present-but-unreachable document was
+  reported `WARN orphaned sidecars: 1` under the remedy *“Remove with `pnk doctor --prune`”*.
+  Taking that advice deletes the sidecar and the stored ULID that
+  [`docs/INVARIANTS.md`](docs/INVARIANTS.md) calls permanent. **Verified by the planner against the
+  published 0.32.2 on 3.14** — `WARN orphaned sidecars: 1: docs/alias.md.pnk.yaml`, with
+  `os.path.lexists` and `os.path.islink` both `True` for that document at the same moment.
+  **The crash reached `pnk doctor` too, not only `pnk sync`.** `Path.is_file()` and
+  `Path.exists()` raise `PermissionError` on 3.13 and return `False` on 3.14 for that path;
+  `os.path.isfile`/`exists` return `False` on both, which is why `src/pinakes/paths.py` now owns the
+  spelling (`is_regular_file`, `resolves`) and why its `False` deliberately means three states, not
+  one. Sites hit: `sync.walk_sources`, **`doctor.py:420`** and `linkscan`. The coder's fix landed
+  after an adversarial review found the second and third — the first attempt was two private
+  helpers inside `sync.py` that the other two callers could not reach.
+  **A cautionary measurement, mine, 20260903 14:20:** I ran the published `pnk doctor` on both interpreters,
+  watched it complete, and wrote into row 28 that `doctor` does not crash on 3.13. **True
+  measurement, wrong population** — that KB had no sidecar for the unreachable document, so
+  `_sidecars` never entered the loop whose body raises. Re-run against a KB where the document had
+  actually been indexed, it dies at `doctor.py:420`. `rglob` itself raises on neither version, so
+  the walk looks safe and the `stat` inside it is not. **Do not accept a null result here without
+  the sidecar present.**
+  **Why nothing caught any of it: no `.python-version`, no `setup-python`, and `uv sync --frozen`
+  takes the newest interpreter available — 3.14 on the runner.** The `check` matrix varies
+  *extras*, never interpreters, so the floor in `pyproject.toml` had never been executed by CI. **A
+  fresh worktree runs 3.14 and the primary checkout runs 3.13**, so one commit answers differently
+  in two directories on this machine — a branch gate green and the merged gate red on the same
+  tree. `.github/workflows/ci.yml` now carries a `minimum-python` leg that asserts the interpreter
+  it actually got, **and it had never executed once as of `934190c`** — the workflow triggers on
+  push to `main`, so no branch push could run it. Read its first run before trusting it.
+  **The false claim in the docs is a support claim, not a testing one**: nothing in `docs/` says
+  3.13 is tested, while `docs/DESIGN.md` line 3, `docs/GUIDE.md` line 51, `README.md`'s badge and
+  this file all say 3.13 is **supported**. Audited 20260903 13:23. **Do not "fix" those by raising
+  the floor** — the code is the fix, and it is written. Also wrong, in the other direction:
+  `docs/RETROSPECTIVES.md:2218` distinguishes a developer machine from CI by *“different OS,
+  different Python”*, when the interpreter is the one thing the matrix held constant.
+- **🚦 0.32.2 is published and swept. 0.32.3 is DUE and uncut, fourteen fragments deep — and it is
+  the one that carries the ULID fix, so it matters more than an ordinary patch.** `changelog.d/`
+  holds **5** and `retro.d/` **9** as of 20260903 14:21: sweep row 8's three fixes (a mistyped
+  `--source-type` is a usage error, an empty KB stops blaming filters nobody passed, a broken
+  symlink is reported rather than skipped) plus the two above — the 3.13 crash and `doctor`
+  offering `--prune` a present document's id. **Cut as a PATCH**, on the coder's reasoning that
+  `doctor` now reports *fewer* orphans and a sidecar whose document is present was never an orphan,
+  so a false positive is removed rather than a contract narrowed.
+  **One gate must be read before the tag: `minimum-python` had never executed as of `934190c`.**
+  Do not cut on the strength of a local 3.13 run alone; read that job's own conclusion in the CI
+  run for the commit you are tagging.
+  0.32.2's own cut landed 13:07:54 with the wheel on the index 47 seconds later, verified with a
+  control that fires: `pnk search -k 0` exits **2** at the parser on 0.32.2 and **1** on *no
+  pinakes.toml found* on 0.32.1. **Do not re-litigate that bump if you are reading its record**:
+  refusing `-k 0` *is* a breaking CLI change, and this project ruled that exact case at **0.7.1**
+  and **0.20.1** on the ground that the previous behaviour was the defect.
+  **`pnk sync --sidecars-only` reporting five zeros is S20, filed with no build-order row on
   purpose**: what the summary should count is the user's call, not an implementer's.
 - **📌 The release procedure gained a timing rule at 0.32.2, and it changes what a release commit
   writes.** `docs/ROADMAP.md`'s `## Where things stand right now` reconciles three registers
