@@ -26,6 +26,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   header, and it survived the audit that found the first because that audit's selector required
   the `·` the offending line was missing.
 
+- **`tools/batteries/README.md` gained the other half of *commit before mutating*.** `CLAUDE.md`
+  states one direction of the rule; nothing stated the converse, and the converse is what failed —
+  a live mutant reached `origin` inside a mutation window while **every instrument was green and
+  each was right to be**: the battery mutates a *committed* target and has no opinion about what
+  else is committed while it works, `--check-anchors` saw the anchor present with only the arm
+  gone, and `./check.sh` had been killed at ten minutes under load. The rule is now written down:
+  **while a battery is running, that worktree has no committable state** — not for the files the
+  battery names, and in practice not at all, because `git add -A` does not know which those are.
+  The window is the whole run, not the instant of the edit.
+
 ### Fixed
 
 - **A red `main` fixed: the money trace asserted an equality that quantisation cannot hold.**
