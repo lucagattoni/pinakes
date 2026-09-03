@@ -1,11 +1,19 @@
-# Mutation battery — `src/pinakes/pairing.py`, spanning `src/pinakes/sync.py`.
+# Mutation battery — `src/pinakes/pairing.py`, spanning `src/pinakes/sync.py` and
+# `src/pinakes/store.py`.
 #
 #     python3 tools/mutate.py tools/batteries/src-pinakes-pairing.toml
 #
-# **Two files, because the guarantee spans two.** `pairing` decides whether an id is ending or
+# **Three files, because the guarantees span three.** `pairing` decides whether an id is ending or
 # moving; `sync` applies that decision against a UNIQUE constraint on `documents.path`. Neither
-# half is wrong on its own in any of the rows below — every one of them is a plan and an execution
+# half is wrong on its own in the id rows below — every one of them is a plan and an execution
 # that disagree, which is the shape that loses a document without raising anything.
+#
+# **`store.py` joined on 20260903, with S7.** One row reaches it, and it is there because the
+# property genuinely lives there: `sync` clears a path's `failures` before re-attempting it, and
+# the failure paths then roll back, which discards that clear — so the replace has to happen in
+# `store.record_failure` as well, and nothing in `sync.py` can be mutated to prove it. A row
+# anchored in the wrong file to keep a battery tidy would be a claim about an assertion that does
+# not hold it.
 #
 # `pairing.py`'s own docstring calls it "the logic that silently corrupts a KB when it is wrong",
 # and `sync.py` was named in `tools/batteries/README.md` as the highest-churn file in the
@@ -17,7 +25,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 32
+mutants = 39
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -575,3 +583,98 @@ old = '''    report.escaping_patterns = escaping
 new = '''    report.escaping_patterns = escaping
     for path in () if options.sidecars_only else unreadable:'''
 kills = "tests/test_sync.py::test_the_pre_commit_half_also_reports_an_unreadable_document"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260903 · S5–S7 — a report whose every number is true, and whose whole is not
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Three sweep findings that share a shape the summary line cannot express: `pnk sync` exits 0 and
+# prints counts that are individually correct while the run did something the counts do not
+# mention, or says something about the user's tree that is false. None of them raises, none of them
+# loses a document, and none of them is visible in a diff that reads correctly line by line —
+# which is why they survived every reading of this code and were found by running it.
+#
+# The `held` flag on `Skip` is the one structural change here, and it exists because a single name
+# was quietly serving two states (see the `S7` rows): an unreadable document being *held*, and an
+# ordinary *unchanged* one. Nothing needed to tell them apart until clearing did.
+
+[[mutant]]
+name = "S6 — the move hint goes back to firing on path-absence, so every deletion reports a move"
+file = "src/pinakes/pairing.py"
+# The original predicate, and the whole of S6: "the file is gone" is true of every ordinary
+# deletion, so `pnk sync` announced a move -- naming a path that no longer existed and claiming an
+# id was minted when none was -- on the commonest operation there is. `describe()` cannot see this:
+# the action census is identical either way, one SoftDelete, so only an assertion on the reported
+# list catches it.
+old = '''        if document.path in orphaned_documents:'''
+new = '''        if document.path not in after_by_path:'''
+kills = "tests/test_pairing.py::test_an_ordinary_deletion_reports_no_move"
+
+[[mutant]]
+name = "S6 — the orphan gate widens to any sidecar, so a deletion that kept no sidecar still reports"
+file = "src/pinakes/pairing.py"
+# A subtler wrong gate than the one above, and the one a re-implementation would most plausibly
+# reach for: `sidecar_by_document` holds every walked sidecar, including those beside living
+# documents. It happens to agree with the correct gate on the two states that reach this line
+# today, and stops agreeing the moment an unreadable document is in play -- which is the case
+# `_orphaned_documents` exists to get right, and why the gate reads from it rather than from the
+# raw mapping.
+old = '''        if document.path in orphaned_documents:'''
+new = '''        if document.path in sidecar_by_document:'''
+kills = "tests/test_pairing.py::test_an_unreadable_documents_sidecar_is_not_reported_as_orphaned"
+
+[[mutant]]
+name = "S6 — the sentence claims a mint again, which is false whenever only the file was deleted"
+file = "src/pinakes/sync.py"
+# The gate and the sentence are separable, and nothing pinned the sentence at all before 20260903:
+# `pairing.py` could have been fixed while this went on printing the old claim, with every test
+# green. D-37 option E gates on the orphaned sidecar and explicitly NOT on the mint count, so the
+# state where nothing is minted is one this line must survive.
+old = '''                f"source gone, sidecar kept: {path} — if it moved, move the sidecar with it or "'''
+new = '''                f"moved without its sidecar, so a new id was minted: {path} — or "'''
+kills = "tests/test_sync.py::test_a_source_gone_with_its_sidecar_kept_says_so_without_claiming_a_mint"
+
+[[mutant]]
+name = "S5 — the contradictory flag pair is accepted again and writes into docs/ under --index-only"
+file = "src/pinakes/sync.py"
+# `--sidecars-only` wins on acceptance, because it returns before the index is opened and the
+# sidecar writer never reads `index_only`. The run then writes into `docs/` -- the one thing
+# `--index-only` promises not to do -- and prints five zeros. The witness asserts the *tree* as
+# well as the exception, because a refusal raised after the sidecar was already on disk would
+# satisfy `pytest.raises` and leave the defect exactly where it was.
+old = '''    if options.sidecars_only and options.index_only:'''
+new = '''    if False:'''
+kills = "tests/test_sync.py::test_sidecars_only_with_index_only_is_refused"
+
+[[mutant]]
+name = "S7 — nothing clears a path's failures, so a repaired document stays listed forever"
+file = "src/pinakes/sync.py"
+# The state that never cleared. `doctor` insisted the document "is not searchable" while `search`
+# returned it, under a remedy -- fix it and re-run `pnk sync` -- that was exactly what the user had
+# just done. Two tests catch this and the selector names the one at the surface a user meets.
+old = '''    if not (isinstance(action, Skip) and action.held):'''
+new = '''    if False:'''
+kills = "tests/test_doctor.py::test_a_repaired_document_stops_being_reported_as_failed"
+
+[[mutant]]
+name = "S7 — clearing extends to held skips, discarding the record for an unverifiable document"
+file = "src/pinakes/sync.py"
+# The over-broad fix, and the reason `Skip` needed a flag rather than a comment. An unchanged
+# document is indexed and searchable, so a row calling it failed is stale; an unreadable one was
+# not attempted or verified at all this run, and its recorded failure is the last honest thing
+# anyone knew about it. Clearing on `Skip` alone throws the second away with the first.
+old = '''    if not (isinstance(action, Skip) and action.held):'''
+new = '''    if not isinstance(action, type(None)):'''
+kills = "tests/test_sync.py::test_a_held_unreadable_document_keeps_its_recorded_failure"
+
+[[mutant]]
+name = "S7 — record_failure appends again, so N syncs of one broken document leave N rows"
+file = "src/pinakes/store.py"
+# The half a unit test cannot reach, and the one the pre-attempt clear does NOT cover: `_apply`
+# rolls back before recording, and the rollback discards the uncommitted DELETE. Found by running
+# `pnk sync` three times and counting rows, after the code had already been reasoned to be
+# complete. This is why the replace lives here as well as in `_apply`.
+old = '''    connection.execute("DELETE FROM failures WHERE path = ?", (path,))
+    connection.execute('''
+new = '''    connection.execute('''
+kills = "tests/test_sync.py::test_a_document_that_keeps_failing_keeps_one_row_not_one_per_sync"
