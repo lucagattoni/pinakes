@@ -1417,6 +1417,20 @@ A `[sources]` root or subdirectory the process cannot reach silently removed eve
 | a directory the walk could enter still retires what vanished from it | row 31 | `tests/test_pairing.py::test_a_directory_the_walk_could_enter_still_retires_what_vanished_from_it` |
 | Pinakes never offers to prune the sidecar of a document under a held directory — `--prune` would destroy a live ULID | row 31 | `tests/test_pairing.py::test_an_unreadable_documents_sidecar_is_not_reported_as_orphaned_under_a_held_directory` |
 | `pnk doctor` completes on a KB whose source root cannot be entered, rather than dying in the command you reach for when things are already wrong | row 31 | `tests/test_doctor.py::test_a_source_root_that_cannot_be_entered_does_not_crash_the_diagnosis` |
+| `paths.is_directory` answers the same as `pathlib` on an ordinary tree, so a predicate that returned `False` unconditionally could not pass | row 31 | `tests/test_paths.py::test_is_directory_agrees_with_pathlib_on_an_ordinary_tree` |
+| it answers `False` rather than raising behind a blocked ancestor, which is the 3.13 crash the wrapper exists to remove | row 31 | `tests/test_paths.py::test_is_directory_answers_false_rather_than_raising_behind_a_blocked_ancestor` |
+| `paths.is_symlink` answers `False` rather than raising under an untraversable parent — the case the old *"deliberately not wrapped"* note missed, because it was measured where the parent was readable | row 31 | `tests/test_paths.py::test_is_symlink_answers_false_rather_than_raising_under_an_untraversable_parent` |
+| it still recognises a link it can stat, so the wrapper did not buy its safety by answering `False` to everything | row 31 | `tests/test_paths.py::test_is_symlink_still_recognises_a_link_it_can_stat` |
+| `paths.unreachable` is `False` for a path that is simply not there — **a deleted document must stay deletable**, and conflating absence with refusal would freeze every real deletion | row 31 | `tests/test_paths.py::test_unreachable_is_false_for_a_path_that_is_simply_not_there` |
+| it is `False` for a path that is plainly there | row 31 | `tests/test_paths.py::test_unreachable_is_false_for_a_path_that_is_plainly_there` |
+| it is `False` for a dangling symlink — reachable and merely unresolvable, which is a third state and not a refusal | row 31 | `tests/test_paths.py::test_unreachable_is_false_for_a_dangling_symlink` |
+| it is `True` for an entry under an untraversable parent, which is the state the whole guard turns on | row 31 | `tests/test_paths.py::test_unreachable_is_true_for_an_entry_under_an_untraversable_parent` |
+| `paths.unreadable_directories` is empty on a healthy tree, so the collector is shown able to stay quiet | row 31 | `tests/test_paths.py::test_unreadable_directories_is_empty_on_a_healthy_tree` |
+| it names a subdirectory it could not list — the recursive half, which a one-shot probe of the root cannot reach | row 31 | `tests/test_paths.py::test_unreadable_directories_names_a_subdirectory_it_could_not_list` |
+| it names the root itself when the root is the one refused | row 31 | `tests/test_paths.py::test_unreadable_directories_names_the_root_itself_when_the_root_is_the_one_refused` |
+| it says nothing about a root that is not there — **`FileNotFoundError` is an absence, not a refusal** | row 31 | `tests/test_paths.py::test_unreadable_directories_says_nothing_about_a_root_that_is_not_there` |
+| it says nothing about a root that is a file — `NotADirectoryError`, the same distinction one line over | row 31 | `tests/test_paths.py::test_unreadable_directories_says_nothing_about_a_root_that_is_a_file` |
+| **the collector cannot see a directory that lists but cannot be entered, and that limit is pinned rather than assumed** — `scandir` succeeds at `0o400`, so no error hook fires; the per-candidate half is what covers it, and this row exists so nobody deletes that half believing the collector is enough | row 31 | `tests/test_paths.py::test_unreadable_directories_cannot_see_a_directory_that_lists_but_cannot_be_entered` |
 
 ## A name is escaped where it is rendered, not checked where it is typed (S4)
 
