@@ -51,9 +51,15 @@
 #
 # The common shape: **a mutant that dies on the wrong assertion reports exactly like one that dies
 # on the right one**, and the load-bearing half of the test is left unmeasured underneath a green
-# count. `tools/mutate.py` prints no kill reason, so nothing but reading catches it. Three
-# instances in one increment is the argument for changing that, and it is rowed rather than done
-# here.
+# count. **`tools/mutate.py` does print the failing assertion** — on the per-mutant line, above
+# the summary. What it does not do is put it in the table, and the table is what gets read and
+# quoted: `| <row name> | KILLED | <test id> |` carries the row's own claim about itself and no
+# evidence for it. All three were found by reading the line above the table. Three instances in one
+# increment is the argument for moving the reason into it, and that is rowed rather than done here.
+#
+# (An earlier draft of this paragraph said mutate.py prints no kill reason at all. It does; the run
+# on 20260903 printed `AssertionError: assert '\udcff' not in ...` for the row below. Corrected in
+# the same increment that wrote it, which is the fourth claim here asserted before it was run.)
 #
 # **What no row here reaches:** that `render_manifest` and `render_archived` escape *identically*.
 # Both call `_render`, so no single-line edit can separate them —
@@ -178,8 +184,8 @@ kills = "tests/test_template.py::test_a_name_holding_an_unpaired_surrogate_is_re
 # The mutant now keeps the code point and adds the raw value beside it, so the kill is carried
 # by the property the row is named for instead of by its wording. **A row that dies on the wrong
 # assertion reports exactly like one that dies on the right one** — this is the second instance
-# in this battery, after *a backslash is left raw*, and the two together are why
-# `tools/mutate.py` reporting no kill reason is worth an increment of its own.
+# in this battery, after *a backslash is left raw*, and the two together are why the kill reason
+# belongs in `tools/mutate.py`'s summary table rather than only on the line above it.
 [[mutant]]
 name = "the refusal echoes the value it is refusing, straight to the terminal"
 file = "src/pinakes/template.py"
