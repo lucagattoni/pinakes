@@ -33,7 +33,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 57
+mutants = 59
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -1010,3 +1010,34 @@ file = "src/pinakes/doctor.py"
 old = '''        if not is_directory(root):'''
 new = '''        if not root.is_dir():'''
 kills = "tests/test_doctor.py::test_a_source_root_that_cannot_be_entered_does_not_crash_the_diagnosis"
+
+[[mutant]]
+name = "the remedy offers `exclude` as a second way out, which does not clear this"
+file = "src/pinakes/sync.py"
+# S17 is the recorded cost of printing a remedy that never worked. `[sources] exclude` is the
+# tempting second route here and it genuinely does not clear this — the walk is refused before any
+# pattern is applied — so the sentence declining it is load-bearing, and dropping it sends the user
+# to edit a manifest and watch nothing change.
+old = '''                "clears this. An `exclude` pattern does not, because the walk is refused before "
+                "any pattern is applied. Every document already indexed underneath is held "'''
+new = '''                "clears this. Every document already indexed underneath is held "'''
+kills = "tests/test_sync.py::test_the_unreadable_directory_failure_names_the_directory_and_a_way_out"
+
+[[mutant]]
+name = "an `exclude` pattern is taught to suppress a refused directory, putting silence back in the walk"
+file = "src/pinakes/sync.py"
+# **This mutant adds a guard rather than removing one**, because the property is a decision not to
+# suppress. It is the most plausible "improvement" someone will make to this code after the first
+# false-positive report, and it reopens the defect for anyone whose exclude does not in fact cover
+# what is inside the directory — which the walk cannot check, since it could not enumerate it.
+old = '''        for refused in unreadable_directories(root):
+            relative_directory = key_if_inside(refused)
+            if relative_directory is not None:
+                unreadable_dirs.add(relative_directory)'''
+new = '''        for refused in unreadable_directories(root):
+            relative_directory = key_if_inside(refused)
+            if relative_directory is not None and not _excluded(
+                relative_directory, manifest.sources.exclude, manifest.root, refused
+            ):
+                unreadable_dirs.add(relative_directory)'''
+kills = "tests/test_sync.py::test_an_exclude_pattern_does_not_suppress_an_unreadable_directory"

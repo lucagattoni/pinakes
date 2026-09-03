@@ -46,3 +46,12 @@ still yields from one is a direct child. A test pins the limit itself
 per-candidate half looks redundant beside the collector and the next reader will delete it
 otherwise. **A stated limit needs a test as much as a behaviour does** — it is the only thing that
 turns red when someone acts on the belief that one half is enough.
+
+**A postscript, because it is the same lesson pointed at the test harness.** The mutation battery
+for this work reads **57 of 57 killed on 3.13, and 56 of 57 on 3.14** — one survivor, the row that
+reverts `doctor`'s directory guard to the `pathlib` spelling. That row is not a gap. `Path.is_dir()`
+raises on 3.13 and returns `False` on 3.14, so on the newer interpreter the mutant merely skips the
+root and the test's assertions still hold. **The row's own comment said so before the run**, which
+is the only reason the survivor is readable as a prediction rather than as a hole; written
+afterwards it would be indistinguishable from an excuse. An instrument that cannot see a case has
+to say so in advance — which is exactly what the `0o400` row above is about, one layer down.

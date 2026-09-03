@@ -1314,9 +1314,12 @@ def _run(
             (
                 directory,
                 "directory could not be entered: Permission denied.",
-                "Restore read and search permission on it (`chmod +rx`), or drop it from "
-                "`[sources]`. Every document already indexed underneath is held meanwhile, not "
-                "deleted — a directory this walk cannot enter says nothing about what is in it.",
+                "Restore read and search permission on it (`chmod +rx`); if it is a "
+                "`[sources] roots` entry you no longer want, removing it from the manifest also "
+                "clears this. An `exclude` pattern does not, because the walk is refused before "
+                "any pattern is applied. Every document already indexed underneath is held "
+                "meanwhile, not deleted — a directory this walk cannot enter says nothing about "
+                "what is in it.",
             )
         )
     for path in walked.unreadable:

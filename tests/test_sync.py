@@ -3792,6 +3792,49 @@ def test_the_unreadable_directory_failure_names_the_directory_and_a_way_out(kb: 
     assert "failed: docs/sub: directory could not be entered" in reported
     assert "chmod +rx" in reported
     assert "held meanwhile, not deleted" in reported
+    # **The route the remedy declines to offer, asserted as flatly as the one it does.** S17 is the
+    # recorded cost of printing a remedy that never worked; here the tempting second way out —
+    # `[sources] exclude` — genuinely does not clear this, and a remedy that implied otherwise
+    # would send the user to edit a manifest and watch nothing change.
+    assert "An `exclude` pattern does not" in reported
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_an_exclude_pattern_does_not_suppress_an_unreadable_directory(kb: Path) -> None:
+    """The one place this fix can plausibly annoy someone, pinned rather than left to be discovered.
+
+    The walk is refused *before* any pattern is applied — the directory collector runs before the
+    include loop, and `unreachable` is tested before `_excluded` — so a directory the user has
+    named in `[sources] exclude` still reports and the run still exits non-zero.
+
+    **Deliberate, and the reasoning is not "it was easier".** Pinakes cannot enumerate the subtree,
+    so it cannot know the exclusion covers what is inside it, and the excluded-file precedent does
+    not transfer: that check matches a pattern against the file it is about, while the common
+    directory spelling (`docs/sub/**`) matches no directory at all. Suppressing here would put a
+    silent path back into the one walk whose silence cost a corpus.
+
+    Recorded as the current answer to a question the plan did not decide, so that a later ruling
+    flips a red test rather than discovering an assumption.
+    """
+    manifest = kb / "pinakes.toml"
+    manifest.write_text(
+        manifest.read_text(encoding="utf-8").replace(
+            'include = ["**/*.md"]', 'include = ["**/*.md"]\nexclude = ["docs/sub", "docs/sub/**"]'
+        ),
+        encoding="utf-8",
+    )
+    write(kb, "sub/b.md", "# Bravo\n\nSecond body.\n")
+    run(kb)
+    os.chmod(kb / "docs" / "sub", 0o000)
+    try:
+        report = run(kb)
+    finally:
+        os.chmod(kb / "docs" / "sub", 0o755)
+
+    assert [path for path, _error, _remedy in report.failures] == ["docs/sub"]
+    assert not report.ok
 
 
 @pytest.mark.skipif(
