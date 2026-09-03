@@ -1,7 +1,8 @@
 ## A fixture named for a scenario it did not build (20260903 10:24)
 
 **HIGH — a test can be green, correctly named, and modelling a different world.** S6 — `pnk sync`
-announcing *"moved without its sidecar, so a new id was minted"* on every ordinary deletion — was
+announcing *"moved without its sidecar"* and *"a new id was minted"* on every ordinary deletion
+(quoted in halves: the joined sentence is now a retired row) — was
 covered by a test called
 `test_rename_plus_edit_without_the_sidecar_is_reported_as_such`. The name is accurate about the
 intent. The fixture passed `()` for the walk's sidecars.

@@ -613,11 +613,33 @@ kills = "tests/test_pairing.py::test_an_ordinary_deletion_reports_no_move"
 # A second S6 mutant was written here and withdrawn, and the reason is worth more than the row
 # would have been. It widened the gate to `document.path in sidecar_by_document` -- the looser
 # mapping of every walked sidecar -- on the theory that the two diverge once an unreadable
-# document is in play. They do not, and cannot: by the time control reaches this line the
-# document is being soft-deleted, so its path is in neither `after.files` nor `unreadable`, and
-# `not in present` is therefore unconditionally true. That collapses `in orphaned_documents` to
-# exactly `in sidecar_by_document`. Run against the full suite the mutant was green on 2398
-# tests -- an equivalent mutant, not a gap in the assertions.
+# document is in play. They do not: run against the full suite the mutant was green on 2398
+# tests. An equivalent mutant, not a gap in the assertions.
+#
+# **Why it is equivalent is a three-step argument, and the one-step version is wrong.** The
+# first draft of this note said: control only reaches this line for a document being
+# soft-deleted, so its path is in neither `after.files` nor `unreadable`, and `not in present`
+# is therefore unconditionally true. The conclusion holds; that reasoning does not earn it,
+# because "being soft-deleted" is what needs proving rather than what may be assumed. Two
+# routes leave a *present* path unhandled by the same-path loop and drop it into the
+# vanished-path loop -- the `sidecar is None and document.id in claimed_by_id` continue, and
+# the branch above it when `document.id in claimed_by_id` suppresses the `SoftDelete`.
+#
+# What actually closes it: both routes require `document.id in claimed_by_id`, which means some
+# sidecar carrying that id sits beside a file that is present. Every such sidecar is reached
+# either by the same-path branch's `handled_ids.add(sidecar.id)` or by the adoption loop's, so
+# the id is always handled before the vanished-path loop runs and a present path never arrives
+# at this gate. The extra term is vacuous *here* -- which is a fact about `claimed_by_id`, not
+# about soft deletion.
+#
+# The one-step version matters because it is checkable, believable and wrong, and a reader who
+# believes it may narrow this predicate back and think they have changed behaviour. It was
+# caught by the planner attempting to refute the withdrawal: they built a present-path
+# counterexample, ran it against both this file and a mutated copy (anchor asserted to match
+# once, `__pycache__` cleared, `pinakes.pairing.__file__` checked so a null result could not
+# come from the wrong module), and got `source_gone_sidecar_kept = ()` from both. The
+# refutation failed and the argument was replaced. A refutation that was tried and failed is
+# worth more than an assertion nobody attacked.
 #
 # So `_orphaned_documents` is **not load-bearing at this gate**, and the row above is the only
 # one that pins it. Its value here is that the hint and `--prune`'s remedy cannot drift into
