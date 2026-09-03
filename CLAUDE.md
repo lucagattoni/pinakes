@@ -206,25 +206,22 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   the floor** — the code is the fix, and it is written. Also wrong, in the other direction:
   `docs/RETROSPECTIVES.md:2218` distinguishes a developer machine from CI by *“different OS,
   different Python”*, when the interpreter is the one thing the matrix held constant.
-- **🚦 0.32.3 is CUT — the release that carries the ULID fix — and `changelog.d/` and `retro.d/`
-  are empty.** Fourteen fragments spliced, 5 and 9. It fixes `pnk doctor` offering `--prune` a
-  present document's permanent id, the 3.13 crash in `sync` and `doctor` across nine call sites, and
-  row 8's three low classes. **PATCH**, because `doctor` now reports *fewer* orphans and a sidecar
-  whose document is present was never one, so a false positive is removed rather than a contract
-  narrowed.
-  **Read `minimum-python` in the CI run for the tagged commit before trusting the floor.** That job
-  runs only on a push to `main`, so every release commit gets its own first run; read the job's own
-  conclusion, never the run's top line. Locally this cut was gated on 3.13 at **2425 passed / 126
-  skipped**, the same counts CI's leg reported at `934190c`.
-  **`prices.toml` moved for real this time**: the ECB published the 2026-09-03 fixing between the
-  two cuts, so the rate went `1.1578 → 1.1615`, up 0.32%. **The `[pdf]` money legs were run
-  locally before landing**, because that is the pair a rate change took red at 0.32.1 and they
-  **skip** in an ordinary `./check.sh` — and they skip *silently*, so passing `--extra pdf` to
-  `uv sync` is not enough: `uv run --frozen` without the extras re-syncs and prunes them, and the
-  four tests then report as skipped inside an otherwise green run.
-  **What is still owed is the post-publish sweep** — STATUS's hold marker, its two published-version
-  registers and ROADMAP's two prose blocks, none of which may be written before the index has been
-  read.
+- **🚦 0.32.3 is PUBLISHED and swept — the release that carries the ULID fix — and `changelog.d/`
+  and `retro.d/` are empty.** On the index 20260903 15:10, verified with two controls that fire
+  against the published artifacts: on 3.14 the published 0.32.3 reports no orphaned sidecar for a
+  present-but-unreachable document where 0.32.2 reports one under the `--prune` remedy, and on 3.13
+  they exit **0** and **1**. Fourteen fragments spliced, 5 and 9. **PATCH**, because `doctor` now
+  reports *fewer* orphans and a sidecar whose document is present was never one.
+  **The hold ran 6 minutes 4 seconds against 0.32.2's 47, and the difference was deliberate**: the
+  tag waited for `minimum-python` to complete *at the release commit* and be read **in its log**
+  (CPython 3.13.15, the assertion printing `3.13.15`, 2425 passed / 126 skipped). That job triggers
+  only on a push to `main`, so **a green run at an earlier commit is not this commit's gate** — do
+  the same at every release.
+  **`prices.toml` moved for real**: the ECB published the 2026-09-03 fixing between the day's two
+  cuts, `1.1578 → 1.1615`. **Run the `[pdf]` money legs locally before landing a rate change** —
+  they are what a rate took red at 0.32.1, they **skip silently** in an ordinary `./check.sh`, and
+  `uv sync --extra pdf` is not enough because `uv run --frozen` without the extras re-syncs and
+  prunes them. That cost a false green here before it was caught.
   **`pnk sync --sidecars-only` reporting five zeros is S20, filed with no build-order row on
   purpose**: what the summary should count is the user's call, not an implementer's.
 - **🛑 The most severe thing now open is row 31, and it is NOT fixed by 0.32.3.** A `[sources]` root
