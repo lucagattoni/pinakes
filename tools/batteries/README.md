@@ -235,17 +235,34 @@ Neither it nor `tests/test_batteries.py` can see:
 
 A green check is not a green run. Run the battery.
 
-## While a battery is running, the worktree has no committable state
+## While anything is reverting a file, the worktree has no committable state
 
 `CLAUDE.md` says **commit before mutating**. That is one direction of the rule; this is the other,
 and the other is the one that failed:
 
-> **While a battery is running, that worktree has no committable state** — not for the files the
-> battery names, and in practice not at all, because `git add -A` does not know which those are.
+> **While anything is reverting a file in a worktree, that worktree has no committable state** —
+> not for the files being reverted, and in practice not at all, because `git add -A` does not know
+> which those are.
 
 The window is the whole run, not the instant of the edit. `mutate.py` writes a mutant, runs the
 selector its row names, and restores the file; a commit taken anywhere inside that sequence commits
-whatever the tree held at that moment. Finish the battery, confirm the restore, *then* stage.
+whatever the tree held at that moment. Finish the run, confirm the restore, *then* stage.
+
+**A battery is not the only thing that opens this window, and the heading said it was until
+20260903 12:26.** Any harness that reverts a file in order to measure something opens the same
+window under a different name — and this repo runs one at every increment. **A review's
+*does-this-test-pin-the-fix* lens reverts the source** (`git checkout <base-sha> -- <path>`), runs
+the test, and restores: for seconds at a time that worktree holds a **reverted source file**, and
+`git add -A` inside that window commits the revert. It is `7193983` exactly, with a review lens
+opening the window instead of a battery.
+
+**Recorded because it was nearly the second instance, not because it was one.** A planner handed a
+coder the recipe `git add -A && git commit` while that coder's review was running. The coder read
+`git status` first, saw `src/` and `tests/` clean, and **staged the four paths by name anyway** —
+which is the move that saved it, because **a clean `git status` is a fact about the instant it was
+read, not about the instant the commit is written**, and the revert window is measured in seconds.
+**So: stage by name whenever any measurement is in flight, and never `-A`.** Nothing gates this.
+The rule is all there is, which is why it is written twice.
 
 **A live mutant reached `origin` on 20260903.** `7193983` — under a subject promising a
 retrospective fragment — carried `elif False:` in `_toml_basic`'s control-character arm, and

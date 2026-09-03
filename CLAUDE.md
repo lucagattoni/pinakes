@@ -160,7 +160,18 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   more. Read § 3 before picking anything up, and **read a row's body, not only its cells**:
   *Blocked on: nothing* speaks about external blockers, and two rows carry a choice inside them.
   **Everything below this bullet is background, not a queue.**
-- **✅ `main` is green and 0.32.0 is published** (green 20260902 10:51, published 10:07). Its red
+- **🚦 `main` is green at `300998b` and 0.32.1 is published — and a release is DUE and uncut.**
+  **Nine fragments wait** in `changelog.d/` (4) and `retro.d/` (5), from sweep row 7's four fixes
+  (S5, S6, S7, and S8/S9 as one boundary guard) plus the documents that followed them. **Cut
+  0.32.2, a PATCH** — and do not re-litigate the bump: refusing `-k 0` *is* a breaking CLI change,
+  and this project has ruled that exact case twice, at **0.7.1** and **0.20.1** (*"Breaking, and
+  deliberately in a patch"*), on the ground that **the previous behaviour was the defect**. It was
+  ready 20260903 10:58 UTC and deliberately held: a tag publishes to PyPI, PyPI never accepts a
+  version twice, and the window between `git tag` and `make release-check` is the only irreversible
+  one in this process — so it waits for a stable session rather than being started in a doomed one.
+  **`pnk sync --sidecars-only` reporting five zeros is S20, filed with no build-order row on
+  purpose**: what the summary should count is the user's call, not an implementer's.
+- **✅ 0.32.0** (green 20260902 10:51, published 10:07). Its red
   lasted 44 minutes and is worth one sentence: a money assertion compared a value taken *before*
   the ledger's write-time quantisation against one taken *after* it, and **had been green for a
   month on the value of a constant it never mentions** — the ECB rate, which
@@ -179,8 +190,10 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   now** — `docs/RELEASING.md` § *Before you start* step 3, which had never existed.
 - **🛑 Two plans have scheduled work, and it is NOT all coder work any more.** Rows 21 and 22 of
   the live plan are **planner-owned** — the dogfooding on-ramp's design, and regenerating this
-  file — both added 20260902 on the user's own instructions; and row 9 carries a design choice
-  inside a row whose blocker cell reads *nothing*.
+  file — both added 20260902 on the user's own instructions; and **rows 9, 23 and 25 each carry a
+  design choice inside a row whose blocker cell reads *nothing*** — row 9 where two `doctor` helpers
+  live, row 23 whether `pnk upgrade` fails or degrades, row 25 where a plain-text guard belongs.
+  `docs/README.md` names all three; this bullet named only row 9 until 20260903 12:16.
   *(What the red-main plan still owes is written into its § CHECKED 20260831, not into a queue
   row — five small corrections, each naming its own file.)*
   **The S16 HIGH holds nothing any more** — the user answered it 20260831 21:38 UTC
@@ -192,8 +205,10 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   taken"; then "rows 3–5 … are owner planner" when rows 3 and 4 already read ✅ DONE; then "a live
   user decision holding a landing" for the half-hour after it was answered and built in another
   session; then "every row in them is coder work", for the two days after two planner rows were
-  added. **It is the most-falsified region in this file, and every instance has been about who owns
-  what** — which is the one thing a cleared session reads it to learn.)*
+  added; and now a fifth — naming **row 9 alone** as decision-bearing where `docs/README.md` named
+  rows **9, 23 and 25**, for the day after rows 23 and 25 were written. **It is the most-falsified
+  region in this file, and every instance has been about who owns what or who must decide what** —
+  which is the one thing a cleared session reads it to learn.)*
   The **eight decisions and fifteen questions** in
   [`plans/20260825_1803-open-decisions.md`](plans/20260825_1803-open-decisions.md) were **ANSWERED by
   the user 20260825 18:16**, and the planner's half of them landed **20260825 18:39–18:56 UTC**, with later records and corrections through 20260826: D-34 closed
