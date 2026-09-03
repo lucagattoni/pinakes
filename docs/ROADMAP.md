@@ -2679,8 +2679,15 @@ from *unreachable*, and it is now the one being asked. The pre-existing control,
 evidence that a genuine orphan is still reported and still pruned on request, rather than the fix
 having bought silence.
 
-**The one that depended on your machine.** `Path.is_file()` and `Path.exists()` propagate
-`PermissionError` on 3.13 and swallow it on 3.14. `pyproject.toml` says `requires-python = ">=3.13"`,
+**The one that depended on your machine — and *“swallow”* is doing real damage in that
+sentence.** `Path.is_file()` and `Path.exists()` propagate `PermissionError` on 3.13 and
+swallow it on 3.14, and the 3.14 half is not the benign one. Measured against the published
+wheels on one KB holding a plain document and an unresolvable link: **0.32.2 on 3.14 reports
+`1 indexed` and says nothing whatever about the link**, while 0.32.2 on 3.13 exits 1 on a
+raw traceback and 0.32.3 on *both* reports `1 indexed` followed by *“symlink could not be
+resolved, so it was not indexed: docs/link.md”*. So the fix is not *“the crash is gone”* — it
+is that the two interpreters now give the **same** answer and it is the informative one. A
+user on 3.14 was losing a document silently, which no traceback ever told them. `pyproject.toml` says `requires-python = ">=3.13"`,
 so `pnk sync` ended in a raw traceback with no index written, on the *minimum supported interpreter*
 and on exactly the shape its walk exists to report. **`pnk doctor` died on the same predicate**,
 which means the remedy it exists to give you was unreachable by the same condition that needed it.
