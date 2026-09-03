@@ -488,11 +488,14 @@ kills = "tests/test_sync.py::test_an_indexed_document_that_becomes_unreadable_is
 [[mutant]]
 name = "the hold loop goes entirely, so every unreadable document is retired as vanished"
 file = "src/pinakes/pairing.py"
+# **Anchor repaired 20260903** (S7): `Skip` grew a `held` flag, so the append line moved. The
+# property is untouched -- the hold loop still has to exist -- and re-anchoring is what
+# `tools/batteries/README.md` § *When an anchor rots* asks for at 0 matches.
 old = '''    for path in sorted(unreadable):
         document = before_by_path.get(path)
         if document is None or document.state == DELETED:
             continue  # never indexed, or already retired: there is no row to hold
-        actions.append(Skip(doc_id=document.id, path=path))
+        actions.append(Skip(doc_id=document.id, path=path, held=True))
         handled_ids.add(document.id)
         handled_paths.add(path)'''
 new = '''    for path in sorted(unreadable):
@@ -505,10 +508,13 @@ file = "src/pinakes/pairing.py"
 # Emitting the `Skip` is not the guard; marking the id is. Without this line the rename loop matches
 # the held document's *recorded* hash against a genuinely new file and carries the id to it — one
 # id at two paths, in a plan that still looks reasonable.
-old = '''        actions.append(Skip(doc_id=document.id, path=path))
+# **Anchor repaired 20260903** (S7), same cause as the row above: `held=True` is now part of the
+# line. Both halves moved together, so `new` is repaired with `old` -- repairing only `old` is the
+# recorded way to produce a mutant that changes two things under a name promising one.
+old = '''        actions.append(Skip(doc_id=document.id, path=path, held=True))
         handled_ids.add(document.id)
         handled_paths.add(path)'''
-new = '''        actions.append(Skip(doc_id=document.id, path=path))
+new = '''        actions.append(Skip(doc_id=document.id, path=path, held=True))
         handled_paths.add(path)'''
 kills = "tests/test_pairing.py::test_an_unreadable_document_is_not_offered_to_another_file_as_a_rename"
 
@@ -535,8 +541,12 @@ name = "the orphan set forgets unreadable documents, so --prune is offered a liv
 file = "src/pinakes/pairing.py"
 # Pruning that sidecar destroys a permanent id for a file still on disk. Ids are permanent by
 # invariant; a chmod is not a deletion.
-old = '''    documents = {file.path for file in after.files} | unreadable'''
-new = '''    documents = {file.path for file in after.files}'''
+# **Anchor repaired 20260903** (S6): the set moved into `_orphaned_documents`, which `_orphans`
+# and `pair`'s move-hint gate now share so the two cannot drift about what "orphaned" means. The
+# binding was renamed `documents` -> `present` with it. The property is unchanged, and it now
+# guards one more caller than it did.
+old = '''    present = {file.path for file in after.files} | unreadable'''
+new = '''    present = {file.path for file in after.files}'''
 kills = "tests/test_pairing.py::test_an_unreadable_documents_sidecar_is_not_reported_as_orphaned"
 
 [[mutant]]

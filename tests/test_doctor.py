@@ -677,6 +677,7 @@ def test_the_failures_remedy_says_how_an_entry_goes_away(kb: Path) -> None:
 
     remedy = next(check.remedy for check in diagnose(load(kb)).checks if check.name == "failures")
 
+    assert remedy is not None
     assert "clears its own entry" in remedy
 
 
