@@ -193,8 +193,9 @@ class SyncReport:
     ambiguities: tuple[Ambiguity, ...] = ()
     orphaned_sidecars: tuple[str, ...] = ()
     unresolvable_symlinks: tuple[str, ...] = ()
-    """Paths matching an include pattern whose symlink target is missing or loops (the Low
-    classes). Reported only — nothing is held, retired or minted for them."""
+    """Paths matching an include pattern that are symlinks this process could not resolve to a
+    file — a missing target, a loop, or a target it is not permitted to reach (the Low classes).
+    Reported only — nothing is held, retired or minted for them."""
     source_gone_sidecar_kept: tuple[str, ...] = ()
     """Documents whose file is gone while their sidecar is still on disk (§9, D-37 option E)."""
     paid_extraction_protected: tuple[str, ...] = ()
@@ -431,8 +432,8 @@ class SyncReport:
             # is right there in the listing. Without this the walk's only trace of it is an absence,
             # and an absent file is indistinguishable from one no include pattern matched.
             lines.append(
-                f"symlink resolves to nothing, so it was not indexed: {path} — its target is "
-                "missing or the link loops"
+                f"symlink could not be resolved, so it was not indexed: {path} — its target is "
+                "missing, unreadable, or the link loops"
             )
         lines.extend(self.failure_lines())
         return lines
@@ -704,14 +705,22 @@ def walk_sources(
                     escaping.add(pattern)
                     break  # bounds the escape; no static check can see a symlinked directory
                 if not candidate.is_file():
-                    # A symlink is unresolvable when it resolves to **nothing**, and `exists()` is
-                    # what says so: it follows the link, so a missing target and a loop are both
-                    # False, while a link to a real directory is True and takes the same `continue`
-                    # a plain directory takes. `is_file()` cannot make that distinction — it is
-                    # False for a directory target too, so the first form of this guard reported
-                    # every healthy `docs/alias -> docs/real` as a broken link. Its own control
-                    # named that shape in its docstring and built a *file* symlink, which passes
-                    # `is_file()` and never reaches this branch: the control could not fail.
+                    # A symlink is unresolvable when **this process cannot resolve it to a
+                    # file**, and `exists()` is what says so: it follows the link, so a missing
+                    # target and a loop are both False, while a link to a real directory is True
+                    # and takes the same `continue` a plain directory takes. `is_file()` cannot
+                    # make that distinction — it is False for a directory target too, so the first
+                    # form of this guard reported every healthy `docs/alias -> docs/real` as a
+                    # broken link. Its own control named that shape in its docstring and built a
+                    # *file* symlink, which passes `is_file()` and never reaches this branch: the
+                    # control could not fail.
+                    #
+                    # **`exists()` is also False for a target this process may not reach** — a
+                    # link into a directory without `+x` — which is why the reported sentence says
+                    # *missing, unreadable, or loops* rather than naming two causes it cannot tell
+                    # apart. Measured, not assumed: `exists()` swallows the `PermissionError` and
+                    # returns False. Not reporting it would be worse; claiming to know which of
+                    # the three it is would be the defect this increment keeps re-committing.
                     # Recorded before the `continue` because this is the only place that knows:
                     # every later stage sees a path that simply is not in `files`, which is
                     # indistinguishable from a file no pattern matched.

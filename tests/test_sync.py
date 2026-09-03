@@ -2,6 +2,7 @@
 
 import contextlib
 import itertools
+import os
 import shutil
 import sqlite3
 import subprocess
@@ -3509,7 +3510,7 @@ def test_a_symlink_that_resolves_to_nothing_is_reported_rather_than_skipped(kb: 
         "docs/loop_b.md",
     )
     said = "\n".join(report.lines())
-    assert "symlink resolves to nothing" in said
+    assert "symlink could not be resolved" in said
     assert "docs/dangling.md" in said
     assert "docs/loop_a.md" in said
 
@@ -3519,7 +3520,7 @@ def test_a_symlink_to_a_real_directory_is_not_reported_as_unresolvable(kb: Path)
 
     `is_file()` is False for a symlink to a *directory* just as it is for a dangling one, so the
     first guard — `is_symlink()` under `not is_file()` — reported every healthy directory alias as
-    *"resolves to nothing … its target is missing or the link loops"*, which is false on both
+    *"could not be resolved … its target is missing, unreadable, or the link loops"*, false on every
     counts. `exists()` follows the link: False for a missing target and False for a loop, True
     here, so this link takes the same `continue` a plain directory takes.
 
@@ -3533,7 +3534,38 @@ def test_a_symlink_to_a_real_directory_is_not_reported_as_unresolvable(kb: Path)
     report = run(kb)
 
     assert report.unresolvable_symlinks == ()
-    assert "symlink resolves to nothing" not in "\n".join(report.lines())
+    assert "symlink could not be resolved" not in "\n".join(report.lines())
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_a_symlink_into_an_unreadable_directory_is_reported_without_naming_a_cause(
+    kb: Path,
+) -> None:
+    """`exists()` is False for a target this process may not reach, and the message must not lie.
+
+    The third cause, and the one the first wording denied: a link into a directory without `+x`
+    resolves to a file that is really there, so *"its target is missing or the link loops"* was
+    false on both counts. `exists()` swallows the `PermissionError` and returns False, and nothing
+    at this point can tell the three apart — so the line names all three rather than picking one.
+
+    Reporting it is still right: the document is not indexed, and the walk is the only place that
+    knows. What was wrong was the explanation, which is the same defect as the two this increment
+    already fixed — a sentence claiming to know more than the code does.
+    """
+    locked = kb / "docs" / "locked"
+    locked.mkdir()
+    (locked / "hidden.md").write_text("# Hidden\n\nhidden\n", encoding="utf-8")
+    (kb / "docs" / "link.md").symlink_to(locked / "hidden.md")
+    os.chmod(locked, 0o000)
+    try:
+        report = run(kb)
+    finally:
+        os.chmod(locked, 0o755)
+
+    assert "docs/link.md" in report.unresolvable_symlinks
+    assert "missing, unreadable, or the link loops" in "\n".join(report.lines())
 
 
 def test_a_healthy_tree_says_nothing_about_symlinks(kb: Path) -> None:
@@ -3542,7 +3574,7 @@ def test_a_healthy_tree_says_nothing_about_symlinks(kb: Path) -> None:
     (kb / "docs" / "real.md").write_text("# Real\n\nreal content\n", encoding="utf-8")
     report = run(kb)
     assert report.unresolvable_symlinks == ()
-    assert "symlink resolves to nothing" not in "\n".join(report.lines())
+    assert "symlink could not be resolved" not in "\n".join(report.lines())
 
 
 def test_a_symlink_to_a_real_document_is_indexed_not_reported(kb: Path) -> None:
