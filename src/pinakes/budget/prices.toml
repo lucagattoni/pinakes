@@ -24,13 +24,17 @@
 # was itself one release old -- which is the step working: the rate moved 0.10% in a day, and the
 # only reason anyone knows that is that it was re-read rather than carried forward.
 #
-# 0.32.2 re-read the same source at 20260903 12:53 and the API returned the 2026-09-02 fixing again, at the
-# same 1.1578: the ECB had not published 20260903 yet, which is the ordinary outcome for the second
-# release of one day. The stamp moves because the check was performed; the rate does not, because
-# it did not move. That is the only combination this step permits -- re-stamping without re-reading
-# is the falsification, and declining to stamp a check that was actually made throws the check away.
-as_of = "20260903 12:53"
-usd_per_eur = "1.1578"
+# 0.32.2 re-read the same source at 20260903 12:53 and the API returned the 2026-09-02 fixing again,
+# at the same 1.1578: the ECB had not published 20260903 yet, which is the ordinary outcome for the
+# second release of one day. The stamp moved because the check was performed; the rate did not,
+# because it had not moved.
+#
+# 0.32.3, at 20260903 14:31, is the third release of the same day and the first to catch the day's own
+# fixing: the ECB had published 2026-09-03 by then, at 1.1615, so the rate moves 1.1578 -> 1.1615,
+# up 0.32%. Three releases, three re-reads, two different values -- which is the measurement this
+# step exists to take rather than the ceremony it looks like from one release away.
+as_of = "20260903 14:31"
+usd_per_eur = "1.1615"
 
 # Measured against the live API on 20260729 03:17 with claude-opus-5, over the synthetic corpus
 # (docs/MEASUREMENT-RUN.md). Recorded here rather than only in a retrospective because the next

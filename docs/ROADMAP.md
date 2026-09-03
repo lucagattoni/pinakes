@@ -270,6 +270,7 @@ number belongs to a release only when it is cut
 | **[0.32.0](#0320--one-unreadable-file-no-longer-takes-the-kb-with-it--20260902-0948)** | 20260902 09:48 | one unreadable file no longer takes the KB with it | • One file the process could not open ended `pnk sync` with a raw traceback and **no index database at all** — `hash_file` let `PermissionError` escape `walk_sources`<br>• The path is carried out of the walk and reported per-document with a `chmod +r` remedy; `report.ok` is `not failures`, so the run still exits non-zero<br>• **The second half is what makes the first safe** — `pair()` reasons from *absence*, so a skipped file would have emitted a `SoftDelete` and **deleted the document from search**<br>• `pnk doctor` died on the same condition: the remedy `pnk sync` prints sent you to a traceback. A fourth drift check, `paid extraction unreadable`, names what it could not decide<br>• An unreadable document's sidecar is no longer listed as orphaned — that list is printed with `pnk doctor --prune` beside it, and pruning destroys a permanent ULID<br>• The other eleven entries are tooling and documents: `tools/agent_spend.py`, the probe's `--questions` flag, a `retro.d/` heading gate, the 34-finding 20260807 audit closed as one unit, and the link gate learning where a fragment's body is spliced to |
 | **[0.32.1](#0321--a-kb-name-no-longer-bricks-the-kb-at-creation--20260903-0933)** | 20260903 09:33 | a KB name no longer bricks the KB at creation | • A name holding a `"`, a `\` or a control character closed or escaped the TOML basic string it was interpolated into, so `pinakes.toml` came out unreadable while `pnk init` exited 0 and printed *created*<br>• **There was no repair path** — `pnk init` refuses a directory that is already a KB, so recovery meant hand-editing TOML<br>• The fix is a `finalize=` hook on the Jinja template, so it covers **every** interpolated value rather than `--name`, and both ways in, since `init` falls back to the directory's own name<br>• **It does not only escape** — an unpaired surrogate has no TOML form raw *or* escaped, reached `Path.write_text`, which truncates *before* the encoder raises, and left a **zero-byte manifest**: S4's own end state, found on the branch that fixed S4. It is refused before anything is created, naming the code point and **never echoing the value**<br>• **What it does not do** — escaping for TOML discharges nothing a terminal is owed, and a KB already bricked stays bricked, because the fix is at creation<br>• Everything else in this release is tooling, documents and a red `main`: a money assertion quantisation cannot hold, green for a month on the value of an exchange rate neither test named |
 | **[0.32.2](#0322--four-reports-that-were-not-true--20260903-1254)** | 20260903 12:54 | four reports that were not true | • Every **ordinary deletion** announced *“moved without its sidecar”* and *“a new id was minted”* (halves, since the joined sentence is retired) — nothing moved, nothing was minted, and the named path no longer existed<br>• The hint is gated on an **orphaned sidecar**, the thing that actually separates a move from a deletion; and it reports the state observed, since deleting the file alone leaves a sidecar and mints nothing — a **third state** the answered decision did not foresee<br>• **`-k` below 1 was `type=int` and nothing else**: `pnk search` used it as a raw negative-slice bound — `-k -1` returned every passage but the last at exit 0 — while `pnk ask` raised an unhandled `ValueError`. One missing check, one surface wrong and one crashing<br>• **`-k 0` is refused, a deliberate breaking change in a PATCH** — `limit or `…`final_k` made a falsy `0` mean *use the default*. Same ground as 0.7.1 and 0.20.1: the previous behaviour was the defect<br>• **`pnk sync --sidecars-only --index-only` wrote into `docs/`** — the one thing `--index-only` promises not to do — and reported five zeros at exit 0: every number truthful, the line still a lie, because the count of files written was not among them<br>• **Nothing ever deleted from the `failures` table**, so a repaired document stayed listed forever under the advice *“Fix them and re-run `pnk sync`”*; and three syncs of one broken document left three rows, a count of **attempts** dressed as a count of problems<br>• The first fix for it was **eaten by a transaction boundary** — `connection.rollback()` discarded the uncommitted `DELETE` — and no unit test could have shown it, because each exercised a single sync<br>• A green test named for the right scenario **built the wrong one**: the fixture passed `()` for the walk's sidecars, modelling a move whose sidecar was deleted<br>• A 39-mutant battery killed 38, **all written by the author of the fix**; the survivor was equivalent, its `kills` selector named a test of a different function, and the withdrawal's reasoning was false — replaced after a peer's refutation failed<br>• All four ship in the wheel — `cli.py`, `sync.py`, `pairing.py`, `store.py`, `doctor.py`; no `schema_version`, no rebuild |
+| **[0.32.3](#0323--the-tool-offered-to-delete-a-permanent-id--20260903-1438)** | 20260903 14:38 | the tool offered to delete a permanent id | • **`pnk doctor`'s orphan check asked whether the document was a *readable* file**, so a document present on disk but unreachable was reported `WARN orphaned sidecars: 1` beneath *“Remove with `pnk doctor --prune`”*<br>• Taking that advice deletes the sidecar and the ULID `INVARIANTS.md` calls **permanent**. **Interpreter-independent, and in every published release**<br>• **`pnk sync` and `pnk doctor` both crashed on Python 3.13** — the floor in `requires-python` — for the same condition: `Path.is_file()`/`exists()` propagate `PermissionError` on 3.13 and swallow it on 3.14<br>• **Nothing in this repository had ever run 3.13 in CI.** No `.python-version`, no `setup-python`, `uv sync --frozen` takes the newest interpreter on the runner, and the `check` matrix varies *extras*<br>• A fresh worktree runs 3.14 and the primary checkout 3.13, so **one commit answered differently in two directories** — a green branch gate over a red merged gate<br>• Nine call sites now go through `src/pinakes/paths.py`, whose `False` means **three states, not one**: absent, not a file, or present and unreachable<br>• `minimum-python` asserts the interpreter it actually got, and **its first run in history is green, read in its log** rather than from a status<br>• **The first fix was incomplete**: two private helpers inside `sync.py` that `doctor` and `linkscan` could not reach. An adversarial review found the other two<br>• **No battery mutant for the spelling, deliberately** — one that dies on 3.13 and lives on 3.14 reads SURVIVED to whoever runs it<br>• Row 8's three low classes ship alongside: a mistyped `--source-type`, an empty KB blaming filters nobody passed, a broken symlink skipped rather than reported<br>• no `schema_version`, no rebuild |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -2648,6 +2649,78 @@ four rows marked LIVE for work that had been on PyPI for three days.
 **No `schema_version` bump and no rebuild.** All four fixes ship in the wheel — `cli.py`, `sync.py`,
 `pairing.py`, `store.py` and `doctor.py`. A KB that never met one of these four states is
 unaffected.
+
+
+
+## 0.32.3 — the tool offered to delete a permanent id · 20260903 14:38
+
+**One condition, two defects, and the worse one was not the crash.** A document present on disk that
+the process cannot reach — what a symlink into a directory lacking `+x` gives you — was both
+misreported by `pnk doctor` and fatal to `pnk sync`.
+
+**The one that could destroy something.** `pnk doctor`'s orphan check asked whether the document was
+a *readable* file. So a present-but-unreachable document was reported `WARN orphaned sidecars: 1`
+under the remedy *“Remove with `pnk doctor --prune`”* — and taking that advice deletes the sidecar,
+which holds the ULID [`INVARIANTS.md`](INVARIANTS.md) calls permanent. It is **interpreter-independent**
+and shipped in every published release. `os.path.lexists` is the question that separates *absent*
+from *unreachable*, and it is now the one being asked. The pre-existing control,
+`test_orphaned_sidecars_are_reported_and_only_pruned_on_request`, passes unchanged — which is the
+evidence that a genuine orphan is still reported and still pruned on request, rather than the fix
+having bought silence.
+
+**The one that depended on your machine.** `Path.is_file()` and `Path.exists()` propagate
+`PermissionError` on 3.13 and swallow it on 3.14. `pyproject.toml` says `requires-python = ">=3.13"`,
+so `pnk sync` ended in a raw traceback with no index written, on the *minimum supported interpreter*
+and on exactly the shape its walk exists to report. **`pnk doctor` died on the same predicate**,
+which means the remedy it exists to give you was unreachable by the same condition that needed it.
+Nine call sites now go through `src/pinakes/paths.py` — `is_regular_file` and `resolves`, thin
+wrappers over the `os.path` spelling, whose answer does not depend on which Python is installed.
+Its `False` deliberately means **three states, not one**: absent, not a file, or present and
+unreachable. A caller that must tell them apart cannot use it, which is precisely the distinction
+the orphan check had collapsed.
+
+**Why nothing caught it for at least eight releases.** Nothing in this repository had ever run 3.13
+in CI. There is no `.python-version` and no `setup-python`; `uv sync --frozen` resolves to the newest
+interpreter available, which is 3.14 on the runner; and the `check` job's three-leg matrix varies
+**extras**, never interpreters. Worse, the asymmetry was local and invisible: a fresh worktree runs
+3.14 while the primary checkout runs 3.13, so the same commit answered differently in two
+directories on one machine, and a branch gate went green over a merged gate that was red.
+`.github/workflows/ci.yml` now carries a `minimum-python` leg that **asserts** `sys.version_info` is
+the declared floor rather than requesting it — because a leg that silently ran 3.14 would go green
+about the one thing it exists to check. Its first execution in this repository's history landed with
+this work and is green, read in its own log: CPython 3.13.15 downloaded, the assertion printing
+`3.13.15`, and 2425 passed against 126 skipped, the same counts as the local run, which is what
+distinguishes a suite from a no-op.
+
+**The first fix was incomplete, and reviewing it is what found that.** It landed as two private
+helpers inside `sync.py`, which `doctor.py` and `linkscan.py` could not reach — so the identical
+crash survived in both until an adversarial pass looked. That is why the helpers now live in a module
+of their own rather than beside their first caller. The review also produced the sharper framing of
+the `linkscan` case, which is **not** a crash: both callers catch `OSError`, so on 3.13 one
+unreadable directory reported the *whole partner KB* unreachable and `doctor` continued past it in
+silence, costing that partner every inbound link it had, where 3.14 skipped only the one candidate.
+**A coarse catch is not a handled site** — `try/except OSError` is this codebase's existing
+convention, it stops the traceback, and it leaves the wrong answer. That is exactly how the
+`--prune` bug survived.
+
+**Two things it deliberately does not do.** There is **no battery mutant** for the spelling: one that
+reverts `is_regular_file` to `path.is_file()` dies on 3.13 and lives on 3.14, so it would read
+SURVIVED to whoever ran the battery, and the same reasoning leaves the `linkscan` test without a row.
+And it does **not** sweep the other 41 `pathlib` call sites in `src/`, which are paths Pinakes itself
+wrote under `.pinakes/`; telling those apart from a corpus path is a discriminator nobody has chosen
+yet, and it is rowed rather than guessed.
+
+**The other three entries are row 8's low classes.** A mistyped `--source-type` is a usage error
+rather than a silent empty result; an empty KB stops attributing its emptiness to filters nobody
+passed; and a broken symlink is reported rather than skipped.
+
+**Still open, and found by the audit this release prompted rather than fixed by it.** A `[sources]`
+root the process cannot read enumerates nothing, so `pair()` reasons from absence and **every
+document under it is removed from the index at exit 0** — measured on both interpreters, so not a
+floor defect at all. It is the same class 0.32.0 guarded one level down, for an unreadable *file*,
+and the root case was missed.
+
+**No `schema_version` bump and no rebuild.** The fixes ship in the wheel; the CI leg does not.
 
 
 

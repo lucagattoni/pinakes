@@ -10,6 +10,68 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.32.3] — 20260903 14:38
+
+### Fixed
+
+- **A symlink that resolves to nothing is reported by `pnk sync` rather than skipped in silence.**
+  The source walk asks `is_file()`, which is false for a symlink whose target is missing or whose
+  links loop, and the path was then dropped without a word — indistinguishable from a path that was
+  never there. `pnk sync` now names it: *"symlink could not be resolved, so it was not indexed"*,
+  and says the target is missing, unreadable, or looping — three causes rather than two, because a
+  target this process cannot reach is indistinguishable from one that was never there, and nothing
+  at that point can tell you which of the three it hit. A symlink to a real **directory** is an ordinary alias and is not reported; a
+  symlink to a real document is indexed exactly as before; and a healthy tree says nothing about
+  symlinks at all.
+
+- **A mistyped `--source-type` is refused instead of quietly matching nothing.** `pnk search
+  --source-type markdwon` used to run the whole query, match no rows, print *"no passages
+  matched."* and exit 0 — a typo and an honestly empty result were the same output, so the user's
+  next move was to doubt the KB rather than the flag. The set of source types is closed, not a
+  convention: `SOURCE_TYPES` in `pinakes.chunk` names every value `source_type()` can return, and a
+  value outside it provably cannot match a row in any KB, before the query runs. So it is now an
+  argparse error, exit 2, naming the four that work. `--source-type pdf` on a KB with no PDFs still
+  returns nothing and still exits 0 — that answer is true.
+
+- **An empty KB no longer blames filters the user never passed.** When retrieval found nothing to
+  search, the confidence reason read *"nothing matched the filters"* whether or not any filter had
+  been given — so the first search against a KB that had just been created, or one whose every
+  document had been retired, sent the user looking for a filter that did not exist. The two states
+  need opposite actions and now say so: *"nothing matched the filters"* when the caller narrowed
+  something, *"this KB has no active documents to search"* when they did not.
+
+- **`pnk sync` and `pnk doctor` no longer crash on Python 3.13, the oldest version `pinakes` says
+  it supports.** A symlink whose target sits under a directory the process cannot traverse made the
+  source walk raise `PermissionError` instead of reporting the link — a raw traceback, and no index
+  written. `pnk doctor` died on the same predicate, so the remedy it exists to give you was
+  unreachable by the same condition that needed it. `Path.is_file()` and `Path.exists()` swallow
+  that error on 3.14 and propagate it on 3.13, so the crash depended entirely on which interpreter
+  you installed with; `requires-python` is `>=3.13`, and every published release from at least
+  0.25.0 to 0.32.2 crashes there. The nine affected call sites — six in the source and sidecar
+  walks and their guards, two in the cross-KB scan, one in the orphan check — now use spellings
+  whose answer does not depend on the interpreter, and CI runs one leg on 3.13 so it cannot come
+  back unnoticed.
+- **The reason a sidecar could not be read is now the same sentence on both interpreters.** A
+  sidecar behind an unreadable directory reported `SidecarError` with a remedy on 3.14 and a bare
+  `PermissionError: [Errno 13]` on 3.13, because the guard inside the function that names the
+  reason raised before it could name it. Both now print the remedy. The document is still refused
+  rather than indexed, which is deliberate: its stored id is unreadable, and minting a second one
+  is the failure that refusal exists to prevent.
+
+- **`pnk doctor` no longer offers to prune the sidecar of a document that is still on disk.** The
+  orphan check asked whether the document was a *readable* file, so a document the process could
+  not reach — a symlink under a directory without `+x` — was reported as an orphaned sidecar, with
+  `Remove with pnk doctor --prune` printed beneath it. Taking that advice deletes the document's
+  stored ULID, which is permanent and cannot be minted again: the identifier survives a move, a
+  rename and a re-index precisely so that links to it keep resolving. The check now asks whether
+  the path exists at all, without following the link, so *absent* and *unreachable* stop being the
+  same answer. This one did not depend on the interpreter — it was wrong on both.
+- **One unreadable directory inside a partner KB no longer discards the whole partner's links.** On
+  Python 3.13 the cross-KB sidecar walk raised, and both of its callers caught the error coarsely:
+  `pnk links --check` reported the entire partner as unreachable, and `pnk doctor`'s cross-KB check
+  skipped it in silence. Only the one candidate it cannot read is skipped now, which is what 3.14
+  already did.
+
 ## [0.32.2] — 20260903 12:54
 
 ### Fixed
@@ -4732,7 +4794,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.2...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.3...HEAD
+[0.32.3]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.3
 [0.32.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.2
 [0.32.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.1
 [0.32.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.0
