@@ -158,21 +158,29 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   its § 3 is the queue. **§ 4 was ANSWERED by the user 20260902 — option E**, no freeze plus a
   written re-measure trigger, so the section is kept for its reasoning and is not a question any
   more. Read § 3 before picking anything up, and **read a row's body, not only its cells**:
-  *Blocked on: nothing* speaks about external blockers, and two rows carry a choice inside them.
+  *Blocked on: nothing* speaks about external blockers, and **four** rows carry a choice inside
+  them — 9, 23, 25 and 28. **This clause said *two* while the bullet below it said three**,
+  which is the shape to distrust: a count in one place and a list in another.
   **Everything below this bullet is background, not a queue.**
-- **🚦 0.32.2 is CUT — a PATCH carrying sweep row 7's four fixes, and `changelog.d/` and `retro.d/`
-  are empty again.** The nine fragments that waited here for two hours are spliced. **Do not
-  re-litigate the bump**: refusing `-k 0` *is* a breaking CLI change, and this project has ruled
-  that exact case twice, at **0.7.1** and **0.20.1** (*"Breaking, and deliberately in a patch"*), on
-  the ground that **the previous behaviour was the defect**. **What is still owed is the
-  post-publish sweep** — `docs/STATUS.md`'s headline hold marker comes off, its *Published on PyPI*
-  prose and *Published versions* row gain 0.32.2, and `docs/ROADMAP.md`'s two prose blocks are
-  recounted; every one of those is a claim about the **index**, so it waits until `uvx --no-cache
-  --refresh --from "pinakes[light]==0.32.2" pnk --version` has answered. **The ROADMAP prose is
-  deliberately not written at the cut**: its own discipline is *count, never increment*, and a tag
-  that does not exist yet cannot be counted. **`pnk sync --sidecars-only` reporting five zeros is
-  S20, filed with no build-order row on purpose**: what the summary should count is the user's call,
-  not an implementer's.
+- **🚦 0.32.2 is published and swept — and a release is DUE again, seven fragments deep.** The cut
+  landed 13:07:54 and the wheel was on the index 47 seconds later, verified with a control that
+  fires: `pnk search -k 0` exits **2** at the parser on 0.32.2 and **1** on *no pinakes.toml found*
+  on 0.32.1. **`changelog.d/` (3) and `retro.d/` (4) refilled 88 seconds after the cut** with sweep
+  row 8's three fixes — a mistyped `--source-type` is a usage error, an empty KB stops blaming
+  filters nobody passed, and a broken symlink is reported rather than skipped. **Cut them as
+  0.32.3, a PATCH**, once whatever is in flight has landed. **Do not re-litigate 0.32.2's bump if
+  you are reading its record**: refusing `-k 0` *is* a breaking CLI change, and this project ruled
+  that exact case at **0.7.1** and **0.20.1** on the ground that the previous behaviour was the
+  defect. **`pnk sync --sidecars-only` reporting five zeros is S20, filed with no build-order row on
+  purpose**: what the summary should count is the user's call, not an implementer's.
+- **📌 The release procedure gained a timing rule at 0.32.2, and it changes what a release commit
+  writes.** `docs/ROADMAP.md`'s `## Where things stand right now` reconciles three registers
+  *counted, never incremented* — CHANGELOG headings, `git ls-remote --tags`, this file's table — so
+  at the release commit, where the tag does not yet exist, writing it means incrementing. It now
+  belongs to the **post-publish sweep**, in the same commit as STATUS's two published-version
+  registers. `docs/RELEASING.md` § *Sweep the three documents* carries it. **The same row also
+  stopped telling planners that Part 5's *Open corrections* heading carries an item count** — it has
+  carried none since 20260825, when renaming it broke two in-page anchors.
 - **✅ 0.32.0** (green 20260902 10:51, published 10:07). Its red
   lasted 44 minutes and is worth one sentence: a money assertion compared a value taken *before*
   the ledger's write-time quantisation against one taken *after* it, and **had been green for a
@@ -192,10 +200,13 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   now** — `docs/RELEASING.md` § *Before you start* step 3, which had never existed.
 - **🛑 Two plans have scheduled work, and it is NOT all coder work any more.** Rows 21 and 22 of
   the live plan are **planner-owned** — the dogfooding on-ramp's design, and regenerating this
-  file — both added 20260902 on the user's own instructions; and **rows 9, 23 and 25 each carry a
-  design choice inside a row whose blocker cell reads *nothing*** — row 9 where two `doctor` helpers
-  live, row 23 whether `pnk upgrade` fails or degrades, row 25 where a plain-text guard belongs.
-  `docs/README.md` names all three; this bullet named only row 9 until 20260903 12:16.
+  file — both added 20260902 on the user's own instructions; and **rows 9, 23, 25 and 28 each
+  carry a design choice inside a row whose blocker cell reads *nothing*** — row 9 where two
+  `doctor` helpers live, row 23 whether `pnk upgrade` fails or degrades, row 25 where a
+  plain-text guard belongs, and **row 28, filed 20260903, when `pnk doctor` walks at all**:
+  an unresolvable symlink is invisible to it while `pnk sync` reports the same one, and
+  widening the trigger changes `doctor`'s cost on every KB. `docs/README.md` names all four;
+  this bullet named only row 9 until 20260903 12:16.
   *(What the red-main plan still owes is written into its § CHECKED 20260831, not into a queue
   row — five small corrections, each naming its own file.)*
   **The S16 HIGH holds nothing any more** — the user answered it 20260831 21:38 UTC
