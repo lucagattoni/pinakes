@@ -34,3 +34,13 @@ in the handover. That is what made checking the fixture the obvious next step ra
 The rule *a peer's claim is not evidence until you have checked it* survived being handed
 a claim that was 80% correct, which is the hard case: the wrong 20% was load-bearing, and every
 signal of rigour attached to the 80%.
+
+**The positive counterpart, done for this increment rather than assumed.** The rule *"unit tests
+prove a component honours a parameter — only running proves the parameter arrives"* is the same
+statement from the other side, so the fix was exercised the way a user meets it before landing: a
+real `pnk sync` over a 30-document KB with `docs/vault` at `chmod 000`. It printed
+`failed: docs/vault: directory could not be entered: Permission denied.` with the remedy,
+`0 removed` and `30 unchanged`, and **exited 1**; `pnk doctor` then exited 0 with nothing to say
+about orphans or retired rows, and `pnk search "appraisal criteria"` answered **from the held
+document inside the locked directory**. Every one of those is asserted by a test as well. The run
+is what shows the assertions are about the command the user types.
