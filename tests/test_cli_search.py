@@ -182,3 +182,37 @@ def test_the_readme_quickstart_works(tmp_path: Path, capsys: pytest.CaptureFixtu
     capsys.readouterr()
     assert main(["search", "retrieval", "--kb", str(root)]) == 0
     assert "docs/note.md" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("bad", ["-1", "-100", "0"])
+@pytest.mark.parametrize("command", ["search", "ask"])
+def test_k_below_one_is_a_usage_error_on_both_retrieval_commands(
+    kb: Path, capsys: pytest.CaptureFixture[str], command: str, bad: str
+) -> None:
+    """Sweep S8 and S9: one missing boundary check, and the two ends it was seen from.
+
+    `-k` was `type=int` with nothing else, so the value flowed to whatever the command reached.
+    `search` reached `passages[:final_k]` and answered *confidently and wrongly* — `-k -1` returned
+    every passage but the last at exit 0, `-k -100` returned none and called it "no passages
+    matched." `ask` reached `deep/estimate.py:_positive`, which rejected it as an unhandled
+    `ValueError` traceback. Parametrised over both commands because the fix is one guard and the
+    pair is what proves it sits at the boundary rather than on the arm that happened to crash.
+
+    `0` is in the bad set for a reason of its own: `search.py` reads `limit or
+    manifest.retrieval.final_k`, so a falsy `0` silently meant "the manifest's default". Asking for
+    nothing and receiving ten passages is the same quiet wrong as the negative arm.
+    """
+    with pytest.raises(SystemExit) as exit_info:
+        main([command, "retrieval", "--kb", str(kb), "-k", bad])
+    assert exit_info.value.code == 2
+    assert "must be 1 or more" in capsys.readouterr().err
+
+
+def test_a_positive_k_still_bounds_the_result(kb: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The guard rejects `< 1` and nothing else — the control for the test above.
+
+    Without this, deleting the comparison and refusing *every* `-k` would leave the rejection
+    tests green while the flag no longer worked at all.
+    """
+    assert main(["search", "retrieval", "--kb", str(kb), "-k", "1"]) == 0
+    assert len([line for line in capsys.readouterr().out.splitlines() if line.startswith("[")]) == 1

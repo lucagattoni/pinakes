@@ -291,6 +291,37 @@ def run_templates(args: argparse.Namespace) -> int:
     return EXIT_FAILURE if damaged else EXIT_OK
 
 
+def _passage_count(raw: str) -> int:
+    """`-k`, rejected at the boundary rather than deep inside whatever the command reaches.
+
+    Sweep findings S8 and S9 are this one missing check, seen from two ends. `-k` was `type=int`
+    and nothing else, so a negative value became a raw Python negative-slice bound in
+    `search.py`'s `passages[:final_k]`: `-k -1` answered with every passage *but the last* at exit
+    0, and `-k -100` printed "no passages matched." — a confident wrong answer either way, because
+    a slice bound is the one arithmetic that turns a nonsense width into a plausible result. The
+    same value on `pnk ask` reached `deep/estimate.py:_positive`, which *did* reject it, as an
+    unhandled `ValueError` traceback. One input, one surface answering wrongly and one crashing.
+
+    Zero is refused for a reason that is not symmetry: `search.py` reads the width as
+    `limit or manifest.retrieval.final_k`, and `0` is falsy — so `-k 0` silently meant "use the
+    manifest's default" rather than "return nothing". A user asking for nothing and receiving ten
+    passages is the same class of quiet wrong as the negative arm, and it is why this rejects
+    `< 1` rather than `< 0`.
+
+    Exit 2, via `ArgumentTypeError`: a malformed invocation is argparse's own code and this
+    module's documented contract, not an operational failure the user could re-run into working.
+    """
+    try:
+        value = int(raw)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{raw!r} is not a whole number") from None
+    if value < 1:
+        raise argparse.ArgumentTypeError(
+            f"{value} is not a number of passages — it must be 1 or more"
+        )
+    return value
+
+
 def _retrieval_arguments(parser: argparse.ArgumentParser, *, query_help: str) -> None:
     """The filter surface `pnk search` and `pnk ask` share, declared once for both.
 
@@ -330,7 +361,7 @@ def _retrieval_arguments(parser: argparse.ArgumentParser, *, query_help: str) ->
         metavar="YYYYMMDD",
         help="only documents modified on or before this date",
     )
-    parser.add_argument("-k", type=int, default=None, help="how many passages to return")
+    parser.add_argument("-k", type=_passage_count, default=None, help="how many passages to return")
     parser.add_argument("--json", action="store_true", help="machine-readable output")
     parser.add_argument("--offline", action="store_true", help="never reach out for model weights")
 
