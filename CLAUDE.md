@@ -361,6 +361,12 @@ left local is invisible to every other agent, machine and scheduled run. **The p
   ([`docs/RELEASING.md`](docs/RELEASING.md) steps 6–7). It is a real gate as of 20260826 and
   **absence is red**; it was three `echo`s until then. **A CHANGELOG entry and a `__version__` are only claims** —
   verify the release happened, never assume it.
+- **Before that tag, read `minimum-python`'s conclusion in the CI run for the commit you are
+  tagging** — the only leg that runs the interpreter `pyproject.toml` declares as the floor, and it
+  fires only on a push to `main`, so no earlier green transfers to it. The step and its reasoning
+  are [`docs/RELEASING.md`](docs/RELEASING.md) step 6; this is the pointer, not a second home.
+  Added 20260903 after 0.32.3, whose own record of doing it was **past tense and told the next
+  release nothing**.
 
 ## Tooling
 
