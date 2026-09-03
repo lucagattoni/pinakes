@@ -223,6 +223,27 @@ Neither it nor `tests/test_batteries.py` can see:
 
 A green check is not a green run. Run the battery.
 
+## While a battery is running, the worktree has no committable state
+
+`CLAUDE.md` says **commit before mutating**. That is one direction of the rule; this is the other,
+and the other is the one that failed:
+
+> **While a battery is running, that worktree has no committable state** — not for the files the
+> battery names, and in practice not at all, because `git add -A` does not know which those are.
+
+The window is the whole run, not the instant of the edit. `mutate.py` writes a mutant, runs the
+selector its row names, and restores the file; a commit taken anywhere inside that sequence commits
+whatever the tree held at that moment. Finish the battery, confirm the restore, *then* stage.
+
+**A live mutant reached `origin` on 20260903.** `7193983` — under a subject promising a
+retrospective fragment — carried `elif False:` in `_toml_basic`'s control-character arm, and
+`9e1de79` restored it byte-identical to `c29cbc0`. **Every instrument was green and each was right
+to be:** the battery reported 9/9 because it mutates a *committed* target and has no opinion about
+what else is committed while it works; `--check-anchors` was green because the anchor was present
+and only the arm was gone; `./check.sh` had been killed at ten minutes under load. The one thing
+that would have caught it was reading `src/pinakes/template.py | 2 +-` in the diffstat of a commit
+whose subject promised a fragment.
+
 ## Reading a SURVIVED row
 
 **A `SURVIVED` row is a claim about a *pair* — the mutant and the selector named in its `kills` —
