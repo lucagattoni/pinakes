@@ -10,6 +10,50 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.32.2] — 20260903 12:54
+
+### Fixed
+
+- **Deleting a document no longer makes `pnk sync` claim it moved and was re-minted.** Every
+  ordinary deletion printed *"moved without its sidecar, so a new id was minted: docs/x.md"* —
+  three claims, all false, on the commonest operation there is: nothing moved, nothing was minted,
+  and the path it named no longer existed. The hint is now gated on an **orphaned sidecar**, which
+  is what actually separates a move from a deletion: delete a document properly and its sidecar
+  goes with it, leaving nothing behind to report. The sentence itself no longer asserts a mint
+  either, because the other half of a move need not arrive in the same run — deleting only the file
+  and leaving the sidecar mints nothing, and is still a state worth reporting.
+
+- **`-k` below 1 is refused, on both `pnk search` and `pnk ask`.** It was `type=int` and nothing
+  else, so the value travelled to whatever the command reached: `search` used it as a raw Python
+  negative-slice bound and answered *confidently and wrongly* — `-k -1` returned every passage but
+  the last at exit 0, `-k -100` returned none and called it *"no passages matched."* — while `ask`
+  reached the deep estimator, which rejected it as an unhandled `ValueError` traceback. One missing
+  check, one surface answering wrongly and one crashing. Now a usage error (exit 2) at the parser.
+  **`-k 0` is refused too, and that is a deliberate behaviour change**: the width was read as
+  `limit or manifest.retrieval.final_k`, so a falsy `0` silently meant *use the default* — asking
+  for nothing and receiving ten passages. Anything scripted against `-k 0` now gets an error where
+  it used to get default-`k` results.
+
+- **`pnk sync --sidecars-only --index-only` is refused instead of silently writing into `docs/`.**
+  The two flags are the halves of one sync and each names what the other does — *"write into
+  `docs/`, never touch the index"* against *"update the index, never write into `docs/`"*. Passed
+  together, `--sidecars-only` simply won: it returns before the index is opened, and the sidecar
+  writer never read `index_only` at all. So the run created sidecars in `docs/` — the one thing
+  `--index-only` exists to promise it will not do — and reported `0 indexed, 0 renamed, 0
+  metadata-only, 0 unchanged, 0 removed` at exit 0. Every number in that line was truthful; the
+  line was still a lie, because the count of files written into `docs/` was not among them.
+
+- **A repaired document stops being reported as failed, and `pnk doctor`'s remedy is no longer
+  false.** Nothing ever deleted from the `failures` table, so a document the user fixed and
+  re-indexed stayed listed forever — `doctor` insisting it *"is not searchable"* while `pnk search`
+  returned it, under the advice *"Fix them and re-run `pnk sync`"*, which is exactly what the user
+  had just done. It also never de-duplicated: three syncs of one broken document left three rows,
+  so the count reported was a count of *attempts* wearing the clothes of a count of problems. The
+  table now answers *what is wrong with this KB now*. A document that indexes cleanly clears its
+  own entry, a removed one takes its entry with it, and a document held because it is **unreadable**
+  keeps its entry — nothing about it was verified this run, so its recorded failure is still the
+  last honest thing anyone knew about it.
+
 ## [0.32.1] — 20260903 09:33
 
 ### Added
@@ -4688,7 +4732,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.1...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.2...HEAD
+[0.32.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.2
 [0.32.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.1
 [0.32.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.0
 [0.31.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.31.1
