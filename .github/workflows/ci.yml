@@ -74,6 +74,52 @@ jobs:
         if: matrix.extras == 'light'
         run: uv run --frozen pytest -q -m model
 
+  minimum-python:
+    # `pyproject.toml` says `requires-python = ">=3.13"`, and until 20260903 nothing ran 3.13.
+    # No version is pinned anywhere in this repo — no `.python-version`, no `setup-python` — so
+    # `uv` resolved to the newest interpreter it could find, which is 3.14 on the runner and in a
+    # fresh worktree. The floor was declared and never exercised.
+    #
+    # What that cost: `Path.is_file()` and `Path.exists()` raise `PermissionError` on 3.13 and
+    # return False on 3.14 for a symlink into a directory without `+x`. `pnk sync` ended in a raw
+    # traceback on the minimum supported interpreter, the branch gate was green, this CI was green,
+    # and only the primary checkout — the one machine still on 3.13 — was red. A gate nobody runs
+    # on the version they promise is not a gate; it is a version number in a manifest.
+    #
+    # One leg, not a cross-product with `check`'s extras. Those three legs vary which pure-Python
+    # SDK is installed, and nothing connects an SDK's presence to interpreter stat semantics — so
+    # 3.13 x [claude] would cost a third job to prove a combination with no mechanism behind it.
+    # If a defect ever does turn on that pair, this comment is wrong and the matrix is the fix.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install the minimum supported Python and dependencies
+        run: uv sync --frozen --python 3.13 --extra light
+
+      - name: Cache model weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ hashFiles('tests/demo-kb/pinakes.toml') }}
+          restore-keys: hf-
+
+      - name: Confirm the interpreter is the declared floor
+        # Asserted rather than assumed: `uv sync --python 3.13` is a request, and a leg that
+        # silently ran 3.14 would be this job reporting green about the very thing it exists to
+        # check — the failure it was written for, one level up.
+        run: |
+          set -e
+          uv run --frozen python -c "import sys; assert sys.version_info[:2] == (3, 13), sys.version; print(sys.version)"
+
+      - name: Tests
+        run: uv run --frozen pytest -q -rs
+
   eval:
     # The scoreboard §7 requires: a retrieval change has to move these numbers, and a regression
     # beyond tolerance fails the build rather than being noticed later.

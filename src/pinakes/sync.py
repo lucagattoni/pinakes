@@ -574,6 +574,45 @@ def walk_document_paths(manifest: Manifest) -> frozenset[str]:
     return frozenset(file.path for file in files)
 
 
+def _is_regular_file(path: Path) -> bool:
+    """`path.is_file()`, except that a path this process cannot reach is `False` on every Python.
+
+    `Path.is_file()` and `Path.exists()` swallow a missing target and a symlink loop everywhere,
+    but they disagree about `EACCES` across the versions this project supports. Measured 20260903
+    on one symlink into a directory with mode `0o000`:
+
+    | | 3.13.15 | 3.14.7 |
+    |---|---|---|
+    | `Path.is_file`, `Path.exists` | raise `PermissionError` | `False` |
+    | `os.path.isfile`, `os.path.exists` | `False` | `False` |
+
+    `pyproject.toml` requires `>=3.13`, so the `pathlib` spelling ends `pnk sync` in a raw
+    traceback on the *minimum supported interpreter* — and on exactly the shape this walk exists
+    to report, a symlink it cannot resolve. The `os.path` spelling is therefore not a style
+    preference here: it is the only one whose result does not depend on which Python is installed.
+
+    It stayed invisible because nothing ran 3.13 where it mattered. A fresh worktree and CI both
+    resolve to 3.14, the primary checkout is 3.13, and CI's matrix varies the *extras* rather than
+    the interpreter — so the branch gate was green and the merged gate was red on the same tree.
+    `.github/workflows/ci.yml` now runs one leg on the declared minimum for that reason.
+
+    `is_symlink()` is left as `pathlib`: it `lstat`s the link rather than the target, so it
+    returned `True` on both versions in the same measurement, and every candidate reaching it came
+    out of a directory the walk had already traversed.
+    """
+    return os.path.isfile(path)
+
+
+def _resolves(path: Path) -> bool:
+    """`path.exists()` with the version-independence `_is_regular_file` explains — read that first.
+
+    False here means *this process cannot follow the link to a file*, which is three causes at
+    once: the target is missing, it is unreadable, or the link loops. Nothing at this point can
+    tell them apart, which is why the reported sentence names all three.
+    """
+    return os.path.exists(path)
+
+
 def walk_sources(
     manifest: Manifest, *, _documents_only: bool = False
 ) -> tuple[
@@ -704,27 +743,34 @@ def walk_sources(
                 if not inside(candidate):
                     escaping.add(pattern)
                     break  # bounds the escape; no static check can see a symlinked directory
-                if not candidate.is_file():
+                if not _is_regular_file(candidate):
                     # A symlink is unresolvable when **this process cannot resolve it to a
-                    # file**, and `exists()` is what says so: it follows the link, so a missing
+                    # file**, and `_resolves` is what says so: it follows the link, so a missing
                     # target and a loop are both False, while a link to a real directory is True
-                    # and takes the same `continue` a plain directory takes. `is_file()` cannot
-                    # make that distinction — it is False for a directory target too, so the first
-                    # form of this guard reported every healthy `docs/alias -> docs/real` as a
-                    # broken link. Its own control named that shape in its docstring and built a
-                    # *file* symlink, which passes `is_file()` and never reaches this branch: the
+                    # and takes the same `continue` a plain directory takes. A regular-file test
+                    # cannot make that distinction — it is False for a directory target too, so
+                    # the first form of this guard reported every healthy `docs/alias -> docs/real`
+                    # as a broken link. Its own control named that shape in its docstring and built
+                    # a *file* symlink, which is a regular file and never reaches this branch: the
                     # control could not fail.
                     #
-                    # **`exists()` is also False for a target this process may not reach** — a
+                    # **`_resolves` is also False for a target this process may not reach** — a
                     # link into a directory without `+x` — which is why the reported sentence says
                     # *missing, unreadable, or loops* rather than naming two causes it cannot tell
-                    # apart. Measured, not assumed: `exists()` swallows the `PermissionError` and
-                    # returns False. Not reporting it would be worse; claiming to know which of
-                    # the three it is would be the defect this increment keeps re-committing.
+                    # apart. Not reporting it would be worse; claiming to know which of the three
+                    # it is would be the defect this increment keeps re-committing.
+                    #
+                    # This paragraph previously ended *"Measured, not assumed: `exists()` swallows
+                    # the `PermissionError` and returns False"*, which was a true measurement of
+                    # the wrong population — one interpreter, named as though it were the language.
+                    # `Path.exists()` raises on 3.13 and returns False on 3.14, and this project
+                    # supports both; `_is_regular_file`'s docstring carries the table. A sentence
+                    # that says *measured* is not thereby about everything the code runs on.
+                    #
                     # Recorded before the `continue` because this is the only place that knows:
                     # every later stage sees a path that simply is not in `files`, which is
                     # indistinguishable from a file no pattern matched.
-                    if candidate.is_symlink() and not candidate.exists():
+                    if candidate.is_symlink() and not _resolves(candidate):
                         unresolvable.add(key(candidate))
                     continue
                 # **`exclude` matches the *unresolved* path**, deliberately. Matching the resolved
@@ -763,7 +809,7 @@ def walk_sources(
             if not inside(candidate) or not inside(document_for(candidate)):
                 escaping.add(f"*{SIDECAR_SUFFIX}")
                 break
-            if not candidate.is_file():
+            if not _is_regular_file(candidate):
                 continue
             relative = key(candidate)
             document = key(document_for(candidate))
@@ -864,7 +910,7 @@ def _unmatched_under(
     found: set[str] = set()
     probed = 0
     for candidate in sorted(root.rglob("*")):
-        if not candidate.is_file():
+        if not _is_regular_file(candidate):
             continue
         try:
             relative = candidate.relative_to(manifest.root).as_posix()
@@ -1716,7 +1762,13 @@ def _refuse_naming_the_reason(target: Path, *, owner: KbId) -> None:
     or was repaired between the walk and now, and re-running is the honest answer rather than
     minting over something readable.
     """
-    if not (target.exists() or target.is_symlink()):
+    # `_resolves`, not `exists()`: on 3.13 the `pathlib` spelling raises `PermissionError` for a
+    # sidecar under a directory without `+x`, so **this function — whose whole job is to name the
+    # reason — never ran**, and the reason reaching the user was a raw errno. On 3.14 it returned
+    # False, `is_symlink()` was True, and `read_sidecar` below produced the `SidecarError` with a
+    # remedy that was always intended. Same tree, same filesystem, two different messages; this
+    # line is what makes them one. `_is_regular_file`'s docstring carries the measurement.
+    if not (_resolves(target) or target.is_symlink()):
         return
     try:
         read_sidecar(target, owner=owner)
@@ -1890,7 +1942,10 @@ def _refresh_metadata(
 
 def _read_sidecar_for(manifest: Manifest, path: str) -> Sidecar | None:
     target = sidecar_path(manifest.root / path)
-    if not target.is_file():
+    # Version-independent for the reason `_is_regular_file` documents: `is_file()` raises on 3.13
+    # for a sidecar this process cannot reach, and a `None` here is what routes the document to
+    # `_refuse_naming_the_reason` rather than past it.
+    if not _is_regular_file(target):
         return None
     return read_sidecar(target, owner=manifest.kb.id)
 
