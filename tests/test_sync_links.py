@@ -1113,6 +1113,42 @@ def test_a_double_star_before_a_dot_dot_does_not_defeat_the_refusal(
     assert len(found) == 2
 
 
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_one_unreachable_candidate_does_not_make_the_whole_partner_unreachable(
+    pair: tuple[Kb, Kb],
+) -> None:
+    """The same lesson as the test below, from a different cause: one bad candidate, whole partner.
+
+    A document in *someone else's* KB behind a directory without `+x` made this walk's `is_file()`
+    raise `PermissionError` on Python 3.13. Neither caller crashes — both catch `OSError` — but
+    both catch it coarsely: `scan_one` reports the entire partner as unreachable with `[sources]
+    [Errno 13]` as the reason, and `doctor`'s cross-KB check `continue`s past the partner
+    altogether. So one locked directory cost every inbound link the partner had, on the interpreter
+    `pyproject.toml` names as the floor, while 3.14 skipped that one candidate and scanned the rest.
+
+    **This test only discriminates on 3.13**, and that is stated rather than hidden: on 3.14 the
+    `pathlib` spelling already returned False, so the fix is unobservable there. It is guarded by
+    `.github/workflows/ci.yml`'s `minimum-python` job, which exists because this class of defect is
+    invisible to every other leg. For the same reason it has no mutation-battery row — a mutant
+    that dies only on one interpreter reads as SURVIVED on the other, which is worse than absent.
+    """
+    _local, partner = pair
+    locked = partner.root / "docs" / "locked"
+    locked.mkdir()
+    (locked / "hidden.md").write_text("# Hidden\n\nhidden\n", encoding="utf-8")
+    (partner.root / "docs" / "link.md").symlink_to(locked / "hidden.md")
+    os.chmod(locked, 0o000)
+    try:
+        found, problems = sidecars_under(partner.root, ["docs/"], ["**/*.md"], [])
+    finally:
+        os.chmod(locked, 0o755)
+
+    assert problems == [], f"one unreachable candidate was reported as a walk failure: {problems}"
+    assert len(found) == 2, "the partner's own two sidecars must still be found"
+
+
 def test_one_unusable_include_pattern_does_not_discard_the_others(pair: tuple[Kb, Kb]) -> None:
     """`Path.glob("")` raises `ValueError`, and that reached `scan_one`, which reported the whole
     partner unreachable: every other `include` entry was discarded, `complete` stayed false
