@@ -282,6 +282,7 @@ number belongs to a release only when it is cut
 | **[0.32.1](#0321--a-kb-name-no-longer-bricks-the-kb-at-creation--20260903-0933)** | 20260903 09:33 | a KB name no longer bricks the KB at creation | • A name holding a `"`, a `\` or a control character closed or escaped the TOML basic string it was interpolated into, so `pinakes.toml` came out unreadable while `pnk init` exited 0 and printed *created*<br>• **There was no repair path** — `pnk init` refuses a directory that is already a KB, so recovery meant hand-editing TOML<br>• The fix is a `finalize=` hook on the Jinja template, so it covers **every** interpolated value rather than `--name`, and both ways in, since `init` falls back to the directory's own name<br>• **It does not only escape** — an unpaired surrogate has no TOML form raw *or* escaped, reached `Path.write_text`, which truncates *before* the encoder raises, and left a **zero-byte manifest**: S4's own end state, found on the branch that fixed S4. It is refused before anything is created, naming the code point and **never echoing the value**<br>• **What it does not do** — escaping for TOML discharges nothing a terminal is owed, and a KB already bricked stays bricked, because the fix is at creation<br>• Everything else in this release is tooling, documents and a red `main`: a money assertion quantisation cannot hold, green for a month on the value of an exchange rate neither test named |
 | **[0.32.2](#0322--four-reports-that-were-not-true--20260903-1254)** | 20260903 12:54 | four reports that were not true | • Every **ordinary deletion** announced *“moved without its sidecar”* and *“a new id was minted”* (halves, since the joined sentence is retired) — nothing moved, nothing was minted, and the named path no longer existed<br>• The hint is gated on an **orphaned sidecar**, the thing that actually separates a move from a deletion; and it reports the state observed, since deleting the file alone leaves a sidecar and mints nothing — a **third state** the answered decision did not foresee<br>• **`-k` below 1 was `type=int` and nothing else**: `pnk search` used it as a raw negative-slice bound — `-k -1` returned every passage but the last at exit 0 — while `pnk ask` raised an unhandled `ValueError`. One missing check, one surface wrong and one crashing<br>• **`-k 0` is refused, a deliberate breaking change in a PATCH** — `limit or `…`final_k` made a falsy `0` mean *use the default*. Same ground as 0.7.1 and 0.20.1: the previous behaviour was the defect<br>• **`pnk sync --sidecars-only --index-only` wrote into `docs/`** — the one thing `--index-only` promises not to do — and reported five zeros at exit 0: every number truthful, the line still a lie, because the count of files written was not among them<br>• **Nothing ever deleted from the `failures` table**, so a repaired document stayed listed forever under the advice *“Fix them and re-run `pnk sync`”*; and three syncs of one broken document left three rows, a count of **attempts** dressed as a count of problems<br>• The first fix for it was **eaten by a transaction boundary** — `connection.rollback()` discarded the uncommitted `DELETE` — and no unit test could have shown it, because each exercised a single sync<br>• A green test named for the right scenario **built the wrong one**: the fixture passed `()` for the walk's sidecars, modelling a move whose sidecar was deleted<br>• A 39-mutant battery killed 38, **all written by the author of the fix**; the survivor was equivalent, its `kills` selector named a test of a different function, and the withdrawal's reasoning was false — replaced after a peer's refutation failed<br>• All four ship in the wheel — `cli.py`, `sync.py`, `pairing.py`, `store.py`, `doctor.py`; no `schema_version`, no rebuild |
 | **[0.32.3](#0323--the-tool-offered-to-delete-a-permanent-id--20260903-1438)** | 20260903 14:38 | the tool offered to delete a permanent id | • **`pnk doctor`'s orphan check asked whether the document was a *readable* file**, so a document present on disk but unreachable was reported `WARN orphaned sidecars: 1` beneath *“Remove with `pnk doctor --prune`”*<br>• Taking that advice deletes the sidecar and the ULID `INVARIANTS.md` calls **permanent**. **Interpreter-independent, and in every published release**<br>• **`pnk sync` and `pnk doctor` both crashed on Python 3.13** — the floor in `requires-python` — for the same condition: `Path.is_file()`/`exists()` propagate `PermissionError` on 3.13 and swallow it on 3.14<br>• **Nothing in this repository had ever run 3.13 in CI.** No `.python-version`, no `setup-python`, `uv sync --frozen` takes the newest interpreter on the runner, and the `check` matrix varies *extras*<br>• A fresh worktree runs 3.14 and the primary checkout 3.13, so **one commit answered differently in two directories** — a green branch gate over a red merged gate<br>• Nine call sites now go through `src/pinakes/paths.py`, whose `False` means **three states, not one**: absent, not a file, or present and unreachable<br>• `minimum-python` asserts the interpreter it actually got, and **its first run in history is green, read in its log** rather than from a status<br>• **The first fix was incomplete**: two private helpers inside `sync.py` that `doctor` and `linkscan` could not reach. An adversarial review found the other two<br>• **No battery mutant for the spelling, deliberately** — one that dies on 3.13 and lives on 3.14 reads SURVIVED to whoever runs it<br>• Row 8's three low classes ship alongside: a mistyped `--source-type`, an empty KB blaming filters nobody passed, a broken symlink skipped rather than reported<br>• no `schema_version`, no rebuild |
+| **[0.32.4](#0324--a-directory-the-walk-could-not-enter-deleted-what-was-under-it--20260903-1638)** | 20260903 16:38 | a directory the walk could not enter deleted what was under it | • `pnk sync` printed `N removed`, dropped the chunks, and exited **0**; `pnk doctor` reported OK and `pnk search` then answered nothing, with no surface saying why<br>• **Three shapes, not one mechanism** — a symlinked root under a blocked in-KB ancestor (crashes 3.13, silent 3.14); a `0o000` subdirectory (**silent on both**, so not a floor defect); a `0o400` subdirectory, listable but not traversable<br>• **The third defeats an error hook by construction**: `scandir` succeeds so `os.walk`'s `onerror` never fires, the glob yields the entry, and every `stat` on it fails<br>• `paths.py` gains `is_directory`, `is_symlink`, `unreachable`, `unreadable_directories` — and the old note that `is_symlink()` was *“deliberately not wrapped”* was a true measurement over a population with a **readable parent**<br>• **The glob is deliberately not replaced.** Reimplementing `**`, `[seq]`, `..` and pathlib's symlinked-directory rules to gain a hook is a larger risk than the defect; the hooked walk runs beside it and the *parent* of an unreachable candidate is recorded<br>• **`exclude` does not suppress it, ruled deliberately** — the walk is refused before any pattern applies, and `Path("docs/sub").match("docs/sub/**")` is `False`, so suppression would not fire in the spelling users write<br>• Measured on a 30-document KB: `0 removed`, `30 unchanged`, exit 1, and `pnk search` answers from the held document inside the locked directory<br>• Battery **59/59 on 3.13**; on 3.14 one row survives, as its own comment predicted before the run<br>• no `schema_version`, no rebuild |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -2743,6 +2744,74 @@ returns `False`. **A fix for either alone leaves the other live.** Both are the 
 guarded one level down for an unreadable *file*, with the root case missed.
 
 **No `schema_version` bump and no rebuild.** The fixes ship in the wheel; the CI leg does not.
+
+
+
+## 0.32.4 — a directory the walk could not enter deleted what was under it · 20260903 16:38
+
+**The same trade 0.32.0 refused for a single unreadable file, arrived at from the other direction
+and missed.** A `[sources]` root or subdirectory the process could not enter made `pnk sync` print
+`N removed`, drop those documents' chunks and exit **0**; `pnk doctor` then reported OK and
+`pnk search` answered nothing, with nothing anywhere saying why. 0.32.0's own note had named the
+hazard exactly — *“`pair()` reasons from absence, so a walk that merely skipped the file would have
+emitted a `SoftDelete` and deleted the document from search”* — and guarded the file while leaving
+the directory.
+
+**Three shapes reach it, and treating them as one mechanism is how a fix misses two of them.** A
+root that is a symlink into a blocked ancestor *inside* the KB crashes `is_dir()` on 3.13 and
+returns `False` on 3.14. A `0o000` subdirectory is silent on **both** interpreters — so that shape
+is not a floor defect at all, and the loss happens one line later where the glob yields nothing and
+absence is read as deletion. A `0o400` subdirectory is the sharp one: **listable but not
+traversable**, so `scandir` succeeds, `os.walk`'s `onerror` never fires, the glob yields the entry
+by name, and every `stat` on it then fails — crashing 3.13 at `is_symlink()` and returning `False`
+on 3.14.
+
+**That third shape is why an error hook alone was never going to be enough**, and it was found by
+the implementer rather than by the design. `src/pinakes/paths.py` gains `is_directory`,
+`is_symlink`, `unreachable` and `unreadable_directories`; the hooked walk records what it could not
+list, and the *parent* of any candidate that turns out unreachable is recorded too. It also
+falsifies a sentence that file used to carry: `is_symlink()` was *“deliberately not wrapped”*
+because it *“returned `True` on both versions”* — true, over a population whose parent was
+readable. The same wrong-population shape as the defect it was documenting.
+
+**The glob is deliberately not replaced.** Reimplementing `**`, `[seq]`, a `..` inside a pattern and
+pathlib's symlinked-directory rules in order to gain an error hook is a larger behaviour risk than
+the defect being fixed, inside a change about data loss. The hooked walk runs beside it and answers
+only *could I enter this*.
+
+**An `exclude` pattern does not suppress the failure, and that is a ruling rather than an
+oversight.** The walk is refused before any pattern is applied; and the spelling users actually
+write does not match the directory anyway — `Path("docs/sub").match("docs/sub/**")` is `False` while
+`Path("docs/sub/a.md").match("docs/sub/**")` is `True`, so only the bare `docs/sub` would ever
+match. Suppression would therefore be unreliable *and* would put a silent path back into the one
+walk whose silence is the whole defect. A third option, reporting but exiting 0, was weighed and
+rejected on consistency: an unreadable *file* already exits non-zero and a directory is strictly
+worse. **The cost is accepted and written down** — a KB root containing a genuinely unreadable
+directory now reddens every sync with no in-product route out, and because the glob matches dotted
+directories, that population is wider than *“someone else's `0700` folder”* suggests. If a real
+user reports the dead end, the answer is a documented remedy or a `doctor` message, never
+suppression.
+
+**Measured on a real KB rather than argued.** Thirty documents, `docs/vault` at `chmod 000`:
+`0 removed`, `30 unchanged`, exit 1, the directory named with its remedy — and `pnk search` still
+answers from the held document inside the locked directory, which before the fix had been
+soft-deleted. The mutation battery kills **59 of 59** on 3.13; on 3.14 exactly one row survives, the
+`doctor` one, which its own comment predicted **before** the run, so it reads as a verified
+prediction rather than a gap.
+
+**One thing about the evidence, recorded because it is this repository's own recurring shape and
+it happened while its author was writing a retrospective about it.** The implementer first
+reported the suite green on both interpreters at *“2451 passed / 128 skipped, identical counts”* —
+two real runs that genuinely agreed, quoted as evidence about the interpreter when neither run had
+isolated it: they predated a test and ran with **no extras**, which moves two tests between
+skipped and passed. And the mutation battery leaves the worktree's venv wherever `UV_PYTHON` last
+put it, so *“`check.sh` green”* carried no interpreter at all. Re-measured on the landed tree with
+the interpreter and the extras printed **by the run that produces the count**, three runs agree at
+**2454 passed, 126 skipped** — local 3.13.15, local 3.14.7, and CI's `minimum-python` on Linux.
+**The remedy is not a better number.** It is printing `sys.version` inside the run being quoted,
+which is what that job's assertion step does and what a local gate does not.
+
+**No `schema_version` bump and no rebuild.**
 
 
 
