@@ -23,13 +23,22 @@ precision nobody measured.
   sentence's own previous value**, which is exactly how it drifted: it read **58** while the file
   held **59**. Across the **109** commits that have carried this sentence it agreed with the
   CHANGELOG in **70** and was wrong in **39** — all but two of them low, because a release added one
-  to the printed number instead of counting the entries. The three registers now reconcile: **60**
-  entries = **58** git tags + `0.30.3`, prepared and never tagged, + `0.32.0`, this release.
+  to the printed number instead of counting the entries. The three registers now reconcile: **61**
+  entries = **60** git tags + `0.30.3`, prepared and never tagged — **counted from
+  `git ls-remote --tags`, the CHANGELOG's headings and this file's table, never incremented**, which is
+  the discipline this row exists to keep and the one it previously failed.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725.
-  [`0.32.0`](#0320--one-unreadable-file-no-longer-takes-the-kb-with-it--20260902-0948) is **on
-  PyPI as of 20260902 10:07** — landed on `main` at 10:05 and published two minutes later, the
-  third consecutive release to produce the hold marker and remove it only once the index had been
-  read. **Then its `main` went red for 44 minutes, which is a separate claim from its artifact
+  [`0.32.1`](#0321--a-kb-name-no-longer-bricks-the-kb-at-creation--20260903-0933) is **on PyPI as
+  of 20260903 10:08** — landed on `main` at 10:07:34 and on the index 58 seconds later, the fourth
+  consecutive release to produce the hold marker and remove it only once the index had been read.
+  **Its verification is the first here to carry a control**: the published 0.32.1 renders a KB name
+  holding a quote into TOML that parses back to the string typed, and the published **0.32.0**,
+  given the same name, exits 0 and writes TOML that `tomllib` refuses — so the check is shown able
+  to fail rather than assumed to work. **PyPI's JSON API reported `0.32.0` for the first minute
+  after the upload had succeeded**; the simple index and a retry both disagreed, so a single read of
+  that one endpoint would have reported a failed publish that never happened.
+  [`0.32.0`](#0320--one-unreadable-file-no-longer-takes-the-kb-with-it--20260902-0948) was **on
+  PyPI as of 20260902 10:07** — landed on `main` at 10:05 and published two minutes later. **Then its `main` went red for 44 minutes, which is a separate claim from its artifact
   being good** — green again at 10:51. **Both** `[pdf]` legs failed in `tests/test_pdf_trace.py`,
   on an assertion that straddled the ledger's write-time quantisation and had held only because
   the old rate made the EUR→USD→EUR round trip land exactly; the file skips on `[pdf]` alone, so
@@ -56,7 +65,7 @@ precision nobody measured.
   rather than folded away, because the record was written honestly and deleting it would erase the
   gap instead of correcting it. The **seven** tags below `v0.2.2` are not a second exception: they
   predate publishing altogether, since `PUBLISH_TO_PYPI` became `true` on 20260728 17:15.
-- **Latest on PyPI: `0.32.0`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.32.1`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
