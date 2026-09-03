@@ -206,18 +206,17 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   the floor** — the code is the fix, and it is written. Also wrong, in the other direction:
   `docs/RETROSPECTIVES.md:2218` distinguishes a developer machine from CI by *“different OS,
   different Python”*, when the interpreter is the one thing the matrix held constant.
-- **🚦 0.32.4 is CUT — the silent-deletion fix — and `changelog.d/` and `retro.d/` are empty.**
-  Four fragments spliced. A source directory the walk could not enter used to delete every document
-  under it at exit 0; it now holds them, names the directory, and exits non-zero. **PATCH.**
-  **Read `minimum-python` in the CI run for the commit you tag** — that job fires only on a push to
-  `main`, so no earlier green transfers ([`docs/RELEASING.md`](docs/RELEASING.md) step 6). At
-  `5f865a7` it reported CPython 3.13.15 and 2454 passed / 126 skipped, read in its log.
-  **`prices.toml` was re-read and only `as_of` moved** — the ECB publishes once a day and this is
-  the day's fourth release, so 1.1615 stands. **Run the `[pdf]` money legs locally on any rate
-  change**: they skip silently in an ordinary `./check.sh`, and `uv run --frozen` without the extras
-  re-syncs and prunes them.
-  **What is still owed is the post-publish sweep** — STATUS's hold marker, its two published-version
-  registers and ROADMAP's two prose blocks, none writable before the index has been read.
+- **🚦 0.32.4 is PUBLISHED and swept, and `changelog.d/` and `retro.d/` are empty.** On the index
+  20260903 16:53. It closes the silent deletion: a source directory the walk could not enter used to
+  remove every document under it at exit 0, and now holds them, names the directory and exits
+  non-zero. **The control is the defect itself, read out of two wheels** — published 0.32.3 prints
+  `2 removed` at exit 0 where published 0.32.4 prints `2 unchanged, 0 removed` at exit 1.
+  **The next release must read `minimum-python` in the CI run for the commit it tags** — that job
+  fires only on a push to `main`, so no earlier green transfers
+  ([`docs/RELEASING.md`](docs/RELEASING.md) step 6). Both 0.32.3 and 0.32.4 were held for it.
+  **`prices.toml` is at the 2026-09-03 ECB fixing, 1.1615**, re-read at each of the day's four cuts.
+  **Run the `[pdf]` money legs locally on any rate change**: they skip silently in an ordinary
+  `./check.sh`, and `uv run --frozen` without the extras re-syncs and prunes them.
 - **🛑 The most severe thing now open is row 31, and it is NOT fixed by 0.32.3.** A `[sources]` root
   the process cannot read enumerates nothing, so `pair()` reasons from absence and **every document
   under it is removed from the index at exit 0** — `2 removed`, `0 active documents`, `pnk doctor`
