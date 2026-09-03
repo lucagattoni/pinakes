@@ -11253,6 +11253,318 @@ place it asks to be believed.*
 See [`tools/batteries/src-pinakes-pairing.toml`](https://github.com/lucagattoni/pinakes/blob/main/tools/batteries/src-pinakes-pairing.toml),
 which carries the withdrawn row's reasoning in place of the row.
 
+## A control must be shown able to fail (20260903 12:58)
+
+**HIGH — and it recurred an hour and a half after the same class was written down, by the same
+session, in this tree.** Row 8's symlink guard reported a symlink to a real *directory* as
+*"resolves to nothing … its target is missing or the link loops"* — false on both counts, because
+`is_file()` is False for a directory target exactly as it is for a dangling one.
+
+The part worth keeping is not the bug. It is that **a control had been written against precisely
+this risk, and it could not fail.** Its docstring said so out loud:
+
+> Without it, `unresolvable` could be populated by `is_symlink()` alone — which would report every
+> aliased document in a KB that uses links deliberately, and `sync.py` already has a branch
+> explaining that `docs/alias -> docs/real` is a supported shape.
+
+The shape named there is a link to a **directory**. The shape the body built was
+`alias.md -> elsewhere.md`, a link to a **file** — which passes `is_file()` and therefore never
+reaches the `is_symlink()` branch at all. The assertion held for the correct guard and the broken
+one alike. Measured, not argued: with the fix reverted, the new directory-symlink test fails and
+**the other six symlink tests stay green**, which is the control demonstrating its own vacuity.
+
+**This is [[a-fixture-named-for-a-scenario-it-did-not-build]] again.** That fragment is stamped
+**20260903 10:24 UTC**; the commit carrying this instance is `6226b09`, **20260903 12:02 UTC**
+(both read with one instrument, `TZ=UTC git log --date=format-local:`, because `format:` renders
+in the committer's own offset and mixing the two silently compares different clocks). That fragment's rule — *does the fixture
+build the state the name describes?* — was already written, already in the tree, and did not
+transfer, because the second instance did not look like the first: this was a **control**, added
+deliberately against a named risk, in a test file that had just been reviewed. Believing a control
+is the failure mode; writing one is not enough.
+
+**The repository already owns the remedy in another register.** `tools/batteries/README.md`
+requires killing one known-catchable mutant before believing a battery — *"a run with no kills is a
+broken harness, not a clean bill."* A control is the same instrument: it asserts that something
+does **not** happen, so nothing about its green tells you it was ever wired to the code. **Revert
+the guard and watch the control go red**, or it certifies nothing. That is the same test as
+*"pinned by test X" is a claim about a failing test*, applied to the negative case, where it is
+easier to skip because there is no fix to revert — you have to reach for the *broken* version on
+purpose.
+
+**And it happened a third time in the same increment, caught by the mutation pass rather than by
+reading.** The battery row that shrinks the closed set — drop `"pdf"` from `SOURCE_TYPES` — was
+pointed at the control written to catch exactly that, `test_every_valid_source_type_is_still_accepted`.
+It **SURVIVED**. The control's loop is `for source_type in SOURCE_TYPES:`, so it iterates the
+constant the mutant shrinks: remove a member and the loop simply stops testing it.
+
+The diagnosis matters more than the fix, and `tools/batteries/README.md` § *Reading a SURVIVED row*
+names both possibilities: the row is a claim about a **pair**, and either half can be wrong. Here
+the coverage was fine and the **witness** was wrong — with the mutant applied,
+`tests/test_chunk.py` goes red at line 745, because
+`test_source_types_names_every_value_source_type_can_return` derives the expected members from
+`source_type()` over real filenames and never reads the tuple. So the repair was the selector, not
+a new test.
+
+Three instances, one shape: **an assertion that draws its expectation from the thing it is
+checking can only ever agree with it.** A control looping over the constant, a fixture built from
+the code's own notion of the state, a docstring describing intent beside code that does something
+else. None of them can fail, and all three read as coverage. The only instrument that found any of
+them was one that tried to *break* the code and watched what did not notice.
+
+## A docstring can claim a surface the code never reached (20260903 12:58)
+
+**HIGH — written as intent, committed as fact, and it was the only record of the gap.** The
+closed-set constant added in row 8 carried this, in my own words:
+
+> That is what lets the CLI and the MCP server refuse one at the boundary instead of returning an
+> empty result the user reads as an empty KB.
+
+The guard was wired into `pnk search`'s argparse and **nowhere else**. `pinakes_search` built its
+`Filters` from whatever the client sent, so `source_type="markdwon"` still returned zero passages
+under *"nothing matched the filters"* — the exact defect the increment existed to close, alive on
+the surface `CLAUDE.md`'s naming table lists beside the CLI, under a sentence stating it was
+closed. `eval.py`'s question loader had it too, where an unrefused typo scores that question zero
+recall on every run and reads off an eval table as a retrieval regression rather than as a typo.
+
+**The mechanism is ordinary and that is why it is worth a fragment.** The docstring was written
+while the fix was being designed, when *"the CLI and the MCP server"* was a true description of the
+plan. The plan then shrank to the surface that was in front of me, and the sentence did not. No
+gate compares a docstring to the code it sits beside, and a reader has no way to tell a statement
+of intent from a statement of fact once both are committed.
+
+**Two things follow.** First, a claim about *another* module belongs in a test, not a docstring —
+the check now lives in one helper the three surfaces call, so the sentence and the code cannot
+drift again. Second, when a fix names surfaces, **enumerate the constructors** rather than the
+surfaces: `grep -rn 'Filters(' src tools` is two seconds and finds every entry point, where
+recalling which surfaces exist finds the ones you were already thinking about.
+
+## A replace-all edits fixtures you never read (20260903 12:58)
+
+**MEDIUM — caught by a printed count, which is the only reason it was caught at all.** Adding
+tests to `tests/test_eval.py`, I needed a `kind:` line in three new YAML fixtures and reached for a
+whole-file string replace. I printed the occurrence count out of habit rather than suspicion:
+
+    occurrences: 6
+
+Three new fixtures, six matches. The other three were pre-existing fixtures belonging to other
+tests, and one of them was `test_an_unknown_kind_is_refused`, whose YAML came out carrying
+`kind: lexical` **and** `kind: multihop` — a duplicate key, where YAML silently takes the last.
+
+**Every other edit in the increment went through a helper that asserts the anchor matched exactly
+once and refuses otherwise. This one did not, because it was "just adding a line to my own new
+tests".** The count was printed as information; had it been an assertion, the replace would not
+have run.
+
+Two things I did **not** establish, and will not claim: whether the damaged fixtures' tests still
+passed — I restored the file before running them, so the honest answer is that I do not know — and
+whether `git diff --stat` would have shown it. What did show it was reading the hunks: `git diff`
+per-hunk, not the summary. A same-line-count replacement moves no totals, so a diffstat is weak
+evidence here either way.
+
+The recovery is the part worth reusing: **restore the file from `HEAD` and re-append only your own
+block**, rather than inspecting and repairing what a replace-all touched. The block was still in
+memory as a string, the restore was one command, and the resulting diff — 53 insertions, zero
+deletions — is a *checkable* claim that nothing existing changed, which "I looked and it seemed
+fine" is not.
+
+## A vague sentence made specific, and false (20260903 12:58)
+
+**MEDIUM — the fix made the message more precise, which is normally the improvement, and that is
+how it got worse.** The retrieval confidence reason used to say *"nothing matched the filters"*
+even when no filter had been passed. Row 8 split it, and the unfiltered arm became *"this KB has
+no active documents to search"*.
+
+That sentence is false whenever an active document produced **zero chunks**. `_allowed_chunks`
+joins `chunks` to `documents`, so an empty result means *no active document produced a chunk*, not
+*no active document*. A whitespace-only file syncs cleanly — `chunk_document` returns nothing for
+it, the row is written `active` regardless — and the user is then told their KB is empty while
+`pnk doctor` counts the document.
+
+**The old sentence was unhelpful; the new one was wrong, and confidently.** An unhelpful message
+sends a user to look around. A specific false one sends them to look at the wrong thing, and it
+carries the authority of having been thought about. When a message is being made more specific, the
+question to ask is not *is this clearer* but **what does the code actually know here** — and the
+answer was: less than the sentence claimed, because the emptiness of a join is evidence about the
+join, not about either table.
+
+The comment beside the first fix reasoned explicitly about soft-deleted documents and never
+considered the zero-chunk state, which is the shape of the error: **the justification enumerated
+the states its author had thought of, and read as an enumeration of the states that exist.** The
+probe now asks the `documents` table the question the join cannot answer.
+
+## The tag points at a commit CI never finished (20260903 13:18)
+
+**MEDIUM — a release tag can name a commit whose CI legs were cancelled, and nothing in the release
+procedure looks.** `v0.32.2` points at `f23b602`. That commit's `CI` run was cancelled 88 seconds
+later, when the next landing superseded it, and **three of its jobs never completed**: `check
+(light)`, `check (light pdf)` and `check (light pdf claude)` — the three that actually run the test
+suite. The run's other eleven jobs succeeded, so `gh run list` shows it as `cancelled` rather than
+as anything alarming, and `docs` at the same sha is a clean green.
+
+**The release was already published by then.** Nothing in `docs/RELEASING.md` reads CI at the
+release commit: the gate before the push is `make release-check`, which asks about the tag, and the
+verification after it asks about the artifact. Both are right and neither covers this.
+
+**What made it safe was measured, not assumed.** The successor commit `058df49` merges that tree and
+its own `CI` run is green on **all three** `check` legs — checked per job, because a run's top-line
+conclusion says nothing about which legs ran. And the specific risk was nameable: this release moved
+`src/pinakes/budget/prices.toml`, and the last release that moved that file took **both** `[pdf]`
+legs red for 44 minutes. Locally those legs skip — `pinakes[pdf]` is not installed in the primary
+checkout — so a green `./check.sh` on the release branch could not have seen it. `058df49` carries
+the re-stamped `as_of` and ran both legs green, which is what closes it.
+
+**Two things generalise.**
+
+**A cancelled run is not evidence, and neither is a successor's green *run*.** The successor tests a
+*different tree* — yours plus whatever superseded you. It is good evidence only when you have said
+what the difference is and why it cannot mask your defect. Here the difference is another session's
+row-8 work in `cli`, `search`, `serve`, `sync`, `chunk` and `eval`, and the leg at risk was a money
+trace in `tests/test_pdf_trace.py` that none of them touches.
+
+**The window that produces this is the same window the procedure deliberately uses.** Landing and
+publishing are separate steps here, and `docs/RELEASING.md` § *A fragment that arrives after the
+release commit but before the tag* treats the gap as a feature. A peer landing inside that gap is
+therefore normal, and cancelling the release commit's CI is what a peer landing inside it does.
+
+*Lesson: after pushing a release tag, read the CI run at the tagged commit per job, not per run. If
+its `check` legs were cancelled, name the commit whose green run covers the same tree and say what
+differs between them — and say which leg the release's own diff put at risk, because a local
+`./check.sh` skips whatever extras the machine lacks.*
+
+## A gate that never ran the version it promised (20260903 13:50)
+
+**HIGH — `requires-python = ">=3.13"` had been a sentence in a manifest, not a tested claim, for
+the life of the project.** Nothing in this repository pins a Python: no `.python-version`, no
+`setup-python` step, and `uv sync --frozen` resolves to the newest interpreter available. CI's
+matrix varies the *extras* — `[light]`, `[light,pdf]`, `[light,pdf,claude]` — and never the
+interpreter, so every leg ran 3.14. The floor was declared in one file and exercised in none.
+
+What it cost: `pnk sync` crashed with a raw `PermissionError` on 3.13 for a symlink into an
+unreadable directory, and that crash is present in every published release tested — 0.32.2,
+0.32.1, 0.30.0 and 0.25.0 all reproduce it under `uvx --python 3.13`.
+
+**The tell was visible and read as noise.** The same commit produced a green gate and a red gate:
+`./check.sh` passed in the worktree and failed in the primary checkout. That asymmetry has a note
+in private memory — *worktrees get different Pythons; the primary checkout is the 3.13 outlier* —
+and it was filed there as an inconvenience to route around rather than as **the project's only
+instrument that ever touched the supported floor.** The one machine that disagreed was the one
+machine testing what the manifest promised.
+
+**Two rules come out of it.**
+
+1. **A version range in a manifest is a claim, and claims get gates.** Every declared axis with a
+   minimum — Python, an OS, a dependency floor — needs one leg that runs *at* the minimum, or the
+   minimum is decoration. The new `minimum-python` job also **asserts** the interpreter it got
+   (`sys.version_info[:2] == (3, 13)`) rather than trusting `--python 3.13` to have been honoured,
+   because a leg that silently ran 3.14 would be a job going green about the one thing it exists
+   to check — the same failure this fragment is about, one level up.
+2. **When two environments disagree about the same commit, that is data, not friction.** The
+   instinct is to make the odd one match. The question to ask first is *what is it testing that
+   nothing else is*, and only then whether to align it. Here, aligning would have destroyed the
+   only signal in the system.
+
+Related: [[pinakes-worktrees-get-different-pythons]], which recorded the divergence and read it as
+a hazard. It is that too. It was also the coverage.
+
+## A measurement with an unnamed population, copied forward three times (20260903 13:50)
+
+**HIGH — the sentence said *measured*, and it was. It was measured on one interpreter and written
+as though it were about the language.** Row 8 left this comment in `sync.py`:
+
+> Measured, not assumed: `exists()` swallows the `PermissionError` and returns False.
+
+That was true. It was run, the value came out of the run, and the phrase *measured, not assumed*
+was earned — on Python 3.14. On 3.13 `Path.exists()` raises, and `pyproject.toml` promises 3.13.
+The claim's population was one interpreter out of the two this project supports, and nothing in
+the sentence said so.
+
+**Then it was copied into two more places** — a test docstring and a mutation-battery row comment
+— each time as settled fact, each time propagating a scope nobody had ever stated. Three
+locations, one measurement, zero mentions of what it was measured on.
+
+**The failure mode is not laziness, it is that the guard against it was already engaged.** *Measured,
+not assumed* is the phrase this repository uses to mark a claim as checked, so the sentence
+arrived pre-defended: a reader looking for unverified assertions skips it, and a reader looking for
+scope sees a word that promises rigour. A false claim with no evidence gets challenged. A true
+claim over an unnamed domain does not, because the challenge it invites — *did you check?* — has
+already been answered.
+
+**The question that catches it is not "did you measure?" but "measured on what?"** For anything
+whose answer can differ across an axis the project spans — interpreter, OS, filesystem, extra,
+locale — the population belongs *in the sentence*. The corrected comment now carries a table with
+both interpreters named and both versions given, because a table cannot omit its own columns the
+way a sentence can omit its own scope.
+
+Related: [[a-null-result-carries-no-information]] and the 20260831 record of six wrong claims in
+one day, each a valid inference over a population nobody named. This is that shape again, with the
+extra twist that the inference here was not merely valid but genuinely executed.
+
+## I almost reported an invariant break I had not measured (20260903 13:50)
+
+**MEDIUM, and the outcome was fine — which is the reason to write it down.** Mid-fix, one test
+failed on 3.14 but not 3.13. The inference came immediately and it was a good one: at the pairing
+site, `is_file()` returns False on 3.14 instead of raising, so the document's existing sidecar goes
+unread, so pairing sees no sidecar, so it **mints a fresh ULID for a document that already has
+one** — ULID permanence, in `docs/INVARIANTS.md`, broken silently and per-interpreter.
+
+Every step of that chain was plausible. The mechanism was real, the failing test was real, and the
+conclusion was the most serious class of defect this project recognises. I had a message half
+drafted to the planner saying so.
+
+**I ran it instead. There was no duplicate ULID.** 3.14 refuses the document too — via
+`SidecarError` rather than `PermissionError`. The real divergence was the error *class and its
+remedy*, a genuine defect and a much smaller one.
+
+**The lesson is not "measure before asserting", which was already the rule.** It is *when* the rule
+is hardest to follow. The pull to skip the measurement was strongest precisely because the
+hypothesis was alarming: an invariant break is urgent, a peer was waiting on an answer, and the
+reasoning felt like it had already done the work. Severity creates the impression that speed is the
+responsible choice, and a chain of correct-looking steps feels like evidence because each link is
+checkable — but the conclusion is only ever as good as the run nobody did.
+
+**So: the more serious the claim, the more it earns a measurement rather than exempting itself from
+one.** The escalation-worthy finding is the one to check first, not the one to send first. A
+concrete marker for next time — I was about to write the words *"silently mints a second id"*, a
+statement about runtime behaviour, without having observed any runtime behaviour. A sentence
+describing what the code does at run time and sourced only from reading it is a hypothesis wearing
+a report's clothes.
+
+Related: [[the-command-ran-the-number-was-typed]] — there, the measurement happened and the figure
+did not come from it. Here the figure would not have come from anything at all.
+
+## The fix stopped at the boundary I reasoned to, not the one the defect had (20260903 14:10)
+
+**What happened.** The crash arrived from `pnk sync`, so I scoped the fix to the source walk in
+`sync.py` and argued the scope was right: that is where a corpus path gets stat-ed, and the other
+41 `is_file()`/`exists()` calls in `src/` are about paths Pinakes itself created under `.pinakes/`.
+The argument was sound. The scope was wrong. My own adversarial pass found `doctor.py` failing on
+the same state, `linkscan.py` returning a wrong answer on it, and — worst of the three — an orphan
+check that offered `--prune` for a document sitting on disk, which would have destroyed a permanent
+ULID. None of that was visible from where the crash was reported.
+
+**Why.** I derived the boundary from the *symptom's* call path instead of enumerating the
+*condition's* reach. The condition is "a corpus path this process cannot stat", and the way to find
+its reach is to list every place a corpus path is stat-ed and ask each one what it does with False.
+That is a grep and a read, not a deduction — and it is cheaper than the deduction was. Reasoning
+from one entry point produces a boundary shaped like the entry point.
+
+**What it cost, and what it nearly cost.** Three commits instead of one, which is nothing. But the
+`--prune` bug is interpreter-independent and predates this branch: it was reachable on every
+supported Python, and a fix that had stopped where my reasoning stopped would have shipped a
+version-independence claim while leaving a data-destroying prompt in place one file away. The
+review found it; the reasoning had excluded the file it was in.
+
+**The rule.** When a fix is for a *condition* rather than a line, establish the scope by
+enumeration and say so — `grep` the predicate, read each site, record what each does when the
+answer is False. Then state the boundary as a set you looked at, not as a category you inferred.
+A category is a claim about files you did not open.
+
+**And check what False means at each site before reusing the helper.** Two of the four sites wanted
+the new version-independent `is_regular_file`; the orphan check wanted `os.path.lexists`, because
+there False means *nothing is here* and it had been reading it as *nothing readable is here*. A
+shared helper makes a class of bug go away and a class of bug easy to write: the sites that must
+distinguish *absent* from *unreachable* are exactly the ones a sweep will quietly get wrong.
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings

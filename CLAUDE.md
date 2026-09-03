@@ -193,32 +193,51 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   fresh worktree runs 3.14 and the primary checkout runs 3.13**, so one commit answers differently
   in two directories on this machine — a branch gate green and the merged gate red on the same
   tree. `.github/workflows/ci.yml` now carries a `minimum-python` leg that asserts the interpreter
-  it actually got, **and it had never executed once as of `934190c`** — the workflow triggers on
-  push to `main`, so no branch push could run it. Read its first run before trusting it.
+  it actually got. **Its first run in this repository's history is green, and it was read in its
+  log rather than from its status**: run `33765944569` for `934190c`, where `uv` downloaded
+  `cpython-3.13.15-linux-x86_64-gnu`, the assertion step ran, and pytest reported **2425 passed,
+  126 skipped** — the same counts as the local 3.13 run, which is what shows it ran a suite and not
+  a no-op. The leg is one interpreter deep on `[light]` only; the `check` matrix still varies
+  extras. **A green top-line is not this job** — the workflow triggers on push to `main`, so no
+  branch push runs it, and every future commit needs its own read.
   **The false claim in the docs is a support claim, not a testing one**: nothing in `docs/` says
   3.13 is tested, while `docs/DESIGN.md` line 3, `docs/GUIDE.md` line 51, `README.md`'s badge and
   this file all say 3.13 is **supported**. Audited 20260903 13:23. **Do not "fix" those by raising
   the floor** — the code is the fix, and it is written. Also wrong, in the other direction:
   `docs/RETROSPECTIVES.md:2218` distinguishes a developer machine from CI by *“different OS,
   different Python”*, when the interpreter is the one thing the matrix held constant.
-- **🚦 0.32.2 is published and swept. 0.32.3 is DUE and uncut, fourteen fragments deep — and it is
-  the one that carries the ULID fix, so it matters more than an ordinary patch.** `changelog.d/`
-  holds **5** and `retro.d/` **9** as of 20260903 14:21: sweep row 8's three fixes (a mistyped
-  `--source-type` is a usage error, an empty KB stops blaming filters nobody passed, a broken
-  symlink is reported rather than skipped) plus the two above — the 3.13 crash and `doctor`
-  offering `--prune` a present document's id. **Cut as a PATCH**, on the coder's reasoning that
-  `doctor` now reports *fewer* orphans and a sidecar whose document is present was never an orphan,
-  so a false positive is removed rather than a contract narrowed.
-  **One gate must be read before the tag: `minimum-python` had never executed as of `934190c`.**
-  Do not cut on the strength of a local 3.13 run alone; read that job's own conclusion in the CI
-  run for the commit you are tagging.
-  0.32.2's own cut landed 13:07:54 with the wheel on the index 47 seconds later, verified with a
-  control that fires: `pnk search -k 0` exits **2** at the parser on 0.32.2 and **1** on *no
-  pinakes.toml found* on 0.32.1. **Do not re-litigate that bump if you are reading its record**:
-  refusing `-k 0` *is* a breaking CLI change, and this project ruled that exact case at **0.7.1**
-  and **0.20.1** on the ground that the previous behaviour was the defect.
+- **🚦 0.32.3 is CUT — the release that carries the ULID fix — and `changelog.d/` and `retro.d/`
+  are empty.** Fourteen fragments spliced, 5 and 9. It fixes `pnk doctor` offering `--prune` a
+  present document's permanent id, the 3.13 crash in `sync` and `doctor` across nine call sites, and
+  row 8's three low classes. **PATCH**, because `doctor` now reports *fewer* orphans and a sidecar
+  whose document is present was never one, so a false positive is removed rather than a contract
+  narrowed.
+  **Read `minimum-python` in the CI run for the tagged commit before trusting the floor.** That job
+  runs only on a push to `main`, so every release commit gets its own first run; read the job's own
+  conclusion, never the run's top line. Locally this cut was gated on 3.13 at **2425 passed / 126
+  skipped**, the same counts CI's leg reported at `934190c`.
+  **`prices.toml` moved for real this time**: the ECB published the 2026-09-03 fixing between the
+  two cuts, so the rate went `1.1578 → 1.1615`, up 0.32%. **The `[pdf]` money legs were run
+  locally before landing**, because that is the pair a rate change took red at 0.32.1 and they
+  **skip** in an ordinary `./check.sh` — and they skip *silently*, so passing `--extra pdf` to
+  `uv sync` is not enough: `uv run --frozen` without the extras re-syncs and prunes them, and the
+  four tests then report as skipped inside an otherwise green run.
+  **What is still owed is the post-publish sweep** — STATUS's hold marker, its two published-version
+  registers and ROADMAP's two prose blocks, none of which may be written before the index has been
+  read.
   **`pnk sync --sidecars-only` reporting five zeros is S20, filed with no build-order row on
   purpose**: what the summary should count is the user's call, not an implementer's.
+- **🛑 The most severe thing now open is row 31, and it is NOT fixed by 0.32.3.** A `[sources]` root
+  the process cannot read enumerates nothing, so `pair()` reasons from absence and **every document
+  under it is removed from the index at exit 0** — `2 removed`, `0 active documents`, `pnk doctor`
+  reporting OK, and `pnk search` then answering nothing with no surface saying why. Measured on
+  `main` at `1f137a2` on **both** interpreters, so it is interpreter-independent and in every
+  published release. **It is the same class 0.32.0 guarded one level down**, for an unreadable
+  *file*; the root case was missed. Recoverable — the sidecars are inside the unreadable directory
+  and survive — which is the only reason it ranks below the ULID fix. **The audit that found it
+  blamed the wrong call** (`root.is_dir()`, which returns `True` on both), so read row 31's measured
+  mechanism and not the audit's. Row 32 holds its four other confirmed findings, **none verified**,
+  from a run whose judge died.
 - **📌 The release procedure gained a timing rule at 0.32.2, and it changes what a release commit
   writes.** `docs/ROADMAP.md`'s `## Where things stand right now` reconciles three registers
   *counted, never incremented* — CHANGELOG headings, `git ls-remote --tags`, this file's table — so
