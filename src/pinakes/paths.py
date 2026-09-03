@@ -46,8 +46,10 @@ def is_regular_file(path: Path) -> bool:
     see `doctor`'s orphan check, which asks `os.path.lexists` instead, because calling an
     unreachable document *deleted* offers its permanent id to `--prune`.
 
-    `is_symlink()` is deliberately not wrapped: it `lstat`s the link rather than the target, so it
-    returned `True` on both versions in the same measurement.
+    `is_symlink` is wrapped too, and the sentence here used to say it was "deliberately not
+    wrapped" because it `lstat`s the link rather than the target and "returned `True` on both
+    versions in the same measurement". True, and about one symlink whose **parent was readable** —
+    see `is_symlink` for what it does when the parent is not.
     """
     return os.path.isfile(path)
 
@@ -60,6 +62,115 @@ def resolves(path: Path) -> bool:
     which is why `sync`'s report names all three rather than picking one.
     """
     return os.path.exists(path)
+
+
+def is_directory(path: Path) -> bool:
+    """`path.is_dir()`, with the version-independence `is_regular_file` explains — read that first.
+
+    The same divergence, and it reached a worse place than the crash did. `sync.walk_sources` skips
+    a `[sources]` root this answers `False` for, and `pair()` reasons from *absence*, so a root the
+    process could not reach retired **every document under it at exit 0**. Measured 20260903 on a
+    root symlinked to an in-KB target under a `0o000` ancestor:
+
+    | | 3.13.15 | 3.14.7 |
+    |---|---|---|
+    | `Path.is_dir` | raise `PermissionError` | `False` |
+    | `os.path.isdir` | `False` | `False` |
+
+    So one KB answered two ways: a traceback on the declared floor, and silent data loss on the
+    interpreter CI happened to install.
+
+    **`False` here means "not a reachable directory", which is three states, not one** — absent, a
+    non-directory, or present and unreachable. `unreadable_directories` is what tells the third
+    apart, and any caller that would *delete* on absence has to ask it as well as this.
+    """
+    return os.path.isdir(path)
+
+
+def is_symlink(path: Path) -> bool:
+    """`path.is_symlink()`, `False` on every Python for a path this process cannot `lstat`.
+
+    `lstat` needs `+x` on the **parent**, not on the link. Under a parent at `0o400` — listable, so
+    a glob still yields the entry, but not traversable — `Path.is_symlink()` raises on 3.13 and
+    returns `False` on 3.14. Measured 20260903; it ended `pnk sync` in a traceback at the walk's
+    own symlink guard, on the interpreter `pyproject.toml` declares as the floor.
+
+    That is the case the note in `is_regular_file` used to exclude by accident: its measurement
+    built a symlink in a readable directory, where `is_symlink()` really does agree across
+    versions. A predicate is not version-independent because one fixture found it so.
+    """
+    return os.path.islink(path)
+
+
+def unreachable(path: Path) -> bool:
+    """The filesystem refused to say anything at all about `path`: neither present nor absent.
+
+    `is_regular_file`, `is_directory`, `is_symlink` and `resolves` all answer `False` for a path
+    they were not permitted to look at, which is exactly what they answer for a path that is not
+    there. For most callers that conflation is harmless. For the one that **deletes on absence** it
+    is the whole defect, and this is the question it has to ask instead.
+
+    `lstat`, not `stat`: the question is whether this entry can be seen at all, and following a
+    link would answer about its target instead.
+
+    **Only `FileNotFoundError` and `NotADirectoryError` come back `False`.** They are the two honest
+    "not there" answers, and a document that is really gone must stay deletable. Every other
+    `OSError` is a refusal rather than an absence — `EACCES`, but equally `EIO` on a failing disk
+    and `ESTALE` on an NFS mount — and reading a refusal as an absence is how a KB loses documents
+    it still has.
+    """
+    try:
+        os.lstat(path)
+    except (FileNotFoundError, NotADirectoryError):
+        return False
+    except OSError:
+        return True
+    return False
+
+
+def unreadable_directories(root: Path) -> frozenset[Path]:
+    """Every directory at or under `root` that this process could not list, `root` included.
+
+    **Asked of the filesystem, never inferred from a yield.** An unreadable directory and an empty
+    one hand `root.glob(pattern)` the same thing — nothing, silently, identically on 3.13 and 3.14
+    — so a caller reasoning from absence turns the first into a deletion. `os.walk`'s `onerror`
+    hook is the one instrument that tells them apart: it fires with the `OSError` whose `filename`
+    is the directory `scandir` refused, and it fires for `root` itself when `root` is that
+    directory.
+
+    **`FileNotFoundError` and `NotADirectoryError` are excluded deliberately**, on the line
+    `unreachable` draws for a single path: a root the user deleted *should* retire the documents
+    under it, and folding "gone" into "unreadable" would hold rows for a directory that is never
+    coming back.
+
+    **A directory that is readable but not traversable is invisible here**, and that is a property
+    of the syscall rather than a choice: at `0o400`, `scandir` succeeds, so no error is raised for
+    anyone to hook. Its entries then fail to `stat` one at a time, which is `unreachable`'s half of
+    the same question — the two are not alternatives, and a caller wanting the whole class needs
+    both.
+
+    **Symlinked directories are not followed**, which is `os.walk`'s default and is kept rather
+    than inherited: `followlinks=True` does not terminate on a cycle, and a KB may legitimately
+    hold `docs/alias -> docs/real`. So an unreadable directory reachable *only* through a symlinked
+    ancestor is outside what this collects — narrower than the glob that finds documents through
+    one, and said out loud instead of implied.
+
+    **Not `os.access`**: it answers for the calling uid at one instant, it is a check-then-use race,
+    and it cannot enumerate. It belongs in a message, never in a walk.
+    """
+    refused: set[Path] = set()
+
+    def note(error: OSError) -> None:
+        if isinstance(error, FileNotFoundError | NotADirectoryError):
+            return
+        # `filename` is the path `scandir` was refused. An `OSError` raised without one cannot be
+        # attributed to a directory, and guessing `root` would name the wrong one on a subtree.
+        if error.filename is not None:
+            refused.add(Path(error.filename))
+
+    for _directory, _subdirectories, _files in os.walk(root, onerror=note):
+        pass
+    return frozenset(refused)
 
 
 def lands_inside(anchor: Path, base: Path, relative: str) -> bool:

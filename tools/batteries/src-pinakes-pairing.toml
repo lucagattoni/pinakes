@@ -33,7 +33,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 46
+mutants = 59
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -239,17 +239,20 @@ kills = "tests/test_sync.py::test_the_population_walk_never_opens_a_document"
 [[mutant]]
 name = "the unmatched-file probe runs, so `pnk doctor` opens up to 500 files per root"
 file = "src/pinakes/sync.py"
+# Re-anchored 20260903: `root.is_dir()` became `paths.is_directory(root)` with the unreadable-root
+# fix — the `pathlib` spelling raises on 3.13 behind an ancestor this process may not traverse. The
+# property this row pins is unchanged.
 old = """    if not _documents_only:
         for root_name in manifest.sources.roots:
             root = (manifest.root / root_name).resolve()
-            if root.is_dir():
+            if is_directory(root):
                 found, hit_cap = _unmatched_under(root, manifest, matched=files)
                 unmatched.update(found)
                 truncated = truncated or hit_cap
 """
 new = """    for root_name in manifest.sources.roots:
         root = (manifest.root / root_name).resolve()
-        if root.is_dir():
+        if is_directory(root):
             found, hit_cap = _unmatched_under(root, manifest, matched=files)
             unmatched.update(found)
             truncated = truncated or hit_cap
@@ -507,14 +510,17 @@ file = "src/pinakes/pairing.py"
 # **Anchor repaired 20260903** (S7): `Skip` grew a `held` flag, so the append line moved. The
 # property is untouched -- the hold loop still has to exist -- and re-anchoring is what
 # `tools/batteries/README.md` § *When an anchor rots* asks for at 0 matches.
-old = '''    for path in sorted(unreadable):
+# **Re-anchored again 20260903**, with the unreadable-*directory* fix: the loop now reads `held`,
+# which is `unreadable` widened by every document `before` knows under a directory the walk could
+# not enter. The property is untouched for the third time — the hold loop still has to exist.
+old = '''    for path in sorted(held):
         document = before_by_path.get(path)
         if document is None or document.state == DELETED:
             continue  # never indexed, or already retired: there is no row to hold
         actions.append(Skip(doc_id=document.id, path=path, held=True))
         handled_ids.add(document.id)
         handled_paths.add(path)'''
-new = '''    for path in sorted(unreadable):
+new = '''    for path in sorted(held):
         _ = path'''
 kills = "tests/test_pairing.py::test_an_unreadable_document_is_held_rather_than_soft_deleted"
 
@@ -568,7 +574,9 @@ kills = "tests/test_pairing.py::test_an_unreadable_documents_sidecar_is_not_repo
 [[mutant]]
 name = "the orphan check is called without the set, which is the same defect one layer out"
 file = "src/pinakes/pairing.py"
-old = '''        orphaned_sidecars=_orphans(after, unreadable),'''
+# Re-anchored 20260903: `unreadable` became `held` here for the same reason as the hold loop — the
+# two readers have to agree, or a held document's sidecar is offered to `--prune`.
+old = '''        orphaned_sidecars=_orphans(after, held),'''
 new = '''        orphaned_sidecars=_orphans(after),'''
 kills = "tests/test_sync.py::test_an_unreadable_documents_sidecar_is_never_offered_to_prune"
 
@@ -586,10 +594,11 @@ name = "the failure is recorded below the --sidecars-only return, so the pre-com
 file = "src/pinakes/sync.py"
 # The half that runs in a git hook, which is the last place an unreadable document should pass in
 # silence — and the placement is invisible in a diff that reads correctly line by line.
-old = '''    report.escaping_patterns = escaping
-    for path in unreadable:'''
-new = '''    report.escaping_patterns = escaping
-    for path in () if options.sidecars_only else unreadable:'''
+# Re-anchored 20260903: the walk returns a `SourceWalk` record rather than a six-tuple, and the
+# directory loop now sits between these two lines, so the neighbour is gone and the anchor is the
+# loop alone. The property — this runs *above* the `--sidecars-only` return — is unchanged.
+old = '''    for path in walked.unreadable:'''
+new = '''    for path in () if options.sidecars_only else walked.unreadable:'''
 kills = "tests/test_sync.py::test_the_pre_commit_half_also_reports_an_unreadable_document"
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -733,9 +742,12 @@ file = "src/pinakes/sync.py"
 # The state before row 8: the entry is in `ls`, absent from `files`, and indistinguishable from a
 # path no include pattern matched. Nothing downstream can recover it — every later stage sees an
 # absence.
-old = '''                    if candidate.is_symlink() and not resolves(candidate):
+# Re-anchored 20260903, twice over: `candidate.is_symlink()` became `paths.is_symlink(candidate)`
+# — the `pathlib` spelling raises on 3.13 under a parent that lists but cannot be entered — and the
+# branch became an `elif`, because the unreachable case is decided before it now.
+old = '''                    elif is_symlink(candidate) and not resolves(candidate):
                         unresolvable.add(key(candidate))'''
-new = '''                    if False:
+new = '''                    elif False:
                         unresolvable.add(key(candidate))'''
 kills = "tests/test_sync.py::test_a_symlink_that_resolves_to_nothing_is_reported_rather_than_skipped"
 
@@ -747,8 +759,9 @@ file = "src/pinakes/sync.py"
 # a shape `sync.py` documents as supported two branches down — was reported as *"resolves to
 # nothing"*. Every other symlink test stays green under this mutant; only a directory link can see
 # it.
-old = '''                    if candidate.is_symlink() and not resolves(candidate):'''
-new = '''                    if candidate.is_symlink():'''
+# Re-anchored 20260903 with the row above, and for the same two reasons.
+old = '''                    elif is_symlink(candidate) and not resolves(candidate):'''
+new = '''                    elif is_symlink(candidate):'''
 kills = "tests/test_sync.py::test_a_symlink_to_a_real_directory_is_not_reported_as_unresolvable"
 
 [[mutant]]
@@ -845,3 +858,186 @@ file = "src/pinakes/doctor.py"
 old = '''            if not os.path.lexists(document_for(path)):'''
 new = '''            if not document_for(path).is_file():'''
 kills = "tests/test_doctor.py::test_a_sidecar_whose_document_is_unreachable_is_not_offered_to_prune"
+
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260903 · row 31 — a directory the walk cannot enter
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# `pair()` reasons from absence, and an unreadable directory produces exactly that. Measured on
+# `main` at `1f137a2`: a `[sources]` root at `chmod 000` reported `2 removed`, took the index to
+# `0 active documents`, had `pnk doctor` report OK, and **exited 0**. 0.32.0 guarded the unreadable
+# *file* one level down and left this open, which is why the rows above and the rows here are the
+# same guarantee at two scales.
+#
+# **Three fixtures, because three syscalls fail differently**, and only one of them fires a hook:
+# a root behind a blocked ancestor (`is_dir()` raises on 3.13, returns `False` on 3.14), a `0o000`
+# subdirectory (`os.walk`'s `onerror` fires), and a `0o400` subdirectory that lists but cannot be
+# entered (nothing fires; every `stat` fails one at a time). A row that kills under only one of
+# them is not covering the class.
+
+[[mutant]]
+name = "the directory collector treats a missing root as a refusal, so a deleted root is never forgotten"
+file = "src/pinakes/paths.py"
+# The control this whole channel is balanced on. Every other row here asserts something was *not*
+# deleted, and a collector that called every failure a refusal would satisfy all of them while
+# leaving a KB unable to forget a directory the user removed — the same size of defect, pointing
+# the other way.
+old = '''        if isinstance(error, FileNotFoundError | NotADirectoryError):
+            return'''
+new = '''        if False:
+            return'''
+kills = "tests/test_paths.py::test_unreadable_directories_says_nothing_about_a_root_that_is_not_there"
+
+[[mutant]]
+name = "`unreachable` calls a refusal an absence, which is the conflation the predicate exists to undo"
+file = "src/pinakes/paths.py"
+# `is_regular_file`, `is_directory`, `is_symlink` and `resolves` all answer `False` for a path they
+# were not permitted to look at. This is the one function that must not, and inverting its answer
+# restores the `0o400` half of the defect in full.
+old = '''    except OSError:
+        return True'''
+new = '''    except OSError:
+        return False'''
+kills = "tests/test_paths.py::test_unreachable_is_true_for_an_entry_under_an_untraversable_parent"
+
+[[mutant]]
+name = "THE SHIPPED DEFECT — the root is never asked whether it can be entered"
+file = "src/pinakes/sync.py"
+# The whole of it: `root.glob(pattern)` yields nothing from an unreadable directory and nothing
+# from an empty one, so the walk cannot tell them apart from its own output and `pair()` retires
+# everything underneath.
+old = '''        for refused in unreadable_directories(root):
+            relative_directory = key_if_inside(refused)
+            if relative_directory is not None:
+                unreadable_dirs.add(relative_directory)'''
+new = '''        for refused in ():
+            _ = refused'''
+kills = "tests/test_sync.py::test_an_unlistable_subdirectory_holds_only_the_documents_beneath_it"
+
+[[mutant]]
+name = "the probe moves below the `is_directory` guard, so an unreachable root is skipped before it is asked about"
+file = "src/pinakes/sync.py"
+# **The ordering mistake, and it is invisible in a diff that reads correctly line by line.** A root
+# this process cannot reach is `False` at the guard and takes the `continue`, so a probe placed
+# after it never runs for the one root that needed it. Every `0o000`-subdirectory assertion stays
+# green under this mutant; only a locked *root* can see it.
+old = '''        for refused in unreadable_directories(root):
+            relative_directory = key_if_inside(refused)
+            if relative_directory is not None:
+                unreadable_dirs.add(relative_directory)
+        if not is_directory(root):
+            continue'''
+new = '''        if not is_directory(root):
+            continue
+        for refused in unreadable_directories(root):
+            relative_directory = key_if_inside(refused)
+            if relative_directory is not None:
+                unreadable_dirs.add(relative_directory)'''
+kills = "tests/test_sync.py::test_a_source_root_the_walk_cannot_enter_holds_every_document_under_it"
+
+[[mutant]]
+name = "the per-candidate half goes, so a directory that lists but cannot be entered is silent again"
+file = "src/pinakes/sync.py"
+# `os.walk`'s hook cannot see a `0o400` directory — `scandir` succeeds, so nothing is raised for it
+# to receive. This branch is the only instrument that reaches that case, and on 3.13 removing it
+# does not even fail quietly: the `is_symlink` line below raises instead.
+old = '''                    if unreachable(candidate):'''
+new = '''                    if False:'''
+kills = "tests/test_sync.py::test_a_subdirectory_that_lists_but_cannot_be_entered_reaches_the_same_channel"
+
+[[mutant]]
+name = "the unreachable candidate is recorded by its own path rather than its parent's"
+file = "src/pinakes/sync.py"
+# It reads as the more precise choice and is wrong twice: the file's own permissions are fine, so
+# the remedy names a path a `chmod` will not help; and the held-path prefix becomes
+# `docs/sub/b.md/`, which matches no document, so the row is retired anyway.
+old = '''                        relative_directory = key_if_inside(candidate.parent)'''
+new = '''                        relative_directory = key_if_inside(candidate)'''
+kills = "tests/test_sync.py::test_a_subdirectory_that_lists_but_cannot_be_entered_reaches_the_same_channel"
+
+[[mutant]]
+name = "the directory failure is never recorded, so the run holds the documents and still exits 0"
+file = "src/pinakes/sync.py"
+# Holding the rows and saying nothing is only half a fix: `report.ok` is `not report.failures`, so
+# without this loop `pnk sync` reports a clean run over a corpus it could not read and the user has
+# no reason to look. It is also the only line that names the directory to `chmod`.
+old = '''    for directory in walked.unreadable_directories:'''
+new = '''    for directory in ():'''
+kills = "tests/test_sync.py::test_the_unreadable_directory_failure_names_the_directory_and_a_way_out"
+
+[[mutant]]
+name = "the held set forgets the directories, so every document under one is retired as vanished"
+file = "src/pinakes/pairing.py"
+# The `sync` rows above stop the walk from *learning* it was refused; this one lets it learn and
+# then throws the answer away. Both end in the same `SoftDelete`, and neither test sees the
+# other's mutant.
+old = '''    return unreadable | frozenset(
+        document.path for document in before.documents if document.path.startswith(prefixes)
+    )'''
+new = '''    return unreadable'''
+kills = "tests/test_pairing.py::test_a_document_under_an_unreadable_directory_is_held_rather_than_soft_deleted"
+
+[[mutant]]
+name = "the prefix loses its separator, so `docs/subtle.md` is held by a refusal of `docs/sub`"
+file = "src/pinakes/pairing.py"
+# A string prefix where a path prefix is meant. It errs towards holding, so nothing is deleted and
+# nothing looks wrong — a genuinely deleted document simply stays in the index forever with
+# `pnk sync` reporting nothing about it.
+old = '''        "" if directory in ("", ".") else f"{directory}/" for directory in unreadable_directories'''
+new = '''        "" if directory in ("", ".") else directory for directory in unreadable_directories'''
+kills = "tests/test_pairing.py::test_only_documents_genuinely_under_the_unreadable_directory_are_held"
+
+[[mutant]]
+name = "the KB-root case loses its empty prefix, so a refused root holds nothing at all"
+file = "src/pinakes/pairing.py"
+# `roots = ["./"]` keys the refused directory as `"."`, and the obvious spelling turns that into
+# `"./"`, a prefix of no document path. The worst case the code has — every document in the KB
+# behind one unreadable directory — becomes the case that silently holds none of them.
+old = '''        "" if directory in ("", ".") else f"{directory}/" for directory in unreadable_directories'''
+new = '''        f"{directory}/" for directory in unreadable_directories'''
+kills = "tests/test_pairing.py::test_an_unreadable_kb_root_holds_every_document"
+
+[[mutant]]
+name = "doctor's root guard reverts to the `pathlib` spelling, which raises on the declared floor"
+file = "src/pinakes/doctor.py"
+# **This row dies on 3.13 and SURVIVES on 3.14, and that is the row's content rather than a
+# weakness in it.** `Path.is_dir()` raises `PermissionError` behind a blocked ancestor on 3.13 and
+# returns `False` on 3.14, so on the newer interpreter the mutant merely skips the root and the
+# test's assertions still hold. Run this battery on 3.13 — `uv run --python 3.13` — or this row
+# reports SURVIVED and means nothing. It is the same crash 0.32.3 cleared from three sites and
+# left in this one.
+old = '''        if not is_directory(root):'''
+new = '''        if not root.is_dir():'''
+kills = "tests/test_doctor.py::test_a_source_root_that_cannot_be_entered_does_not_crash_the_diagnosis"
+
+[[mutant]]
+name = "the remedy offers `exclude` as a second way out, which does not clear this"
+file = "src/pinakes/sync.py"
+# S17 is the recorded cost of printing a remedy that never worked. `[sources] exclude` is the
+# tempting second route here and it genuinely does not clear this — the walk is refused before any
+# pattern is applied — so the sentence declining it is load-bearing, and dropping it sends the user
+# to edit a manifest and watch nothing change.
+old = '''                "clears this. An `exclude` pattern does not, because the walk is refused before "
+                "any pattern is applied. Every document already indexed underneath is held "'''
+new = '''                "clears this. Every document already indexed underneath is held "'''
+kills = "tests/test_sync.py::test_the_unreadable_directory_failure_names_the_directory_and_a_way_out"
+
+[[mutant]]
+name = "an `exclude` pattern is taught to suppress a refused directory, putting silence back in the walk"
+file = "src/pinakes/sync.py"
+# **This mutant adds a guard rather than removing one**, because the property is a decision not to
+# suppress. It is the most plausible "improvement" someone will make to this code after the first
+# false-positive report, and it reopens the defect for anyone whose exclude does not in fact cover
+# what is inside the directory — which the walk cannot check, since it could not enumerate it.
+old = '''        for refused in unreadable_directories(root):
+            relative_directory = key_if_inside(refused)
+            if relative_directory is not None:
+                unreadable_dirs.add(relative_directory)'''
+new = '''        for refused in unreadable_directories(root):
+            relative_directory = key_if_inside(refused)
+            if relative_directory is not None and not _excluded(
+                relative_directory, manifest.sources.exclude, manifest.root, refused
+            ):
+                unreadable_dirs.add(relative_directory)'''
+kills = "tests/test_sync.py::test_an_exclude_pattern_does_not_suppress_an_unreadable_directory"

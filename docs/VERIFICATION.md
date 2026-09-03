@@ -1397,6 +1397,42 @@ a sidecar beside no walked file is an orphan. **The two that have none** —
 `test_an_already_retired_row_is_not_revived_by_becoming_unreadable` — demonstrate that the guard is
 reachable in those branches, and nothing more.
 
+## A source root the walk cannot enter holds its documents, rather than deleting them (row 31)
+
+A `[sources]` root or subdirectory the process cannot reach silently removed every document under it: `pnk sync` printed `N removed`, dropped their chunks, exited `0`, and `pnk doctor` reported OK — the same trade S1 refused one level down, arrived at from the other direction. **Three shapes reach it and they are not one mechanism.** A root that is a symlink into a blocked in-KB ancestor crashes `is_dir()` on 3.13 and returns `False` on 3.14. A `0o000` subdirectory is silent on both. A `0o400` subdirectory — listable, not traversable — is the one no error hook can see: `scandir` succeeds so `os.walk`'s `onerror` never fires, the glob yields the entry by name, and every `stat` on it then fails, crashing 3.13 at `is_symlink()` and returning `False` on 3.14. **Every row below asserts what is kept.** The glob is deliberately not replaced: reimplementing its semantics to gain an error hook is a larger risk than the defect, so the hooked walk runs beside it and answers only whether a directory could be entered.
+
+| What must be true | Increment | Where it is checked |
+|---|---|---|
+| a source root the walk cannot enter leaves every document under it active, with nothing counted as removed | row 31 | `tests/test_sync.py::test_a_source_root_the_walk_cannot_enter_holds_every_document_under_it` |
+| an unlistable subdirectory holds only what is beneath it — documents elsewhere in the same root still sync | row 31 | `tests/test_sync.py::test_an_unlistable_subdirectory_holds_only_the_documents_beneath_it` |
+| a directory that lists but cannot be entered reaches the same channel, though no error hook can see it | row 31 | `tests/test_sync.py::test_a_subdirectory_that_lists_but_cannot_be_entered_reaches_the_same_channel` |
+| the run names the directory and offers a way out, rather than reporting a count that hides it | row 31 | `tests/test_sync.py::test_the_unreadable_directory_failure_names_the_directory_and_a_way_out` |
+| `--sidecars-only`, the half that runs inside a git hook, reports it rather than passing in silence | row 31 | `tests/test_sync.py::test_the_pre_commit_half_also_reports_an_unreadable_directory` |
+| restoring the permission is the whole remedy: nothing is recorded that a later sync has to undo | row 31 | `tests/test_sync.py::test_restoring_the_directory_permission_returns_the_sync_to_clean` |
+| a genuinely deleted source directory still retires its documents — the guard must not swallow real absence | row 31 | `tests/test_sync.py::test_a_deleted_source_directory_still_retires_its_documents` |
+| a healthy tree reports no unreadable directory, so the check is shown able to stay quiet | row 31 | `tests/test_sync.py::test_a_healthy_tree_reports_no_unreadable_directory` |
+| an `exclude` pattern does not suppress an unreadable directory — the walk is refused before any pattern is applied, and the common spelling `docs/sub/**` does not match the directory anyway, so suppression would be unreliable as well as unsafe | row 31 | `tests/test_sync.py::test_an_exclude_pattern_does_not_suppress_an_unreadable_directory` |
+| a document under an unreadable directory is held, not soft-deleted — absence is a `SoftDelete`, and this is not absence | row 31 | `tests/test_pairing.py::test_a_document_under_an_unreadable_directory_is_held_rather_than_soft_deleted` |
+| only documents genuinely under that directory are held, so one bad permission cannot freeze the KB | row 31 | `tests/test_pairing.py::test_only_documents_genuinely_under_the_unreadable_directory_are_held` |
+| an unreadable KB root holds every document, which is the widest case and the one that loses most | row 31 | `tests/test_pairing.py::test_an_unreadable_kb_root_holds_every_document` |
+| a directory the walk could enter still retires what vanished from it | row 31 | `tests/test_pairing.py::test_a_directory_the_walk_could_enter_still_retires_what_vanished_from_it` |
+| Pinakes never offers to prune the sidecar of a document under a held directory — `--prune` would destroy a live ULID | row 31 | `tests/test_pairing.py::test_an_unreadable_documents_sidecar_is_not_reported_as_orphaned_under_a_held_directory` |
+| `pnk doctor` completes on a KB whose source root cannot be entered, rather than dying in the command you reach for when things are already wrong | row 31 | `tests/test_doctor.py::test_a_source_root_that_cannot_be_entered_does_not_crash_the_diagnosis` |
+| `paths.is_directory` answers the same as `pathlib` on an ordinary tree, so a predicate that returned `False` unconditionally could not pass | row 31 | `tests/test_paths.py::test_is_directory_agrees_with_pathlib_on_an_ordinary_tree` |
+| it answers `False` rather than raising behind a blocked ancestor, which is the 3.13 crash the wrapper exists to remove | row 31 | `tests/test_paths.py::test_is_directory_answers_false_rather_than_raising_behind_a_blocked_ancestor` |
+| `paths.is_symlink` answers `False` rather than raising under an untraversable parent — the case the old *"deliberately not wrapped"* note missed, because it was measured where the parent was readable | row 31 | `tests/test_paths.py::test_is_symlink_answers_false_rather_than_raising_under_an_untraversable_parent` |
+| it still recognises a link it can stat, so the wrapper did not buy its safety by answering `False` to everything | row 31 | `tests/test_paths.py::test_is_symlink_still_recognises_a_link_it_can_stat` |
+| `paths.unreachable` is `False` for a path that is simply not there — **a deleted document must stay deletable**, and conflating absence with refusal would freeze every real deletion | row 31 | `tests/test_paths.py::test_unreachable_is_false_for_a_path_that_is_simply_not_there` |
+| it is `False` for a path that is plainly there | row 31 | `tests/test_paths.py::test_unreachable_is_false_for_a_path_that_is_plainly_there` |
+| it is `False` for a dangling symlink — reachable and merely unresolvable, which is a third state and not a refusal | row 31 | `tests/test_paths.py::test_unreachable_is_false_for_a_dangling_symlink` |
+| it is `True` for an entry under an untraversable parent, which is the state the whole guard turns on | row 31 | `tests/test_paths.py::test_unreachable_is_true_for_an_entry_under_an_untraversable_parent` |
+| `paths.unreadable_directories` is empty on a healthy tree, so the collector is shown able to stay quiet | row 31 | `tests/test_paths.py::test_unreadable_directories_is_empty_on_a_healthy_tree` |
+| it names a subdirectory it could not list — the recursive half, which a one-shot probe of the root cannot reach | row 31 | `tests/test_paths.py::test_unreadable_directories_names_a_subdirectory_it_could_not_list` |
+| it names the root itself when the root is the one refused | row 31 | `tests/test_paths.py::test_unreadable_directories_names_the_root_itself_when_the_root_is_the_one_refused` |
+| it says nothing about a root that is not there — **`FileNotFoundError` is an absence, not a refusal** | row 31 | `tests/test_paths.py::test_unreadable_directories_says_nothing_about_a_root_that_is_not_there` |
+| it says nothing about a root that is a file — `NotADirectoryError`, the same distinction one line over | row 31 | `tests/test_paths.py::test_unreadable_directories_says_nothing_about_a_root_that_is_a_file` |
+| **the collector cannot see a directory that lists but cannot be entered, and that limit is pinned rather than assumed** — `scandir` succeeds at `0o400`, so no error hook fires; the per-candidate half is what covers it, and this row exists so nobody deletes that half believing the collector is enough | row 31 | `tests/test_paths.py::test_unreadable_directories_cannot_see_a_directory_that_lists_but_cannot_be_entered` |
+
 ## A name is escaped where it is rendered, not checked where it is typed (S4)
 
 `pnk init --name 'Bob'\''s "Special" KB'` exited `0`, printed *created*, and wrote a

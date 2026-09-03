@@ -644,6 +644,32 @@ def test_a_sidecar_whose_document_is_unreachable_is_not_offered_to_prune(kb: Pat
     assert not report.orphans
 
 
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_a_source_root_that_cannot_be_entered_does_not_crash_the_diagnosis(kb: Path) -> None:
+    """`doctor` walks `[sources] roots` too, and shared `sync`'s spelling of "is this a directory".
+
+    `Path.is_dir()` raises `PermissionError` on 3.13 for a root behind an ancestor this process may
+    not traverse, so the command you run *because* the KB is already broken ended in a traceback on
+    the interpreter `pyproject.toml` declares as the floor. This is the same one-line class the
+    0.32.3 fix cleared from three other sites and left here — `paths.is_directory` is version-
+    independent by construction, and the sidecar sweep below the guard is what the guard protects.
+    """
+    (kb / "store" / "realdocs").mkdir(parents=True)
+    shutil.rmtree(kb / "docs")
+    (kb / "docs").symlink_to(Path("store") / "realdocs")
+    (kb / "docs" / "a.md").write_text("# Alpha\n\ntext\n", encoding="utf-8")
+    os.chmod(kb / "store", 0o000)
+    try:
+        report = diagnose(load(kb))
+    finally:
+        os.chmod(kb / "store", 0o755)
+
+    assert report.checks, "a diagnosis that raised would never get here"
+    assert not report.orphans
+
+
 def test_duplicate_ids_are_a_failure_naming_both_paths(kb: Path) -> None:
     shared = mint_doc_id()
     for name in ("a.md", "b.md"):
