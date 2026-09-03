@@ -3553,7 +3553,7 @@ def test_a_symlink_into_an_unreadable_directory_is_reported_without_naming_a_cau
     This docstring used to add *"`exists()` swallows the `PermissionError` and returns False"*.
     That was measured on 3.14 and is false on 3.13, where it raises — and since this project
     supports both, the sentence described one interpreter while naming the language. It is why the
-    walk now goes through `_is_regular_file` and `_resolves`, whose answers do not depend on which
+    walk now goes through `is_regular_file` and `resolves`, whose answers do not depend on which
     Python is installed, and why this test crashed rather than failed the first time it met 3.13.
 
     Reporting it is still right: the document is not indexed, and the walk is the only place that

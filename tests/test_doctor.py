@@ -9,6 +9,7 @@ reachable path would report green over a feature nobody had run.
 """
 
 import difflib
+import os
 import re
 import shutil
 import sqlite3
@@ -602,6 +603,45 @@ def test_orphaned_sidecars_are_reported_and_only_pruned_on_request(kb: Path) -> 
 
     removed = prune(report.orphans)
     assert removed and not removed[0].exists()
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_a_sidecar_whose_document_is_unreachable_is_not_offered_to_prune(kb: Path) -> None:
+    """An orphan is a sidecar whose document is *gone*, and `--prune` deletes it.
+
+    So this predicate decides whether a permanent id gets destroyed, and it has to tell *absent*
+    apart from *there but unreachable*. `is_file()` collapses exactly those two, and both supported
+    interpreters got it wrong from that one line — differently. On 3.13 it raised and `pnk doctor`
+    ended in a traceback, which is the command you run *because* the KB is already broken. On 3.14
+    it returned False and this check reported the sidecar as orphaned, printing the remedy
+    *"Remove with `pnk doctor --prune`"* against a document sitting on disk.
+
+    **That second half is why this test does not need 3.13 to be useful.** The crash was
+    interpreter-specific; the wrong answer was not. `os.path.lexists` stats the entry instead of
+    following it, so anything at that path counts as the document still being there.
+
+    `test_orphaned_sidecars_are_reported_and_only_pruned_on_request` is the control and it already
+    existed: a document actually unlinked is still an orphan, and this change must not buy silence
+    by never reporting one.
+    """
+    locked = kb / "docs" / "locked"
+    locked.mkdir()
+    (locked / "hidden.md").write_text("# Hidden\n\nhidden\n", encoding="utf-8")
+    (kb / "docs" / "link.md").symlink_to(locked / "hidden.md")
+    (kb / "docs" / f"link.md{SIDECAR_SUFFIX}").write_text(
+        f"id: {mint_doc_id()}\n", encoding="utf-8"
+    )
+    os.chmod(locked, 0o000)
+    try:
+        report = diagnose(load(kb))
+    finally:
+        os.chmod(locked, 0o755)
+
+    orphan_check = next(c for c in report.checks if c.name == "orphaned sidecars")
+    assert orphan_check.status is Status.OK, orphan_check.detail
+    assert not report.orphans
 
 
 def test_duplicate_ids_are_a_failure_naming_both_paths(kb: Path) -> None:
