@@ -206,6 +206,105 @@ def render_context(manifest: Manifest) -> dict[str, Any]:
     }
 
 
+#: What a TOML v1.0.0 basic string must escape, and the escape it must use. **Tab is deliberately
+#: absent**: it is the one control character a basic string may carry raw, so escaping it would
+#: rewrite a legal byte to no purpose. Every other character below U+0020, and U+007F, has no legal
+#: raw form and is escaped by the `\uXXXX` fallback in `_toml_basic`.
+#:
+#: **That fallback would also produce valid TOML for `\b`, `\f`, `\n` and `\r`**, and the value
+#: round-trips identically either way — so these four entries change nothing a parser can see,
+#: only the bytes a human opens: `name = "a\nb"` rather than `name = "a\u000ab"`. They were four
+#: lines no test and no mutant could distinguish until 20260903, found by a review pass applying
+#: the standard this file had already applied to the `bool` exclusion.
+_TOML_ESCAPES = {
+    '"': '\\"',
+    "\\": "\\\\",
+    "\b": "\\b",
+    "\f": "\\f",
+    "\n": "\\n",
+    "\r": "\\r",
+}
+
+
+def _toml_basic(value: object) -> object:
+    """Make one interpolated value safe inside a TOML basic string; pass everything else through.
+
+    Jinja calls this on the result of every `{{ ... }}` in the template, which is what makes it a
+    fix to the *mechanism* rather than to one variable. `name` is the value that reached here from
+    a user — `pnk init --name`, or the directory name via `root.name` — but the next template
+    variable carrying user text inherits this without anyone remembering to, and that is the whole
+    reason it lives here instead of beside the one call site (S4, in the sweep plan).
+
+    **What passes through bare is an allow-list, and it is one entry long.** `int` — because
+    `dim = {{ embedding_dim }}` is the only variable this build interpolates *outside* a quoted
+    string, and `Manifest.embedding.dim` is an `int`. Escaping is a string operation on a string
+    position; a bare `int` has neither. **Everything else is stringified and escaped**, which is
+    the half a review pass found missing: the guard used to read *not a `str`*, so a `Path`
+    carrying a quote went out raw and wrote the same unparseable manifest S4 exists to prevent.
+    Jinja calls `str()` on whatever this returns, so declining to inspect a value is declining to
+    make it safe.
+
+    **`bool` is inside the allow-list, and excluding it was tried and measured out.** It is an
+    `int` in Python, so `isinstance` admits it; `str(True)` is `True` where TOML's literal is
+    `true`, which reads like a reason to escape it instead. It is not one: **this function escapes
+    content and never adds quotes**, so a bool renders `True` from either branch — bare at
+    `dim = {{ embedding_dim }}`, and inside the template's own quotes at `name = "{{ name }}"`.
+    The exclusion had no observable effect at any interpolation in this file, which made it code
+    no test could pin and a battery row that would have survived. It was removed for that reason.
+
+    **Some values have no TOML representation at all, and those raise.** A lone surrogate
+    (U+D800-U+DFFF) cannot appear in a basic string raw — the grammar admits `%x80-D7FF` and
+    `%xE000-10FFFF` and skips the gap — and cannot appear escaped either, since `\\uXXXX` must name
+    a Unicode scalar value. It reaches here routinely rather than exotically: POSIX decodes an
+    invalid UTF-8 byte in `sys.argv` or in a directory name with `surrogateescape` (PEP 383), so
+    `pnk init --name $'kb-\\xff'` and a non-UTF-8 directory name both produce one. Left alone it
+    crashed `init` with a raw `UnicodeEncodeError` from `Path.write_text` **after** the manifest
+    had been created and truncated — a zero-byte `pinakes.toml`, a directory `init` then refuses as
+    *already a KB*, which is S4's own end state reproduced by S4's own fix. Raising here fires
+    inside `render_manifest`, before `init` creates anything.
+
+    **The message names the code point and never echoes the value.** A name that carries an
+    unpaired surrogate can carry an ANSI escape beside it, and this message is printed to a
+    terminal.
+
+    **The region this cannot reach, stated rather than implied.** Escaping makes a value safe inside
+    a basic string. It does not make a value safe interpolated into a *literal* string (`'...'`,
+    which TOML gives no escapes at all), nor bare into a key or a number — a template doing either
+    with user text is broken in a way no escape function can repair. **This build's own template
+    uses three positions, not two, and the third went unnoticed until 20260903**: every variable
+    lands inside a basic string except `embedding_dim`, which is bare, and `rerank_model`, which
+    `notes/pinakes.toml.j2:39` *also* interpolates inside a **comment** —
+    `# fitted_for = "{{ rerank_model }}@<revision>"`, where the quotes are decorative and TOML
+    parses nothing at all. A value is safe there only because a newline is escaped and so cannot
+    reach a live line: the guarantee at that position is carried by one entry of
+    `_TOML_ESCAPES`, not by the position. A third-party template that arranges otherwise is
+    outside what this can promise.
+    """
+    if isinstance(value, int):
+        return value
+    # `str()` on a `StrictUndefined` raises `UndefinedError`, which is what `_render` turns into a
+    # message. Stringifying here does not swallow that; it is how the raise reaches the handler.
+    text = value if isinstance(value, str) else str(value)
+    out: list[str] = []
+    for character in text:
+        escape = _TOML_ESCAPES.get(character)
+        if escape is not None:
+            out.append(escape)
+        elif "\ud800" <= character <= "\udfff":
+            raise TemplateError(
+                f"a value for this manifest holds U+{ord(character):04X}, an unpaired surrogate, "
+                "which TOML cannot represent raw or escaped.",
+                remedy="This is what an invalid UTF-8 byte becomes when Python decodes an argument "
+                "or a filename. Pass a --name that is valid UTF-8, or rename the directory.",
+            )
+        elif character != "\t" and (character < " " or character == "\x7f"):
+            # No legal raw form in a basic string, and no single-letter escape reserved for it.
+            out.append(f"\\u{ord(character):04x}")
+        else:
+            out.append(character)
+    return "".join(out)
+
+
 def _render(source: str, context: dict[str, Any], *, name: str, version: str | None = None) -> str:
     """Render one manifest template, turning a missing variable into a message rather than a crash.
 
@@ -218,9 +317,12 @@ def _render(source: str, context: dict[str, Any], *, name: str, version: str | N
     second file read, and the successful render is the path that runs.
     """
     try:
-        return Template(source, undefined=StrictUndefined, keep_trailing_newline=True).render(
-            **context
-        )
+        return Template(
+            source,
+            undefined=StrictUndefined,
+            keep_trailing_newline=True,
+            finalize=_toml_basic,
+        ).render(**context)
     except TemplateSyntaxError as exc:
         # Raised by `Template(...)`, not by `render` — an unclosed `{{` is a fact about the file
         # rather than about the context, so it says the file is damaged rather than that a variable

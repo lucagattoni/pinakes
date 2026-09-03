@@ -33,15 +33,25 @@ survives — never for a number. **That clause read *"checks anchors and `kills`
 prose"* until 20260831**, which would send a session that had just tripped the gate to debug the
 wrong thing. It said
 *"Nine … Seven"* from 20260826, when three batteries landed in one day and one was never added to
-the total, until 20260830. **Three batteries are named for a module under `src/`** — `src-pinakes-init.toml`, over the check
+the total, until 20260830. **Four batteries are named for a module under `src/`** — `src-pinakes-init.toml`, over the check
 that decides whether a KB's `.pinakes/` can reach a remote; `src-pinakes-pairing.toml`, which
 spans **two** files, `src/pinakes/pairing.py` and `src/pinakes/sync.py`, because the guarantee it
-mutates spans both; and `src-pinakes-budget-ledger.toml`, which spans **three** —
+mutates spans both; `src-pinakes-budget-ledger.toml`, which spans **three** —
 `src/pinakes/budget/ledger.py`, `src/pinakes/budget/accountant.py` and
 `src/pinakes/extract/claude.py` — because the money path's kills live *between* the estimate and
-the ledger rather than at either end of it. **It is the first battery over the paid path at all**,
-added 20260902 after a money assertion that had never held by construction went red on a refreshed
-exchange rate. **Named for is not covers**: eight files under `src/` are mutated by some
+the ledger rather than at either end of it, and **it is the first battery over the paid path at
+all**, added 20260902 after a money assertion that had never held by construction went red on a
+refreshed exchange rate; and `src-pinakes-template.toml`, over `src/pinakes/template.py` alone —
+**the only one of the four that spans a single file**, because what it mutates is one function
+escaping one interpolation. Added 20260902 with S4. **Its sharpest row separates *parses* from
+*round-trips*:** drop the backslash arm and `C:\notes` still renders **valid TOML** — `\n` is a
+legal escape — and reads back as `C:`, a newline, and `otes`. The manifest parses, `pnk doctor`
+reports healthy, and the KB is named something nobody typed. **The example carries the row, and
+the first one written here was wrong.** `C:\notes\kb` was quoted until the run measured it: it is
+*rejected*, because `\k` is not an escape at all — so the mutant died on a `TOMLDecodeError` while
+the row's name claimed a round-trip nothing in the file was asserting. It now kills through a
+single-value test over `C:\notes` and dies on an equality. **A mutant killed for the wrong reason
+is a survivor wearing a green light.** **Named for is not covers**: nine files under `src/` are mutated by some
 battery, `src/pinakes/serve.py` among them via `tools-mcp_handshake_gate.toml` — which is why a
 `src-pinakes-serve.toml` proposed on 20260831 was refused by
 `test_no_file_is_claimed_by_two_batteries` and its rows appended to the handshake gate instead.

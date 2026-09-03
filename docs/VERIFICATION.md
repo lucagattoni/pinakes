@@ -1394,3 +1394,71 @@ a sidecar beside no walked file is an orphan. **The two that have none** —
 `test_an_unreadable_path_that_was_never_indexed_produces_no_action` and
 `test_an_already_retired_row_is_not_revived_by_becoming_unreadable` — demonstrate that the guard is
 reachable in those branches, and nothing more.
+
+## A name is escaped where it is rendered, not checked where it is typed (S4)
+
+`pnk init --name 'Bob'\''s "Special" KB'` exited `0`, printed *created*, and wrote a
+`pinakes.toml` that `tomllib` refuses at line 2. **The KB was born unopenable and every
+surface reported success** — which is why the rows below do not stop at "the manifest
+parses": each of the two that carry the claim asserts the name *reads back*, and the
+end-to-end one goes out through `load()` rather than stopping at `render_manifest`, where
+the defect is invisible.
+
+The fix is `finalize=` on the Jinja `Template`, so it is a fix to the **mechanism**: Jinja
+calls the hook on the result of every `{{ ... }}`, and the next variable to carry user text
+inherits it without anyone remembering to. One row below asserts a variable that is *not*
+the name, because that is what makes the previous sentence a mechanism rather than a
+coincidence.
+
+**Four of these rows assert that nothing changed, and they pass without the fix on
+purpose.** Over-escaping is how the obvious fix fails: a tab is the one control character a
+TOML basic string may carry raw, `dim` is a bare integer that must not become a string, an
+ordinary name must come out byte for byte, and a missing variable must still reach
+`StrictUndefined`. **That fourth one is narrower than it first reads, and the review pass
+measured how narrow.** `finalize` is handed the undefined itself, and almost anything a hook
+does with it re-raises: `str()` and a truthiness test both raise `UndefinedError` on it, so
+only a hook that returns something *without ever touching* the undefined — a constant, a
+sentinel, a caught exception — hides the raise. A test that only proves the escaper fires
+cannot catch any of the four.
+
+| What must be true | Increment | Where it is checked |
+|---|---|---|
+| a name holding any of the eleven values that open out the **three classes** the sweep named — `"`, `\`, and control characters other than tab — renders a manifest `tomllib` parses **and reads back as the name that went in**: parsing is the weaker claim, and a manifest can parse while holding the wrong name. The eleven are quote, backslash, both together, newline, carriage return, NUL, bell, backspace, form feed, unit separator and DEL — of which `C:\notes\kb` is the **verifier's** widening, not the sweep's, and *both together* is a pair rather than a character | S4 | `tests/test_template.py::test_a_name_in_any_class_the_sweep_named_renders_a_manifest_that_parses` |
+| the same eleven values survive `pnk init` and come back out of `load()` — the defect reported success, so a test that stops at `render_manifest` is looking at the half that was never broken | S4 | `tests/test_template.py::test_init_writes_a_kb_that_load_can_open_whatever_the_name_holds` |
+| a backslash path that stays **valid** TOML still reads back unchanged — `C:\notes` holds only `\n`, which TOML accepts, so an unescaped manifest parses cleanly and means `C:` + newline + `otes`, and `pnk doctor` calls that KB healthy under a name nobody typed. The row above cannot see it: **both** of its backslash values carry a sequence TOML rejects outright — `\k` in `C:\notes\kb`, and `\a` in `C:\a"b\\c` — so with the escape removed each dies on the parse before the round-trip is ever reached. **The illegal character is not the same one in both, and naming only `\k` was the third claim in this increment asserted without being run.** **Found by running the mutation battery and reading the kill reason** | S4 | `tests/test_template.py::test_a_backslash_path_that_stays_valid_toml_still_reads_back_unchanged` |
+| a value TOML cannot represent **at all** is refused before `init` creates anything — an unpaired surrogate (U+D800-U+DFFF) has no basic-string form raw and none escaped, and POSIX produces one from any invalid UTF-8 byte in an argument or a directory name. Unescaped it reached `Path.write_text`, which creates and truncates *before* the encoder raises: a zero-byte `pinakes.toml` and a directory `init` then refuses as *already a KB* — **S4's own end state, reproduced by S4's own fix**. The assertion that the root does not exist is the load-bearing half | S4 | `tests/test_template.py::test_a_name_holding_an_unpaired_surrogate_is_refused_before_anything_is_created` |
+| that refusal names the code point and never echoes the value — the message is printed to a terminal, and a name carrying an unpaired surrogate can carry an ANSI escape beside it | S4 | `tests/test_template.py::test_the_refusal_names_the_code_point_and_never_echoes_the_value` |
+| a context value that is **not** a string is escaped rather than passed through — the guard read *not a `str`*, and Jinja calls `str()` on whatever `finalize` returns, so declining to inspect a value was declining to make it safe. No call site in this build supplies one; the row exists because the promise is about the mechanism | S4 | `tests/test_template.py::test_a_context_value_that_is_not_a_string_is_escaped_rather_than_passed_through` |
+| the four escapes TOML reserves a letter for — `\b`, `\f`, `\n`, `\r` — are written **as those letters**, asserted against the bytes on disk. Each also falls under the `\uXXXX` fallback, which shadows it: drop any one and the manifest still parses and still round-trips the exact value, so every other row here stays green and no mutant could tell. What separates them is the file a human opens — `name = "a\nb"` against `name = "a\u000ab"` — and at `pinakes.toml.j2:39` it is the whole of what stops an interpolation inside a comment reaching a live line | S4 | `tests/test_template.py::test_the_four_reserved_escapes_are_written_as_letters_not_code_points` |
+| a tab is left raw, asserted against the byte on disk — it is the one control character a basic string may carry, and the byte is the only instrument that separates a raw tab from `\t` | S4 | `tests/test_template.py::test_a_tab_is_left_raw_rather_than_escaped` |
+| a name needing nothing is unchanged byte for byte — the control against over-escaping, which is the direction the obvious fix fails in | S4 | `tests/test_template.py::test_an_ordinary_name_is_left_byte_for_byte_alone` |
+| `dim` stays a bare integer — `finalize` is handed the result of *every* interpolation, including the one value that is not a string and would become an unreadable one | S4 | `tests/test_template.py::test_the_embedding_dimension_stays_a_bare_integer` |
+| a name taken from the directory reaches the same escaping — `--name` is the half someone would think to test, and `root.name` is the half that carries whatever the filesystem was willing to allow | S4 | `tests/test_template.py::test_the_directory_name_reaches_the_same_escaping_with_no_flag_at_all` |
+| a context variable other than the name is escaped too — this is the row that distinguishes a fix to the template from a call at the one variable the sweep happened to find | S4 | `tests/test_template.py::test_every_context_variable_is_escaped_not_only_the_name` |
+| `pnk upgrade` renders both sides of its diff through the same escaping, so no `[kb]` hunk appears that nobody caused — under the all-or-nothing conflict rule a spurious hunk is not cosmetic | S4 | `tests/test_template.py::test_both_sides_of_an_upgrade_diff_escape_identically` |
+| a variable this build does not supply still raises a message with a remedy — `finalize` runs *in front of* `StrictUndefined` and is handed the undefined itself. The regression to guard is **narrow and measured**: a hook that stringifies or tests truthiness re-raises anyway, so only one that returns without touching the undefined hides it | S4 | `tests/test_template.py::test_a_variable_this_build_does_not_supply_still_raises_a_message_not_a_traceback` |
+
+**What these rows do not cover, named rather than implied.** Escaping makes a value safe inside
+a TOML **basic** string — where a value *has* an escaped form at all. Where it does not, the
+row above says the answer is a refusal rather than an escape, and that class was found by a
+review pass and not by the corpus: every value the corpus holds was chosen by someone looking
+for a hard character to escape, so all eleven are representable by construction. Escaping
+cannot make a value safe inside a literal string (`'...'` has no escapes at all), or bare into
+a key or a number, either. Every variable this build supplies lands in a basic string except
+two: `embedding_dim`, which is bare and is never user text, and `rerank_model`, which the
+shipped template *also* interpolates **inside a comment** (`pinakes.toml.j2:39`,
+`# fitted_for = "{{ rerank_model }}@<revision>"`, and identically in `_versions/1.1` and
+`1.2`) — a third position, and one this paragraph did not name until 20260903. TOML never
+parses that line, so the quotes around it are decorative. It is safe there only because
+newline escaping stops a value reaching a live line, and that is a guarantee carried by a
+single entry of `_TOML_ESCAPES` — an entry that was itself unobservable until this pass,
+because the `\uXXXX` fallback shadows it. So the promise holds for this build, and holds
+because of what the shipped template happens to look like rather than because of anything
+asserted here. **The shipped template already interpolates outside a parsed string** — line 39 —
+so this is not a hypothetical about some third-party template: the case is in the wheel, and
+thirteen of the fourteen rows are blind to it. The fourteenth is not, and it does not cover
+the position either: it pins the one escape entry the position rests on, so that entry can no
+longer be deleted in silence. **The escape is what holds at line 39, and the fourteenth row
+guards the escape rather than the position** — nothing here asserts that a value reaching
+line 39 is safe. Closing that region needs a check that does not go through the escaper, and is its own
+increment.
