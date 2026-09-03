@@ -886,7 +886,7 @@ def test_pinakes_search_and_get_payloads_are_unchanged(linked_kb: Path) -> None:
 def test_a_mistyped_source_type_over_mcp_is_refused_rather_than_answered_with_nothing(
     kb: Path,
 ) -> None:
-    """The sweep's Low class survived on MCP after the CLI was fixed, and a docstring said it had not.
+    """The sweep's Low class outlived the CLI fix on MCP, under a docstring denying it did.
 
     `pnk search --source-type markdwon` is refused at argparse, but `pinakes_search` built
     `Filters(source_type=...)` from whatever the client sent, so the same typo returned zero

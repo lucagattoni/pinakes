@@ -6,6 +6,7 @@ import sys
 from collections.abc import Sequence
 from dataclasses import fields
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -536,7 +537,11 @@ def test_every_filter_field_on_its_own_counts_as_a_filter() -> None:
         "Filters.any_set, or an unfiltered-looking search will be reported as an empty KB."
     )
     for name, value in _NARROWING.items():
-        assert Filters(**{name: value}).any_set() is True, name
+        # `dict[str, Any]` rather than an inline unpack: the values are deliberately of four
+        # different types, so the inferred union is assignable to no single field and `ty` reports
+        # one diagnostic per field. The heterogeneity is the point of the table.
+        one_field: dict[str, Any] = {name: value}
+        assert Filters(**one_field).any_set() is True, name
 
 
 def test_a_falsy_but_present_filter_still_counts() -> None:
