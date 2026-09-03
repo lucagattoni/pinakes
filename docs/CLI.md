@@ -182,7 +182,7 @@ fusion → local cross-encoder rerank → cited passages plus a confidence signa
 | `--source-type TYPE` | `markdown`, `text`, `code` or `pdf` |
 | `--modified-after YYYYMMDD` | By the document's **mtime** — every document has one, unlike a sidecar's optional `created` |
 | `--modified-before YYYYMMDD` | Same |
-| `-k K` | How many passages to return. Defaults to `[retrieval] final_k` |
+| `-k K` | How many passages to return. Defaults to `[retrieval] final_k`. **Must be 1 or more** — `0` and negatives are refused as a usage error (exit 2). `0` is the arm worth knowing about: it used to mean *the manifest default*, because the value was read as `limit or final_k` and `0` is falsy, so asking for nothing returned `final_k` passages at exit 0 |
 | `--json` | Machine-readable output |
 
 Filters compose and are applied in SQL *before* retrieval, not as a post-filter.
