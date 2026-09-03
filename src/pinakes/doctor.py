@@ -768,7 +768,9 @@ def _index(manifest: Manifest, sidecars: Mapping[Path, Sidecar]) -> Iterator[Che
                 "failures",
                 Status.WARN,
                 f"{counts['failures']} recorded: {detail}",
-                "These documents are not searchable. Fix them and re-run `pnk sync`.",
+                "These documents failed on the last sync that tried them, so they are not "
+                "searchable. Fix them and re-run `pnk sync` — a document that indexes cleanly "
+                "clears its own entry.",
             )
         else:
             yield Check("failures", Status.OK, "none recorded")

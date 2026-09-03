@@ -21,7 +21,7 @@ from conftest import pdf_extraction_runnable
 from pinakes import search, store
 from pinakes.chunk import PREFIX_SEPARATOR
 from pinakes.embed import EmbeddingBackend, ModelInfo, Vectors
-from pinakes.errors import DuplicateIdsError, ManifestError
+from pinakes.errors import DuplicateIdsError, ManifestError, SyncError
 from pinakes.extract import (
     ExtractedText,
     ExtractionContext,
@@ -425,6 +425,145 @@ def test_index_only_never_writes_into_docs(kb: Path) -> None:
     assert report.embedded == 1
     assert not (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").exists()
     assert list(index(kb))
+
+
+def recorded_failures(kb: Path) -> list[tuple[str, str]]:
+    """`(path, stage)` for every row in the `failures` table, which no test read before S7."""
+    connection = store.connect_ro(kb / ".pinakes" / "index.db")
+    try:
+        return [
+            (str(row["path"]), str(row["stage"]))
+            for row in connection.execute("SELECT path, stage FROM failures ORDER BY id")
+        ]
+    finally:
+        connection.close()
+
+
+def test_repairing_a_document_clears_its_failure(kb: Path) -> None:
+    """Sweep S7, and the normal user path: the ledger never cleared, not even on repair.
+
+    `pnk doctor` went on reporting "N recorded: docs/keep.md" with "These documents are not
+    searchable" after the document had been repaired, re-indexed and was demonstrably searchable
+    — so the remedy it printed, *fix them and re-run `pnk sync`*, was exactly what the user had
+    just done, and doing it again changed nothing, forever.
+    """
+    write(kb, "keep.md", "# Keep\n\nText.\n")
+    assert run(kb).embedded == 1
+    sidecar = kb / "docs" / f"keep.md{SIDECAR_SUFFIX}"
+    good = sidecar.read_text(encoding="utf-8")
+
+    sidecar.write_text(BAD_LINK, encoding="utf-8")
+    assert run(kb).failures
+    assert recorded_failures(kb) == [("docs/keep.md", "index")]
+
+    sidecar.write_text(good, encoding="utf-8")
+    report = run(kb)
+
+    assert report.ok
+    assert recorded_failures(kb) == []
+
+
+def test_a_document_that_keeps_failing_keeps_one_row_not_one_per_sync(kb: Path) -> None:
+    """The other half of "never clears": it also never de-duplicated.
+
+    Three syncs of one broken document left three rows, so `doctor` reported a count of *attempts*
+    while calling them documents. The pre-attempt clear alone does not fix this — `_apply` rolls
+    back before recording a failure, and the rollback takes the clear with it, which is why
+    `store.record_failure` replaces rather than appends.
+    """
+    write(kb, "keep.md", "# Keep\n\nText.\n")
+    (kb / "docs" / f"keep.md{SIDECAR_SUFFIX}").write_text(BAD_LINK, encoding="utf-8")
+
+    for _ in range(3):
+        run(kb)
+
+    assert recorded_failures(kb) == [("docs/keep.md", "index")]
+
+
+def test_deleting_a_failed_document_clears_its_failure(kb: Path) -> None:
+    """A row naming a path that is gone can never be resolved by anything the user does.
+
+    Left behind, `doctor` warned about `docs/keep.md` in a KB with zero active documents, and the
+    only remedy it offered was to fix a file that no longer existed.
+    """
+    write(kb, "keep.md", "# Keep\n\nText.\n")
+    run(kb)
+    (kb / "docs" / f"keep.md{SIDECAR_SUFFIX}").write_text(BAD_LINK, encoding="utf-8")
+    run(kb)
+    assert recorded_failures(kb)
+
+    (kb / "docs" / "keep.md").unlink()
+    (kb / "docs" / f"keep.md{SIDECAR_SUFFIX}").unlink()
+    run(kb)
+
+    assert recorded_failures(kb) == []
+
+
+def test_an_ordinary_deletion_prints_nothing_about_a_move(kb: Path) -> None:
+    """Sweep S6, through the sentence a user actually reads.
+
+    `test_pairing.py` pins the predicate; this pins the rendering, and the two are separable —
+    the gate could be right in `pairing.py` while `SyncReport.lines()` went on printing the old
+    sentence, and nothing asserted that sentence at all before this. Deleting a document properly
+    means the file and its sidecar together, which is what `pnk sync` itself tells you to do.
+    """
+    write(kb, "a.md", "# Alpha\n\nText.\n")
+    run(kb)
+    (kb / "docs" / "a.md").unlink()
+    (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").unlink()
+
+    report = run(kb)
+
+    assert report.deleted == 1
+    assert report.source_gone_sidecar_kept == ()
+    printed = "\n".join(report.lines())
+    assert "source gone" not in printed
+    assert "minted" not in printed
+
+
+def test_a_source_gone_with_its_sidecar_kept_says_so_without_claiming_a_mint(kb: Path) -> None:
+    """The other half of S6: the hint still fires, and no longer asserts what it cannot know.
+
+    Only the file is deleted, so the sidecar is orphaned and D-37 option E's gate passes — but
+    nothing is minted, because the other half of a move need not arrive in the same run. The old
+    sentence ended "so a new id was minted", which is false here and was false on every ordinary
+    deletion too.
+    """
+    write(kb, "a.md", "# Alpha\n\nText.\n")
+    run(kb)
+    (kb / "docs" / "a.md").unlink()
+
+    report = run(kb)
+
+    assert report.embedded == 0  # nothing was minted, and the sentence must not say otherwise
+    line = next(line for line in report.lines() if line.startswith("source gone, sidecar kept:"))
+    assert "docs/a.md" in line
+    assert "minted" not in line
+    assert "move the sidecar with it" in line
+
+
+def test_sidecars_only_with_index_only_is_refused(kb: Path) -> None:
+    """Sweep S5. The two flags are halves of one sync and each names what the other does.
+
+    Unrefused, `--sidecars-only` simply won: it returns before the index is opened and
+    `_write_missing_sidecars` never reads `index_only`, so the run wrote into `docs/` — the one
+    thing `--index-only` exists to promise it will not do — and reported "0 indexed, 0 renamed, 0
+    metadata-only, 0 unchanged, 0 removed" at exit 0. Every number in that line was truthful; the
+    line was still a lie, because the count of files written into `docs/` is not one of them.
+
+    Asserting the *tree* and not only the exception is the point: a refusal that raised after the
+    sidecar was already on disk would satisfy a `pytest.raises` and leave the defect exactly where
+    it was.
+    """
+    write(kb, "a.md", "# Alpha\n\nText.\n")
+
+    with pytest.raises(SyncError) as caught:
+        run(kb, sidecars_only=True, index_only=True)
+
+    assert "two halves of one sync" in caught.value.message
+    assert "on its own" in caught.value.remedy
+    assert not (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").exists()
+    assert not (kb / ".pinakes" / "index.db").exists()
 
 
 def test_stage_limits_to_staged_files_and_adds_the_sidecars(kb: Path) -> None:
@@ -3181,6 +3320,28 @@ def test_one_unreadable_document_does_not_abort_the_sync_of_every_other(
     assert {Path(str(row["path"])).name for row in index(kb)} == {"a.md", "b.md"}
     assert [path for path, _error, _remedy in report.failures] == ["docs/c.md"]
     assert not report.ok, "an unreadable document must not let the run read as clean"
+
+
+def test_a_held_unreadable_document_keeps_its_recorded_failure(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The one exclusion from S7's clearing, and the reason `Skip` had to grow a `held` flag.
+
+    An unchanged document is indexed and searchable, so a row still calling it failed is stale and
+    goes. An unreadable one is *held* — nothing about it was attempted or verified this run, and
+    its recorded failure is the last honest thing anyone knew about it. Both arrive as `Skip`, and
+    clearing on `Skip` alone would have thrown the second away with the first.
+    """
+    write(kb, "keep.md", "# Keep\n\nText.\n")
+    run(kb)
+    (kb / "docs" / f"keep.md{SIDECAR_SUFFIX}").write_text(BAD_LINK, encoding="utf-8")
+    run(kb)
+    assert recorded_failures(kb) == [("docs/keep.md", "index")]
+
+    deny_reads_of(monkeypatch, "keep.md")
+    run(kb)
+
+    assert recorded_failures(kb) == [("docs/keep.md", "index")]
 
 
 def test_the_unreadable_failure_carries_a_remedy_that_names_both_ways_out(

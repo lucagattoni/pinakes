@@ -105,6 +105,15 @@ class WalkSnapshot:
 class Skip:
     doc_id: DocId
     path: str
+    held: bool = False
+    """Whether this skip is an *unreadable* document being held, rather than a healthy no-op.
+
+    Both reach `Skip`, and until S7 nothing distinguished them, because nothing needed to. Now
+    `sync` clears a path's `failures` rows when a run accounts for it cleanly, and the two answers
+    are opposite: an unchanged document (and one kept at its paid extraction) is indexed and
+    searchable, so a row still calling it failed is stale; an unreadable one cannot be verified at
+    all, and its recorded failure is the last honest thing anyone knew about it.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,8 +204,15 @@ class PairingResult:
     actions: tuple[Action, ...] = ()
     ambiguities: tuple[Ambiguity, ...] = ()
     orphaned_sidecars: tuple[str, ...] = ()
-    moved_without_sidecar: tuple[str, ...] = ()
-    """Paths that were soft-deleted and re-minted because their sidecar did not travel (§9)."""
+    source_gone_sidecar_kept: tuple[str, ...] = ()
+    """Paths soft-deleted while their sidecar stayed on disk — half of a move, or a deletion that
+    left the sidecar behind (§9, D-37 option E).
+
+    **Named for the state, not the conclusion.** It read `moved_without_sidecar` and "soft-deleted
+    and re-minted because their sidecar did not travel", and neither survives contact with the two
+    states that reach it: nothing is re-minted when only the file was deleted, and whether it moved
+    at all is precisely what this cannot know. A name that asserts the conclusion is how the caller
+    came to print it."""
     paid_extraction_protected: tuple[str, ...] = ()
     """Paths kept at their paid extraction despite a free-effective run — printed once, not
     silently (I5, decision 9)."""
@@ -242,11 +258,13 @@ def pair(
         sidecar.id for sidecar in after.sidecars if sidecar.document_path in after_by_path
     )
 
+    orphaned_documents = _orphaned_documents(after, unreadable)
+
     effective_is_paid = effective_backend is not None and effective_backend in paid_backend_names
 
     actions: list[Action] = []
     ambiguities: list[Ambiguity] = []
-    moved_without_sidecar: list[str] = []
+    source_gone_sidecar_kept: list[str] = []
     paid_extraction_protected: list[str] = []
     paid_extraction_overwritten: list[str] = []
     handled_ids: set[DocId] = set()
@@ -261,7 +279,7 @@ def pair(
         document = before_by_path.get(path)
         if document is None or document.state == DELETED:
             continue  # never indexed, or already retired: there is no row to hold
-        actions.append(Skip(doc_id=document.id, path=path))
+        actions.append(Skip(doc_id=document.id, path=path, held=True))
         handled_ids.add(document.id)
         handled_paths.add(path)
 
@@ -499,8 +517,19 @@ def pair(
 
         actions.append(SoftDelete(doc_id=document.id, path=document.path))
         handled_ids.add(document.id)
-        if document.path not in after_by_path:
-            moved_without_sidecar.append(document.path)
+        if document.path in orphaned_documents:
+            # D-37, option E: gated on the orphaned sidecar, **not** on the mint count.
+            #
+            # Sweep S6. The test used to be `document.path not in after_by_path` — "the file is
+            # gone" — which is true of every ordinary deletion, so `pnk sync` announced a move on
+            # the commonest operation there is, naming a path that no longer existed. An orphaned
+            # sidecar is the thing that actually distinguishes the two: delete a document properly
+            # and its sidecar goes with it, leaving nothing behind to report.
+            #
+            # Why the mint count is the wrong gate, which is what option E rules out: the other
+            # half of a move need not arrive in the same run. Deleting only the file and leaving
+            # the sidecar mints nothing at all, and is still the state this hint exists for.
+            source_gone_sidecar_kept.append(document.path)
 
     # --- Everything still unclaimed is new ------------------------------------------------------
     for path, file in after_by_path.items():
@@ -512,7 +541,7 @@ def pair(
         actions=tuple(_order_for_path_availability(actions, before_by_path)),
         ambiguities=tuple(ambiguities),
         orphaned_sidecars=_orphans(after, unreadable),
-        moved_without_sidecar=tuple(sorted(moved_without_sidecar)),
+        source_gone_sidecar_kept=tuple(sorted(source_gone_sidecar_kept)),
         paid_extraction_protected=tuple(sorted(paid_extraction_protected)),
         paid_extraction_overwritten=tuple(sorted(paid_extraction_overwritten)),
     )
@@ -664,6 +693,25 @@ def _order_for_path_availability(
     return ordered
 
 
+def _orphaned_documents(
+    after: WalkSnapshot, unreadable: frozenset[str] = frozenset()
+) -> frozenset[str]:
+    """Document paths whose sidecar is still on disk while the document itself is not.
+
+    The same question `_orphans` asks, keyed by the *document* rather than the sidecar, because
+    two callers need it from opposite ends: `_orphans` reports the sidecar to prune, and `pair`
+    gates the "source gone, sidecar kept" hint on it (D-37, option E). Defined once so the two can
+    never drift into disagreeing about what "orphaned" means — a hint gated on one notion and a
+    remedy printed from another would be worse than either alone.
+
+    `unreadable` documents are *present*: see `_orphans` for why that distinction has teeth.
+    """
+    present = {file.path for file in after.files} | unreadable
+    return frozenset(
+        sidecar.document_path for sidecar in after.sidecars if sidecar.document_path not in present
+    )
+
+
 def _orphans(after: WalkSnapshot, unreadable: frozenset[str] = frozenset()) -> tuple[str, ...]:
     """Sidecars whose document is gone. Reported, never deleted — that needs `--prune` (§6.4).
 
@@ -672,9 +720,9 @@ def _orphans(after: WalkSnapshot, unreadable: frozenset[str] = frozenset()) -> t
     hands the user a command that deletes the ULID of a document still sitting on disk. Ids are
     permanent by invariant, and a `chmod` is not a deletion.
     """
-    documents = {file.path for file in after.files} | unreadable
+    gone = _orphaned_documents(after, unreadable)
     return tuple(
-        sorted(sidecar.path for sidecar in after.sidecars if sidecar.document_path not in documents)
+        sorted(sidecar.path for sidecar in after.sidecars if sidecar.document_path in gone)
     )
 
 

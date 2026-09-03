@@ -13,7 +13,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 15
+mutants = 19
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · the `.gitignore` check answers what git answers
@@ -178,3 +178,76 @@ old = """    rendered = template.render_manifest("""
 new = """    root.mkdir(parents=True, exist_ok=True)
     rendered = template.render_manifest("""
 kills = "tests/test_template.py::test_a_name_holding_an_unpaired_surrogate_is_refused_before_anything_is_created"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260903 · S8 and S9 — one missing boundary check, seen from two ends
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# **These rows are about `src/pinakes/cli.py`, in a battery named for `init.py`, and that is the
+# convention rather than an accident.** `tools/batteries/README.md` § *Named for is not covers*:
+# one battery per file, not per subject, and `cli.py` was already claimed here by the
+# `.gitignore`-warning rows above. A second file would be refused by
+# `tests/test_batteries.py::test_no_file_is_claimed_by_two_batteries`, and the same shape was
+# already refused once on 20260831 for `src-pinakes-serve.toml`.
+#
+# `-k` was `type=int` and nothing more, so the value flowed to whatever the command reached and
+# each surface failed in its own way. `search` reached `passages[:final_k]`, where a negative
+# width is a legal Python slice bound: `-k -1` answered with every passage but the last at exit 0,
+# `-k -100` answered "no passages matched." `ask` reached `deep/estimate.py:_positive` and raised
+# an unhandled `ValueError` traceback. **The confident wrong answer is the worse half**, and it is
+# the half no traceback would have brought anyone to.
+#
+# The rows below are all about *where* the check sits. A guard on either arm alone would leave the
+# other wrong, and both arms are downstream of one flag that a shared `_retrieval_arguments`
+# declares once.
+
+[[mutant]]
+name = "THE SHIPPED DEFECT — -k goes back to a bare int, so a negative width is a slice bound again"
+file = "src/pinakes/cli.py"
+# The whole of S8 and S9. Both commands regress together because the declaration is shared, which
+# is the point: the parametrised selector fails on `search` and on `ask`, and a fix applied to
+# only the arm that crashed would leave the arm that answered wrongly still answering wrongly.
+old = '''    parser.add_argument("-k", type=_passage_count, default=None, help="how many passages to return")'''
+new = '''    parser.add_argument("-k", type=int, default=None, help="how many passages to return")'''
+kills = "tests/test_cli_search.py::test_k_below_one_is_a_usage_error_on_both_retrieval_commands"
+
+[[mutant]]
+name = "DISCRIMINATING — the bound reverts to < 0, so `-k 0` silently means the manifest's default"
+file = "src/pinakes/cli.py"
+# The arm that is not in S8's or S9's record, and the one a reviewer reading for symmetry would
+# introduce: rejecting negatives and admitting zero looks like the careful choice. `search.py`
+# reads the width as `limit or manifest.retrieval.final_k`, so a falsy `0` is not "return nothing"
+# but "use the default" — the user asks for no passages and receives ten, at exit 0. Only the `0`
+# case of the parametrisation separates this from the row above.
+old = '''    if value < 1:'''
+new = '''    if value < 0:'''
+kills = "tests/test_cli_search.py::test_k_below_one_is_a_usage_error_on_both_retrieval_commands"
+
+[[mutant]]
+name = "CONTROL — the bound widens to < 2 and refuses a legitimate `-k 1`, which the rejection tests cannot see"
+file = "src/pinakes/cli.py"
+# Without the control, deleting the comparison and refusing every `-k` leaves both rejection
+# selectors green while the flag no longer works at all. This is the row that makes them mean
+# something.
+old = '''    if value < 1:
+        raise argparse.ArgumentTypeError('''
+new = '''    if value < 2:
+        raise argparse.ArgumentTypeError('''
+kills = "tests/test_cli_search.py::test_a_positive_k_still_bounds_the_result"
+
+[[mutant]]
+name = "the refusal becomes operational rather than usage, so a malformed invocation exits 1 instead of 2"
+file = "src/pinakes/cli.py"
+# `cli.py`'s module docstring makes the exit codes a contract — 1 operational, 2 usage — and a
+# `PinakesError` raised inside an argparse `type` callable propagates out of `parse_args` to
+# `main`'s handler, which prints a remedy and exits 1. It reads as a *better* error, with a remedy
+# the ArgumentTypeError has no room for, and it is the wrong code: nothing about `-k -1` is
+# re-runnable into working. Killed by the selector's `exit_info.value.code == 2`, never by its
+# message assertion, which this mutant satisfies.
+old = '''        raise argparse.ArgumentTypeError(
+            f"{value} is not a number of passages — it must be 1 or more"
+        )'''
+new = '''        raise PinakesError(
+            f"{value} is not a number of passages — it must be 1 or more"
+        )'''
+kills = "tests/test_cli_search.py::test_k_below_one_is_a_usage_error_on_both_retrieval_commands"

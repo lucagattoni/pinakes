@@ -650,6 +650,37 @@ def test_recorded_failures_are_surfaced(kb: Path) -> None:
     assert "bad.md" in detail
 
 
+def test_a_repaired_document_stops_being_reported_as_failed(kb: Path) -> None:
+    """Sweep S7, at the surface that made it visible.
+
+    `doctor` kept warning "N recorded: docs/bad.md" with "These documents are not searchable"
+    long after the document was repaired and re-indexed — while `search` returned it. The remedy
+    it printed was *fix them and re-run `pnk sync`*, which is precisely what the user had done,
+    so following the advice correctly changed nothing and the warning was permanent.
+    """
+    (kb / "docs" / "bad.md").write_bytes(b"\xff\xfe not utf-8 \xff")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:31")
+    assert checks(kb)["failures"][0] is Status.WARN
+
+    (kb / "docs" / "bad.md").write_text("# Fixed\n\nPlain text now.\n", encoding="utf-8")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:32")
+
+    status, detail = checks(kb)["failures"]
+    assert status is Status.OK, detail
+
+
+def test_the_failures_remedy_says_how_an_entry_goes_away(kb: Path) -> None:
+    """The remedy was "Fix them and re-run `pnk sync`" while nothing ever cleared the table, so it
+    described an action with no effect. It now says what re-running actually does."""
+    (kb / "docs" / "bad.md").write_bytes(b"\xff\xfe not utf-8 \xff")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:31")
+
+    remedy = next(check.remedy for check in diagnose(load(kb)).checks if check.name == "failures")
+
+    assert remedy is not None
+    assert "clears its own entry" in remedy
+
+
 def test_every_problem_carries_a_remedy(kb: Path) -> None:
     """A report that says "problem" without saying "do this" is just anxiety."""
     (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").write_text("id: nope\n", encoding="utf-8")

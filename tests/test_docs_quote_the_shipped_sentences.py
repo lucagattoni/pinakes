@@ -52,6 +52,22 @@ RETIRED: tuple[tuple[str, str], ...] = (
         "The conditional was E1's, when no run could happen. E4 made it present tense: a run "
         "*does* end at its caps.",
     ),
+    (
+        "moved without its sidecar, so a new id was minted",
+        "Sweep S6, 20260903: `pnk sync` printed this on every ordinary deletion, asserting a move "
+        "and a mint that had not happened and naming a path no longer on disk. Replaced by the "
+        "`source gone, sidecar kept:` line, which states only what was observed. The first row "
+        "here that is a *false* sentence rather than a superseded one — it was never true of the "
+        "run that printed it, which is why nothing caught it for as long as it shipped.",
+    ),
+    (
+        "These documents are not searchable",
+        "Sweep S7, 20260903: `pnk doctor`'s failures remedy, which kept saying this about "
+        "documents the user had already repaired, because nothing ever cleared a `failures` row. "
+        "The replacement scopes the claim to the last sync that tried them and says how an entry "
+        "goes away. Quoting the halves of a retired sentence separately is the way to cite one "
+        "in prose — see `sync.py`'s `source_gone_sidecar_kept` comment.",
+    ),
 )
 
 
