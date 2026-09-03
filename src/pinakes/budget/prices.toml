@@ -23,7 +23,13 @@
 # the newest published at that moment. The value it replaces, 1.159, was the 2026-09-01 fixing and
 # was itself one release old -- which is the step working: the rate moved 0.10% in a day, and the
 # only reason anyone knows that is that it was re-read rather than carried forward.
-as_of = "20260903 09:32"
+#
+# 0.32.2 re-read the same source at 20260903 12:53 and the API returned the 2026-09-02 fixing again, at the
+# same 1.1578: the ECB had not published 20260903 yet, which is the ordinary outcome for the second
+# release of one day. The stamp moves because the check was performed; the rate does not, because
+# it did not move. That is the only combination this step permits -- re-stamping without re-reading
+# is the falsification, and declining to stamp a check that was actually made throws the check away.
+as_of = "20260903 12:53"
 usd_per_eur = "1.1578"
 
 # Measured against the live API on 20260729 03:17 with claude-opus-5, over the synthetic corpus

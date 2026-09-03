@@ -253,6 +253,7 @@ number belongs to a release only when it is cut
 | **[0.31.1](#0311--the-price-nobody-was-watching--20260831-2301)** | 20260831 23:01 | the price nobody was watching | • `usd_per_eur` held its **seed value `1.08`** from 20260728 to 20260831 while `as_of` was re-stamped over it at 0.31.0<br>• The falsification `docs/RELEASING.md` step 3 names — and step 3 was written **five hours earlier the same day**<br>• ECB reference rate for 20260831 is **1.1596**; every EUR figure was **over-stated by 7.4%** and every EUR cap bit early<br>• Nothing overspent — but ledger lines since 20260728 carry a rate that was never true, and re-deriving euros from them is faithful to a wrong record<br>• **The staleness guard was healthy and guarded the wrong thing**: `max_price_age_days` and `pnk doctor` both key on `as_of`<br>• `prices.toml` now **names its FX source**, in the file — an unnamed source is not re-checkable by the next release<br>• **Nothing in the suite asserted the committed rate**; one literal was its alarm **by accident**, and it fires on *movement*, never on *staleness*<br>• Rowed as two parts on purpose — decoupling it alone would delete the only alarm the rate has ever had<br>• Two `retro.d/` fragments would have spliced malformed; one carried **no `##` heading** and the stream synthesises none<br>• no `schema_version`, no rebuild; `prices.toml` ships in the wheel |
 | **[0.32.0](#0320--one-unreadable-file-no-longer-takes-the-kb-with-it--20260902-0948)** | 20260902 09:48 | one unreadable file no longer takes the KB with it | • One file the process could not open ended `pnk sync` with a raw traceback and **no index database at all** — `hash_file` let `PermissionError` escape `walk_sources`<br>• The path is carried out of the walk and reported per-document with a `chmod +r` remedy; `report.ok` is `not failures`, so the run still exits non-zero<br>• **The second half is what makes the first safe** — `pair()` reasons from *absence*, so a skipped file would have emitted a `SoftDelete` and **deleted the document from search**<br>• `pnk doctor` died on the same condition: the remedy `pnk sync` prints sent you to a traceback. A fourth drift check, `paid extraction unreadable`, names what it could not decide<br>• An unreadable document's sidecar is no longer listed as orphaned — that list is printed with `pnk doctor --prune` beside it, and pruning destroys a permanent ULID<br>• The other eleven entries are tooling and documents: `tools/agent_spend.py`, the probe's `--questions` flag, a `retro.d/` heading gate, the 34-finding 20260807 audit closed as one unit, and the link gate learning where a fragment's body is spliced to |
 | **[0.32.1](#0321--a-kb-name-no-longer-bricks-the-kb-at-creation--20260903-0933)** | 20260903 09:33 | a KB name no longer bricks the KB at creation | • A name holding a `"`, a `\` or a control character closed or escaped the TOML basic string it was interpolated into, so `pinakes.toml` came out unreadable while `pnk init` exited 0 and printed *created*<br>• **There was no repair path** — `pnk init` refuses a directory that is already a KB, so recovery meant hand-editing TOML<br>• The fix is a `finalize=` hook on the Jinja template, so it covers **every** interpolated value rather than `--name`, and both ways in, since `init` falls back to the directory's own name<br>• **It does not only escape** — an unpaired surrogate has no TOML form raw *or* escaped, reached `Path.write_text`, which truncates *before* the encoder raises, and left a **zero-byte manifest**: S4's own end state, found on the branch that fixed S4. It is refused before anything is created, naming the code point and **never echoing the value**<br>• **What it does not do** — escaping for TOML discharges nothing a terminal is owed, and a KB already bricked stays bricked, because the fix is at creation<br>• Everything else in this release is tooling, documents and a red `main`: a money assertion quantisation cannot hold, green for a month on the value of an exchange rate neither test named |
+| **[0.32.2](#0322--four-reports-that-were-not-true--20260903-1254)** | 20260903 12:54 | four reports that were not true | • Every **ordinary deletion** announced *“moved without its sidecar”* and *“a new id was minted”* (halves, since the joined sentence is retired) — nothing moved, nothing was minted, and the named path no longer existed<br>• The hint is gated on an **orphaned sidecar**, the thing that actually separates a move from a deletion; and it reports the state observed, since deleting the file alone leaves a sidecar and mints nothing — a **third state** the answered decision did not foresee<br>• **`-k` below 1 was `type=int` and nothing else**: `pnk search` used it as a raw negative-slice bound — `-k -1` returned every passage but the last at exit 0 — while `pnk ask` raised an unhandled `ValueError`. One missing check, one surface wrong and one crashing<br>• **`-k 0` is refused, a deliberate breaking change in a PATCH** — `limit or `…`final_k` made a falsy `0` mean *use the default*. Same ground as 0.7.1 and 0.20.1: the previous behaviour was the defect<br>• **`pnk sync --sidecars-only --index-only` wrote into `docs/`** — the one thing `--index-only` promises not to do — and reported five zeros at exit 0: every number truthful, the line still a lie, because the count of files written was not among them<br>• **Nothing ever deleted from the `failures` table**, so a repaired document stayed listed forever under the advice *“Fix them and re-run `pnk sync`”*; and three syncs of one broken document left three rows, a count of **attempts** dressed as a count of problems<br>• The first fix for it was **eaten by a transaction boundary** — `connection.rollback()` discarded the uncommitted `DELETE` — and no unit test could have shown it, because each exercised a single sync<br>• A green test named for the right scenario **built the wrong one**: the fixture passed `()` for the walk's sidecars, modelling a move whose sidecar was deleted<br>• A 39-mutant battery killed 38, **all written by the author of the fix**; the survivor was equivalent, its `kills` selector named a test of a different function, and the withdrawal's reasoning was false — replaced after a peer's refutation failed<br>• All four ship in the wheel — `cli.py`, `sync.py`, `pairing.py`, `store.py`, `doctor.py`; no `schema_version`, no rebuild |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -2540,6 +2541,98 @@ green and each right to be.
 
 **No `schema_version` bump and no rebuild.** `src/pinakes/template.py` and `prices.toml` ship in the
 wheel; the gates do not.
+
+
+## 0.32.2 — four reports that were not true · 20260903 12:54
+
+**Four things Pinakes said about what it had just done, none of them true — and on three of them it
+exited 0.** They were found by running it (`plans/20260825_1240-run-pinakes-sweep.md`, row 7), and
+they are one release because they are one class: a confident sentence about an operation that did
+not happen that way.
+
+**A deletion reported as a move and a mint (S6).** Every ordinary deletion announced *“moved
+without its sidecar”* and *“a new id was minted”* over the path it had just lost — quoted in
+halves, because `tests/test_docs_quote_the_shipped_sentences.py` retires the joined form, and a
+line break is not a guard. Three claims, all false, on the commonest operation there is. The hint now fires on an **orphaned sidecar**, which is what actually separates
+a move from a deletion: delete a document properly and its sidecar goes with it, leaving nothing
+behind to report. **The decision that settled the predicate did not settle the sentence.** D-37
+answered *gate on the orphaned sidecar, not the mint count*, and it is right; enumerating the states
+it applies to turned up **three** where the decision reasons about two. Deleting only the file and
+leaving the sidecar is orphaned but mints nothing, so it passed the new gate and went on asserting a
+mint. The sentence now reports the state observed rather than the conclusion inferred.
+
+**`-k` below 1 (S8, S9).** It was `type=int` and nothing else, so the value travelled to whatever
+the command reached. `pnk search` used it as a raw Python negative-slice bound and answered
+**confidently and wrongly**: `-k -1` returned every passage but the last at exit 0, `-k -100`
+returned none and called it *“no passages matched.”* `pnk ask` carried the same value to the deep
+estimator, which rejected it as an unhandled `ValueError` traceback. One missing check, one surface
+answering wrongly and one crashing. It is a usage error at the parser now, exit 2, on both.
+
+**`-k 0` is refused as well, and that is a deliberate behaviour change in a PATCH.** The width was
+read as `limit or manifest.retrieval.final_k`, so a falsy `0` silently meant *use the default* — the
+user asks for nothing and receives ten passages. Anything scripted against `-k 0` now gets an error
+where it used to get default-`k` results. **The bump is settled on the same ground this project
+already ruled twice**, at 0.7.1 and 0.20.1: the previous behaviour was the defect, so removing it is
+a fix.
+
+**Two flags that each name what the other does (S5).** `--sidecars-only` says *write into `docs/`,
+never touch the index*; `--index-only` says *update the index, never write into `docs/`*. Passed
+together, `--sidecars-only` simply won — it returns before the index is opened, and the sidecar
+writer never read `index_only` at all — so the run **created sidecars in `docs/`**, the one thing
+`--index-only` exists to promise it will not do, and reported `0 indexed, 0 renamed, 0
+metadata-only, 0 unchanged, 0 removed` at exit 0. Every number in that line was truthful; the line
+was still a lie, because the count of files written into `docs/` was not among them. The pair is
+refused. **What that summary should count is filed as S20 and deliberately unrowed** — it is the
+user's call, not an implementer's.
+
+**A failure ledger that never cleared (S7).** Nothing ever deleted from the `failures` table, so a
+document the user fixed and re-indexed stayed listed forever — `pnk doctor` insisting it *“is not
+searchable”* while `pnk search` returned it, under the advice *“Fix them and re-run `pnk sync`”*,
+which is exactly what the user had just done. It never de-duplicated either: three syncs of one
+broken document left three rows, so the count reported was a count of **attempts** wearing the
+clothes of a count of problems. The table answers *what is wrong with this KB now*. A document that
+indexes cleanly clears its own entry, a removed one takes its entry with it, and one held because it
+is **unreadable** keeps its entry — nothing about it was verified this run, so its recorded failure
+is still the last honest thing anyone knew about it.
+
+**The fix for it was written, unit-tested green, and did nothing.** The clear sat at the top of
+`_apply`, which reads best and is correct in isolation; the failure paths call
+`connection.rollback()` before recording, and the rollback discarded the `DELETE` sitting
+uncommitted in the same transaction. Running the real command three times against one broken
+document produced three rows. **No unit test written for it could have shown that**, because each
+exercised a single sync. A write inside a block that may roll back is not a write — and *“the test
+is green”* answers a narrower question than *“the defect is gone”*, here by an entire half of the
+finding. A third case came from the same habit: clearing on every action **except** `Skip` missed
+the repair a user is most likely to perform, since restoring a hand-edited sidecar to its original
+bytes changes neither content nor sidecar hash and arrives as *unchanged*. `Skip` now says which of
+its two meanings it carries.
+
+**Three things about the tests are worth more than the fixes.** A green test named
+`test_rename_plus_edit_without_the_sidecar_is_reported_as_such` **built a different world**: its
+fixture passed `()` for the walk's sidecars, which models a file moved *and* its sidecar deleted,
+not a file moved without it — so it asserted the hint fired in a state where firing is wrong, and
+passed, because the code fired on every vanished path. Separately, nothing asserted the **sentence**
+`pnk sync` prints: the pairing tests pinned the predicate and stopped, so the gate could have been
+fixed while `sync.py` went on printing the false words. Both are pinned now. And the battery ran 39
+mutants and killed 38 — **every one written by the author of the fix, each dying to a test that
+author had just written, which is a closed loop that reads as proof**. The 39th survived, and was
+*equivalent* rather than a finding; its `kills` selector named a test of a different function, which
+a SURVIVED row can never exercise; and the justification written to withdraw it assumed what it
+needed to prove. That last one was caught by **a peer trying to refute the withdrawal and failing**,
+which is why the reasoning was replaced anyway.
+
+**Everything else in this release is documents.** The sweep plan's own build-order summary called
+S1, S5, S6, S8 and S9 *one shape — an input the tool accepts and then mishandles*; S6 involves no
+input at all, and the person who noticed was the one **building** from the sentence. It is a
+three-mechanism table now. `tools/batteries/README.md`'s *commit before mutating* rule was widened
+from batteries to **any file-reverting harness**. And three registers were found still describing a
+tree that had moved on — row 7 unflipped 23 minutes after landing, the sweep plan's own row 6, and
+four rows marked LIVE for work that had been on PyPI for three days.
+
+**No `schema_version` bump and no rebuild.** All four fixes ship in the wheel — `cli.py`, `sync.py`,
+`pairing.py`, `store.py` and `doctor.py`. A KB that never met one of these four states is
+unaffected.
+
 
 
 # Part 5 · What is not built

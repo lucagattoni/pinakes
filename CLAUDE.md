@@ -160,17 +160,19 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   more. Read § 3 before picking anything up, and **read a row's body, not only its cells**:
   *Blocked on: nothing* speaks about external blockers, and two rows carry a choice inside them.
   **Everything below this bullet is background, not a queue.**
-- **🚦 `main` is green at `300998b` and 0.32.1 is published — and a release is DUE and uncut.**
-  **Nine fragments wait** in `changelog.d/` (4) and `retro.d/` (5), from sweep row 7's four fixes
-  (S5, S6, S7, and S8/S9 as one boundary guard) plus the documents that followed them. **Cut
-  0.32.2, a PATCH** — and do not re-litigate the bump: refusing `-k 0` *is* a breaking CLI change,
-  and this project has ruled that exact case twice, at **0.7.1** and **0.20.1** (*"Breaking, and
-  deliberately in a patch"*), on the ground that **the previous behaviour was the defect**. It was
-  ready 20260903 10:58 UTC and deliberately held: a tag publishes to PyPI, PyPI never accepts a
-  version twice, and the window between `git tag` and `make release-check` is the only irreversible
-  one in this process — so it waits for a stable session rather than being started in a doomed one.
-  **`pnk sync --sidecars-only` reporting five zeros is S20, filed with no build-order row on
-  purpose**: what the summary should count is the user's call, not an implementer's.
+- **🚦 0.32.2 is CUT — a PATCH carrying sweep row 7's four fixes, and `changelog.d/` and `retro.d/`
+  are empty again.** The nine fragments that waited here for two hours are spliced. **Do not
+  re-litigate the bump**: refusing `-k 0` *is* a breaking CLI change, and this project has ruled
+  that exact case twice, at **0.7.1** and **0.20.1** (*"Breaking, and deliberately in a patch"*), on
+  the ground that **the previous behaviour was the defect**. **What is still owed is the
+  post-publish sweep** — `docs/STATUS.md`'s headline hold marker comes off, its *Published on PyPI*
+  prose and *Published versions* row gain 0.32.2, and `docs/ROADMAP.md`'s two prose blocks are
+  recounted; every one of those is a claim about the **index**, so it waits until `uvx --no-cache
+  --refresh --from "pinakes[light]==0.32.2" pnk --version` has answered. **The ROADMAP prose is
+  deliberately not written at the cut**: its own discipline is *count, never increment*, and a tag
+  that does not exist yet cannot be counted. **`pnk sync --sidecars-only` reporting five zeros is
+  S20, filed with no build-order row on purpose**: what the summary should count is the user's call,
+  not an implementer's.
 - **✅ 0.32.0** (green 20260902 10:51, published 10:07). Its red
   lasted 44 minutes and is worth one sentence: a money assertion compared a value taken *before*
   the ledger's write-time quantisation against one taken *after* it, and **had been green for a

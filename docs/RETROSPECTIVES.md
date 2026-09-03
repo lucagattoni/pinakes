@@ -11082,6 +11082,177 @@ artefact asked *does the test go red*, and all three defects live in *why* it we
 cannot carry that, and neither can a green suite. What found them was a review pass that re-derived
 each kill's reason — one question per row, asked of evidence the tool had already printed.
 
+## The summary sentence disagreed with the table one screen above it (20260903 10:23)
+
+**MEDIUM — a plan's prose register and its own table register drifted apart, and the person who
+noticed was the one *building* from it, not anyone reading it.**
+
+`plans/20260825_1240-run-pinakes-sweep.md` carried, in its build-order discussion, the sentence
+*"S1, S5, S6, S8, S9 all share one shape — an input the tool accepts and then mishandles, rather
+than refuses"*. Its own findings table, some four hundred lines earlier in the same file, defines **S6** as a
+message that fires **on ordinary deletion** — no input is involved anywhere in it. The user
+performs a correct, complete deletion and the tool makes a false statement about what it did.
+
+Three things are worth keeping out of it.
+
+**The generalisation was the defect, not a typo.** Four of the five findings really did share that
+shape, which is exactly why the fifth was swept in without anyone re-reading it. A summary is a
+claim about a set, and a claim about a set is only as good as the member you checked last.
+
+**The document's two registers had already been recorded as a failure mode here — twice — and it
+still recurred inside the file doing the recording.** `20260825_1252-plans-sweep-findings.md` holds
+two registers of the same facts and twelve of its 27 rows stopped describing the tree; the rule
+written from that says *where a dated snapshot and a `## Build order` disagree, the build order
+wins*. What this instance adds: the two registers can be **prose and a table in one file**, close
+enough that nobody thinks of them as two registers at all.
+
+**Building is a stronger read than reading.** Nothing about the sentence looks wrong. It reads as a
+competent summary, and it survived every pass over this plan until a coder had to decide whether S6
+belonged in the same guard as S8 and S9 — a question the sentence answers wrongly and a build
+answers correctly. The same pass returned two other things the plan did not have: a third arm of S8
+(`-k 0` is falsy, so `limit or manifest.retrieval.final_k` silently substitutes the default) and a
+third state of S6 under its decided fix. **Cheapest available review of a planning document: give it
+to someone who has to act on it.**
+
+Corrected in place: the sentence is now a three-mechanism table — a mishandled input (S5, S8, S9,
+and S1 shipped in 0.32.0), a false reporting predicate (S6), and state that never clears (S7, which
+the original sentence never mentioned at all).
+
+## A decision that did not foresee its third state (20260903 10:24)
+
+**MEDIUM — an answered decision can still be short a case, and building it is what finds out.**
+D-37 was answered 20260825: *option E — gate the move hint on the orphaned sidecar, **not** the
+mint count.* It is a clear instruction and it is right. Enumerating the states it applies to,
+before writing anything, turned up **three** where the decision reasons about two:
+
+| on disk after the change | orphaned sidecar | id minted | hint should fire |
+|---|---|---|---|
+| file and sidecar both deleted | no | no | **no** — this was the S6 false positive |
+| file moved and edited, sidecar left | yes | yes | yes |
+| **only the file deleted, sidecar left** | **yes** | **no** | **yes, but nothing was minted** |
+
+Option E fixes *when* the hint fires and is silent on *what it says*, so the third state passed the
+new gate and went on printing *"so a new id was minted"* — false. The wording is implementation, so
+it was mine to take, and the sentence now reports the state observed rather than the conclusion
+inferred. **A decision that settles a predicate has not thereby settled the sentence the predicate
+prints.**
+
+**The same shape, twice in one increment.** S8 records `-k -1` and `-k -100`. Enumerating instead
+of trusting the record found `-k 0`: the width is read as `limit or manifest.retrieval.final_k`, so
+a falsy `0` silently meant *use the default* — the user asks for nothing and receives ten passages.
+A third arm of a defect whose record listed two.
+
+**The transferable move is the table, not the finding.** Both came from writing out every state the
+mechanism can be in and checking each against the rule, rather than checking the rule against the
+states someone had already written down. **A recorded finding enumerates the cases its finder
+happened to try, and reads exactly like a complete list.**
+
+## A fixture named for a scenario it did not build (20260903 10:24)
+
+**HIGH — a test can be green, correctly named, and modelling a different world.** S6 — `pnk sync`
+announcing *"moved without its sidecar"* and *"a new id was minted"* on every ordinary deletion
+(quoted in halves: the joined sentence is now a retired row) — was
+covered by a test called
+`test_rename_plus_edit_without_the_sidecar_is_reported_as_such`. The name is accurate about the
+intent. The fixture passed `()` for the walk's sidecars.
+
+A file moved without its sidecar leaves **two** halves on disk: the new path carrying no sidecar,
+and the old path's sidecar carrying no document. Passing no sidecars at all models something else
+entirely — a file moved *and* its sidecar deleted, which is indistinguishable from deleting one
+document and creating another. The test therefore asserted the hint fired in a state where firing
+is wrong, and it passed, because the code fired the hint on **every** vanished path. The fixture
+and the defect agreed with each other, and the agreement read as coverage.
+
+**The check that would have caught it is not "is this tested?" but "does the fixture build the
+state the name describes?"** Two seconds of reading the scenario against the assertion, which is
+the reading nobody does on a green test.
+
+**The same increment showed the second half of it.** Nothing anywhere asserted the *sentence*
+`pnk sync` prints for this case — the pairing tests pinned the predicate and stopped there, so the
+gate could have been fixed in `pairing.py` while `sync.py` went on printing the false sentence, and
+every test would have stayed green. **A predicate and the words it produces are two surfaces, and
+pinning one is not pinning the other.** Both are pinned now.
+
+## The rollback took the fix with it (20260903 10:24)
+
+**HIGH — a fix that unit-tests green and does nothing, because a transaction boundary ate it.**
+S7's clearing was written where it reads best: at the top of `_apply`, once, before a path is
+re-attempted. Repair a document and the row goes. That much was true and the test proved it.
+
+Then running the real thing three times against one broken document produced **three rows**. The
+failure paths in `sync` call `connection.rollback()` before recording, and the rollback discards
+the `DELETE` sitting uncommitted in the same transaction. The clear was written, then silently
+undone, then a fresh row appended — for every sync, forever. **The half of the defect the fix was
+also supposed to cure survived it completely**, and no unit test I had written could have shown
+that, because each one exercised a single sync.
+
+**What found it was running the command three times and counting rows** — not reasoning about the
+code, which had already concluded the fix was complete. The repo's own rule says a seam removes an
+inch of the real path from coverage and that defects concentrate there; a transaction boundary is
+exactly such a seam, and it is invisible in the source line where the bug appears to live.
+
+**Two lessons, and the second is the sharper one.** A write inside a block that may roll back is
+not a write. And **"the test is green" answers a narrower question than "the defect is gone"** —
+here they differed by an entire half of the finding.
+
+**A third came free, from the same habit.** The first version cleared on every action *except*
+`Skip`, on the reasoning that a skip means nothing was attempted. Running it showed `Skip` carries
+two unrelated meanings: an unreadable document being **held**, and an ordinary **unchanged** one.
+They want opposite answers — and repairing a hand-edited sidecar back to its original bytes changes
+neither content nor sidecar hash, so **the repair a user is most likely to perform arrives as
+"unchanged"**, and the fix missed precisely the case it was written for. `Skip` now says which it
+is. **One name quietly serving two states costs nothing until something has to tell them apart.**
+
+## A green battery inherits its author's framing (20260903 10:48)
+
+**MEDIUM — the mutants a fix's author can imagine are the failure modes that author already
+guarded against.** Row 7's battery section ran 39 mutants and killed 38. Every one of the 38 was
+written by the person who had just written the fix, and every one died to a test that same person
+had just written. That is a closed loop, and it reads as proof.
+
+The 39th is the one worth keeping. It widened S6's gate from `document.path in orphaned_documents`
+to the looser `document.path in sidecar_by_document`, and it **survived** — which looks like a
+missing assertion and was not one. Applied against the full suite it was green on 2398 tests: an
+*equivalent* mutant. The predicate I had introduced as the fix does not, at that program point,
+constrain anything the looser one does not.
+
+Three things went wrong at once, and only the first is the kind a gate catches.
+
+1. **The mutant was equivalent.** Not a finding.
+2. **Its `kills` selector named a test of a different function** — `_orphans`, which never reaches
+   that gate. `tools/batteries/README.md` says the selector is the half that historically rots;
+   here it was wrong on the day it was written, and a SURVIVED row hid it, because a row that
+   survives never exercises its selector.
+3. **The justification I wrote for withdrawing it was false.** I wrote that control reaches that
+   line only for a document being soft-deleted, so its path is necessarily absent from
+   `after.files`. The conclusion is true. The reasoning assumes exactly what it needs to prove,
+   and two routes do leave a *present* path unhandled and drop it into that loop. What actually
+   closes the case is a three-step argument about `claimed_by_id`: both routes require the id to
+   be claimed by a sidecar beside a present file, and every such sidecar is reached by one of two
+   `handled_ids.add(sidecar.id)` sites before the vanished-path loop runs.
+
+**Number 3 was caught by a peer trying to refute the withdrawal, and failing.** They built a
+present-path counterexample, ran it against both the real module and a mutated copy — anchor
+asserted to match once, `__pycache__` cleared, `pinakes.pairing.__file__` checked so that a null
+result could not have come from importing the unmutated file — and got an empty result from both.
+The refutation failed; the argument it was aimed at was replaced anyway, because attacking it is
+what exposed that it had never been load-bearing.
+
+*Lesson: a battery written by the author of the fix measures the author's imagination, not the
+code. Its green is evidence that the fix does what its author meant, never that what they meant
+was right. Two cheap things buy back most of the gap — run a surviving mutant against the whole
+suite before believing it is a finding, since an equivalent mutant and a missing assertion are
+byte-identical in the report; and have someone who did not write the fix try to refute the
+reasoning rather than re-read the diff, because the reasoning is where the author's framing is
+load-bearing and the diff is where it is invisible.*
+
+*Second-order: a SURVIVED row never runs its own selector, so a battery's survivors are exactly
+the rows whose second half is unverified. The one place the report cannot check itself is the one
+place it asks to be believed.*
+
+See [`tools/batteries/src-pinakes-pairing.toml`](https://github.com/lucagattoni/pinakes/blob/main/tools/batteries/src-pinakes-pairing.toml),
+which carries the withdrawn row's reasoning in place of the row.
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings
