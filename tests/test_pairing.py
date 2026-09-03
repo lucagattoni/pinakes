@@ -336,14 +336,63 @@ def test_rename_plus_edit_keeps_the_id_and_emits_no_delete() -> None:
 
 
 def test_rename_plus_edit_without_the_sidecar_is_reported_as_such() -> None:
-    """§9's most likely real-world corruption, surfaced at the moment it happens."""
+    """§9's most likely real-world corruption, surfaced at the moment it happens.
+
+    **The walk now carries the orphaned sidecar, and that is the correction.** This fixture used
+    to pass `()` for sidecars — a world in which the file moved *and* its sidecar was deleted,
+    which is indistinguishable from deleting one document and creating another. It was named for
+    a scenario it did not build, and the hint it pinned fired on that scenario and every other
+    vanished path too (S6). Move a file and leave its sidecar and the walk finds both halves:
+    the new path with no sidecar, and `docs/old.md.pnk.yaml` with no document.
+    """
     doc = mint_doc_id()
     result = pair(
         IndexSnapshot((indexed(doc, "docs/old.md", "h1"),)),
-        WalkSnapshot((walked("docs/new.md", "h2"),), ()),
+        WalkSnapshot((walked("docs/new.md", "h2"),), (sidecar("docs/old.md", doc),)),
     )
     assert describe(result) == {"SoftDelete": 1, "Mint": 1}
-    assert result.moved_without_sidecar == ("docs/old.md",)
+    assert result.source_gone_sidecar_kept == ("docs/old.md",)
+    assert result.orphaned_sidecars == ("docs/old.md.pnk.yaml",)
+
+
+def test_an_ordinary_deletion_reports_no_move() -> None:
+    """Sweep S6, the false positive that fired on the commonest operation there is.
+
+    Delete a document properly — the file and the sidecar together — and there is nothing left
+    behind to report. The old test was `document.path not in after_by_path`, which is true of
+    every deletion, so `pnk sync` said "moved without its sidecar, so a new id was minted",
+    naming a path that no longer existed, on every ordinary `rm` and every `git rm`. Three claims,
+    all false: nothing moved, nothing was minted, and the path is gone.
+
+    D-37 option E gates on the orphaned sidecar, which is exactly what a complete deletion does
+    not leave.
+    """
+    doc = mint_doc_id()
+    result = pair(
+        IndexSnapshot((indexed(doc, "docs/gone.md", "h1"),)),
+        WalkSnapshot((), ()),
+    )
+    assert describe(result) == {"SoftDelete": 1}
+    assert result.source_gone_sidecar_kept == ()
+    assert result.orphaned_sidecars == ()
+
+
+def test_deleting_only_the_file_still_reports_though_nothing_is_minted() -> None:
+    """The third state, and the one that fixes the *wording* rather than the gate.
+
+    Delete the file and leave the sidecar: the gate passes — a sidecar is orphaned — but no `Mint`
+    is emitted, because the other half of a move need not arrive in the same run. This is why
+    D-37 option E gates on the orphaned sidecar and explicitly **not** on the mint count, and why
+    the reported sentence can no longer say "a new id was minted": here nothing was.
+    """
+    doc = mint_doc_id()
+    result = pair(
+        IndexSnapshot((indexed(doc, "docs/gone.md", "h1"),)),
+        WalkSnapshot((), (sidecar("docs/gone.md", doc),)),
+    )
+    assert describe(result) == {"SoftDelete": 1}
+    assert not actions_of(result, Mint)
+    assert result.source_gone_sidecar_kept == ("docs/gone.md",)
 
 
 def test_a_sidecar_whose_document_is_gone_is_reported_as_orphaned() -> None:

@@ -427,6 +427,49 @@ def test_index_only_never_writes_into_docs(kb: Path) -> None:
     assert list(index(kb))
 
 
+def test_an_ordinary_deletion_prints_nothing_about_a_move(kb: Path) -> None:
+    """Sweep S6, through the sentence a user actually reads.
+
+    `test_pairing.py` pins the predicate; this pins the rendering, and the two are separable —
+    the gate could be right in `pairing.py` while `SyncReport.lines()` went on printing the old
+    sentence, and nothing asserted that sentence at all before this. Deleting a document properly
+    means the file and its sidecar together, which is what `pnk sync` itself tells you to do.
+    """
+    write(kb, "a.md", "# Alpha\n\nText.\n")
+    run(kb)
+    (kb / "docs" / "a.md").unlink()
+    (kb / "docs" / f"a.md{SIDECAR_SUFFIX}").unlink()
+
+    report = run(kb)
+
+    assert report.deleted == 1
+    assert report.source_gone_sidecar_kept == ()
+    printed = "\n".join(report.lines())
+    assert "source gone" not in printed
+    assert "minted" not in printed
+
+
+def test_a_source_gone_with_its_sidecar_kept_says_so_without_claiming_a_mint(kb: Path) -> None:
+    """The other half of S6: the hint still fires, and no longer asserts what it cannot know.
+
+    Only the file is deleted, so the sidecar is orphaned and D-37 option E's gate passes — but
+    nothing is minted, because the other half of a move need not arrive in the same run. The old
+    sentence ended "so a new id was minted", which is false here and was false on every ordinary
+    deletion too.
+    """
+    write(kb, "a.md", "# Alpha\n\nText.\n")
+    run(kb)
+    (kb / "docs" / "a.md").unlink()
+
+    report = run(kb)
+
+    assert report.embedded == 0  # nothing was minted, and the sentence must not say otherwise
+    line = next(line for line in report.lines() if line.startswith("source gone, sidecar kept:"))
+    assert "docs/a.md" in line
+    assert "minted" not in line
+    assert "move the sidecar with it" in line
+
+
 def test_sidecars_only_with_index_only_is_refused(kb: Path) -> None:
     """Sweep S5. The two flags are halves of one sync and each names what the other does.
 

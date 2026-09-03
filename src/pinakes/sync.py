@@ -192,7 +192,8 @@ class SyncReport:
     failures: list[tuple[str, str, str]] = field(default_factory=list[tuple[str, str, str]])
     ambiguities: tuple[Ambiguity, ...] = ()
     orphaned_sidecars: tuple[str, ...] = ()
-    moved_without_sidecar: tuple[str, ...] = ()
+    source_gone_sidecar_kept: tuple[str, ...] = ()
+    """Documents whose file is gone while their sidecar is still on disk (§9, D-37 option E)."""
     paid_extraction_protected: tuple[str, ...] = ()
     """Kept at their paid extraction despite a free-effective run — printed once, not per path
     (I5, decision 9)."""
@@ -403,8 +404,18 @@ class SyncReport:
                 f"their extracted text is no longer cached, so this run could not re-chunk them "
                 f"without paying to extract again: {named}"
             )
-        for path in self.moved_without_sidecar:
-            lines.append(f"moved without its sidecar, so a new id was minted: {path}")
+        for path in self.source_gone_sidecar_kept:
+            # Says what was observed, and stops there. The old sentence — "moved without its
+            # sidecar, so a new id was minted" — asserted two things this cannot know: that the
+            # document moved rather than being deleted, and that something was minted. On an
+            # ordinary deletion both were false and the path it named no longer existed (S6); in
+            # the state where only the file is deleted, the mint half is still false. The gate now
+            # keeps the first case out, and this keeps the second honest.
+            lines.append(
+                f"source gone, sidecar kept: {path} — if it moved, move the sidecar with it or "
+                "the file at its new path is given a fresh id; if it was deleted, delete the "
+                "sidecar too"
+            )
         for ambiguity in self.ambiguities:
             lines.append(
                 f"ambiguous duplicate of {ambiguity.old_path}: "
@@ -1220,7 +1231,7 @@ def _run(
         )
         report.ambiguities = result.ambiguities
         report.orphaned_sidecars = result.orphaned_sidecars
-        report.moved_without_sidecar = result.moved_without_sidecar
+        report.source_gone_sidecar_kept = result.source_gone_sidecar_kept
         report.paid_extraction_protected = result.paid_extraction_protected
         report.paid_extraction_overwritten = result.paid_extraction_overwritten
 
