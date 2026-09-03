@@ -25,7 +25,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 39
+mutants = 38
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -610,18 +610,25 @@ old = '''        if document.path in orphaned_documents:'''
 new = '''        if document.path not in after_by_path:'''
 kills = "tests/test_pairing.py::test_an_ordinary_deletion_reports_no_move"
 
-[[mutant]]
-name = "S6 — the orphan gate widens to any sidecar, so a deletion that kept no sidecar still reports"
-file = "src/pinakes/pairing.py"
-# A subtler wrong gate than the one above, and the one a re-implementation would most plausibly
-# reach for: `sidecar_by_document` holds every walked sidecar, including those beside living
-# documents. It happens to agree with the correct gate on the two states that reach this line
-# today, and stops agreeing the moment an unreadable document is in play -- which is the case
-# `_orphaned_documents` exists to get right, and why the gate reads from it rather than from the
-# raw mapping.
-old = '''        if document.path in orphaned_documents:'''
-new = '''        if document.path in sidecar_by_document:'''
-kills = "tests/test_pairing.py::test_an_unreadable_documents_sidecar_is_not_reported_as_orphaned"
+# A second S6 mutant was written here and withdrawn, and the reason is worth more than the row
+# would have been. It widened the gate to `document.path in sidecar_by_document` -- the looser
+# mapping of every walked sidecar -- on the theory that the two diverge once an unreadable
+# document is in play. They do not, and cannot: by the time control reaches this line the
+# document is being soft-deleted, so its path is in neither `after.files` nor `unreadable`, and
+# `not in present` is therefore unconditionally true. That collapses `in orphaned_documents` to
+# exactly `in sidecar_by_document`. Run against the full suite the mutant was green on 2398
+# tests -- an equivalent mutant, not a gap in the assertions.
+#
+# So `_orphaned_documents` is **not load-bearing at this gate**, and the row above is the only
+# one that pins it. Its value here is that the hint and `--prune`'s remedy cannot drift into
+# disagreeing about what "orphaned" means, which is a maintenance guarantee rather than a
+# behavioural one -- a real reason to keep the helper, and not the reason the comment in
+# `pairing.py` gave when this section was first drafted.
+#
+# It was also wrong in the half the README says rots first: its `kills` selector named
+# `test_an_unreadable_documents_sidecar_is_not_reported_as_orphaned`, a test of `_orphans` that
+# never reaches this gate at all. A SURVIVED row is a claim about a pair, and both halves of
+# this one were wrong.
 
 [[mutant]]
 name = "S6 — the sentence claims a mint again, which is false whenever only the file was deleted"
