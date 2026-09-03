@@ -19,10 +19,12 @@
 # The ECB fixing date is not always as_of's date, and the difference is recorded rather than
 # implied. The ECB publishes around 16:00 CET, so a release cut in the morning necessarily carries
 # the previous business day's fixing; letting as_of imply the fixing it read is the quiet half of
-# the same falsification. 0.32.0 was stamped on 20260902 and carries the 2026-09-01 fixing, the
-# newest published at that moment. The value it replaces, 1.1596, was the 2026-08-31 fixing.
-as_of = "20260902 09:48"
-usd_per_eur = "1.159"
+# the same falsification. 0.32.1 was stamped on 20260903 09:32 and carries the 2026-09-02 fixing,
+# the newest published at that moment. The value it replaces, 1.159, was the 2026-09-01 fixing and
+# was itself one release old -- which is the step working: the rate moved 0.10% in a day, and the
+# only reason anyone knows that is that it was re-read rather than carried forward.
+as_of = "20260903 09:32"
+usd_per_eur = "1.1578"
 
 # Measured against the live API on 20260729 03:17 with claude-opus-5, over the synthetic corpus
 # (docs/MEASUREMENT-RUN.md). Recorded here rather than only in a retrospective because the next
