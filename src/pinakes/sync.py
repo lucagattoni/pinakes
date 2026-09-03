@@ -1390,6 +1390,28 @@ def _apply(
     extraction_backend: str,
     protected_by_hash: dict[DocId, tuple[str, str]],
 ) -> None:
+    # Whatever `failures` still says about the paths this action touches describes the *last* run
+    # and not this one, so it is cleared before the attempt rather than in each success branch —
+    # there are four of those and a fifth would have been added without this (S7).
+    #
+    # A *held* `Skip` is the one exclusion: the document is unreadable, nothing is attempted, and
+    # its recorded failure is the last honest thing anyone knew about it. An ordinary `Skip` is
+    # cleared like everything else, and that case is not academic — repairing a hand-edited
+    # sidecar back to its original bytes changes neither content nor sidecar hash, so the repair
+    # a user is most likely to perform arrives here as "unchanged".
+    #
+    # A `Rename`'s or `Adopt`'s old path is cleared for the reason `SoftDelete` is: that path is
+    # gone from disk, and a row naming it can never be resolved by anything the user does.
+    if not (isinstance(action, Skip) and action.held):
+        store.clear_failures(connection, path=action.path)
+        match action:
+            case Rename(old_path=old_path):
+                store.clear_failures(connection, path=old_path)
+            case Adopt(old_path=old_path) if old_path is not None:
+                store.clear_failures(connection, path=old_path)
+            case _:
+                pass
+
     match action:
         case Skip():
             report.skipped += 1

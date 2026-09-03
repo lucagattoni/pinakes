@@ -105,6 +105,15 @@ class WalkSnapshot:
 class Skip:
     doc_id: DocId
     path: str
+    held: bool = False
+    """Whether this skip is an *unreadable* document being held, rather than a healthy no-op.
+
+    Both reach `Skip`, and until S7 nothing distinguished them, because nothing needed to. Now
+    `sync` clears a path's `failures` rows when a run accounts for it cleanly, and the two answers
+    are opposite: an unchanged document (and one kept at its paid extraction) is indexed and
+    searchable, so a row still calling it failed is stale; an unreadable one cannot be verified at
+    all, and its recorded failure is the last honest thing anyone knew about it.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -270,7 +279,7 @@ def pair(
         document = before_by_path.get(path)
         if document is None or document.state == DELETED:
             continue  # never indexed, or already retired: there is no row to hold
-        actions.append(Skip(doc_id=document.id, path=path))
+        actions.append(Skip(doc_id=document.id, path=path, held=True))
         handled_ids.add(document.id)
         handled_paths.add(path)
 

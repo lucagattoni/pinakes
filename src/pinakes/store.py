@@ -435,10 +435,36 @@ def load_vectors(
 def record_failure(
     connection: sqlite3.Connection, *, path: str, stage: str, error: str, happened: str
 ) -> None:
+    """Record *the* current failure for this path, replacing whatever was there.
+
+    Replacing, not appending, and the delete has to live here rather than only in `_apply`'s
+    pre-attempt clear: the failure paths in `sync` roll back before recording, and a rollback
+    takes that clear with it. Two syncs of one broken document then left two rows describing one
+    problem — a count of attempts wearing the clothes of a count of problems (S7). One path fails
+    at most once per run, so this cannot discard a failure the same run still needs.
+    """
+    connection.execute("DELETE FROM failures WHERE path = ?", (path,))
     connection.execute(
         "INSERT INTO failures (path, stage, error, happened) VALUES (?, ?, ?, ?)",
         (path, stage, error, happened),
     )
+
+
+def clear_failures(connection: sqlite3.Connection, *, path: str) -> None:
+    """Forget every recorded failure for one path. Called before that path is re-attempted.
+
+    `failures` answers "what is wrong with this KB *now*" — it is what `pnk doctor` counts and
+    warns on, and `.pinakes/` is disposable state, not the append-only money ledger. Nothing ever
+    deleted from it (sweep S7), which made the count wrong in both directions: a document the user
+    repaired stayed listed forever, with `doctor` insisting it "is not searchable" while `search`
+    returned it; and a document that failed on every sync added a fresh row each time, so the
+    number `doctor` reported was a count of attempts wearing the clothes of a count of problems.
+
+    Clearing before the attempt rather than after a success is what makes one sync leave exactly
+    one row per still-broken path: re-fail and the current failure is recorded again, with this
+    run's stamp rather than the first run's.
+    """
+    connection.execute("DELETE FROM failures WHERE path = ?", (path,))
 
 
 def dumps_metadata(metadata: dict[str, Any]) -> str:

@@ -427,6 +427,78 @@ def test_index_only_never_writes_into_docs(kb: Path) -> None:
     assert list(index(kb))
 
 
+def recorded_failures(kb: Path) -> list[tuple[str, str]]:
+    """`(path, stage)` for every row in the `failures` table, which no test read before S7."""
+    connection = store.connect_ro(kb / ".pinakes" / "index.db")
+    try:
+        return [
+            (str(row["path"]), str(row["stage"]))
+            for row in connection.execute("SELECT path, stage FROM failures ORDER BY id")
+        ]
+    finally:
+        connection.close()
+
+
+def test_repairing_a_document_clears_its_failure(kb: Path) -> None:
+    """Sweep S7, and the normal user path: the ledger never cleared, not even on repair.
+
+    `pnk doctor` went on reporting "N recorded: docs/keep.md" with "These documents are not
+    searchable" after the document had been repaired, re-indexed and was demonstrably searchable
+    — so the remedy it printed, *fix them and re-run `pnk sync`*, was exactly what the user had
+    just done, and doing it again changed nothing, forever.
+    """
+    write(kb, "keep.md", "# Keep\n\nText.\n")
+    assert run(kb).embedded == 1
+    sidecar = kb / "docs" / f"keep.md{SIDECAR_SUFFIX}"
+    good = sidecar.read_text(encoding="utf-8")
+
+    sidecar.write_text(BAD_LINK, encoding="utf-8")
+    assert run(kb).failures
+    assert recorded_failures(kb) == [("docs/keep.md", "index")]
+
+    sidecar.write_text(good, encoding="utf-8")
+    report = run(kb)
+
+    assert report.ok
+    assert recorded_failures(kb) == []
+
+
+def test_a_document_that_keeps_failing_keeps_one_row_not_one_per_sync(kb: Path) -> None:
+    """The other half of "never clears": it also never de-duplicated.
+
+    Three syncs of one broken document left three rows, so `doctor` reported a count of *attempts*
+    while calling them documents. The pre-attempt clear alone does not fix this — `_apply` rolls
+    back before recording a failure, and the rollback takes the clear with it, which is why
+    `store.record_failure` replaces rather than appends.
+    """
+    write(kb, "keep.md", "# Keep\n\nText.\n")
+    (kb / "docs" / f"keep.md{SIDECAR_SUFFIX}").write_text(BAD_LINK, encoding="utf-8")
+
+    for _ in range(3):
+        run(kb)
+
+    assert recorded_failures(kb) == [("docs/keep.md", "index")]
+
+
+def test_deleting_a_failed_document_clears_its_failure(kb: Path) -> None:
+    """A row naming a path that is gone can never be resolved by anything the user does.
+
+    Left behind, `doctor` warned about `docs/keep.md` in a KB with zero active documents, and the
+    only remedy it offered was to fix a file that no longer existed.
+    """
+    write(kb, "keep.md", "# Keep\n\nText.\n")
+    run(kb)
+    (kb / "docs" / f"keep.md{SIDECAR_SUFFIX}").write_text(BAD_LINK, encoding="utf-8")
+    run(kb)
+    assert recorded_failures(kb)
+
+    (kb / "docs" / "keep.md").unlink()
+    (kb / "docs" / f"keep.md{SIDECAR_SUFFIX}").unlink()
+    run(kb)
+
+    assert recorded_failures(kb) == []
+
+
 def test_an_ordinary_deletion_prints_nothing_about_a_move(kb: Path) -> None:
     """Sweep S6, through the sentence a user actually reads.
 
@@ -3248,6 +3320,28 @@ def test_one_unreadable_document_does_not_abort_the_sync_of_every_other(
     assert {Path(str(row["path"])).name for row in index(kb)} == {"a.md", "b.md"}
     assert [path for path, _error, _remedy in report.failures] == ["docs/c.md"]
     assert not report.ok, "an unreadable document must not let the run read as clean"
+
+
+def test_a_held_unreadable_document_keeps_its_recorded_failure(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The one exclusion from S7's clearing, and the reason `Skip` had to grow a `held` flag.
+
+    An unchanged document is indexed and searchable, so a row still calling it failed is stale and
+    goes. An unreadable one is *held* — nothing about it was attempted or verified this run, and
+    its recorded failure is the last honest thing anyone knew about it. Both arrive as `Skip`, and
+    clearing on `Skip` alone would have thrown the second away with the first.
+    """
+    write(kb, "keep.md", "# Keep\n\nText.\n")
+    run(kb)
+    (kb / "docs" / f"keep.md{SIDECAR_SUFFIX}").write_text(BAD_LINK, encoding="utf-8")
+    run(kb)
+    assert recorded_failures(kb) == [("docs/keep.md", "index")]
+
+    deny_reads_of(monkeypatch, "keep.md")
+    run(kb)
+
+    assert recorded_failures(kb) == [("docs/keep.md", "index")]
 
 
 def test_the_unreadable_failure_carries_a_remedy_that_names_both_ways_out(
