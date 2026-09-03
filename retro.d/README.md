@@ -54,6 +54,19 @@ three.
 
 Fragments are spliced **before** the design-review-passes section, which stays at the foot.
 
+**Never quote a retired sentence contiguously.**
+`tests/test_docs_quote_the_shipped_sentences.py` asserts that a sentence this build can no longer
+print appears nowhere in `docs/`, `README.md` or `src/` — and splicing puts this fragment inside
+`docs/RETROSPECTIVES.md`, which that gate `rglob`s. **`retro.d/` itself is not searched**, so the
+branch that writes the fragment is green through `./check.sh`, and the failure surfaces at the
+release, in the splice, several commits after its cause — landing on whoever cuts the release
+rather than on whoever wrote the fragment. A retrospective *about* rewriting a sentence is exactly
+the fragment most likely to quote the old one. Quote the halves separately, or describe it, and say
+in-line why it is broken up so the next editor does not helpfully rejoin it. Same mechanism as the
+link rule below: the constraint comes from where the text ends up, not from where it is written.
+Found 20260903, twice in one increment — once in a fragment, once in a `src/` comment that escaped
+only because of where the line happened to wrap.
+
 **Never link to another fragment by filename.** Splicing puts every fragment into one
 `docs/RETROSPECTIVES.md`, where a sibling's filename no longer resolves — and `docs/` is published,
 so `mkdocs build --strict` fails the build rather than shipping a dead link. Link to the *heading*
