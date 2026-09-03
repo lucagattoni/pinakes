@@ -162,6 +162,27 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   them — 9, 23, 25 and 28. **This clause said *two* while the bullet below it said three**,
   which is the shape to distrust: a count in one place and a list in another.
   **Everything below this bullet is background, not a queue.**
+- **🛑 EVERY PUBLISHED RELEASE CRASHES `pnk sync` ON PYTHON 3.13, THE MINIMUM SUPPORTED
+  INTERPRETER — and CI has never once run 3.13.** `Path.is_file()` and `Path.exists()` raise
+  `PermissionError` on 3.13, and return `False` on 3.14, for a symlink whose target sits under a
+  directory without `+x`. `walk_sources` calls `is_file()` on every glob hit, so the command ends in
+  a raw traceback. **Found by the coder 20260903 13:23; reproduced independently by the planner against the
+  *published* wheel**, not against a working tree: `uvx --python 3.13 --from "pinakes[light]==0.32.2"
+  pnk sync` exits on `PermissionError`, and **the control fires** — the same wheel on `--python 3.14`
+  completes, and the primitive itself splits the same way on the two interpreters. The coder measured
+  it back through **0.32.1, 0.30.0 and 0.25.0**, so it is not a 0.32.2 regression and **the bump for
+  its fix is a PATCH**. Row 8 did not cause it; row 8's symlink test is the first thing in this repo
+  that ever walked a link into an unreadable directory, which is why it surfaced now.
+  **Why nothing caught it: no `.python-version`, no `setup-python`, and `uv sync --frozen` resolves
+  to the newest interpreter available — 3.14 on the runner.** The `check` matrix varies *extras*,
+  never interpreters, so the floor named in `pyproject.toml` has never been executed by CI. **A
+  fresh worktree runs 3.14 and the primary checkout runs 3.13**, so the same commit answers
+  differently in two directories on this machine, which is the asymmetry that hid it.
+  **What is false right now is not a testing claim but a support claim**: nothing in `docs/` says
+  3.13 is tested, and `docs/DESIGN.md` line 3, `docs/GUIDE.md`, `README.md`'s badge and this file all
+  say 3.13 is **supported**. Audited 20260903 13:23 — do not "fix" those lines by lowering the floor; the fix
+  is the code, and the coder has it in flight with a `minimum-python` CI job that asserts the
+  interpreter it actually got.
 - **🚦 0.32.2 is published and swept — and a release is DUE again, seven fragments deep.** The cut
   landed 13:07:54 and the wheel was on the index 47 seconds later, verified with a control that
   fires: `pnk search -k 0` exits **2** at the parser on 0.32.2 and **1** on *no pinakes.toml found*
