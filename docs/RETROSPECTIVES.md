@@ -10578,6 +10578,510 @@ aliases it to `real_walk`. **Same shape every time: the instrument could not rea
 to have checked, and its silence read as an answer.** A control that must fire is the cheapest
 insurance in this repository, and it is still not automatic for me.
 
+## A gate against unnoticed drift, and the two shapes it nearly could not see (20260902 10:07)
+
+Row 15 was recorded as one comment on one line: a battery section header reading `# 20260823 · …`
+where the reserved forms are a version or `unreleased, YYYYMMDD`. The header itself had already
+been fixed. What was left was the gate — refused once, while the question of whether adding a check
+counted as new process was open, and unblocked when that question was answered.
+
+Writing it produced two findings, and neither was the one the row described.
+
+**The audit could not see the second instance, because of the shape of its own selector.** Row 15
+concluded this was *"the only one matching neither"*. It was not. `src-pinakes-pairing.toml` carried
+`# unreleased, 20260831 - S16's residue: …` — a hyphen standing exactly where the `·` separator
+belongs. The audit had searched for headers containing `·`, so the one other non-conforming header
+in the tree was the single shape its query could not return. The gate found it on its first run.
+**A selector defined by the correct form cannot find a violation that consists of that form being
+absent.** The row's other numbers fail the same way, and its own arithmetic said so without any
+re-measurement: it reported *30 sections, 19 `unreleased, YYYYMMDD ·`, 8 `X.Y.Z ·`, one matching
+neither* — and 19 + 8 + 1 is 28, two short of its own stated total. Measured at `a4077b5`, the
+commit that wrote it, the tree held 30 sections: **20** unreleased, 8 version, **two** matching
+neither. One invisible header is missing from exactly two tallies, which is exactly the two the row
+was short.
+
+**And I made the neighbouring error while correcting it.** My first correction tabulated *36
+sections, 26, 9, 2* against the row's *30, 19, 8, 1* and called the total wrong. It was not: the
+tree grew from 30 to 36 between `a4077b5` and today, and the row's 30 and its 8 were both right for
+the tree it was measuring. What was wrong was 19 and *only one*. Comparing today's tree against a
+claim about a past tree turns growth into error and hides the real defect — so a count correction
+has to name the commit it was measured at, not just the selector.
+
+**Then the gate itself nearly shipped with the identical defect.** Battery sections are fenced by
+horizontal rules, and the first `RULE` regex matched only the box-drawing `U+2500`. Nine batteries
+use it. Two use ASCII hyphens — and one of those two was `src-pinakes-pairing.toml`. So the gate
+read **34 of the tree's 36 headers, reported a clean sweep, and the file it skipped was one of the
+two that had drifted.** A gate written to catch unnoticed drift, silently skipping the drift, on its
+first run, in the increment whose whole subject is a selector that could not match its target.
+
+It was caught by refusing to accept a clean result. `non-conforming: []` is a null result, and a
+null result carries no information until the instrument has been shown able to fire; counting the
+headers found against the headers on disk is what turned `[]` from a pass into a discrepancy. The
+same discipline had already been spent twice this increment — on a search assertion that passed for
+a word in no document, and on a `git cat-file` lookup where zsh ate `:t` out of `"$tag:tools/x.py"`
+as a history modifier and reported a file absent from a tag that contains it.
+
+**What generalises: a checker's own matcher is part of what it checks, and it is the part nobody
+tests.** The assertions were right in all three cases. What was wrong was the set they ran over.
+So the gate now counts both fence shapes, says in a comment why rather than leaving a magic
+alternation, and the docstring names what it deliberately does not check — calendar validity, and
+section ordering — because a gate that quietly grows a second subject is how the next selector ends
+up not matching the thing it is looking for.
+
+## I published a count I never ran, and a peer nearly stopped a correct release (20260902 10:26)
+
+I reported the 0.32.0 splice as **"12 changelog + 26 retro"**. The tree held **13 and 27**. The
+release was correct; the number in my status message was not, and I had not measured it — I read it
+off my own earlier prose rather than off `git ls-tree`.
+
+**What it cost.** The coder reasoned correctly from my figure and reached a serious conclusion: if
+one fewer of each was spliced, the missing pair is exactly S1's, and 0.32.0 would ship the fix while
+describing nothing. It messaged **"stop before the tag"**. The tag was already pushed by the time
+the message arrived, so the cost was a verification round rather than a release — but the reasoning
+was sound and only the input was wrong.
+
+Two commands settled it, both of which I should have run before quoting a number:
+
+    git ls-tree --name-only v0.32.0 changelog.d/ retro.d/ | grep 20260902_0927   # empty
+    git show v0.32.0:CHANGELOG.md | grep -c unreadable                          # 18
+
+**The lesson is not "count more carefully".** It is that a number inside a status report is a claim
+with the same standing as a number inside a document, and it travels further and faster because
+peers act on it directly. This repository already rules that a claim resting on a set you selected
+must state its selector. A count in a message has a selector too — `git ls-tree <ref> <dir>` — and
+naming it is what makes the claim checkable by the person receiving it.
+
+**What the coder did right, and it is the reusable half:** it said plainly that it could not verify
+the branch (it was not on the remote), declined to assert the defect, and handed me the two commands
+that would settle it either way. A well-formed doubt with its own falsification attached costs sixty
+seconds. The same doubt asserted as a finding would have cost an argument.
+
+## The gate I ran was not the gate CI runs, and the gap is where the defect was (20260902 10:26)
+
+`./check.sh` exited **0** on the release branch. `main` went **red** on the same tree.
+
+Not a flake, and not a different commit. My local run skipped **128 tests** because this machine has
+neither the `[pdf]` nor the `[claude]` extra installed, and CI's `check` job is a three-leg matrix
+over `[light]`, `[light,pdf]` and `[light,pdf,claude]`. The failure was in
+`tests/test_pdf_trace.py` — inside the skipped set, by construction.
+
+**The defect it found was real and had been dormant for a month.** A test asserts
+`reservation.cost_eur == estimate.per_request_eur`, and that comparison **straddles the ledger's
+write-time quantisation**: `accountant.py:193` multiplies the EUR estimate back by the rate,
+`ledger.py:139` quantises on write at `1e-6` `ROUND_HALF_UP`, `ledger.py:127` divides back on read.
+
+| rate | `per_request_eur × r` | quantised | read back | equal |
+|---|---|---|---|---|
+| `1.1596` (seeded) | `0.3535000000000000000000000000` | no-op | `…3083822` | **yes** |
+| `1.08` (the original seed) | `0.3535000000000000000000000000` | no-op | `…8148148` | **yes** |
+| `1.159` (2026-09-01 ECB) | `0.3534999999999999999999999999` — one short | snaps **up** | `…5452977` | **no** |
+
+So the assertion had never held *by construction*. It held because two successive rates happened to
+make the round trip land exactly on the quantum. Refreshing that constant — a step
+`docs/RELEASING.md` requires at every release — is what falsified it.
+
+**And I published a different mechanism before checking this one.** I read
+`cost_eur = cost_usd / usd_per_eur`, assumed `cost_usd` was the summed USD, and wrote up an
+arithmetic-ordering story — `(a/r)+(b/r)` against `(a+b)/r` — in three documents and a commit
+message. It is a coherent account that predicts the observed digits, which is exactly why it
+survived my own reading. A peer reproduced the real route and refuted it. The fix I recommended on
+the strength of it would have removed the `…9999` from *this fixture* and left the assertion false
+for 66% of a 40 000-case sweep; restricted to `requests == 1` it does hold, which is the trap,
+because the fixture is `requests == 1` and so is any sweep someone writes to check it.
+
+**The rule I am taking from that: an explanation that fits the numbers is a hypothesis, and the
+discriminating step is reading the code path that produces them, not the code path that would.**
+
+**Three things follow, and only the first is about me.**
+
+**A skip is not a pass, and a green local gate is a claim about the legs that ran.** `./check.sh`
+prints its skip count; I read the exit status and not the count. The honest form of "green locally"
+is "green on the one leg my machine can run".
+
+**A test whose truth depends on an unmentioned constant is not pinned to what it claims.** Nothing in
+`test_pdf_trace.py` names `usd_per_eur`, so nothing warned that changing it could break the
+assertion — and nothing warns now that a future refresh could make it pass again for the same bad
+reason. A second rate in the test is what turns a coincidence into a pin.
+
+**The order of discovery is worth keeping.** The artifact was verified — installed from the index,
+wheel opened, subject found inside it — *before* CI went red. **A verified artifact and a green
+`main` are two claims**, and it is possible, as here, to have only the first. Neither substitutes
+for the other, and a release note that reports one as though it were both is the error this record
+exists to prevent.
+
+## Both hops were green for the value of a constant neither of them mentions (20260902 10:45)
+
+Two assertions in `tests/test_pdf_trace.py`, one live and one latent, were **correct against every
+input anyone had ever run them on**. Neither was a badly written test. Both depended on the value of
+a constant that appears nowhere in their text, and this repository refreshes exactly that constant
+on a schedule.
+
+| hop | what it compared | why it was green | what ended it |
+|---|---|---|---|
+| 2, reservation | `cost_eur` against `estimate.per_request_eur` | at `usd_per_eur = 1.1596` the multiply back landed exactly on six decimals, so quantisation was a no-op | the 20260901 refresh to `1.159` |
+| 4, reconciliation | a bare `Decimal.quantize()` against the ledger's `ROUND_HALF_UP` | today's prices make per-token USD exactly six decimals, so there is never a tie to resolve | nothing yet — it is latent |
+
+**The trigger is scheduled, not hypothetical.** `docs/RELEASING.md` § *Before you start* step 3
+refreshes `prices.toml` at every release. That step is the input to both assertions and is named in
+neither. A price-granularity check — something that asks whether a refreshed rate or per-token price
+still leaves the arithmetic on the quantum — is arguable on this evidence. It is deliberately not
+built here: that is new process, and new process is not an implementer's to invent.
+
+**Measured, because the plausible story was wrong twice.** A rearrangement that divides once instead
+of twice looks like a principled fix; over 40 000 randomised `(rate, cost, requests)` cases it fails
+**54%** of the time — and **0.00%** at `requests == 1`, which is the fixture's own shape. It would
+have passed this test, and any sweep shaped like the fixture, while leaving the assertion
+structurally false. My own first proposal failed **1.81%** of the same sweep, because it inherited
+the very rounding-mode defect I then found in hop 4.
+
+**What the fix stops covering, said plainly.** Both sides of hop 2 now go through the production
+`quantise()`, so it cannot fail on arithmetic: it pins the *plumbing* — that the reservation carries
+**this** estimate and not another number — and nothing about the arithmetic that produced it. Four
+mutants confirm the shape rather than assert it: an accountant that adds one quantum and a
+`claude.py` that reserves a different estimate field both **die**; `PROMPT_TOKENS 700 → 701` and the
+ledger's rounding mode both **survive**. The survivors are not a gap to be closed but a seam to be
+named: the test recomputes the estimate from `estimate_document`, so any mutation *inside* that
+function moves both sides of the assertion equally and is structurally invisible to it.
+
+**And the word "pinned" does not apply to hop 4.** Hop 4 is green today with or without the change,
+so no ordinary run can demonstrate it; it is a latent divergence closed before it fired, and showing
+it requires changing a price. Saying "pinned" would be claiming a failing test that does not exist.
+
+## A mutant killed for the wrong reason is a survivor wearing a green light (20260902 11:59)
+
+The S4 battery came back **6 mutants, 6 killed, 0 survived** on its first run. One of the six was
+not measuring what its row claimed, and the count could not say so.
+
+The row is named *"a backslash is left raw, so a Windows-style path parses as a name nobody
+typed"*. It removes the `\\` entry from `_TOML_ESCAPES`, and its whole point is the **quiet**
+failure — a manifest that parses, that `pnk doctor` calls healthy, holding a name the user never
+typed. It killed through the eleven-value corpus, whose backslash value is `C:\notes\kb`.
+
+**That value cannot demonstrate the property.** It contains `\k`, which TOML defines as nothing at
+all, so `tomllib` **rejects** the file:
+
+    tomllib.TOMLDecodeError: Unescaped '\' in a string (at line 2, column 23)
+
+A parse failure — loud, and caught by every test in the file. The round-trip half the row is named
+for was asserted by nothing. Measured across three shapes:
+
+| value | without the backslash escape |
+|---|---|
+| `C:\notes\kb` | **rejected** — `\k` is not an escape |
+| `C:\notes` | **parses**, reads back `C:` + newline + `otes` |
+| `C:\build` | **parses**, reads back `C:` + backspace + `uild` |
+
+The fix was one test over `C:\notes` and repointing the row's `kills` at it. The mutant now dies
+on `AssertionError: assert 'C:\notes' == 'C:\\notes'` — an equality, which is what the row claims.
+
+**Three things worth keeping, none of them about escaping.**
+
+**A clean aggregate is a fact about the harness before it is a fact about the subject.** *6 of 6
+killed* has the same shape as a 30-agent verification panel that overturns nothing, and as a
+mutation run with no kills: consistent with the instrument working, equally consistent with it not
+discriminating, and **the run cannot tell you which**. Both happened in this repository on the same
+day, hours apart. The count is the last thing to read, not the first.
+
+**Read the kill *reason*, never the kill count.** This was found only by reading the failure text of
+a mutant that was already dying. Nobody does that when the number comes back clean, which is
+precisely why nothing else could have found it: `tools/mutate.py` reports KILLED correctly, the
+anchor resolved exactly once, `tests/test_batteries.py` was green, and the row's prose was
+self-consistent. **Every gate this repository owns was satisfied.**
+
+**When prose names a value to demonstrate a property, run the value.** The wrong example was written
+into a battery header whose own subject is *parsing is the weaker claim* — and it then survived
+being relayed to a second agent and dictated back as finished prose for a third file, still
+unmeasured. It was checked when it was **executed**, not when it was read, reviewed, or agreed. The
+general form is now scoped onto the queued row for the post-render validator: a remedy, a docstring,
+a `--help` string or a dictated paragraph that names a value to make a point is **run, not reasoned
+about**.
+
+## An example I reasoned about instead of running (20260902 12:00)
+
+I dictated a sentence into `tools/batteries/README.md` claiming that without the backslash escape,
+`C:\notes\kb` renders **valid TOML** that reads back as a name nobody typed. The coder's mutation
+run falsified it before it landed. `tomllib` **rejects** that value — `\k` is not a TOML escape at
+all — so the mutant it described dies on a parse error, which is the opposite of the point the
+sentence was making.
+
+The phenomenon is real; the example did not have the property. `C:\notes` parses and reads back as
+`C:` + newline + `otes`; `C:\build` parses and reads back as `C:` + backspace + `uild`. Three
+seconds of `tomllib.loads` separates them, and I ran it only after being contradicted.
+
+**Where it was going to land is the part worth keeping.** That README's own subject is that
+*parsing is the weaker claim*, and the paragraph exists to teach the difference between a manifest
+that parses and one that round-trips. A worked example that fails on the parse side would have
+taught the opposite of the file's thesis, in the file's own voice, under a heading that made it
+authoritative.
+
+**The rule this repository already had did not cover it.** *A claim resting on a set you selected
+must state the selector* is about populations. *The command ran, the number was typed* is about a
+figure copied out of prose instead of out of output. Neither reaches a **value chosen to
+demonstrate a property**, which is not a measurement at all — it is an argument, and it feels like
+reasoning rather than reporting, so nothing prompts you to execute it. The generalisation:
+
+> **When a message, a header, a docstring, a remedy or a `--help` line names a value in order to
+> demonstrate a property, the value is run, not reasoned about.** An example is a claim with an
+> executable form, and the executable form takes seconds.
+
+**The catch came from a mutation run, and only because someone read the failure text.** The battery
+reported six mutants killed and none survived. One of the six was dying on a `TOMLDecodeError`
+while its row claimed a round-trip property that nothing in the suite asserted — so the row was
+green on a weaker property than its own name disclaims. A clean kill count concealed it; the kill
+*reason* did not. **A mutant killed for the wrong reason is a survivor wearing a green light**, and
+the aggregate that hid it has the same shape as a refuter panel that overturns nothing and a
+`Blocked on` cell nobody re-reads: a number that describes the instrument rather than the subject.
+
+**What the exchange did right.** The coder held the dictated text rather than pasting it, said
+which claim it was refusing and why, and brought the run output and a three-row table of measured
+values. Refusing planner-dictated prose is the harder direction of the ownership split — the whole
+mechanism is *content mine, keystrokes yours* — and it is exactly the direction that has to work,
+because a dictated sentence arrives with more authority than it has earned.
+
+## S4's fix reproduced S4, on the one value class the framing excluded (20260902 21:18)
+
+S4 was: a KB name containing a quote, a backslash or a control character wrote a `pinakes.toml`
+no parser could read, while `pnk init` exited 0 and printed *created*. `pnk init` refuses a
+directory that is already a KB, so the remedy surface was empty and recovery meant hand-editing
+TOML. The fix escapes every interpolated value for the TOML basic string it lands in.
+
+Measured on the branch that carries that fix, through the real CLI:
+
+    pnk init /tmp/kb --name $'kb-\xff-name'
+      → uncaught UnicodeEncodeError from Path.write_text (init.py:370)
+      → /tmp/kb/pinakes.toml exists, 0 bytes
+      → retry: "error: /tmp/kb is already a KB."
+
+An unreadable manifest, `init` refusing the directory, an empty remedy surface. **The same three
+sentences, on the branch whose whole purpose was to delete them.**
+
+### The framing excluded the class, so no amount of care inside it would have found it
+
+`\xff` on a command line is not valid UTF-8, and POSIX decodes it with `surrogateescape` (PEP 383)
+into U+DCFF — an unpaired surrogate. TOML's basic string admits `%x80-D7FF` and `%xE000-10FFFF`
+raw and skips the gap, and `\uXXXX` must name a Unicode scalar value. **So the character has no
+TOML form raw and none escaped.** It is not a hard value to escape; it is a value for which
+escaping is not the answer.
+
+Every artefact of the increment said *escape*. The fix is an escape function. The tests are named
+for round-tripping. The docstring's "region this cannot reach" paragraph names TOML *positions* —
+literal strings, bare keys, numbers — and no *values* at all. The battery's six rows each removed
+one escape and watched a test die. Six mutants, six kills, and the whole apparatus was blind in
+the same direction, because **the question it was built to ask was "is this escaped correctly",
+and the answer for this class is "there is nothing to escape it to".**
+
+The check that would have caught it is one question asked before the fix, not after: **what is the
+set of values this promise is over, and does every member of it have an image?** Enumerating the
+domain is a different act from testing the function. Eleven values were chosen for the corpus, all
+of them representable, by people looking for hard-to-escape characters.
+
+### The refuter was right about the mechanism and wrong about the disk
+
+The reviewer that found this rated it medium. Its stated reason: *"the crash happens before that
+file is written, so this does not brick the target directory — a retry with a valid name
+succeeds."* Both halves are false. `Path.write_text` opens and truncates, then encodes, so the
+zero-byte file is already there when the encoder raises; and the retry is refused.
+
+The refuter reproduced the traceback and reasoned from it to a state it never looked at — `ls` and
+`wc -c` were one command away. **This repository's recurring failure has a shape, and this is it:
+a valid inference over a population nobody enumerated.** The judge ran the command and overturned
+the severity upward, which is the only reason it was not landed as a medium.
+
+### Making a value legal relocates the question; it does not answer it
+
+A second finding from the same review, measured and confirmed: `pnk budget` prints `kb.name` raw,
+so a name carrying an ANSI escape reaches the terminal as a live escape sequence, and a name
+carrying a newline breaks `render()`'s one-entry-one-line contract with no error anywhere.
+
+Before the fix, such a name bricked the KB, so nothing downstream ever saw it. **Escaping *for
+TOML* discharges the obligation TOML has, and discharges nothing that a terminal, a filename, a
+log line or an HTML page has.** The moment a class of input stops being rejected, every consumer
+of that value inherits a question it was never asked — and none of them changed, so none was
+reviewed. The increment's own tests cannot see this by construction: they assert the value comes
+back out unchanged, which is exactly the property that delivers the bytes downstream.
+
+The check is cheap and was not run: **who reads this value now, and what does each of them assume
+about it?** Here that is one grep and twelve call sites — eleven are JSON payloads or in-memory
+comparison, and `budget/summary.py:193` is the single plain-text consumer.
+
+One correction worth keeping, because the narrower claim is the defensible one: the review called
+this *previously unreachable*. It was not — a hand-written manifest carrying `\u001b` always
+parsed and always printed raw, on `main` too. The fix changed the **route**, from *hand-edit your
+TOML* to *pass a flag*. A widening, not a creation.
+
+### Code no test can pin, found by a count that came out wrong
+
+The judge proposed excluding `bool` from the new allow-list: `isinstance(True, int)` is `True`,
+and `str(True)` is `True` where TOML's literal is `true`. It was built, and a test was written for
+it, and both were removed — because the escaper **escapes content and never adds quotes**, so a
+bool renders `True` from either branch: bare at `dim = {{ embedding_dim }}`, and inside the
+template's own quotes at `name = "{{ name }}"`. The exclusion had no observable effect at any
+interpolation in the file.
+
+What exposed it was not review. The fragment claims a red/green split, so the split gets measured
+by removing the hook and running the file. It came out **5 green** where the four controls were
+known and named. One line of arithmetic, and the fifth green test was the new one — passing
+without the fix it was written to pin, with a battery row that would have survived. **The
+arithmetic was the instrument; nobody read the test and saw it.**
+
+### The review harness said "found nothing" when nobody had looked
+
+The third adversarial pass over this increment returned, in its own words, **"PASS FOUND NOTHING
+that survived refutation"**. All four of its lenses had stalled and errored; `agents_done` was
+**0**. The verdict string was mine — the script tested `survived.length === 0` and never asked
+whether anyone had looked, so a vacuous run and a clean run left by the same exit.
+
+Pass 1 had already shown the softer version: *8 raised, 4 confirmed* while five of its fourteen
+agents were dying on a session limit, one whole lens never running, and two findings never
+refuted — one of which was the only real code defect in that pass. **Truncation is not random
+with respect to value**: a lens that reads text finishes first, and a lens that must build a
+fixture and run a command reports last, so the expensive lens is first to be cut and it is the
+one that finds behaviour.
+
+The fix is structural, not a habit: the harness records which lenses actually returned and reports
+**VACUOUS / PARTIAL / CLEAN** rather than a count. A count cannot carry the difference, and asking
+a human to read the error list first is asking them to distrust the summary they were given.
+
+Which is the same lesson as [this increment's earlier
+one](#a-mutant-killed-for-the-wrong-reason-is-a-survivor-wearing-a-green-light-20260902-1159)
+arriving from the opposite direction: there, the aggregate was clean and the kill *reason* was
+wrong; here, the reason would have looked fine and the *count* was wrong. **Keep a number in the
+fragment that has to be re-derived.** It is the cheapest adversary in the repository.
+
+## A commit taken inside a mutation window shipped the mutant (20260903 08:30)
+
+`7193983` on the S4 branch has the subject *"Retro: the review harness reported a clean pass while
+nobody had looked"*. It changed a retro fragment — and `src/pinakes/template.py`, by one line:
+
+    -        elif character != "\t" and (character < " " or character == "\x7f"):
+    +        elif False:
+
+That is battery row *a control character is left raw*, live on disk, committed and **pushed**. Every
+control character in a KB name would have gone raw into a TOML basic string, which is the S4 defect
+this branch exists to delete, on the branch that deletes it.
+
+### The window is seven seconds wide and it is nobody's fault in particular
+
+    7193983 committed        20260903 02:46:58
+    template.py mtime        20260903 02:47:05     <- tools/mutate.py restoring, 7s later
+
+The commit ran *inside* a mutation run. `tools/mutate.py` writes a mutant, runs the named test,
+restores the file; `git add` called anywhere in that interval stages the mutant, and the restore
+afterwards leaves the tree clean, so there is nothing left over to notice.
+
+CLAUDE.md already says **commit before mutating** — because `git checkout <file>` restores to the
+last commit and silently reverts uncommitted fixes. That rule was followed here: the target was
+committed before the battery ran. The failure is its unwritten half, in the other direction:
+
+**While a battery is running, that worktree has no committable state.** Not for the files the
+battery names, and in practice not at all, because `git add -A` does not know which those are.
+
+### What did not catch it, and what would have
+
+| | |
+|---|---|
+| `./check.sh` | started, **killed at ten minutes by machine load** (four review agents), deferred to landing time with a note saying so. The note was honest and the gate still did not run |
+| the battery itself | ran and reported **9/9 killed** — correctly. A battery mutates a *committed* target and restores it. It has no opinion about what else was committed while it worked |
+| `--check-anchors` | green. The anchor was present; it was the arm that was gone |
+| reading the commit | `src/pinakes/template.py \| 2 +-` sat in the stat output under a subject that promised a fragment. **Nothing but a human reads that line** |
+
+The cheap durable guard is the last row: **a commit's stat is read before the commit is made**, and
+a `src/` path under a `Retro:` or `Docs:` subject is a stop. The expensive one is the first: a gate
+deferred because the machine is loaded is a gate that did not run, and the branch was pushed in
+between.
+
+### The generalisation, because this is the second instance of it this increment
+
+The [earlier fragment](#a-mutant-killed-for-the-wrong-reason-is-a-survivor-wearing-a-green-light-20260902-1159)
+in this branch is about a mutant that died for a reason nobody read. This one is about a mutant that
+was never in the report at all. Both are the same shape: **the mutation harness's output was
+believed about a state nobody looked at.** 9/9 killed was true of the file `mutate.py` held. It said
+nothing about the file `git` held, and the two were different for seven seconds.
+
+## Three mutants killed for the wrong reason in one increment, and the pattern has three shapes (20260903 09:03)
+
+A mutation battery reports `KILLED` when the named test fails. It does not report **which
+assertion** failed, in its summary table — and the table is what gets read, quoted into a commit
+message and carried into a fragment. Three rows in the S4 battery died on an assertion other than
+the one their name claimed. Each is a different mechanism, and each is generalisable.
+
+### 1. The mutant was a *safe* version of the edit it names
+
+Row: *the refusal echoes the value it is refusing, straight to the terminal.* It substituted
+`{text!r}` — and `repr` escapes a surrogate and an ESC **by construction**, so the mutant produced
+a terminal-safe echo. Measured:
+
+| assertion | `{text!r}` | `U+…{ord} in {text}` |
+|---|---|---|
+| `"U+DCFF" in message` | **False** ← the only kill | True |
+| `"\udcff" not in message` | True | **False** |
+| `"\x1b" not in message` | True | **False** |
+
+The kill came from the words `U+DCFF` going missing. The two assertions the test's docstring calls
+load-bearing — *never echoes the value* — were never measured at all, and would have survived a
+mutant that actually echoed.
+
+**The check:** a mutant is written against a *property*, so name the assertion it must fail before
+writing it. "Does the test go red" is the weaker question, and it is the one the tool answers.
+
+### 2. The mutant raised a different exception, so every assertion after `raises` was unreachable
+
+Row: *the surrogate arm is removed.* Under it, the refusal never fires, `Path.write_text` raises
+`UnicodeEncodeError`, and `pytest.raises(TemplateError)` does not catch it. The test dies **at the
+`raises`**, so the line below it — `assert not root.exists()`, which the docstring calls the
+load-bearing half — never runs. Measured against the real `init()`: `root.exists()` True,
+`pinakes.toml` 0 bytes.
+
+This is structural, not a slip: **assertions written after a `pytest.raises` block are pinned only
+by mutants that keep the raise.** A mutant that removes the raising code cannot reach them, however
+green the report looks.
+
+No edit to `template.py` could fix it, because `render_manifest` runs before `root.mkdir` — so the
+row moved to `src-pinakes-init.toml` and mutates the **ordering** instead. It now kills on
+`assert not True`.
+
+### 3. A more general arm below shadowed the specific one
+
+`_TOML_ESCAPES` maps `\b`, `\f`, `\n`, `\r` to their single-letter escapes. Every one of them also
+satisfies the `\uXXXX` fallback two branches down. Drop any entry and the manifest still parses and
+still round-trips the exact value — **every round-trip test in the file stays green**, and no
+mutant could distinguish four lines of live code.
+
+What separates them is only the bytes a human opens: `name = "a\nb"` against `name = "a
+b"`.
+That is now asserted, in the same shape as the tab control.
+
+**The strongest demonstration was accidental.** The planner, having just read the description
+above, tried to build the unescaped case by dropping `\n` from the map — and the output still came
+out escaped, because the fallback caught it silently. It had to disable *both* arms to see the
+defect. A shadowed line resists being shown to be shadowed, by someone who already knows it is.
+
+**The check:** for any specific case, ask whether a more general arm below it produces an
+acceptable answer. If it does, the specific arm is unobservable and the test suite is silent about
+whether it exists.
+
+### What the tool does and does not print
+
+`tools/mutate.py` **does** print the failing assertion, on the per-mutant line. All three of these
+were found by reading that line. What it does not do is put it in the summary table, which reads
+
+    | <row name> | KILLED | <test id> |
+
+— the row's own claim about itself, and no evidence for it. That table is what gets read and
+quoted. Moving the reason into it is rowed, not built here.
+
+*(This section is itself the fourth claim in this increment asserted before being run: an earlier
+draft said the tool prints no kill reason at all. It was written inside the paragraph about
+evidence going unread.)*
+
+### Why the corpus could not have found any of the three
+
+Same shape as [this increment's surrogate
+finding](#s4s-fix-reproduced-s4-on-the-one-value-class-the-framing-excluded-20260902-2118): every
+artefact asked *does the test go red*, and all three defects live in *why* it went red. A count
+cannot carry that, and neither can a green suite. What found them was a review pass that re-derived
+each kill's reason — one question per row, asked of evidence the tool had already printed.
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings

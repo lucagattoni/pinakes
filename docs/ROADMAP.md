@@ -243,6 +243,7 @@ number belongs to a release only when it is cut
 | **[0.31.0](#0310--the-gates-that-could-not-fail--20260830-1446)** | 20260830 14:46 | the gates that could not fail | • `make release-check` was **three `echo`s** — it now refuses a missing, duplicated, lightweight, empty, disagreeing or **already-pushed** tag<br>• The tag is created **before** the gate and pushed **after** — the push is the irreversible half<br>• A review fan-out that **lost agents reported success**; `review_pass_gate.py` exits 1 on an unfinished pass<br>• `review_ledger.py` — a later review pass no longer starts from zero<br>• STATUS's headline could claim a hold that was over, or hide one that was not — **the *removal* was the uncatchable half**<br>• The procedure never asked for the hold marker, which is why it had **never once been written**<br>• The suite read the **wall clock** against the committed price table — 25 tests red on the calendar, no commit involved<br>• `docs/RELEASING.md` gains the price-refresh step; `as_of` had **never been refreshed since the file was created**<br>• A sidecar whose id no longer matches its path **stops wedging the index** — `doctor` had reported healthy at exit 0<br>• No plan places one id at two paths; **renaming past each other still fails**, but now costs nothing<br>• `pnk doctor` gains a **retired documents** check<br>• no `schema_version`, no rebuild |
 | **[0.31.1](#0311--the-price-nobody-was-watching--20260831-2301)** | 20260831 23:01 | the price nobody was watching | • `usd_per_eur` held its **seed value `1.08`** from 20260728 to 20260831 while `as_of` was re-stamped over it at 0.31.0<br>• The falsification `docs/RELEASING.md` step 3 names — and step 3 was written **five hours earlier the same day**<br>• ECB reference rate for 20260831 is **1.1596**; every EUR figure was **over-stated by 7.4%** and every EUR cap bit early<br>• Nothing overspent — but ledger lines since 20260728 carry a rate that was never true, and re-deriving euros from them is faithful to a wrong record<br>• **The staleness guard was healthy and guarded the wrong thing**: `max_price_age_days` and `pnk doctor` both key on `as_of`<br>• `prices.toml` now **names its FX source**, in the file — an unnamed source is not re-checkable by the next release<br>• **Nothing in the suite asserted the committed rate**; one literal was its alarm **by accident**, and it fires on *movement*, never on *staleness*<br>• Rowed as two parts on purpose — decoupling it alone would delete the only alarm the rate has ever had<br>• Two `retro.d/` fragments would have spliced malformed; one carried **no `##` heading** and the stream synthesises none<br>• no `schema_version`, no rebuild; `prices.toml` ships in the wheel |
 | **[0.32.0](#0320--one-unreadable-file-no-longer-takes-the-kb-with-it--20260902-0948)** | 20260902 09:48 | one unreadable file no longer takes the KB with it | • One file the process could not open ended `pnk sync` with a raw traceback and **no index database at all** — `hash_file` let `PermissionError` escape `walk_sources`<br>• The path is carried out of the walk and reported per-document with a `chmod +r` remedy; `report.ok` is `not failures`, so the run still exits non-zero<br>• **The second half is what makes the first safe** — `pair()` reasons from *absence*, so a skipped file would have emitted a `SoftDelete` and **deleted the document from search**<br>• `pnk doctor` died on the same condition: the remedy `pnk sync` prints sent you to a traceback. A fourth drift check, `paid extraction unreadable`, names what it could not decide<br>• An unreadable document's sidecar is no longer listed as orphaned — that list is printed with `pnk doctor --prune` beside it, and pruning destroys a permanent ULID<br>• The other eleven entries are tooling and documents: `tools/agent_spend.py`, the probe's `--questions` flag, a `retro.d/` heading gate, the 34-finding 20260807 audit closed as one unit, and the link gate learning where a fragment's body is spliced to |
+| **[0.32.1](#0321--a-kb-name-no-longer-bricks-the-kb-at-creation--20260903-0933)** | 20260903 09:33 | a KB name no longer bricks the KB at creation | • A name holding a `"`, a `\` or a control character closed or escaped the TOML basic string it was interpolated into, so `pinakes.toml` came out unreadable while `pnk init` exited 0 and printed *created*<br>• **There was no repair path** — `pnk init` refuses a directory that is already a KB, so recovery meant hand-editing TOML<br>• The fix is a `finalize=` hook on the Jinja template, so it covers **every** interpolated value rather than `--name`, and both ways in, since `init` falls back to the directory's own name<br>• **It does not only escape** — an unpaired surrogate has no TOML form raw *or* escaped, reached `Path.write_text`, which truncates *before* the encoder raises, and left a **zero-byte manifest**: S4's own end state, found on the branch that fixed S4. It is refused before anything is created, naming the code point and **never echoing the value**<br>• **What it does not do** — escaping for TOML discharges nothing a terminal is owed, and a KB already bricked stays bricked, because the fix is at creation<br>• The other eleven entries are tooling, documents and a red `main`: a money assertion quantisation cannot hold, green for a month on the value of an exchange rate neither test named |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -2473,6 +2474,64 @@ changed.
 
 **No `schema_version` bump and no rebuild.** The `sync` and `doctor` fixes ship in the wheel; the
 gates do not.
+
+## 0.32.1 — a KB name no longer bricks the KB at creation · 20260903 09:33
+
+**A KB name is escaped where the manifest is rendered, not checked where it is typed — and `pnk
+init` no longer reports a bricked KB as created.**
+
+**The defect.** `_render` interpolated raw values through Jinja into `pinakes.toml.j2`, whose line 2
+is `name = "{{ name }}"`. A name holding a `"` closed the TOML basic string it landed in; a `\`
+opened an escape TOML does not define; a control character is illegal there raw. `pnk init` then
+exited **0** and printed *created* over a manifest nothing could parse. **There was no repair
+path**: `init` refuses a directory that is already a KB, so recovery meant hand-editing TOML, and
+the failure stayed silent until the next command that read the manifest.
+
+**The fix is one hook, not one call site.** A `finalize=` callable on the `Template` sees every
+interpolated value, so it covers the whole template rather than `--name` alone — and both ways in,
+since `init` falls back to the directory's own name when none is given. That distinction is the
+reason it is a hook: an escaping call written at the `--name` boundary, which is where the defect
+was reported, would have left the directory-name path exactly as broken.
+
+**It does not only escape, and the half that refuses was found late.** An unpaired surrogate — what
+POSIX makes of any invalid UTF-8 byte in an argument or a filename, via `surrogateescape` — has no
+TOML form raw **and** none escaped, so there is nothing for an escaper to produce. It used to reach
+`Path.write_text`, which truncates the file *before* the encoder raises, leaving a **zero-byte
+manifest** in a directory `init` would then refuse. That is S4's own end state, and it was found
+**on the branch that fixed S4**. It is now refused before anything is created, with a message
+naming the code point and **never echoing the value**, because a name carrying one unprintable byte
+can carry an ANSI escape beside it.
+
+**What it deliberately does not do.** Escaping for TOML discharges what TOML is owed and nothing a
+terminal, a filename or a log line is owed: `pnk budget` still prints `kb.name` raw, and that is
+recorded as a row to build rather than folded in here. A KB already bricked by this stays bricked,
+because the fix is at creation.
+
+**Three adversarial passes, and each one moved the figures this release shipped with.** Pass 1
+half-ran, losing 5 of 14 agents to a session limit. Pass 2 found the surrogate case above. Pass 3
+first returned a verdict from a vacuous run; its re-run found that **four `_TOML_ESCAPES` entries
+were shadowed by the `\uXXXX` fallback** — dropping them changes the bytes on disk and nothing any
+parse or round-trip test in the file can observe — and that **three battery rows were dying on the
+wrong exception**, so a green 9/9 certified nothing those rows claimed. It ships with **37 tests**
+(33 red with the hook neutralised, 4 named controls green), **14 `docs/VERIFICATION.md` rows**, and
+`tools/batteries/src-pinakes-template.toml` at **10/10**, every kill's *reason* read against its own
+row's name.
+
+**The other eleven entries are tooling, documents and a red `main`.** A money assertion compared a
+euro value taken *before* the ledger's write-time quantisation against one taken after it; it had
+been green for a month on the value of a constant it never mentions — the ECB rate — and both
+`[pdf]` CI legs went red the moment `prices.toml` was refreshed. A second, latent instance one hop
+down was closed before it could fire. `docs/RELEASING.md` § *Before you start* step 3 now refreshes
+the rate at every release, and this release is the first to move it on a re-read rather than a
+re-stamp: `1.159` → `1.1578`, the 2026-09-02 ECB fixing. A battery's section header is gated
+against the two forms its README reserves. And `tools/batteries/README.md` gained the other half of
+*commit before mutating* — **while a battery is running, that worktree has no committable state** —
+written because a live mutant reached `origin` inside exactly that window, with every instrument
+green and each right to be.
+
+**No `schema_version` bump and no rebuild.** `src/pinakes/template.py` and `prices.toml` ship in the
+wheel; the gates do not.
+
 
 # Part 5 · What is not built
 

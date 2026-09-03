@@ -10,6 +10,101 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.32.1] — 20260903 09:33
+
+### Added
+
+- **A battery's section header is now gated against the two forms the README reserves.**
+  `tools/batteries/README.md` reserves `X.Y.Z · ` for a property that has shipped and
+  `unreleased, YYYYMMDD · ` for one that has not, and nothing checked it — so a section could name
+  neither and the directory would still read as a record of which release made which property true.
+  `tests/test_batteries.py::test_every_section_header_names_the_release_it_belongs_to` refuses a
+  third form, and the directory-built-to-break-it control carries a non-conforming header so the
+  check is shown able to fail rather than assumed to work.
+- **Fixed a section header that named neither** — `src-pinakes-pairing.toml` carried
+  `# unreleased, 20260831 - …`, a hyphen where the `·` separator belongs. It is the second such
+  header, and it survived the audit that found the first because that audit's selector required
+  the `·` the offending line was missing.
+
+### Fixed
+
+- **A red `main` fixed: the money trace asserted an equality that quantisation cannot hold.**
+  `estimate.per_request_eur` is a euro value taken *before* the ledger's deliberate quantisation; a
+  reservation's `cost_eur` is the stored dollar divided back *after* it. The two agreed only while
+  the exchange rate happened to make the multiply back land exactly on six decimals. Refreshing
+  `prices.toml` to the 20260901 ECB fixing of `1.159` ended that, and **both `[pdf]` CI legs** —
+  `check (light pdf)` and `check (light pdf claude)`, since the file's `pytestmark` skips on `[pdf]`
+  alone — went red on a test that had passed for a month. The hop now asserts the reservation
+  against the stored dollar at the ledger's own quantum, which is the only form that can hold.
+- **A second, latent divergence closed one hop down.** The reconciliation hop compared against a
+  bare `Decimal.quantize()`, which takes the context default `ROUND_HALF_EVEN`, while the ledger
+  writes `ROUND_HALF_UP`. It has never fired, because today's prices make per-token USD exactly six
+  decimals and so leave no tie to resolve. It is closed before it could.
+- **Added:** two guards in `tests/test_ledger.py` that carry the bracketing exchange rates
+  themselves rather than reading `prices.toml`, so no future price refresh can move their inputs.
+  They run in every CI leg; the trace they protect runs in two of three.
+
+- **A KB name containing a quote, a backslash or a control character bricked the KB at creation,
+  silently (S4).** `pnk init --name 'Bob'\''s "Special" KB'` exited `0` and printed *created*, and
+  the `pinakes.toml` it wrote was not TOML — `name = "Bob's "Special" KB"`. Every later command
+  then failed, and `pnk init` refuses a directory that is already a KB, so **the remedy surface was
+  empty**: recovery meant hand-editing the manifest. No flag was needed to reach it — `init` falls
+  back to the directory's own name, so a folder called `a"b` was enough.
+- **Fixed at the mechanism, not at the flag.** `template._render` now passes a `finalize` hook to
+  the Jinja template, so *every* `{{ … }}` is escaped for the TOML basic string it lands in — or
+  refused, where no escaping exists — and the next template variable that carries user text
+  inherits it without anyone remembering to. Escaping
+  follows TOML v1.0.0: `"`, `\`, `\b`, `\f`, `\n`, `\r`, and `\uXXXX` below U+0020 and at U+007F.
+  **A tab is deliberately left raw** — it is the one control character a basic string may carry, so
+  escaping it would rewrite a legal byte. **`int` is the whole of what passes through bare** — the
+  one entry in the allow-list below — which is what keeps `dim = {{ embedding_dim }}` a bare
+  integer rather than an unreadable `"384"`.
+- **A value TOML cannot represent is refused, before `init` creates anything (found by review).**
+  A lone surrogate — U+D800-U+DFFF — has no TOML form raw *or* escaped, and POSIX produces one
+  routinely: `surrogateescape` is what an invalid UTF-8 byte in an argument or a directory name
+  becomes. `pnk init --name $'kb-\xff'` used to reach `Path.write_text`, which **creates and
+  truncates before the UTF-8 encoder raises** — leaving a zero-byte `pinakes.toml`, a directory
+  `init` then refused as *already a KB*, and a raw traceback. **That is S4's own end state,
+  reproduced by S4's own fix.** It is now a message with a remedy, raised inside `render_manifest`
+  before anything is created, and the message names the code point rather than echoing the value:
+  a name carrying an unpaired surrogate can carry an ANSI escape beside it.
+- **The type guard is an allow-list now, not a deny-list.** It read *not a `str`*, so anything that
+  was not one went out untouched — and Jinja calls `str()` on whatever `finalize` returns, so a
+  `Path` carrying a quote wrote the same unparseable manifest S4 exists to prevent. No call site in
+  this build supplies one; the *mechanism* claim is what made it a defect. `int` still passes bare,
+  which is what keeps `dim = {{ embedding_dim }}` an integer.
+- **What it does not cover, stated in the file rather than implied.** Escaping makes a value safe
+  inside a *basic* string. It cannot make one safe inside a TOML literal string, or bare into a key
+  or a number. **The shipped template uses three positions, not two** — every variable lands in a
+  basic string except `embedding_dim`, which is bare, and `rerank_model`, which
+  `pinakes.toml.j2:39` *also* interpolates inside a **comment**, where TOML parses nothing and the
+  quotes are decorative. So the promise holds because of what the shipped template looks like, not
+  because anything asserts it. Closing that region needs a check that does not go through the
+  escaper, and is its own increment.
+- **Added:** `tests/test_template.py` — 37 tests over the **three** classes the sweep named (`"`,
+  `\`, and control characters other than tab), opened out into eleven values, end to end through
+  `load()` as well as at the render. **Four of them assert that nothing changed** and pass without
+  the fix on purpose: over-escaping is the direction the obvious fix fails in, and a test that only
+  proves the escaper fires cannot catch it. Removing the hook turns **33** red and leaves exactly
+  those four green — measured by neutralising the hook and running the file, not counted. That
+  arithmetic is the increment's cheapest adversary: it is what caught a fifth test, earlier in
+  this branch, that passed without the fix it was written to pin.
+- **Four of the six escapes were unobservable, and now one of them is not.** `\b`, `\f`, `\n`
+  and `\r` each have a single-letter TOML escape *and* fall under the `\uXXXX` fallback, which
+  shadows them: drop any one and the manifest still parses and still round-trips the exact
+  value. What changes is the file a human opens — `name = "a\nb"` against `name = "a\u000ab"`.
+  It matters beyond legibility: the shipped template interpolates `rerank_model` **inside a
+  comment** (`pinakes.toml.j2:39`), and newline escaping is the whole of what stops a value
+  there reaching a live line.
+- **Added:** `tools/batteries/src-pinakes-template.toml`, the first mutation battery over
+  `template.py` — 10 mutants, 10 killed, run rather than inferred from anchors, with every
+  kill's *reason* checked against the row's own name. It found a gap in its
+  own increment's tests: the row named *a backslash is left raw* was dying on a `TOMLDecodeError`
+  rather than on an equality, because **both** backslash values in the corpus carry a sequence TOML
+  rejects outright — `\k` in `C:\notes\kb`, and `\a` in `C:\a"b\\c`, and it is not the same one in
+  both. The quiet case — `C:\notes`, whose only sequence is the **legal** `\n`, so the manifest
+  parses and means `C:` + newline + `otes` — reached no test at all. It has one now.
+
 ## [0.32.0] — 20260902 09:48
 
 ### Added
@@ -4583,7 +4678,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.1...HEAD
+[0.32.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.1
 [0.32.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.0
 [0.31.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.31.1
 [0.31.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.31.0
