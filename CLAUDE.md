@@ -206,24 +206,18 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   the floor** — the code is the fix, and it is written. Also wrong, in the other direction:
   `docs/RETROSPECTIVES.md:2218` distinguishes a developer machine from CI by *“different OS,
   different Python”*, when the interpreter is the one thing the matrix held constant.
-- **🚦 0.32.3 is PUBLISHED and swept — the release that carries the ULID fix — and `changelog.d/`
-  and `retro.d/` are empty.** On the index 20260903 15:10, verified with two controls that fire
-  against the published artifacts: on 3.14 the published 0.32.3 reports no orphaned sidecar for a
-  present-but-unreachable document where 0.32.2 reports one under the `--prune` remedy, and on 3.13
-  they exit **0** and **1**. Fourteen fragments spliced, 5 and 9. **PATCH**, because `doctor` now
-  reports *fewer* orphans and a sidecar whose document is present was never one.
-  **The hold ran 6 minutes 4 seconds against 0.32.2's 47, and the difference was deliberate**: the
-  tag waited for `minimum-python` to complete *at the release commit* and be read **in its log**
-  (CPython 3.13.15, the assertion printing `3.13.15`, 2425 passed / 126 skipped). That job triggers
-  only on a push to `main`, so **a green run at an earlier commit is not this commit's gate** — do
-  the same at every release.
-  **`prices.toml` moved for real**: the ECB published the 2026-09-03 fixing between the day's two
-  cuts, `1.1578 → 1.1615`. **Run the `[pdf]` money legs locally before landing a rate change** —
-  they are what a rate took red at 0.32.1, they **skip silently** in an ordinary `./check.sh`, and
-  `uv sync --extra pdf` is not enough because `uv run --frozen` without the extras re-syncs and
-  prunes them. That cost a false green here before it was caught.
-  **`pnk sync --sidecars-only` reporting five zeros is S20, filed with no build-order row on
-  purpose**: what the summary should count is the user's call, not an implementer's.
+- **🚦 0.32.4 is CUT — the silent-deletion fix — and `changelog.d/` and `retro.d/` are empty.**
+  Four fragments spliced. A source directory the walk could not enter used to delete every document
+  under it at exit 0; it now holds them, names the directory, and exits non-zero. **PATCH.**
+  **Read `minimum-python` in the CI run for the commit you tag** — that job fires only on a push to
+  `main`, so no earlier green transfers ([`docs/RELEASING.md`](docs/RELEASING.md) step 6). At
+  `5f865a7` it reported CPython 3.13.15 and 2454 passed / 126 skipped, read in its log.
+  **`prices.toml` was re-read and only `as_of` moved** — the ECB publishes once a day and this is
+  the day's fourth release, so 1.1615 stands. **Run the `[pdf]` money legs locally on any rate
+  change**: they skip silently in an ordinary `./check.sh`, and `uv run --frozen` without the extras
+  re-syncs and prunes them.
+  **What is still owed is the post-publish sweep** — STATUS's hold marker, its two published-version
+  registers and ROADMAP's two prose blocks, none writable before the index has been read.
 - **🛑 The most severe thing now open is row 31, and it is NOT fixed by 0.32.3.** A `[sources]` root
   the process cannot read enumerates nothing, so `pair()` reasons from absence and **every document
   under it is removed from the index at exit 0** — `2 removed`, `0 active documents`, `pnk doctor`

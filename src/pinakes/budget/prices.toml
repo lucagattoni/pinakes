@@ -33,7 +33,11 @@
 # fixing: the ECB had published 2026-09-03 by then, at 1.1615, so the rate moves 1.1578 -> 1.1615,
 # up 0.32%. Three releases, three re-reads, two different values -- which is the measurement this
 # step exists to take rather than the ceremony it looks like from one release away.
-as_of = "20260903 14:31"
+#
+# 0.32.4, at 20260903 16:37, re-read the same source and got the 2026-09-03 fixing again at 1.1615: the ECB
+# publishes once a day, so a fourth release on the same day necessarily re-reads the same value.
+# Only as_of moves. Four re-reads, two values.
+as_of = "20260903 16:37"
 usd_per_eur = "1.1615"
 
 # Measured against the live API on 20260729 03:17 with claude-opus-5, over the synthetic corpus

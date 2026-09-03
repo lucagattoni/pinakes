@@ -11565,6 +11565,163 @@ there False means *nothing is here* and it had been reading it as *nothing reada
 shared helper makes a class of bug go away and a class of bug easy to write: the sites that must
 distinguish *absent* from *unreachable* are exactly the ones a sweep will quietly get wrong.
 
+## A two-way selector that can only fall one way (20260903 15:23)
+
+**What happened.** Verifying the published 0.32.3 fix for the `--prune` bug, the check was
+`grep -qi 'orphan' && echo "ORPHAN REPORTED" || echo "the id is safe"`. On the fixed wheel
+`pnk doctor` printed `OK   orphaned sidecars: none`. The word *orphaned* is in that line, so the
+selector matched, and the harness printed **`** ORPHAN REPORTED — a live document's id is offered
+to --prune **`** about a release that had just been shown correct — with the output it had misread
+printed two lines above the verdict.
+
+**Why it is not a typo.** The selector had two branches and only one of them could ever be reached
+by evidence. `grep -q` matching is a claim; `grep -q` *not* matching is the absence of a claim, and
+the `||` branch spends it as though it were the opposite claim. So every failure mode of the
+instrument — a wrong pattern, a command that died early, an empty string, a renamed message —
+lands in the same branch as a genuine pass. `&&`/`||` on a matcher is a **one-way** test wearing
+the shape of a two-way one, and it is the shape most of my quick verification snippets have.
+
+**Why nothing caught it.** The check ran, printed, and exited 0. There is no gate for *the
+measurement was performed and the number was typed anyway*, because the checking step is present.
+It was caught only because the surrounding two lines of raw output happened to be printed beside
+the verdict, and a human-shaped read of them disagreed. Had the harness been tidier — verdict only,
+no evidence — it would have shipped a false negative about the most severe bug of the day, in the
+direction that says *still broken*, which is the direction that gets acted on.
+
+**The fix, and it generalises past this check.** State both expected forms and refuse to guess when
+neither appears:
+
+    if   printf '%s' "$out" | grep -qE 'WARN +orphaned sidecars: [1-9]'; then  verdict=BROKEN
+    elif printf '%s' "$out" | grep -qE 'OK +orphaned sidecars: none';    then  verdict=FIXED
+    else                                                                       verdict=INCONCLUSIVE
+    fi
+
+Three outcomes, not two. `INCONCLUSIVE` is the one that carries the information the `||` branch was
+destroying: *the instrument did not recognise what it was looking at*. It is also the branch that
+fires when someone rewords the message, which is when a silent selector is most likely to be wrong
+and least likely to be doubted.
+
+**The rule.** A selector deciding between two states must be able to *see* both. Write the positive
+pattern and the negative pattern, and make the fall-through say so — never `match && A || B`. This
+sits directly beside two rules already written down here: *a null result carries no information
+until the selector is shown able to fire*, and *a claim resting on an instrument you chose must
+state the selector*. This is the third face of the same coin, and the cheapest to check: read your
+own snippet and ask which branch a broken instrument lands in. If the answer is "the good one", the
+snippet cannot fail visibly.
+
+**Two more instrument failures in the same twenty minutes, both of which printed a clean-looking
+pass.** A hand-written `pinakes.toml` was refused for a missing key, so the crash probe never
+reached the crash. And with the embedding backend absent, `pnk sync` exited before the walk it was
+built to exercise, printing *no PermissionError* having tested nothing — the same class as a fixture
+whose sidecar is missing, so the loop that raises is never entered. **Three in one session says the
+failure mode is the harness, not the day**: every one of them stopped short of the code under test
+and reported the absence of a symptom as the absence of the defect.
+
+## A fixture that never reached the code under test (20260903 16:10)
+
+**What happened.** A peer handed over a reproduction for row 31's first shape: make the `[sources]`
+root a symlink into a blocked ancestor — `kb/docs -> ../blocked/realdocs`, with `blocked` at
+`0o000` — and observe that `Path.is_dir()` raises on 3.13 while returning `False` on 3.14. It came
+with the interpreter divergence measured on both versions, and with a named source line. Rebuilding
+it as a fixture, it never ran: `manifest._check_include_containment` refuses a root that resolves
+outside the KB, so the manifest fails to load and the walk is never reached at all.
+
+**What was wrong, and what was not.** The interpreter divergence was real. What did not survive was
+everything downstream of the fixture: the reachable shape needs the symlink target **inside** the
+KB (`kb/docs -> store/realdocs`, `kb/store` at `0o000`), and with that shape the 3.13 raise is at
+`is_dir()` and not, as reported, one line earlier at `.resolve()` — `resolve()` is non-strict here
+and does not stat. A precise, correctly-measured claim about the wrong tree.
+
+**Why a peer's reproduction is the easy one to accept.** It arrives *already carrying* the things
+that normally warrant trust: a measurement, both interpreters, a file and a line number. None of
+those is evidence about whether the state it builds is reachable by the code under test, and that is
+the one property a reproduction has to have. A fixture that errors before the code under test can
+still print a plausible failure — a different failure — and the reading of it is confirmatory
+either way.
+
+**The check that catches it, and it is one line.** Assert something the fixture must have *reached*
+before believing what it reports. Here that is the state right after the setup: the index contained
+`store/realdocs/a.md`, which is only true if the manifest loaded and the walk ran and keyed the
+documents by the resolved root. The test now carries that assertion with a message explaining what
+it is for, rather than beginning at the failure the fixture is meant to produce. **Opening a
+reproduction with a proof that it got as far as the code under test costs one assertion and is the
+difference between a regression test and a fixture that would pass on an empty function.**
+
+**What was right about the exchange.** The peer had already applied this to itself once that day —
+correcting a claim of its own that was true of its fixture and false of the language — and said so
+in the handover. That is what made checking the fixture the obvious next step rather than a slight.
+The rule *a peer's claim is not evidence until you have checked it* survived being handed
+a claim that was 80% correct, which is the hard case: the wrong 20% was load-bearing, and every
+signal of rigour attached to the 80%.
+
+**The positive counterpart, done for this increment rather than assumed.** The rule *"unit tests
+prove a component honours a parameter — only running proves the parameter arrives"* is the same
+statement from the other side, so the fix was exercised the way a user meets it before landing: a
+real `pnk sync` over a 30-document KB with `docs/vault` at `chmod 000`. It printed
+`failed: docs/vault: directory could not be entered: Permission denied.` with the remedy,
+`0 removed` and `30 unchanged`, and **exited 1**; `pnk doctor` then exited 0 with nothing to say
+about orphans or retired rows, and `pnk search "appraisal criteria"` answered **from the held
+document inside the locked directory**. Every one of those is asserted by a test as well. The run
+is what shows the assertions are about the command the user types.
+
+## A hook that could not fire for half the class (20260903 16:10)
+
+**What happened.** The decided fix for row 31 was *ask the filesystem instead of inferring*: replace
+a silent `root.glob(pattern)` with a walk carrying an `os.walk` error hook, collect the directories
+it could not read, and hold the documents under them. The decision named two fixtures — an
+unreadable root and an unreadable subdirectory — and both were measured on both interpreters before
+it was taken. It was still insufficient, and the gap was not in the reasoning.
+
+**The measurement that found it.** Before writing anything I enumerated the *modes*, not the cases:
+`0o000`, `0o100`, `0o400`, `0o500` on a subdirectory, asking each of `root.glob("**/*.md")`,
+`os.walk(onerror=…)` and `os.path.isfile` what it said. Four rows, one script. The `0o400` row is
+the one nobody had:
+
+| mode | glob yields | `onerror` fires | `os.path.isfile` |
+|---|---|---|---|
+| `0o000` | nothing | yes | `False` |
+| `0o100` | nothing | yes | `True` |
+| `0o400` | **the entry** | **no** | `False` |
+| `0o500` | the entry | no | `True` |
+
+At `0o400` the directory **lists and cannot be entered**. `scandir` succeeds, so no error is raised
+for any hook to receive; the glob hands back the name; and every `stat` on that name then fails one
+at a time. So the decided mechanism — an error hook — is structurally blind to it, and the walk was
+still deleting the documents underneath at exit 0. On Python 3.13 it did not even do that quietly:
+`Path.is_symlink()` `lstat`s, `lstat` needs `+x` on the **parent**, and the next line raised.
+
+**Why the decision could not have found it.** Both named fixtures make the directory *unlistable*,
+and unlistable is the only state that fires a hook. A decision reasoned from two instances of one
+state will specify an instrument that covers exactly that state, and the specification then reads as
+complete because every fixture in it passes. The gap is invisible from inside the case list; it is
+only visible from the axis the cases are points on.
+
+**The generalisable move.** When a fix is specified in terms of *an instrument* — a hook, a probe, a
+callback — enumerate the states of the thing being instrumented and ask the instrument about each
+one, before writing the fix. Not more fixtures of the same shape: the **axis**. Here the axis was
+four permission bits and cost one script; the two cases in the decision were both the same point on
+it. The question that finds this is *"what can this instrument not see?"*, and it has to be asked
+while the instrument is still a choice.
+
+**What it changed in the build.** The fix is two halves rather than one, and they are not
+alternatives: `paths.unreadable_directories` collects what the hook can see, and `paths.unreachable`
+catches the rest one candidate at a time, with the walk recording that candidate's **parent** —
+always the culprit, because a glob cannot descend past an untraversable directory, so every entry it
+still yields from one is a direct child. A test pins the limit itself
+(`test_unreadable_directories_cannot_see_a_directory_that_lists_but_cannot_be_entered`), because the
+per-candidate half looks redundant beside the collector and the next reader will delete it
+otherwise. **A stated limit needs a test as much as a behaviour does** — it is the only thing that
+turns red when someone acts on the belief that one half is enough.
+
+**A postscript, because it is the same lesson pointed at the test harness.** The mutation battery
+for this work reads **57 of 57 killed on 3.13, and 56 of 57 on 3.14** — one survivor, the row that
+reverts `doctor`'s directory guard to the `pathlib` spelling. That row is not a gap. `Path.is_dir()`
+raises on 3.13 and returns `False` on 3.14, so on the newer interpreter the mutant merely skips the
+root and the test's assertions still hold. **The row's own comment said so before the run**, which
+is the only reason the survivor is readable as a prediction rather than as a hole; written
+afterwards it would be indistinguishable from an excuse. An instrument that cannot see a case has
+to say so in advance — which is exactly what the `0o400` row above is about, one layer down.
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings
