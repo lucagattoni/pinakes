@@ -264,3 +264,33 @@ def test_a_context_value_that_is_not_a_string_is_escaped_rather_than_passed_thro
     rendered = template.render_manifest("notes", _context(name=Path('a"b')))
 
     assert tomllib.loads(rendered)["kb"]["name"] == 'a"b'
+
+
+@pytest.mark.parametrize(
+    ("character", "escape"),
+    [("\b", "\\b"), ("\f", "\\f"), ("\n", "\\n"), ("\r", "\\r")],
+    ids=["backspace", "form feed", "newline", "carriage return"],
+)
+def test_the_four_reserved_escapes_are_written_as_letters_not_code_points(
+    tmp_path: Path, character: str, escape: str
+) -> None:
+    """The only assertion in this file that four entries of `_TOML_ESCAPES` can fail.
+
+    `\\b`, `\\f`, `\\n` and `\\r` each have a single-letter TOML escape *and* fall under the
+    `\\uXXXX` fallback, which shadows them: drop any of the four and the manifest still parses and
+    still round-trips the exact value. Measured — every round-trip test in this file stays green.
+    So the four lines were unobservable, which is the standard this increment already used to
+    delete the `bool` exclusion, applied here by a review pass rather than by its author.
+
+    What separates them is the bytes a human opens: `name = "a\\nb"` against
+    `name = "a\\u000ab"`. That is the assertion, in the same shape as the tab control above,
+    because a `read_text` of the file is the only instrument that can see it.
+    """
+    value = f"a{character}b"
+
+    result = init(tmp_path / "kb", name=value, now="20260903 09:00")
+
+    written = (result.root / "pinakes.toml").read_text(encoding="utf-8")
+    assert f'name     = "a{escape}b"' in written
+    assert f"\\u{ord(character):04x}" not in written
+    assert load(result.root).kb.name == value

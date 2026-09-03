@@ -1429,6 +1429,7 @@ cannot catch any of the four.
 | a value TOML cannot represent **at all** is refused before `init` creates anything — an unpaired surrogate (U+D800-U+DFFF) has no basic-string form raw and none escaped, and POSIX produces one from any invalid UTF-8 byte in an argument or a directory name. Unescaped it reached `Path.write_text`, which creates and truncates *before* the encoder raises: a zero-byte `pinakes.toml` and a directory `init` then refuses as *already a KB* — **S4's own end state, reproduced by S4's own fix**. The assertion that the root does not exist is the load-bearing half | S4 | `tests/test_template.py::test_a_name_holding_an_unpaired_surrogate_is_refused_before_anything_is_created` |
 | that refusal names the code point and never echoes the value — the message is printed to a terminal, and a name carrying an unpaired surrogate can carry an ANSI escape beside it | S4 | `tests/test_template.py::test_the_refusal_names_the_code_point_and_never_echoes_the_value` |
 | a context value that is **not** a string is escaped rather than passed through — the guard read *not a `str`*, and Jinja calls `str()` on whatever `finalize` returns, so declining to inspect a value was declining to make it safe. No call site in this build supplies one; the row exists because the promise is about the mechanism | S4 | `tests/test_template.py::test_a_context_value_that_is_not_a_string_is_escaped_rather_than_passed_through` |
+| the four escapes TOML reserves a letter for — `\b`, `\f`, `\n`, `\r` — are written **as those letters**, asserted against the bytes on disk. Each also falls under the `\uXXXX` fallback, which shadows it: drop any one and the manifest still parses and still round-trips the exact value, so every other row here stays green and no mutant could tell. What separates them is the file a human opens — `name = "a\nb"` against `name = "a\u000ab"` — and at `pinakes.toml.j2:39` it is the whole of what stops an interpolation inside a comment reaching a live line | S4 | `tests/test_template.py::test_the_four_reserved_escapes_are_written_as_letters_not_code_points` |
 | a tab is left raw, asserted against the byte on disk — it is the one control character a basic string may carry, and the byte is the only instrument that separates a raw tab from `\t` | S4 | `tests/test_template.py::test_a_tab_is_left_raw_rather_than_escaped` |
 | a name needing nothing is unchanged byte for byte — the control against over-escaping, which is the direction the obvious fix fails in | S4 | `tests/test_template.py::test_an_ordinary_name_is_left_byte_for_byte_alone` |
 | `dim` stays a bare integer — `finalize` is handed the result of *every* interpolation, including the one value that is not a string and would become an unreadable one | S4 | `tests/test_template.py::test_the_embedding_dimension_stays_a_bare_integer` |
@@ -1444,8 +1445,16 @@ review pass and not by the corpus: every value the corpus holds was chosen by so
 for a hard character to escape, so all eleven are representable by construction. Escaping
 cannot make a value safe inside a literal string (`'...'` has no escapes at all), or bare into
 a key or a number, either. Every variable this build supplies lands in a basic string except
-`embedding_dim`, which is never user text — so the promise holds for this build, and holds
+two: `embedding_dim`, which is bare and is never user text, and `rerank_model`, which the
+shipped template *also* interpolates **inside a comment** (`pinakes.toml.j2:39`,
+`# fitted_for = "{{ rerank_model }}@<revision>"`, and identically in `_versions/1.1` and
+`1.2`) — a third position, and one this paragraph did not name until 20260903. TOML never
+parses that line, so the quotes around it are decorative. It is safe there only because
+newline escaping stops a value reaching a live line, and that is a guarantee carried by a
+single entry of `_TOML_ESCAPES` — an entry that was itself unobservable until this pass,
+because the `\uXXXX` fallback shadows it. So the promise holds for this build, and holds
 because of what the shipped template happens to look like rather than because of anything
-asserted here. A template that interpolated outside a quoted string would defeat all thirteen
-rows. Closing that region needs a check that does not go through the escaper, and is its own
+asserted here. **The shipped template already interpolates outside a parsed string** — line 39 —
+so this is not a hypothetical about some third-party template: the case is in the wheel, and
+all thirteen rows are blind to it. What holds there is one escape entry, not an assertion. Closing that region needs a check that does not go through the escaper, and is its own
 increment.

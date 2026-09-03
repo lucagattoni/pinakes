@@ -13,7 +13,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 14
+mutants = 15
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · the `.gitignore` check answers what git answers
@@ -151,3 +151,30 @@ new = '''    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
     "GIT_CEILING_DIRECTORIES",
 )'''
 kills = "tests/test_init.py::test_a_ceiling_the_user_set_is_honoured_rather_than_scrubbed"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260903 · the refusal is only worth anything because of where it sits
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# S4's fix refuses a value TOML cannot represent — an unpaired surrogate, which POSIX makes of any
+# invalid UTF-8 byte in an argument or a directory name. **The refusal matters because
+# `render_manifest` runs before `root.mkdir`**: raise there and nothing has been created, so a
+# retry with a good name works. Raise after, and the user has a directory `init` refuses as
+# *already a KB* — which is S4's own end state.
+#
+# `test_a_name_holding_an_unpaired_surrogate_is_refused_before_anything_is_created` asserts both
+# halves, and **its `assert not root.exists()` was unreachable by any mutant until 20260903.** The
+# template battery's *the surrogate arm is removed* row kills it, but through the wrong door: with
+# the arm gone the refusal never fires at all, `write_text` raises `UnicodeEncodeError`,
+# `pytest.raises(TemplateError)` does not catch it, and the test dies before it reaches the
+# `exists()` line. Measured on this branch — `root.exists()` True, `pinakes.toml` 0 bytes.
+#
+# So the row belongs here, against the **ordering**, where it can fire.
+
+[[mutant]]
+name = "the KB directory is created before the manifest is rendered, so a refused name leaves it behind"
+file = "src/pinakes/init.py"
+old = """    rendered = template.render_manifest("""
+new = """    root.mkdir(parents=True, exist_ok=True)
+    rendered = template.render_manifest("""
+kills = "tests/test_template.py::test_a_name_holding_an_unpaired_surrogate_is_refused_before_anything_is_created"

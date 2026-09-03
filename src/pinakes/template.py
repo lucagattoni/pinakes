@@ -210,6 +210,12 @@ def render_context(manifest: Manifest) -> dict[str, Any]:
 #: absent**: it is the one control character a basic string may carry raw, so escaping it would
 #: rewrite a legal byte to no purpose. Every other character below U+0020, and U+007F, has no legal
 #: raw form and is escaped by the `\uXXXX` fallback in `_toml_basic`.
+#:
+#: **That fallback would also produce valid TOML for `\b`, `\f`, `\n` and `\r`**, and the value
+#: round-trips identically either way — so these four entries change nothing a parser can see,
+#: only the bytes a human opens: `name = "a\nb"` rather than `name = "a\u000ab"`. They were four
+#: lines no test and no mutant could distinguish until 20260903, found by a review pass applying
+#: the standard this file had already applied to the `bool` exclusion.
 _TOML_ESCAPES = {
     '"': '\\"',
     "\\": "\\\\",
@@ -264,9 +270,15 @@ def _toml_basic(value: object) -> object:
     **The region this cannot reach, stated rather than implied.** Escaping makes a value safe inside
     a basic string. It does not make a value safe interpolated into a *literal* string (`'...'`,
     which TOML gives no escapes at all), nor bare into a key or a number — a template doing either
-    with user text is broken in a way no escape function can repair. Every variable this build
-    supplies lands inside a basic string except `embedding_dim`, which is never user text; a
-    third-party template that arranges otherwise is outside what this can promise.
+    with user text is broken in a way no escape function can repair. **This build's own template
+    uses three positions, not two, and the third went unnoticed until 20260903**: every variable
+    lands inside a basic string except `embedding_dim`, which is bare, and `rerank_model`, which
+    `notes/pinakes.toml.j2:39` *also* interpolates inside a **comment** —
+    `# fitted_for = "{{ rerank_model }}@<revision>"`, where the quotes are decorative and TOML
+    parses nothing at all. A value is safe there only because a newline is escaped and so cannot
+    reach a live line: the guarantee at that position is carried by one entry of
+    `_TOML_ESCAPES`, not by the position. A third-party template that arranges otherwise is
+    outside what this can promise.
     """
     if isinstance(value, int):
         return value
