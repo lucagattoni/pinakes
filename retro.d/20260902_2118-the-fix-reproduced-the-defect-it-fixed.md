@@ -84,6 +84,24 @@ known and named. One line of arithmetic, and the fifth green test was the new on
 without the fix it was written to pin, with a battery row that would have survived. **The
 arithmetic was the instrument; nobody read the test and saw it.**
 
+### The review harness said "found nothing" when nobody had looked
+
+The third adversarial pass over this increment returned, in its own words, **"PASS FOUND NOTHING
+that survived refutation"**. All four of its lenses had stalled and errored; `agents_done` was
+**0**. The verdict string was mine — the script tested `survived.length === 0` and never asked
+whether anyone had looked, so a vacuous run and a clean run left by the same exit.
+
+Pass 1 had already shown the softer version: *8 raised, 4 confirmed* while five of its fourteen
+agents were dying on a session limit, one whole lens never running, and two findings never
+refuted — one of which was the only real code defect in that pass. **Truncation is not random
+with respect to value**: a lens that reads text finishes first, and a lens that must build a
+fixture and run a command reports last, so the expensive lens is first to be cut and it is the
+one that finds behaviour.
+
+The fix is structural, not a habit: the harness records which lenses actually returned and reports
+**VACUOUS / PARTIAL / CLEAN** rather than a count. A count cannot carry the difference, and asking
+a human to read the error list first is asking them to distrust the summary they were given.
+
 Which is the same lesson as [this increment's earlier
 one](#a-mutant-killed-for-the-wrong-reason-is-a-survivor-wearing-a-green-light-20260902-1159)
 arriving from the opposite direction: there, the aggregate was clean and the kill *reason* was

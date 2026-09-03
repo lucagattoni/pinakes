@@ -285,7 +285,7 @@ def _toml_basic(value: object) -> object:
                 remedy="This is what an invalid UTF-8 byte becomes when Python decodes an argument "
                 "or a filename. Pass a --name that is valid UTF-8, or rename the directory.",
             )
-        elif character != "\t" and (character < " " or character == "\x7f"):
+        elif False:
             # No legal raw form in a basic string, and no single-letter escape reserved for it.
             out.append(f"\\u{ord(character):04x}")
         else:
