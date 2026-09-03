@@ -3547,8 +3547,14 @@ def test_a_symlink_into_an_unreadable_directory_is_reported_without_naming_a_cau
 
     The third cause, and the one the first wording denied: a link into a directory without `+x`
     resolves to a file that is really there, so *"its target is missing or the link loops"* was
-    false on both counts. `exists()` swallows the `PermissionError` and returns False, and nothing
-    at this point can tell the three apart — so the line names all three rather than picking one.
+    false on both counts. Nothing at this point can tell the three apart, so the line names all
+    three rather than picking one.
+
+    This docstring used to add *"`exists()` swallows the `PermissionError` and returns False"*.
+    That was measured on 3.14 and is false on 3.13, where it raises — and since this project
+    supports both, the sentence described one interpreter while naming the language. It is why the
+    walk now goes through `is_regular_file` and `resolves`, whose answers do not depend on which
+    Python is installed, and why this test crashed rather than failed the first time it met 3.13.
 
     Reporting it is still right: the document is not indexed, and the walk is the only place that
     knows. What was wrong was the explanation, which is the same defect as the two this increment
@@ -3566,6 +3572,92 @@ def test_a_symlink_into_an_unreadable_directory_is_reported_without_naming_a_cau
 
     assert "docs/link.md" in report.unresolvable_symlinks
     assert "missing, unreadable, or the link loops" in "\n".join(report.lines())
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_a_sidecar_symlinked_into_an_unreadable_directory_does_not_stop_the_walk(
+    kb: Path,
+) -> None:
+    """The sidecar walk stats its own candidates, and shared the crash the document walk had.
+
+    Isolated on purpose: `**/*.md` cannot match `*.pnk.yaml`, so this link reaches the sidecar
+    loop's regular-file test and nothing before it. That loop already refuses to let one bad
+    sidecar stop a sync — *"a broken sidecar must not stop the walk"* is written beside its
+    `except` — but the guarantee was only ever about a sidecar it could **parse**. One it cannot
+    **stat** went out as a traceback on 3.13, past the `except` and out of `sync` entirely.
+
+    **`docs/real.md` is still not indexed, and that is the right answer, not a second defect.**
+    Pairing reads a document's sidecar to learn the ULID it already owns; unreadable means unknown,
+    and indexing anyway would mint a *second* id for a document that has one. So the document is
+    refused by name. What the fix changed is not that outcome but its blast radius: one unreachable
+    sidecar used to end the whole sync in a traceback, and now costs exactly the document it
+    belongs to.
+
+    **`SidecarError`, asserted on rather than merely "some failure", because the class is what
+    diverged.** With the walk fixed but the pairing sites still on `pathlib`, this state produced
+    `SidecarError` plus a remedy on 3.14 and a bare `PermissionError: [Errno 13]` on 3.13 — the
+    same tree and the same filesystem, two different answers, because `_refuse_naming_the_reason`
+    raised inside its own guard before it could name anything. Both interpreters now print this
+    line. A weaker assertion here would have gone green across that divergence.
+
+    **And the remedy is asserted separately, because the class alone is not enough.** The mutation
+    battery says so: dropping `is_symlink()` from that guard leaves `SidecarError` intact — a later
+    site raises it anyway — and takes only the remedy with it. So a test checking the class passed
+    on a version of this code that had stopped telling the user what to do about it, which is the
+    entire contribution of the function under test. The row survived until this assertion existed.
+
+    `docs/other.md` carries no sidecar and must still index. Without it this test would pass just
+    as well on a walk that collapsed and returned nothing, which is the failure it exists to catch.
+    """
+    write(kb, "real.md", "# Real\n\nreal body\n")
+    write(kb, "other.md", "# Other\n\nother body\n")
+    locked = kb / "docs" / "locked"
+    locked.mkdir()
+    (locked / "hidden.pnk.yaml").write_text("id: 01KYCJ8ZVMBJDB4FKRJRNYS5DT\n", encoding="utf-8")
+    (kb / "docs" / "real.md.pnk.yaml").symlink_to(locked / "hidden.pnk.yaml")
+    os.chmod(locked, 0o000)
+    try:
+        report = run(kb)
+    finally:
+        os.chmod(locked, 0o755)
+
+    assert [row["path"] for row in index(kb)] == ["docs/other.md"]
+    reported = "\n".join(report.lines())
+    assert "failed: docs/real.md" in reported
+    assert "SidecarError" in reported
+    assert "Until it parses, this document is not indexed" in reported
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_the_unmatched_probe_survives_a_neighbour_it_cannot_reach(kb: Path) -> None:
+    """The third site, and the one furthest from anything a user would call a symlink problem.
+
+    `_unmatched_under` exists to say *"this file is sitting in your KB and no pattern picked it
+    up"*. It walks `rglob("*")`, so it stats every neighbour — including a `.txt` link no
+    `include` pattern matched, which is exactly the path that reaches this site and no other.
+
+    The advice channel crashing the sync it was meant to annotate is the shape worth pinning: a
+    KB with a perfectly indexable document failed to index it because of a file the walk was only
+    ever going to *mention*. Unreachable neighbours are now silent, which is the right answer —
+    the probe reports a file it opened and judged to be text, and it can do neither here.
+    """
+    write(kb, "real.md", "# Real\n\nreal body\n")
+    locked = kb / "docs" / "locked"
+    locked.mkdir()
+    (locked / "hidden.txt").write_text("hidden body\n", encoding="utf-8")
+    (kb / "docs" / "note.txt").symlink_to(locked / "hidden.txt")
+    os.chmod(locked, 0o000)
+    try:
+        report = run(kb)
+    finally:
+        os.chmod(locked, 0o755)
+
+    assert [row["path"] for row in index(kb)] == ["docs/real.md"]
+    assert "docs/note.txt" not in report.unmatched
 
 
 def test_a_healthy_tree_says_nothing_about_symlinks(kb: Path) -> None:

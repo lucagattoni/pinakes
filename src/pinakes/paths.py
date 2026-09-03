@@ -1,13 +1,65 @@
-"""Where a relative path *lands* — the one predicate two callers share.
+"""Path predicates more than one caller needs, and that more than one caller got wrong.
 
-A `[sources] include` pattern and a template's declared `files` entry both name something relative
-that must end up inside a known directory, and both are read from a file Pinakes does not write.
-The test they need is the same one, and `manifest._check_include_containment` records four attempts
-at it that each got it wrong differently — so it lives here once rather than being re-derived by
-the next caller that needs it.
+Two families live here. **Where a relative path lands**: a `[sources] include` pattern and a
+template's declared `files` entry both name something relative that must end up inside a known
+directory, and both are read from a file Pinakes does not write —
+`manifest._check_include_containment` records four attempts at that test which each got it wrong
+differently. **What the filesystem says about a path**: `is_regular_file` and `resolves`, which
+exist because the `pathlib` spellings answer differently on the two Python versions this project
+supports.
+
+Both families are here for the same reason, stated in this file since the first: a predicate that
+several callers need is re-derived wrongly by the next one unless it has a home. The second family
+proved it the hard way — the version fix landed as two private helpers in `sync.py`, and the
+adversarial review then found the identical crash in `doctor.py` and `linkscan.py`, which could
+not reach them.
 """
 
+import os
 from pathlib import Path
+
+
+def is_regular_file(path: Path) -> bool:
+    """`path.is_file()`, except that a path this process cannot reach is `False` on every Python.
+
+    `Path.is_file()` and `Path.exists()` swallow a missing target and a symlink loop everywhere,
+    but they disagree about `EACCES` across the versions this project supports. Measured 20260903
+    on one symlink into a directory with mode `0o000`:
+
+    | | 3.13.15 | 3.14.7 |
+    |---|---|---|
+    | `Path.is_file`, `Path.exists` | raise `PermissionError` | `False` |
+    | `os.path.isfile`, `os.path.exists` | `False` | `False` |
+
+    `pyproject.toml` requires `>=3.13`, so the `pathlib` spelling ended `pnk sync` and `pnk doctor`
+    in a raw traceback on the *minimum supported interpreter* — and for `sync`, on exactly the
+    shape its walk exists to report. The `os.path` spelling is not a style preference here: it is
+    the only one whose result does not depend on which Python is installed.
+
+    It stayed invisible because nothing ran 3.13 where it mattered. A fresh worktree and CI both
+    resolve to 3.14, the primary checkout is 3.13, and CI's matrix varied the *extras* rather than
+    the interpreter — so a branch gate went green and the merged gate went red on the same tree.
+    `.github/workflows/ci.yml` now runs one leg on the declared minimum for that reason.
+
+    **`False` here means "not a reachable regular file", which is three states, not one**: absent,
+    a non-file, or present and unreachable. A caller that must tell them apart cannot use this —
+    see `doctor`'s orphan check, which asks `os.path.lexists` instead, because calling an
+    unreachable document *deleted* offers its permanent id to `--prune`.
+
+    `is_symlink()` is deliberately not wrapped: it `lstat`s the link rather than the target, so it
+    returned `True` on both versions in the same measurement.
+    """
+    return os.path.isfile(path)
+
+
+def resolves(path: Path) -> bool:
+    """`path.exists()` with the version-independence `is_regular_file` explains — read that first.
+
+    False means *this process cannot follow the path to anything*, which is three causes at once:
+    it is missing, it is unreadable, or a link loops. Nothing at this level can tell them apart,
+    which is why `sync`'s report names all three rather than picking one.
+    """
+    return os.path.exists(path)
 
 
 def lands_inside(anchor: Path, base: Path, relative: str) -> bool:

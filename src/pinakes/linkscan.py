@@ -51,6 +51,7 @@ from pinakes.errors import (
 )
 from pinakes.ids import DocId, KbId, parse_kb_id
 from pinakes.manifest import LinkedKb, Manifest
+from pinakes.paths import is_regular_file
 from pinakes.sidecar import SIDECAR_SUFFIX
 from pinakes.sidecar import read as read_sidecar
 
@@ -465,7 +466,11 @@ def sidecars_under(
                 if not (parent / candidate.name).is_relative_to(anchor):
                     escaping.add(pattern)
                     break  # bounds a symlinked-directory escape, which no static check can see
-                if not candidate.is_file() or candidate.name.endswith(SIDECAR_SUFFIX):
+                # `is_regular_file`, for the reason its docstring gives: this walk is over
+                # *someone else's* KB, so a symlink into a directory this process cannot traverse
+                # is a shape we have even less control over than in our own, and `is_file()` ends
+                # `pnk doctor` in a traceback on 3.13 rather than skipping the candidate.
+                if not is_regular_file(candidate) or candidate.name.endswith(SIDECAR_SUFFIX):
                     continue
                 # **`exclude` matches the *unresolved* path**, as it did before the containment
                 # check existed and as the partner's own `walk_sources` does. Matching the resolved
@@ -481,7 +486,7 @@ def sidecars_under(
                 ):
                     continue
                 sidecar = candidate.with_name(candidate.name + SIDECAR_SUFFIX)
-                if sidecar.is_file():
+                if is_regular_file(sidecar):
                     found.add(sidecar)
     problems.extend(
         f"[sources] include pattern {pattern!r} reaches outside the KB"

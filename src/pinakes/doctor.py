@@ -417,7 +417,23 @@ def _sidecars(manifest: Manifest) -> tuple[dict[Path, Sidecar], list[Path], list
                 message = _de_homed(exc.message, manifest.root)
                 broken.append(f"{path.relative_to(manifest.root)}: {message}")
                 continue
-            if not document_for(path).is_file():
+            # **`lexists`, which is neither `is_file()` nor `is_regular_file`.** An orphan is a
+            # sidecar whose document is *gone*, and the remedy printed for one is `--prune`, which
+            # deletes it — so the id this KB guarantees is permanent is destroyed on the strength
+            # of this predicate. It therefore has to distinguish *absent* from *there but
+            # unreachable*, and a boolean file test collapses exactly those two.
+            #
+            # Both interpreters got it wrong before this, differently. On 3.13 `is_file()` raised
+            # and `pnk doctor` ended in a traceback — the command you run *because* the KB is
+            # already broken. On 3.14 it returned False, and a document sitting on disk behind a
+            # directory without `+x` had its sidecar reported as orphaned and offered to `--prune`.
+            # `lexists` stats the entry rather than following it, so anything at that path counts
+            # as the document still being there, and it does not raise on either version.
+            #
+            # A dangling symlink is now "present" too, which is deliberate: `pnk sync` reports
+            # that path as an unresolved symlink rather than a deletion, and the two commands
+            # disagreeing about whether a document exists is worse than either answer.
+            if not os.path.lexists(document_for(path)):
                 orphans.append(path)
 
     checks: list[Check] = []
