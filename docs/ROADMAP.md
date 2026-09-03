@@ -17,17 +17,33 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260902 09:55 UTC
+## Where things stand right now — 20260903 13:12 UTC
 
-- **60 releases in 39 days** — **counted from `CHANGELOG.md`, not incremented from this
+- **61 releases in 40 days** — **counted from `CHANGELOG.md`, not incremented from this
   sentence's own previous value**, which is exactly how it drifted: it read **58** while the file
   held **59**. Across the **109** commits that have carried this sentence it agreed with the
   CHANGELOG in **70** and was wrong in **39** — all but two of them low, because a release added one
-  to the printed number instead of counting the entries. The three registers now reconcile: **61**
-  entries = **60** git tags + `0.30.3`, prepared and never tagged — **counted from
+  to the printed number instead of counting the entries. The three registers now reconcile: **62**
+  entries = **61** git tags + `0.30.3`, prepared and never tagged — **counted from
   `git ls-remote --tags`, the CHANGELOG's headings and this file's table, never incremented**, which is
   the discipline this row exists to keep and the one it previously failed.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725.
+  [`0.32.2`](#0322--four-reports-that-were-not-true--20260903-1254) is **on PyPI as of
+  20260903 13:08** — landed on `main` at 13:07:54 and on the index 47 seconds later, **the
+  shortest hold of the five consecutive releases that have produced the marker and removed it
+  only once the index had been read.** Its control is the sharper half of the check: `pnk search
+  -k 0` against the published 0.32.2 exits **2** at the parser, and against the published 0.32.1
+  exits **1** on *no pinakes.toml found* — the same command failing at a *later stage*, which is
+  what distinguishes reading the fix from reading a version string. **PyPI's simple index said
+  nothing about it for the first minute** while an install from that same index had already
+  succeeded; that is the second consecutive release on which one endpoint's silence would have
+  reported a failure that never happened, and the second on which it was not read as evidence.
+  **The fragment directories were empty for 88 seconds.** The release merge landed 13:07:54 and
+  the coder's row-8 batch landed 13:09:22 with seven more fragments, which is the ordinary
+  state here and not a splice that went wrong. *(Both figures in this paragraph were first
+  written as composed guesses — 82 seconds for the hold, eleven minutes for this gap — and
+  both were corrected from `git log` before the commit. Two in one sweep is the argument for
+  reading the clock rather than estimating from the shape of the afternoon.)*
   [`0.32.1`](#0321--a-kb-name-no-longer-bricks-the-kb-at-creation--20260903-0933) is **on PyPI as
   of 20260903 10:08** — landed on `main` at 10:07:34 and on the index 58 seconds later, the fourth
   consecutive release to produce the hold marker and remove it only once the index had been read.
@@ -65,7 +81,7 @@ precision nobody measured.
   rather than folded away, because the record was written honestly and deleting it would erase the
   gap instead of correcting it. The **seven** tags below `v0.2.2` are not a second exception: they
   predate publishing altogether, since `PUBLISH_TO_PYPI` became `true` on 20260728 17:15.
-- **Latest on PyPI: `0.32.1`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.32.2`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
