@@ -3602,6 +3602,12 @@ def test_a_sidecar_symlinked_into_an_unreadable_directory_does_not_stop_the_walk
     raised inside its own guard before it could name anything. Both interpreters now print this
     line. A weaker assertion here would have gone green across that divergence.
 
+    **And the remedy is asserted separately, because the class alone is not enough.** The mutation
+    battery says so: dropping `is_symlink()` from that guard leaves `SidecarError` intact — a later
+    site raises it anyway — and takes only the remedy with it. So a test checking the class passed
+    on a version of this code that had stopped telling the user what to do about it, which is the
+    entire contribution of the function under test. The row survived until this assertion existed.
+
     `docs/other.md` carries no sidecar and must still index. Without it this test would pass just
     as well on a walk that collapsed and returned nothing, which is the failure it exists to catch.
     """
@@ -3621,6 +3627,7 @@ def test_a_sidecar_symlinked_into_an_unreadable_directory_does_not_stop_the_walk
     reported = "\n".join(report.lines())
     assert "failed: docs/real.md" in reported
     assert "SidecarError" in reported
+    assert "Until it parses, this document is not indexed" in reported
 
 
 @pytest.mark.skipif(

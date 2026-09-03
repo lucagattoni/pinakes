@@ -817,8 +817,10 @@ file = "src/pinakes/sync.py"
 # before naming anything, which is precisely the state 3.13 was already in for a different
 # reason: its `exists()` raised inside this guard, so the function whose job is to name the reason
 # never ran, and the user got `PermissionError: [Errno 13]` where 3.14 gave a `SidecarError` and a
-# remedy. This row pins the *message*, not the outcome — both interpreters refused the document
-# either way, and an assertion on the outcome alone went green across the divergence.
+# remedy. This row pins the *remedy*, not the outcome and not even the error class: under the
+# mutant a later site raises `SidecarError` regardless, and only the remedy line goes missing. It
+# SURVIVED on its first run against an assertion that checked the class, which is the row earning
+# its place — the test was passing on a build that had stopped telling the user what to do.
 old = '''    if not (_resolves(target) or target.is_symlink()):'''
 new = '''    if not _resolves(target):'''
 kills = "tests/test_sync.py::test_a_sidecar_symlinked_into_an_unreadable_directory_does_not_stop_the_walk"
