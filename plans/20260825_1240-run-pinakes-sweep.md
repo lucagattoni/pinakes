@@ -136,9 +136,9 @@ function and testable exhaustively. **Read S2's status before touching this.**
 |---|---|---|
 | **S4** ‡† | `init` | **A KB name that is not valid TOML bricks the KB at creation, silently.** `init` exits 0 and prints *created*; every later command exits 1; `pnk init` refuses to repair it (*"already a KB"*), so **the remedy surface is empty** and recovery is hand-editing TOML. Three classes: `"`, `\`, and control characters **other than tab** (tab is legal in a TOML basic string — an earlier four-class claim was wrong). **No flag is needed** — the directory name reaches the same path via `root.name` (`init.py:355`). **The verifier widened it usefully: `--name 'C:\notes\kb'`** — a Windows-style path as a KB name — **is far more plausible than a quoted name.** The hole is in the mechanism: `template.py:_render` has no notion of TOML escaping, so any future variable carrying user text inherits it |
 | **S5** ‡ | `sync` | `--sidecars-only` together with `--index-only` **writes a sidecar** while reporting `0 indexed, 0 renamed, 0 metadata-only, 0 unchanged, 0 removed` |
-| **S6** ‡ | `sync` | *"moved without its sidecar, so a new id was minted"* fires on **ordinary deletion**, naming a file that no longer exists. The verifier corrected the finder: it **does** also fire on a genuine move, so the original title's second half was wrong and was dropped |
+| **S6** ‡ | `sync` | *"moved without its sidecar, so a new id was minted"* fires on **ordinary deletion**, naming a file that no longer exists. The verifier corrected the finder: it **does** also fire on a genuine move, so the original title's second half was wrong and was dropped. **D-37 option E gates *when* it fires and leaves the wording false in a third state, measured 20260903 by the coder across all three**: delete file **and** sidecar → no orphan, gate suppresses it, which is the false positive E exists for; move and edit, sidecar left → orphan, `1 indexed`, an id genuinely minted, hint correct; **delete only the file, sidecar left → orphan present but `0 indexed` and nothing minted, so the gate passes and the mint claim is still untrue**. D-37 decided the gate, not the sentence, so the wording is the builder's — it will describe what the gate detects, source gone and sidecar present, without asserting a mint |
 | **S7** ‡ | `doctor` | The failure ledger **never clears**, and its own remediation text is wrong. **The verifier strengthened this**: it does not clear when the document is *repaired* either, which is the normal user path |
-| **S8** ‡ | `search` | Negative `-k` is passed through as a **raw Python negative-slice bound**: `-k -1` returns 19 passages, `-k -100` prints `no passages matched.` at **exit 0** |
+| **S8** ‡ | `search` | Negative `-k` is passed through as a **raw Python negative-slice bound**: `-k -1` returns 19 passages, `-k -100` prints `no passages matched.` at **exit 0**. **A third arm, found 20260903 by the coder building this row and not part of the original finding: `-k 0` silently means "use the default"** — `search.py:492` is `limit or manifest.retrieval.final_k`, and `0` is falsy, so the manifest's `final_k` is substituted with nothing said. It is the same missing positivity check, and it is the arm that returns a plausible answer rather than a wrong count or a traceback. **Refusing it is a behaviour change, not only a fix** — anything scripted against `-k 0` gets an error where it used to get default-k results |
 | **S9** ‡ | `ask` | `pnk ask -k -1` raises an **unhandled traceback** from `deep/estimate.py:456`. Held at medium because it is loud and immediate rather than silent |
 
 ### S2's abandoned first attempt — what it established, preserved before the branch is deleted
@@ -615,8 +615,24 @@ round-trips. Rejecting fixes one call site and leaves `_render` unescaped for th
 carries user text. **Rejecting raw control characters as well is a nicety**, worth folding in only if it
 stays cheap and does not grow a decision of its own.
 
-**S1, S5, S6, S8, S9 all share one shape** — an input the tool accepts and then mishandles, rather than
-refuses. Whoever builds them should say whether that is one fix or five; this plan does not assume.
+**These are three mechanisms, not one shape — corrected 20260903, and the correction came from the
+coder building them.** This sentence read *"S1, S5, S6, S8, S9 all share one shape — an input the tool
+accepts and then mishandles, rather than refuses"*, and **S6 was never that**: line 139 of this same
+file, one table above, defines it as firing on **ordinary deletion**. No input is involved at all. A
+user performs a correct, complete deletion and the tool makes a false statement about it. **Two
+registers of the same facts inside one document, disagreeing** — the defect this repository keeps
+finding, here in the sentence that was supposed to tell a builder what it was building.
+
+| Mechanism | Which |
+|---|---|
+| **A mishandled input** — accepted where it should be refused | **S5, S8, S9** (and S1, built and shipped in 0.32.0) |
+| **A false reporting predicate** — the operation is handled correctly and the *report* about it is untrue | **S6** |
+| **State that never clears** — a recorded failure outliving the condition that recorded it | **S7**, which the original sentence never claimed |
+
+Whoever builds them still says whether that is one fix or several; this plan does not assume. **The
+answer given 20260903 was four**, folding S8 and S9 into one guard at the CLI boundary — `cli.py:333`
+is `type=int` with no positivity check, and `deep/estimate.py:_positive` proves the check exists and
+is merely too late and only on the paid path.
 
 ## Decided work with an owner and no build order
 
