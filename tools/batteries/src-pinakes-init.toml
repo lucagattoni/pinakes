@@ -289,12 +289,23 @@ kills = "tests/test_cli_search.py::test_a_mistyped_source_type_is_a_usage_error_
 name = "the closed set loses `pdf`, so a legitimate filter becomes a usage error"
 file = "src/pinakes/chunk.py"
 # The discriminating row. Every *rejection* test still passes — `markdwon` is refused either way —
-# and the flag silently stops accepting a value the index really holds. Only a test that exercises
-# each valid member can see it, which is why that control exists rather than a single happy-path
-# case.
+# and the flag silently stops accepting a value the index really holds.
+#
+# **This row SURVIVED on its first run, and the finding was the selector, not the coverage.** It
+# named `tests/test_cli_search.py::test_every_valid_source_type_is_still_accepted`, whose loop is
+# `for source_type in SOURCE_TYPES:` — it iterates the very constant this mutant shrinks, so
+# dropping `pdf` removes it from the loop and the assertion goes on passing. That test is not
+# wrong for its own purpose: it controls the *guard*, catching one that refuses everything. It
+# simply cannot witness the *set* changing, because it reads it.
+#
+# What does kill this is `test_source_types_names_every_value_source_type_can_return`, which
+# derives the expected members from `source_type()` over real filenames and never reads the tuple.
+# Measured, per `tools/batteries/README.md` § *Reading a SURVIVED row*: with the mutant applied,
+# `tests/test_chunk.py` gives `1 failed, 61 passed` at line 745. **A test that reads the constant
+# it validates can only ever agree with it.**
 old = '''SOURCE_TYPES: tuple[str, ...] = ("markdown", "code", "pdf", "text")'''
 new = '''SOURCE_TYPES: tuple[str, ...] = ("markdown", "code", "text")'''
-kills = "tests/test_cli_search.py::test_every_valid_source_type_is_still_accepted"
+kills = "tests/test_chunk.py::test_source_types_names_every_value_source_type_can_return"
 
 [[mutant]]
 name = "CONTROL — the helper complains about everything, so MCP refuses every search it used to serve"
