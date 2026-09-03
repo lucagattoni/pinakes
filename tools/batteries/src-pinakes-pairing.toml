@@ -25,7 +25,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 42
+mutants = 45
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -725,7 +725,7 @@ file = "src/pinakes/sync.py"
 # The state before row 8: the entry is in `ls`, absent from `files`, and indistinguishable from a
 # path no include pattern matched. Nothing downstream can recover it — every later stage sees an
 # absence.
-old = '''                    if candidate.is_symlink() and not candidate.exists():
+old = '''                    if candidate.is_symlink() and not _resolves(candidate):
                         unresolvable.add(key(candidate))'''
 new = '''                    if False:
                         unresolvable.add(key(candidate))'''
@@ -739,16 +739,18 @@ file = "src/pinakes/sync.py"
 # a shape `sync.py` documents as supported two branches down — was reported as *"resolves to
 # nothing"*. Every other symlink test stays green under this mutant; only a directory link can see
 # it.
-old = '''                    if candidate.is_symlink() and not candidate.exists():'''
+old = '''                    if candidate.is_symlink() and not _resolves(candidate):'''
 new = '''                    if candidate.is_symlink():'''
 kills = "tests/test_sync.py::test_a_symlink_to_a_real_directory_is_not_reported_as_unresolvable"
 
 [[mutant]]
 name = "the report line names two causes again, so an unreadable target is called missing"
 file = "src/pinakes/sync.py"
-# `exists()` swallows a `PermissionError` and returns False, so a link into a directory without
-# `+x` reaches this line with its target present and no loop anywhere. Naming three causes is not
-# hedging: it is the largest true statement available at this point.
+# `_resolves` returns False for a link into a directory without `+x`, so this line is reached
+# with the target present and no loop anywhere. Naming three causes is not hedging: it is the
+# largest true statement available at this point. (This comment said `exists()` until 20260903 —
+# true on 3.14, where it returns False, and false on 3.13, where it raises. `_resolves` is the
+# spelling that makes the sentence hold on both.)
 old = '''                f"symlink could not be resolved, so it was not indexed: {path} — its target is "
                 "missing, unreadable, or the link loops"'''
 new = '''                f"symlink could not be resolved, so it was not indexed: {path} — its target is "
@@ -764,3 +766,59 @@ file = "src/pinakes/sync.py"
 old = '''                        unresolvable.add(key(candidate))'''
 new = '''                        unresolvable.add(str(candidate))'''
 kills = "tests/test_sync.py::test_a_symlink_that_resolves_to_nothing_is_reported_rather_than_skipped"
+
+# unreleased, 20260903 · the same tree, two answers, on two supported interpreters
+#
+# `Path.is_file()` and `Path.exists()` raise `PermissionError` on 3.13 and return False on 3.14
+# for a symlink into a directory without `+x`. `requires-python` is `>=3.13`, so `pnk sync` ended
+# in a raw traceback on the floor — reproduced against the published 0.32.2, 0.32.1, 0.30.0 and
+# 0.25.0 wheels under `uvx --python 3.13`, with 0.32.2 on 3.14 as the control. Six call sites now
+# go through `_is_regular_file` and `_resolves`, whose answers do not depend on the interpreter.
+#
+# **The obvious mutant is deliberately absent, and this is the note that says so.** Reverting
+# `_is_regular_file` to `return path.is_file()` *is* the defect, and it is killable only on 3.13:
+# a battery runs one interpreter, so on 3.14 it would report SURVIVED for a reason that is not a
+# coverage gap at all — the worst kind of row, because it reads as a missing assertion. The rule
+# in `tools/batteries/README.md` is one battery per file and `sync.py` is claimed here, so a
+# second file pinning `--python 3.13` is not available either. What guards that revert instead is
+# `.github/workflows/ci.yml`'s `minimum-python` job, and the three tests it runs there. Naming the
+# gap is the point: an unpinned backstop that nobody wrote down is how this defect lasted.
+#
+# The three below hold on both interpreters, which is why they are here rather than that one.
+
+[[mutant]]
+name = "`_resolves` always says yes, so nothing is ever reported as unresolvable"
+file = "src/pinakes/sync.py"
+# The guard survives the mutation and stops discriminating: every dangling link, every loop and
+# every unreachable target now takes the plain-directory `continue`, and the document leaves the
+# index with no line saying why. This is the silent skip the whole channel exists to prevent, and
+# it is interpreter-independent because the mutant removes the call rather than its spelling.
+old = '''    return os.path.exists(path)'''
+new = '''    return True'''
+kills = "tests/test_sync.py::test_a_symlink_that_resolves_to_nothing_is_reported_rather_than_skipped"
+
+[[mutant]]
+name = "`_is_regular_file` accepts a dangling link, so an unresolvable target is called unreadable"
+file = "src/pinakes/sync.py"
+# `lexists` stats the link rather than its target, so a dangling `docs/x.md` is now a regular file:
+# the walk sails past the guard and fails later in `hash_file`, which files it under `unreadable`.
+# Both outcomes report *something*, which is what makes this worth a row — the KB is not silently
+# short a document, it is short a document for a stated reason that is wrong, and the remedy for
+# an unreadable file is not the remedy for a broken link.
+old = '''    return os.path.isfile(path)'''
+new = '''    return os.path.lexists(path)'''
+kills = "tests/test_sync.py::test_a_symlink_that_resolves_to_nothing_is_reported_rather_than_skipped"
+
+[[mutant]]
+name = "the sidecar refusal drops its symlink half, so an unreachable sidecar is never named"
+file = "src/pinakes/sync.py"
+# `_refuse_naming_the_reason` is reached with `_resolves(target)` False and `is_symlink()` True —
+# the link is there, its target is not reachable. Drop the second half and the function returns
+# before naming anything, which is precisely the state 3.13 was already in for a different
+# reason: its `exists()` raised inside this guard, so the function whose job is to name the reason
+# never ran, and the user got `PermissionError: [Errno 13]` where 3.14 gave a `SidecarError` and a
+# remedy. This row pins the *message*, not the outcome — both interpreters refused the document
+# either way, and an assertion on the outcome alone went green across the divergence.
+old = '''    if not (_resolves(target) or target.is_symlink()):'''
+new = '''    if not _resolves(target):'''
+kills = "tests/test_sync.py::test_a_sidecar_symlinked_into_an_unreadable_directory_does_not_stop_the_walk"
