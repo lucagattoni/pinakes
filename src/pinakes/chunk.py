@@ -108,6 +108,19 @@ class Block:
     unnumbered_heading_path: str | None
 
 
+SOURCE_TYPES: tuple[str, ...] = ("markdown", "code", "pdf", "text")
+"""Every value `source_type` can return, which is a *closed* set rather than a convention.
+
+`source_type` is total over filenames and has no fallthrough beyond `"text"`, so a `--source-type`
+outside this tuple cannot match a single row in any KB — it is a typo, provably, before the query
+runs. That is what lets the CLI and the MCP server refuse one at the boundary instead of returning
+an empty result the user reads as an empty KB (sweep, the Low classes).
+
+Kept beside the function rather than in `search.py` so the producer and the check cannot drift;
+`tests/test_chunk.py` asserts the two agree by exercising every suffix family.
+"""
+
+
 def source_type(filename: str) -> str:
     lowered = filename.lower()
     suffix = lowered[lowered.rfind(".") :] if "." in lowered else ""

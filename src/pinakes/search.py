@@ -51,6 +51,23 @@ class Filters:
     modified_after: float | None = None
     modified_before: float | None = None
 
+    def any_set(self) -> bool:
+        """Whether the caller actually asked to narrow anything.
+
+        `Filters()` is what every unfiltered search passes, so "no rows allowed" means two
+        opposite things and the reason printed to the user has to tell them apart (sweep, the Low
+        classes). Written as a method rather than re-derived at the one call site because the next
+        field added here must be added to this answer too, and a stale `or` chain is invisible:
+        it fails by calling a filtered search unfiltered, which reads as the ordinary case.
+        """
+        return bool(
+            self.tags
+            or self.path_prefix
+            or self.source_type
+            or self.modified_after is not None
+            or self.modified_before is not None
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class Passage:
@@ -399,7 +416,19 @@ def fused_candidates(
 
     allowed = _allowed_chunks(connection, filters)
     if not allowed:
-        return Fused((), {}, {}, {}, reason="nothing matched the filters")
+        # Two states reach here and they need opposite actions from the user. With filters, the
+        # corpus is fine and the filter was too narrow — widen it. With none, there is nothing to
+        # search at all, and telling that user to widen a filter they never passed sends them to
+        # look for a mistake they did not make (sweep, the Low classes). `d.state = 'active'` is
+        # always in the SQL, so the unfiltered case is *no active documents* rather than an empty
+        # file: a KB whose every document has been soft-deleted lands here too, and "nothing
+        # indexed" would be wrong for it.
+        reason = (
+            "nothing matched the filters"
+            if filters.any_set()
+            else "this KB has no active documents to search"
+        )
+        return Fused((), {}, {}, {}, reason=reason)
 
     similarity: dict[int, float] | None = {} if expanding else None
     lexical = _lexical(connection, query, allowed, settings.candidates_per_source)

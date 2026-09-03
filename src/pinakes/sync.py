@@ -192,6 +192,9 @@ class SyncReport:
     failures: list[tuple[str, str, str]] = field(default_factory=list[tuple[str, str, str]])
     ambiguities: tuple[Ambiguity, ...] = ()
     orphaned_sidecars: tuple[str, ...] = ()
+    unresolvable_symlinks: tuple[str, ...] = ()
+    """Paths matching an include pattern whose symlink target is missing or loops (the Low
+    classes). Reported only — nothing is held, retired or minted for them."""
     source_gone_sidecar_kept: tuple[str, ...] = ()
     """Documents whose file is gone while their sidecar is still on disk (§9, D-37 option E)."""
     paid_extraction_protected: tuple[str, ...] = ()
@@ -423,6 +426,14 @@ class SyncReport:
             )
         for orphan in self.orphaned_sidecars:
             lines.append(f"orphaned sidecar (kept; remove with `pnk doctor --prune`): {orphan}")
+        for path in self.unresolvable_symlinks:
+            # Names the mechanism, because the state is one `ls` actively argues against: the entry
+            # is right there in the listing. Without this the walk's only trace of it is an absence,
+            # and an absent file is indistinguishable from one no include pattern matched.
+            lines.append(
+                f"symlink resolves to nothing, so it was not indexed: {path} — its target is "
+                "missing or the link loops"
+            )
         lines.extend(self.failure_lines())
         return lines
 
@@ -556,17 +567,22 @@ def walk_document_paths(manifest: Manifest) -> frozenset[str]:
     corpus with one unreadable file would take `pnk doctor` down with a raw traceback — the command
     you run when things are already broken. Nothing here opens a document or parses a sidecar.
     """
-    files, _sidecars, _unmatched, _escaping, _unreadable = walk_sources(
+    files, _sidecars, _unmatched, _escaping, _unreadable, _unresolvable = walk_sources(
         manifest, _documents_only=True
     )
     return frozenset(file.path for file in files)
 
 
-def walk_sources(
-    manifest: Manifest, *, _documents_only: bool = False
-) -> tuple[list[WalkedFile], list[WalkedSidecar], UnmatchedFiles, tuple[str, ...], tuple[str, ...]]:
+def walk_sources(manifest: Manifest, *, _documents_only: bool = False) -> tuple[
+    list[WalkedFile],
+    list[WalkedSidecar],
+    UnmatchedFiles,
+    tuple[str, ...],
+    tuple[str, ...],
+    tuple[str, ...],
+]:
     """Collect source files, sidecars, files no `include` matched, patterns that left the KB,
-    and documents that matched but could not be read.
+    documents that matched but could not be read, and symlinks that resolve to nothing.
 
     Sidecars are excluded from the *document* set categorically, whatever the include patterns say:
     an `include = ["**/*.yaml"]` must never ingest a document's own metadata as a document.
@@ -586,6 +602,16 @@ def walk_sources(
     string. Measured on 0.7.0 — `docs/escape -> /outside` with `include = ["*/*.md"]` indexed the
     outside file and minted a sidecar beside it.
 
+    **The sixth is a symlink whose target is not there** — dangling, or a loop. `is_file()` is
+    False for both, so they took the same `continue` a directory takes and left no trace anywhere:
+    a sweep Low class, *invisible to both `sync` and `doctor`*. `ls` shows the entry, so the user
+    has no way to tell an ignored symlink from a file the include patterns never matched.
+
+    **Reported, never held and never retired.** Routing these into the fifth element would have
+    been less code and would have changed what a soft delete means for a whole class of paths —
+    a question the plan that scheduled this did not answer, and not one to settle by picking the
+    cheaper diff. So this element only makes the walk say what it found.
+
     **The fifth is the unreadable half of the same completeness question the third asks.** A
     document an `include` pattern matched and the process cannot open is neither indexable nor
     absent, and it used to be neither reported nor survivable: `hash_file` let the `PermissionError`
@@ -604,6 +630,7 @@ def walk_sources(
     sidecars: dict[str, WalkedSidecar] = {}
     unmatched: set[str] = set()
     unreadable: set[str] = set()
+    unresolvable: set[str] = set()
     anchor = manifest.root.resolve()
     # **One problem per pattern** — not per file, and not per `(root, pattern)`: a hostile `../**`
     # matches thousands of files, and two roots would report the same escape twice.
@@ -675,6 +702,12 @@ def walk_sources(
                     escaping.add(pattern)
                     break  # bounds the escape; no static check can see a symlinked directory
                 if not candidate.is_file():
+                    # A symlink that `is_file()` rejects is one whose target is missing or loops.
+                    # Recorded before the `continue` because this is the only place that knows:
+                    # every later stage sees a path that simply is not in `files`, which is
+                    # indistinguishable from a file no pattern matched.
+                    if candidate.is_symlink():
+                        unresolvable.add(key(candidate))
                     continue
                 # **`exclude` matches the *unresolved* path**, deliberately. Matching the resolved
                 # one silently changes which rules fire: with `docs/alias -> docs/real` inside the
@@ -750,6 +783,7 @@ def walk_sources(
         UnmatchedFiles(paths=tuple(sorted(unmatched)), truncated=truncated),
         tuple(sorted(escaping)),
         tuple(sorted(unreadable)),
+        tuple(sorted(unresolvable)),
     )
 
 
@@ -995,7 +1029,9 @@ def _estimate_only(manifest: Manifest, options: SyncOptions) -> SyncReport:
         )
 
     prices = load_prices()
-    files, _sidecars, _unmatched, _escaping, _unreadable = walk_sources(manifest)
+    files, _sidecars, _unmatched, _escaping, _unreadable, _unresolvable = walk_sources(
+        manifest
+    )
     # Built on the first PDF, not up front: constructing the transport needs a key, and a KB with
     # no PDFs at all has nothing to estimate and no business demanding one.
     transport = None
@@ -1155,7 +1191,7 @@ def _run(
     report: SyncReport,
     extraction_backend: str,
 ) -> None:
-    files, sidecars, unmatched, escaping, unreadable = walk_sources(manifest)
+    files, sidecars, unmatched, escaping, unreadable, unresolvable = walk_sources(manifest)
     report.unmatched = unmatched.paths
     report.unmatched_truncated = unmatched.truncated
     report.unmatched_pdf_extra = _missing_pdf_extra(unmatched.paths, extraction_backend)
@@ -1231,6 +1267,7 @@ def _run(
         )
         report.ambiguities = result.ambiguities
         report.orphaned_sidecars = result.orphaned_sidecars
+        report.unresolvable_symlinks = unresolvable
         report.source_gone_sidecar_kept = result.source_gone_sidecar_kept
         report.paid_extraction_protected = result.paid_extraction_protected
         report.paid_extraction_overwritten = result.paid_extraction_overwritten

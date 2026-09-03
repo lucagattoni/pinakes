@@ -4,6 +4,7 @@ import sqlite3
 import subprocess
 import sys
 from collections.abc import Sequence
+from dataclasses import fields
 from pathlib import Path
 
 import numpy as np
@@ -501,3 +502,48 @@ def test_the_page_marker_is_what_stops_a_citation_being_ambiguous() -> None:
 def test_a_heading_path_still_follows_the_locator() -> None:
     cited = _passage(page_start=4, page_end=4, heading_path="Findings > Costs").citation()
     assert cited == "docs/report.pdf:p4 (Findings > Costs)"
+
+
+#: One narrowing value per `Filters` field. Keyed by name so a field added to the dataclass and
+#: not to `any_set` fails the test below rather than passing it silently.
+_NARROWING = {
+    "tags": ("architecture",),
+    "path_prefix": "docs/",
+    "source_type": "markdown",
+    "modified_after": 1.0,
+    "modified_before": 1.0,
+}
+
+
+def test_an_unfiltered_search_reports_no_filters_set() -> None:
+    """`Filters()` is what every unfiltered search passes, and the empty-result reason turns on
+    telling that apart from a filter that excluded everything."""
+    assert Filters().any_set() is False
+
+
+def test_every_filter_field_on_its_own_counts_as_a_filter() -> None:
+    """The drift guard `any_set`'s docstring promises.
+
+    A field added to `Filters` and forgotten in `any_set` fails *by calling a filtered search
+    unfiltered* — the user narrows by the new field, gets nothing, and is told the KB holds no
+    active documents. That is a wrong answer wearing the shape of a right one, and no other test
+    here would see it, so this drives the check off `dataclasses.fields` rather than a hand-written
+    list.
+    """
+    names = {field.name for field in fields(Filters)}
+    assert names == set(_NARROWING), (
+        f"Filters gained or lost a field: {names ^ set(_NARROWING)}. Add it to _NARROWING and to "
+        "Filters.any_set, or an unfiltered-looking search will be reported as an empty KB."
+    )
+    for name, value in _NARROWING.items():
+        assert Filters(**{name: value}).any_set() is True, name
+
+
+def test_a_falsy_but_present_filter_still_counts() -> None:
+    """`modified_after = 0.0` is the epoch, not the absence of a bound — and `0.0` is falsy.
+
+    The two timestamp fields are compared against `None` rather than truth-tested for exactly this
+    reason; a plain `or` chain over all five would read an epoch bound as no filter at all.
+    """
+    assert Filters(modified_after=0.0).any_set() is True
+    assert Filters(modified_before=0.0).any_set() is True

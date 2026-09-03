@@ -5,6 +5,10 @@ import re
 import pytest
 
 from pinakes.chunk import (
+    CODE_SUFFIXES,
+    MARKDOWN_SUFFIXES,
+    PDF_SUFFIXES,
+    SOURCE_TYPES,
     Chunk,
     TokenCounter,
     assert_chunkable,
@@ -719,4 +723,27 @@ def test_a_different_root_is_never_dropped() -> None:
     )
     assert metadata_prefix(chunk, title="HTTP Semantics") == (
         "HTTP Semantics > Routing HTTP Messages > Message Forwarding"
+    )
+
+
+def test_source_types_names_every_value_source_type_can_return() -> None:
+    """`SOURCE_TYPES` is what `--source-type` is refused against, so a value the function can
+    return but the tuple omits would be rejected for a KB that genuinely holds it.
+
+    Asks the function rather than restating the tuple: every suffix the module classifies, plus a
+    suffix it classifies by falling through, has to land inside `SOURCE_TYPES`.
+    """
+    suffixes = (
+        *MARKDOWN_SUFFIXES,
+        *CODE_SUFFIXES,
+        *PDF_SUFFIXES,
+        ".txt",
+        ".unheard-of",
+        "",
+    )
+    produced = {source_type(f"doc{suffix}") for suffix in suffixes}
+    assert produced <= set(SOURCE_TYPES)
+    assert produced == set(SOURCE_TYPES), (
+        "every member of SOURCE_TYPES must be reachable, or the CLI advertises a filter that "
+        "can never match"
     )

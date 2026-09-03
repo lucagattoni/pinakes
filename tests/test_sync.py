@@ -1861,9 +1861,9 @@ def test_a_sidecar_that_appears_after_the_walk_asks_for_a_rerun(
 
     def walk_as_if_the_sidecar_arrived_late(
         manifest: Manifest,
-    ) -> tuple[list[Any], list[Any], Any, tuple[str, ...], tuple[str, ...]]:
-        files, _sidecars, unmatched, escaping, unreadable = real_walk(manifest)
-        return files, [], unmatched, escaping, unreadable
+    ) -> tuple[list[Any], list[Any], Any, tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+        files, _sidecars, unmatched, escaping, unreadable, unresolvable = real_walk(manifest)
+        return files, [], unmatched, escaping, unreadable, unresolvable
 
     monkeypatch.setattr(sync_module, "walk_sources", walk_as_if_the_sidecar_arrived_late)
     report = run(kb, rebuild=True)
@@ -3486,3 +3486,55 @@ def test_a_rebuild_cannot_index_an_unreadable_document_and_does_not_invent_it_a_
 
     assert recovered.ok
     assert {str(row["path"]): str(row["id"]) for row in index(kb)}["docs/c.md"] == original
+
+
+def test_a_symlink_that_resolves_to_nothing_is_reported_rather_than_skipped(kb: Path) -> None:
+    """A sweep Low class: *invisible to both `sync` and `doctor`*.
+
+    A dangling link and a loop both fail `is_file()`, so they took the same `continue` a directory
+    takes and left no trace at all. `ls` shows the entry, which is what makes the silence
+    expensive: the user cannot tell an ignored symlink from a file no include pattern matched, and
+    both look like "the tool did not see my document".
+    """
+    (kb / "docs" / "real.md").write_text("# Real\n\nreal content\n", encoding="utf-8")
+    (kb / "docs" / "dangling.md").symlink_to(kb / "docs" / "nowhere.md")
+    (kb / "docs" / "loop_a.md").symlink_to(kb / "docs" / "loop_b.md")
+    (kb / "docs" / "loop_b.md").symlink_to(kb / "docs" / "loop_a.md")
+
+    report = run(kb)
+
+    assert report.unresolvable_symlinks == (
+        "docs/dangling.md",
+        "docs/loop_a.md",
+        "docs/loop_b.md",
+    )
+    said = "\n".join(report.lines())
+    assert "symlink resolves to nothing" in said
+    assert "docs/dangling.md" in said
+    assert "docs/loop_a.md" in said
+
+
+def test_a_healthy_tree_says_nothing_about_symlinks(kb: Path) -> None:
+    """The control. A report line that fired on every sync would be worse than the silence it
+    replaced, and an assertion on the broken case alone cannot see that."""
+    (kb / "docs" / "real.md").write_text("# Real\n\nreal content\n", encoding="utf-8")
+    report = run(kb)
+    assert report.unresolvable_symlinks == ()
+    assert "symlink resolves to nothing" not in "\n".join(report.lines())
+
+
+def test_a_symlink_to_a_real_document_is_indexed_not_reported(kb: Path) -> None:
+    """The second control, and the one that matters: a *working* symlink is an ordinary document.
+
+    Without it, `unresolvable` could be populated by `is_symlink()` alone — which would report
+    every aliased document in a KB that uses links deliberately, and `sync.py` already has a
+    branch explaining that `docs/alias -> docs/real` is a supported shape.
+    """
+    real = kb / "elsewhere.md"
+    real.write_text("# Real\n\nreal content\n", encoding="utf-8")
+    (kb / "docs" / "alias.md").symlink_to(real)
+
+    report = run(kb)
+
+    assert report.unresolvable_symlinks == ()
+    assert report.embedded == 1
