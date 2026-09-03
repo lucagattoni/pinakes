@@ -10,8 +10,9 @@
   inherits it without anyone remembering to. Escaping
   follows TOML v1.0.0: `"`, `\`, `\b`, `\f`, `\n`, `\r`, and `\uXXXX` below U+0020 and at U+007F.
   **A tab is deliberately left raw** — it is the one control character a basic string may carry, so
-  escaping it would rewrite a legal byte. Non-strings pass through untouched, which is what keeps
-  `dim = {{ embedding_dim }}` a bare integer rather than an unreadable `"384"`.
+  escaping it would rewrite a legal byte. **`int` is the whole of what passes through bare** — the
+  one entry in the allow-list below — which is what keeps `dim = {{ embedding_dim }}` a bare
+  integer rather than an unreadable `"384"`.
 - **A value TOML cannot represent is refused, before `init` creates anything (found by review).**
   A lone surrogate — U+D800-U+DFFF — has no TOML form raw *or* escaped, and POSIX produces one
   routinely: `surrogateescape` is what an invalid UTF-8 byte in an argument or a directory name
@@ -41,6 +42,7 @@
 - **Added:** `tools/batteries/src-pinakes-template.toml`, the first mutation battery over
   `template.py` — 9 mutants, 9 killed, run rather than inferred from anchors. It found a gap in its
   own increment's tests: the row named *a backslash is left raw* was dying on a `TOMLDecodeError`
-  rather than on an equality, because every backslash value in the corpus also held `\k`, which
-  TOML rejects outright. The quiet case — `C:\notes`, whose only sequence is the **legal** `\n`, so
-  the manifest parses and means `C:` + newline + `otes` — reached no test at all. It has one now.
+  rather than on an equality, because **both** backslash values in the corpus carry a sequence TOML
+  rejects outright — `\k` in `C:\notes\kb`, and `\a` in `C:\a"b\\c`, and it is not the same one in
+  both. The quiet case — `C:\notes`, whose only sequence is the **legal** `\n`, so the manifest
+  parses and means `C:` + newline + `otes` — reached no test at all. It has one now.
