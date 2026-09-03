@@ -1869,3 +1869,56 @@ def test_eval_refuses_an_index_the_manifest_no_longer_describes(demo: Path) -> N
         assert "--rebuild" in caught.value.remedy
     finally:
         manifest_path.write_text(original, encoding="utf-8")
+
+
+def test_a_question_filtering_on_an_impossible_source_type_is_refused(tmp_path: Path) -> None:
+    """A typo here scores zero and looks like a regression, which is the expensive way to fail.
+
+    `filters.source_type` goes straight into `d.source_type = ?`, so `markdwon` matches no row in
+    any KB and that question scores zero recall on every run — for ever, and identically before and
+    after whatever change is being measured. Read off an eval table it is indistinguishable from a
+    retrieval regression the change caused, and the golden set is the instrument the repository
+    uses to license retrieval changes at all. Refusing at load is the only place the difference is
+    still visible.
+    """
+    path = tmp_path / "questions.yaml"
+    path.write_text(
+        "questions:\n"
+        "  - id: q\n"
+        "    question: What?\n    kind: lexical\n"
+        "    expect: [docs/a.md]\n"
+        "    filters:\n"
+        "      source_type: markdwon\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(EvalError) as exc_info:
+        load_questions(path)
+    said = str(exc_info.value)
+    assert "markdwon" in said
+    assert "markdown, code, pdf, text" in said
+    assert "'q'" in said
+
+
+def test_a_question_filtering_on_a_real_source_type_still_loads(tmp_path: Path) -> None:
+    """The control. A guard that refuses every `source_type:` would pass the test above."""
+    path = tmp_path / "questions.yaml"
+    path.write_text(
+        "questions:\n"
+        "  - id: q\n"
+        "    question: What?\n    kind: lexical\n"
+        "    expect: [docs/a.md]\n"
+        "    filters:\n"
+        "      source_type: markdown\n",
+        encoding="utf-8",
+    )
+    assert load_questions(path)[0].filters.source_type == "markdown"
+
+
+def test_a_question_with_no_source_type_filter_is_untouched(tmp_path: Path) -> None:
+    """The second control: `None` is the ordinary case and must pass straight through."""
+    path = tmp_path / "questions.yaml"
+    path.write_text(
+        "questions:\n  - id: q\n    question: What?\n    kind: lexical\n    expect: [docs/a.md]\n",
+        encoding="utf-8",
+    )
+    assert load_questions(path)[0].filters.source_type is None

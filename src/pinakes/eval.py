@@ -42,6 +42,7 @@ from ruamel.yaml import YAML, YAMLError
 from ruamel.yaml.constructor import DuplicateKeyError
 
 from pinakes import store
+from pinakes.chunk import source_type_complaint
 from pinakes.embed import EmbeddingBackend, Reranker, load_backend, load_reranker
 from pinakes.errors import EvalError
 from pinakes.graph.channel import GATED_RANKING, Ranking
@@ -279,6 +280,17 @@ def load_questions(path: Path) -> list[Question]:
             )
         seen[identifier] = text
         filters_raw = cast(dict[str, Any], item.get("filters") or {})
+        complaint = source_type_complaint(filters_raw.get("source_type"))
+        if complaint is not None:
+            raise EvalError(
+                f"{path}: question {identifier!r} filters on a source type that cannot exist — "
+                f"{complaint}",
+                remedy=(
+                    "Fix the `source_type:` under that question's `filters:`. Unrefused, it scores "
+                    "that question zero on every run, which reads as a retrieval regression "
+                    "rather than as the typo it is."
+                ),
+            )
         questions.append(
             Question(
                 id=identifier,

@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from pinakes.chunk import SOURCE_TYPES
 from pinakes.cli import main
 from pinakes.embed import (
     ModelInfo,
@@ -216,3 +217,110 @@ def test_a_positive_k_still_bounds_the_result(kb: Path, capsys: pytest.CaptureFi
     """
     assert main(["search", "retrieval", "--kb", str(kb), "-k", "1"]) == 0
     assert len([line for line in capsys.readouterr().out.splitlines() if line.startswith("[")]) == 1
+
+
+@pytest.mark.parametrize("command", ["search", "ask"])
+def test_a_mistyped_source_type_is_a_usage_error_not_an_empty_result(
+    kb: Path, capsys: pytest.CaptureFixture[str], command: str
+) -> None:
+    """A sweep Low class: `--source-type` went straight into `d.source_type = ?`.
+
+    A transposition matched no row, so `pnk search --source-type markdwon` printed "no passages
+    matched." at exit 0 — byte for byte what an empty KB prints, and what a *correct* filter over
+    a corpus holding none of that type prints. The user is in the one state of the three they can
+    fix, and nothing in the output distinguishes it.
+
+    Parametrised over both commands because they share `_retrieval_arguments`; a guard on one arm
+    would leave the other silently wrong, which is exactly how S8 and S9 came to be two findings.
+    """
+    with pytest.raises(SystemExit) as exit_info:
+        main([command, "retrieval", "--kb", str(kb), "--source-type", "markdwon"])
+    assert exit_info.value.code == 2
+    error = capsys.readouterr().err
+    assert "not a source type" in error
+    assert "markdown, code, pdf, text" in error
+
+
+def test_every_valid_source_type_is_still_accepted(
+    kb: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The control. A guard that refused everything would leave the test above green while
+    `--source-type` stopped working, and `markdown` is the value the fixture's corpus actually
+    holds — so this asserts a result comes back, not merely that exit is 0."""
+    for source_type in SOURCE_TYPES:
+        assert main(["search", "retrieval", "--kb", str(kb), "--source-type", source_type]) == 0
+    assert main(["search", "retrieval", "--kb", str(kb), "--source-type", "markdown"]) == 0
+    assert "docs/a.md" in capsys.readouterr().out
+
+
+def test_an_empty_kb_does_not_blame_filters_the_user_never_passed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A sweep Low class: the reason read *"nothing matched the filters"* with no filters given.
+
+    It sends a user to widen a filter they never wrote, for a KB that holds nothing to search. The
+    two states need opposite actions, and `Filters()` is what every unfiltered search passes — so
+    the emptiness of the allowed set cannot tell them apart on its own.
+    """
+    register_embedding_backend("fake", lambda section, offline: FakeBackend())
+    register_reranker("fake", lambda section, offline: FakeReranker())
+    result = init(tmp_path / "empty", now="20260725 17:40")
+    manifest_path = result.root / "pinakes.toml"
+    text = manifest_path.read_text(encoding="utf-8")
+    text = text.replace('provider = "sentence-transformers"', 'provider = "fake"')
+    text = text.replace('model    = "BAAI/bge-small-en-v1.5"', 'model    = "fake-model"')
+    text = text.replace("dim      = 384", f"dim      = {len(VOCABULARY)}")
+    text = text.replace('model    = "BAAI/bge-reranker-base"', 'model    = "fake-reranker"')
+    manifest_path.write_text(text, encoding="utf-8")
+    sync(load(result.root), options=SyncOptions(), now="20260725 17:41")
+
+    assert main(["search", "anything", "--kb", str(result.root)]) == 0
+    out = capsys.readouterr().out
+    assert "no active documents" in out
+    assert "filters" not in out
+
+
+def test_a_kb_whose_documents_hold_no_indexable_text_is_not_called_empty(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The third state, and the one the first fix invented a false sentence for.
+
+    `_allowed_chunks` joins `chunks` to `documents`, so an empty result means *no active document
+    produced a chunk* — not *no active document*. A whitespace-only file syncs cleanly:
+    `chunk_document` returns nothing for it and the row is written `active` regardless. Reading
+    "this KB has no active documents" off that join told the user their KB was empty while
+    `pnk doctor` counted the document, which is worse than the vague sentence it replaced: a
+    confident falsehood costs more than an unhelpful truth.
+
+    Found by an adversarial review of the fix. The test that shipped with it synced a KB with no
+    files at all — zero document rows — so it never reached this state.
+    """
+    register_embedding_backend("fake", lambda section, offline: FakeBackend())
+    register_reranker("fake", lambda section, offline: FakeReranker())
+    result = init(tmp_path / "blank", now="20260725 17:40")
+    manifest_path = result.root / "pinakes.toml"
+    text = manifest_path.read_text(encoding="utf-8")
+    text = text.replace('provider = "sentence-transformers"', 'provider = "fake"')
+    text = text.replace('model    = "BAAI/bge-small-en-v1.5"', 'model    = "fake-model"')
+    text = text.replace("dim      = 384", f"dim      = {len(VOCABULARY)}")
+    text = text.replace('model    = "BAAI/bge-reranker-base"', 'model    = "fake-reranker"')
+    manifest_path.write_text(text, encoding="utf-8")
+    (result.root / "docs").mkdir(exist_ok=True)
+    (result.root / "docs" / "blank.md").write_text("   \n\n   \n", encoding="utf-8")
+    sync(load(result.root), options=SyncOptions(), now="20260725 17:41")
+
+    assert main(["search", "anything", "--kb", str(result.root)]) == 0
+    out = capsys.readouterr().out
+    assert "no indexable text" in out
+    assert "no active documents" not in out
+    assert "filters" not in out
+
+
+def test_a_filter_that_excludes_everything_still_says_so(
+    kb: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other arm, and the control for the test above: with a filter actually given, the
+    original sentence is the right one and must survive. `pdf` is valid, so this passes the guard
+    and reaches the empty-allowed-set branch — the corpus holds only markdown."""
+    assert main(["search", "retrieval", "--kb", str(kb), "--source-type", "pdf"]) == 0
+    assert "nothing matched the filters" in capsys.readouterr().out

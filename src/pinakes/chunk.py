@@ -108,6 +108,40 @@ class Block:
     unnumbered_heading_path: str | None
 
 
+SOURCE_TYPES: tuple[str, ...] = ("markdown", "code", "pdf", "text")
+"""Every value `source_type` can return, which is a *closed* set rather than a convention.
+
+`source_type` is total over filenames and has no fallthrough beyond `"text"`, so a `--source-type`
+outside this tuple cannot match a single row in any KB — it is a typo, provably, before the query
+runs. That is what lets every surface that accepts one refuse it at the boundary instead of
+returning an empty result the user reads as an empty KB (sweep, the Low classes).
+
+**Every surface, and the first form of this sentence was not true when it was written.** The guard
+went into `pnk search`'s argparse alone while this docstring already claimed the MCP server
+enforced it, so `pinakes_search(source_type="markdwon")` still answered `0 passages` with
+"nothing matched the filters" — the exact defect the paragraph above says is closed, surviving on
+the surface `CLAUDE.md` lists beside the CLI. `source_type_complaint` below exists so the check
+cannot live on one surface again.
+
+Kept beside the function rather than in `search.py` so the producer and the check cannot drift;
+`tests/test_chunk.py` asserts the two agree by exercising every suffix family.
+"""
+
+
+def source_type_complaint(raw: str | None) -> str | None:
+    """`None` when `raw` names a source type an index can hold; the refusal sentence otherwise.
+
+    Returns the sentence rather than raising, because the three surfaces that need it raise three
+    different exceptions — `argparse.ArgumentTypeError` from the CLI, `ServeError` over MCP,
+    `EvalError` for a question file — and what must not drift between them is the set and the
+    wording, not the error type. `None` passes straight through, so a caller whose filter is
+    optional does not special-case it.
+    """
+    if raw is None or raw in SOURCE_TYPES:
+        return None
+    return f"{raw!r} is not a source type — it must be one of {', '.join(SOURCE_TYPES)}"
+
+
 def source_type(filename: str) -> str:
     lowered = filename.lower()
     suffix = lowered[lowered.rfind(".") :] if "." in lowered else ""

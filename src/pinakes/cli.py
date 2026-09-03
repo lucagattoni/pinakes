@@ -36,6 +36,7 @@ if TYPE_CHECKING:  # `sync` pulls numpy and the store; the CLI stays fast to sta
     from pinakes.sync import SyncReport
 
 from pinakes import __version__
+from pinakes.chunk import source_type_complaint
 from pinakes.errors import NotImplementedYetError, PinakesError
 from pinakes.manifest import Manifest
 
@@ -322,6 +323,28 @@ def _passage_count(raw: str) -> int:
     return value
 
 
+def _source_type(raw: str) -> str:
+    """`--source-type`, refused at the boundary when it names nothing the index can hold.
+
+    A Low class from the sweep. The flag went straight into `d.source_type = ?`, so a mistyped
+    value matched no row and `pnk search` printed "no passages matched." at exit 0 — the same
+    output an empty KB gives, and the same output a *correct* filter over an unpopulated corpus
+    gives. Three states, one indistinguishable answer, and the one the user is in is the one they
+    cannot act on.
+
+    Refusable because the set is closed: `chunk.source_type` is total and returns one of exactly
+    four values, so a value outside `SOURCE_TYPES` is a typo as a matter of fact rather than of
+    policy. Nothing here guesses what was meant — naming the four is what a user needs to see the
+    transposition themselves.
+
+    Exit 2 like `-k`: a malformed invocation is argparse's, not an operational failure.
+    """
+    complaint = source_type_complaint(raw)
+    if complaint is not None:
+        raise argparse.ArgumentTypeError(complaint)
+    return raw
+
+
 def _retrieval_arguments(parser: argparse.ArgumentParser, *, query_help: str) -> None:
     """The filter surface `pnk search` and `pnk ask` share, declared once for both.
 
@@ -347,7 +370,11 @@ def _retrieval_arguments(parser: argparse.ArgumentParser, *, query_help: str) ->
         help="only documents whose path starts with this",
     )
     parser.add_argument(
-        "--source-type", default=None, metavar="TYPE", help="markdown, text, code or pdf"
+        "--source-type",
+        type=_source_type,
+        default=None,
+        metavar="TYPE",
+        help="markdown, text, code or pdf",
     )
     parser.add_argument(
         "--modified-after",

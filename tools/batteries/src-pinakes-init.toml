@@ -13,7 +13,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 19
+mutants = 23
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · the `.gitignore` check answers what git answers
@@ -251,3 +251,84 @@ new = '''        raise PinakesError(
             f"{value} is not a number of passages — it must be 1 or more"
         )'''
 kills = "tests/test_cli_search.py::test_k_below_one_is_a_usage_error_on_both_retrieval_commands"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260903 · one closed set, refused on every surface
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# **`src/pinakes/chunk.py` joined on 20260903, with row 8's `--source-type` class.** Three files
+# now, and the third is here because the guarantee genuinely spans it: refusing a source type that
+# no row can hold is *one* property held in two places — the closed set `SOURCE_TYPES` lives in
+# `chunk.py`, the guard that rejects a value outside it lives in `cli.py`, and mutating the tuple
+# is the only way to prove the guard reads the real set rather than a literal of its own.
+#
+# **The rows below are deliberately aimed at the shared helper rather than at each surface.**
+# `source_type_complaint` exists because the first form of this fix wired the check into argparse
+# alone while `chunk.py`'s own docstring already claimed the MCP server enforced it — so a client
+# typo still scored zero passages under "nothing matched the filters", the exact defect the
+# increment was closing, under a written statement that it was closed. A mutant on the helper is
+# therefore killed on whichever surface the selector names, and the other two surfaces' tests exist
+# and are named in `docs/VERIFICATION.md` neighbours: `serve.py` is claimed by
+# `tools-mcp_handshake_gate.toml` and `eval.py` by no battery, so their own guard lines are not
+# mutated here. That is a stated gap, not an oversight.
+
+[[mutant]]
+name = "THE SHIPPED DEFECT — the complaint is never raised, so every surface accepts a typo again"
+file = "src/pinakes/chunk.py"
+# The whole of row 8's `--source-type` class in one edit: the helper returns `None` for everything,
+# so `pnk search --source-type markdwon` runs the query, matches no row, prints "no passages
+# matched." and exits 0 — indistinguishable from an empty KB and from a correct filter over an
+# unpopulated corpus.
+old = '''    if raw is None or raw in SOURCE_TYPES:
+        return None'''
+new = '''    if True:
+        return None'''
+kills = "tests/test_cli_search.py::test_a_mistyped_source_type_is_a_usage_error_not_an_empty_result"
+
+[[mutant]]
+name = "the closed set loses `pdf`, so a legitimate filter becomes a usage error"
+file = "src/pinakes/chunk.py"
+# The discriminating row. Every *rejection* test still passes — `markdwon` is refused either way —
+# and the flag silently stops accepting a value the index really holds.
+#
+# **This row SURVIVED on its first run, and the finding was the selector, not the coverage.** It
+# named `tests/test_cli_search.py::test_every_valid_source_type_is_still_accepted`, whose loop is
+# `for source_type in SOURCE_TYPES:` — it iterates the very constant this mutant shrinks, so
+# dropping `pdf` removes it from the loop and the assertion goes on passing. That test is not
+# wrong for its own purpose: it controls the *guard*, catching one that refuses everything. It
+# simply cannot witness the *set* changing, because it reads it.
+#
+# What does kill this is `test_source_types_names_every_value_source_type_can_return`, which
+# derives the expected members from `source_type()` over real filenames and never reads the tuple.
+# Measured, per `tools/batteries/README.md` § *Reading a SURVIVED row*: with the mutant applied,
+# `tests/test_chunk.py` gives `1 failed, 61 passed` at line 745. **A test that reads the constant
+# it validates can only ever agree with it.**
+old = '''SOURCE_TYPES: tuple[str, ...] = ("markdown", "code", "pdf", "text")'''
+new = '''SOURCE_TYPES: tuple[str, ...] = ("markdown", "code", "text")'''
+kills = "tests/test_chunk.py::test_source_types_names_every_value_source_type_can_return"
+
+[[mutant]]
+name = "CONTROL — the helper complains about everything, so MCP refuses every search it used to serve"
+file = "src/pinakes/chunk.py"
+# Without this row, a guard that rejects *all* input passes every rejection selector above while
+# the tool no longer works at all. Deliberately killed on the MCP surface rather than the CLI: the
+# helper's reason for existing is that one check serves three callers, and a row that only ever
+# dies at argparse would not say that.
+old = '''    if raw is None or raw in SOURCE_TYPES:
+        return None
+    return f"{raw!r} is not a source type'''
+new = '''    if raw is None:
+        return None
+    return f"{raw!r} is not a source type'''
+kills = "tests/test_serve.py::test_every_valid_source_type_still_reaches_the_index_over_mcp"
+
+[[mutant]]
+name = "the CLI refusal becomes operational rather than usage, so a typo exits 1 instead of 2"
+file = "src/pinakes/cli.py"
+# Same contract as the `-k` row above and the same disguise: a `PinakesError` reads as the *better*
+# error, carrying a remedy an `ArgumentTypeError` has no room for, and it is the wrong exit code —
+# nothing about `--source-type markdwon` is re-runnable into working. Killed by the selector's
+# `code == 2`, never by its message assertion, which this mutant satisfies.
+old = '''        raise argparse.ArgumentTypeError(complaint)'''
+new = '''        raise PinakesError(complaint)'''
+kills = "tests/test_cli_search.py::test_a_mistyped_source_type_is_a_usage_error_not_an_empty_result"

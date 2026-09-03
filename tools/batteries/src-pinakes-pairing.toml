@@ -25,7 +25,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 38
+mutants = 42
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -707,3 +707,60 @@ old = '''    connection.execute("DELETE FROM failures WHERE path = ?", (path,))
     connection.execute('''
 new = '''    connection.execute('''
 kills = "tests/test_sync.py::test_a_document_that_keeps_failing_keeps_one_row_not_one_per_sync"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260903 · a symlink the walk cannot resolve
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Row 8's third Low class, and the section is worth reading for the second row rather than the
+# first. The *shipped* defect was silence: a symlink failing `is_file()` took the same `continue` a
+# directory takes, so `ls` showed the entry and the walk left no trace of it. The defect the fix
+# then introduced was the opposite — reporting healthy directory aliases as broken links — and it
+# survived a control written against exactly that risk, because the control built a *file* symlink,
+# which passes `is_file()` and never reaches the branch at all.
+
+[[mutant]]
+name = "THE SHIPPED DEFECT — the walk goes silent again on a dangling link and a loop"
+file = "src/pinakes/sync.py"
+# The state before row 8: the entry is in `ls`, absent from `files`, and indistinguishable from a
+# path no include pattern matched. Nothing downstream can recover it — every later stage sees an
+# absence.
+old = '''                    if candidate.is_symlink() and not candidate.exists():
+                        unresolvable.add(key(candidate))'''
+new = '''                    if False:
+                        unresolvable.add(key(candidate))'''
+kills = "tests/test_sync.py::test_a_symlink_that_resolves_to_nothing_is_reported_rather_than_skipped"
+
+[[mutant]]
+name = "the discriminator reverts to `is_symlink()` alone, so every healthy directory alias is called broken"
+file = "src/pinakes/sync.py"
+# The defect the fix introduced, and the row this section exists for. `is_file()` is False for a
+# symlink to a real directory exactly as it is for a dangling one, so `docs/alias -> docs/real` —
+# a shape `sync.py` documents as supported two branches down — was reported as *"resolves to
+# nothing"*. Every other symlink test stays green under this mutant; only a directory link can see
+# it.
+old = '''                    if candidate.is_symlink() and not candidate.exists():'''
+new = '''                    if candidate.is_symlink():'''
+kills = "tests/test_sync.py::test_a_symlink_to_a_real_directory_is_not_reported_as_unresolvable"
+
+[[mutant]]
+name = "the report line names two causes again, so an unreadable target is called missing"
+file = "src/pinakes/sync.py"
+# `exists()` swallows a `PermissionError` and returns False, so a link into a directory without
+# `+x` reaches this line with its target present and no loop anywhere. Naming three causes is not
+# hedging: it is the largest true statement available at this point.
+old = '''                f"symlink could not be resolved, so it was not indexed: {path} — its target is "
+                "missing, unreadable, or the link loops"'''
+new = '''                f"symlink could not be resolved, so it was not indexed: {path} — its target is "
+                "missing or the link loops"'''
+kills = "tests/test_sync.py::test_a_symlink_into_an_unreadable_directory_is_reported_without_naming_a_cause"
+
+[[mutant]]
+name = "the reported path becomes absolute, so the line names a path no other output uses"
+file = "src/pinakes/sync.py"
+# Every other path in a `SyncReport` is KB-relative. An absolute one is still *true*, still points
+# at the right file, and quietly breaks the only thing the line is for — matching what the user
+# sees in `pnk doctor`, in a sidecar, and in their own `ls`.
+old = '''                        unresolvable.add(key(candidate))'''
+new = '''                        unresolvable.add(str(candidate))'''
+kills = "tests/test_sync.py::test_a_symlink_that_resolves_to_nothing_is_reported_rather_than_skipped"

@@ -33,16 +33,28 @@ survives — never for a number. **That clause read *"checks anchors and `kills`
 prose"* until 20260831**, which would send a session that had just tripped the gate to debug the
 wrong thing. It said
 *"Nine … Seven"* from 20260826, when three batteries landed in one day and one was never added to
-the total, until 20260830. **Four batteries are named for a module under `src/`** — `src-pinakes-init.toml`, over the check
-that decides whether a KB's `.pinakes/` can reach a remote; `src-pinakes-pairing.toml`, which
-spans **two** files, `src/pinakes/pairing.py` and `src/pinakes/sync.py`, because the guarantee it
-mutates spans both; `src-pinakes-budget-ledger.toml`, which spans **three** —
-`src/pinakes/budget/ledger.py`, `src/pinakes/budget/accountant.py` and
+the total, until 20260830. **Five batteries are named for a module under `src/`** — `src-pinakes-init.toml`, over the check
+that decides whether a KB's `.pinakes/` can reach a remote, and spanning **three** files as of
+20260903: `src/pinakes/init.py`, `src/pinakes/cli.py` and `src/pinakes/chunk.py`, the last two
+because refusing a `--source-type` typo is one guarantee held in two places — the closed set
+`SOURCE_TYPES` lives in `chunk.py` and the guard that rejects a value outside it lives in `cli.py`,
+so mutating the tuple is what proves the guard reads the real set rather than a literal of its own;
+`src-pinakes-pairing.toml`, which spans **three** files, `src/pinakes/pairing.py`,
+`src/pinakes/sync.py` and — added 20260903 with sweep row 7 — `src/pinakes/store.py`, because the
+guarantee it mutates spans all three and S7's half of it can be proved nowhere else: the failure
+ledger's clear lives in `store.py`, and no mutation of `sync.py` reaches it, since the pre-attempt
+clear is discarded by the failure handler's own rollback; `src-pinakes-budget-ledger.toml`, which
+spans **three** — `src/pinakes/budget/ledger.py`, `src/pinakes/budget/accountant.py` and
 `src/pinakes/extract/claude.py` — because the money path's kills live *between* the estimate and
 the ledger rather than at either end of it, and **it is the first battery over the paid path at
 all**, added 20260902 after a money assertion that had never held by construction went red on a
-refreshed exchange rate; and `src-pinakes-template.toml`, over `src/pinakes/template.py` alone —
-**the only one of the four that spans a single file**, because what it mutates is one function
+refreshed exchange rate; `src-pinakes-template.toml`, over `src/pinakes/template.py` alone; and
+`src-pinakes-search.toml`, over `src/pinakes/search.py` alone, added 20260903 with sweep row 8's
+Low classes. **Those two are the single-file batteries**, and the search one is single-file for the
+reason the rule wants stated: `Filters.any_set()` is one predicate in one module, and what its
+mutants separate is *the filters excluded everything* from *this KB has no active documents* — two
+states the confidence reason had been conflating, so a user who passed no filters at all was told
+that nothing matched their filters. `src-pinakes-template.toml` is single-file because what it mutates is one function
 escaping one interpolation. Added 20260902 with S4. **Its sharpest row separates *parses* from
 *round-trips*:** drop the backslash arm and `C:\notes` still renders **valid TOML** — `\n` is a
 legal escape — and reads back as `C:`, a newline, and `otes`. The manifest parses, `pnk doctor`

@@ -1,0 +1,79 @@
+# Mutation battery — `src/pinakes/search.py`.
+#
+#     python3 tools/mutate.py tools/batteries/src-pinakes-search.toml
+#
+# **One file, because what it covers is one predicate and the sentences it chooses between.**
+# `Filters.any_set()` and `_nothing_to_search` decide what a user is told when retrieval returns
+# nothing, and that is the whole subject here — not fusion, not ranking, not the confidence tiers,
+# none of which this battery touches. A reader who greps this file and finds every anchor resolving
+# has learned nothing about the rest of `search.py`.
+#
+# **The subject is a message, and that is exactly why it needs mutants.** An empty result set is
+# the one path where the code has the least information and the output makes the most specific
+# claim, and row 8 got it wrong twice in one increment — first by blaming filters nobody passed,
+# then by replacing that with "this KB has no active documents to search", which is false whenever
+# an active document produced no chunks. A whitespace-only file syncs cleanly and lands there.
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 4
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260903 · three empty results, three different things to do about them
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+
+[[mutant]]
+name = "THE SHIPPED DEFECT — an unfiltered empty result blames filters the user never passed"
+file = "src/pinakes/search.py"
+# The Low class as it shipped. `Filters()` is what every unfiltered search passes, so the emptiness
+# of the allowed set could not tell the two states apart, and the first search against a new KB
+# sent the user hunting for a filter that did not exist.
+old = '''    if filters.any_set():
+        return "nothing matched the filters"'''
+new = '''    if True:
+        return "nothing matched the filters"'''
+kills = "tests/test_cli_search.py::test_an_empty_kb_does_not_blame_filters_the_user_never_passed"
+
+[[mutant]]
+name = "the probe is dropped, so a KB whose documents hold no text is called empty"
+file = "src/pinakes/search.py"
+# The defect the *first fix* introduced, and the reason this is a query rather than a conditional.
+# `_allowed_chunks` joins `chunks` to `documents`, so an empty result means no active document
+# produced a chunk — not that there are none. Inferring the stronger claim tells a user their KB is
+# empty while `pnk doctor` counts the document, which is worse than the vague sentence it replaced:
+# a confident falsehood costs more than an unhelpful truth.
+old = '''    if connection.execute("SELECT 1 FROM documents WHERE state = 'active' LIMIT 1").fetchone():'''
+new = '''    if False:'''
+kills = "tests/test_cli_search.py::test_a_kb_whose_documents_hold_no_indexable_text_is_not_called_empty"
+
+[[mutant]]
+name = "the probe is inverted, so a genuinely empty KB is told its documents hold no text"
+file = "src/pinakes/search.py"
+# The mirror of the row above, and the one a single test cannot see. Both sentences are plausible
+# and only one is true in each state, so each arm needs its own assertion — the pair is what makes
+# either mean anything.
+old = '''    if connection.execute("SELECT 1 FROM documents WHERE state = 'active' LIMIT 1").fetchone():
+        return "this KB's active documents hold no indexable text"
+    return "this KB has no active documents to search"'''
+new = '''    if not connection.execute("SELECT 1 FROM documents WHERE state = 'active' LIMIT 1").fetchone():
+        return "this KB's active documents hold no indexable text"
+    return "this KB has no active documents to search"'''
+kills = "tests/test_cli_search.py::test_an_empty_kb_does_not_blame_filters_the_user_never_passed"
+
+[[mutant]]
+name = "CONTROL — a field drops out of the `or` chain, so a filtered search is answered as an unfiltered one"
+file = "src/pinakes/search.py"
+# The failure `any_set`'s own docstring predicts: *"the next field added here must be added to this
+# answer too, and a stale `or` chain is invisible: it fails by calling a filtered search unfiltered,
+# which reads as the ordinary case."* This row is that sentence made executable, on the field row 8
+# added the guard for. Without it, both unfiltered selectors above stay green while the filtered
+# arm — the original sentence, right all along for the case it named — stops being reachable.
+#
+# **The first draft of this row was an equivalent mutant and the anchor check could not see it.**
+# It replaced `self.tags` with `False and …`, which leaves `or self.source_type` further down the
+# chain still truthy for the very test named below, so the selector would have gone on passing. A
+# mutant has to be checked against the *state its selector builds*, not against the function.
+old = '''            or self.source_type
+'''
+new = ''''''
+kills = "tests/test_cli_search.py::test_a_filter_that_excludes_everything_still_says_so"

@@ -2,6 +2,7 @@
 
 import contextlib
 import itertools
+import os
 import shutil
 import sqlite3
 import subprocess
@@ -1861,9 +1862,9 @@ def test_a_sidecar_that_appears_after_the_walk_asks_for_a_rerun(
 
     def walk_as_if_the_sidecar_arrived_late(
         manifest: Manifest,
-    ) -> tuple[list[Any], list[Any], Any, tuple[str, ...], tuple[str, ...]]:
-        files, _sidecars, unmatched, escaping, unreadable = real_walk(manifest)
-        return files, [], unmatched, escaping, unreadable
+    ) -> tuple[list[Any], list[Any], Any, tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+        files, _sidecars, unmatched, escaping, unreadable, unresolvable = real_walk(manifest)
+        return files, [], unmatched, escaping, unreadable, unresolvable
 
     monkeypatch.setattr(sync_module, "walk_sources", walk_as_if_the_sidecar_arrived_late)
     report = run(kb, rebuild=True)
@@ -3486,3 +3487,114 @@ def test_a_rebuild_cannot_index_an_unreadable_document_and_does_not_invent_it_a_
 
     assert recovered.ok
     assert {str(row["path"]): str(row["id"]) for row in index(kb)}["docs/c.md"] == original
+
+
+def test_a_symlink_that_resolves_to_nothing_is_reported_rather_than_skipped(kb: Path) -> None:
+    """A sweep Low class: *invisible to both `sync` and `doctor`*.
+
+    A dangling link and a loop both fail `is_file()`, so they took the same `continue` a directory
+    takes and left no trace at all. `ls` shows the entry, which is what makes the silence
+    expensive: the user cannot tell an ignored symlink from a file no include pattern matched, and
+    both look like "the tool did not see my document".
+    """
+    (kb / "docs" / "real.md").write_text("# Real\n\nreal content\n", encoding="utf-8")
+    (kb / "docs" / "dangling.md").symlink_to(kb / "docs" / "nowhere.md")
+    (kb / "docs" / "loop_a.md").symlink_to(kb / "docs" / "loop_b.md")
+    (kb / "docs" / "loop_b.md").symlink_to(kb / "docs" / "loop_a.md")
+
+    report = run(kb)
+
+    assert report.unresolvable_symlinks == (
+        "docs/dangling.md",
+        "docs/loop_a.md",
+        "docs/loop_b.md",
+    )
+    said = "\n".join(report.lines())
+    assert "symlink could not be resolved" in said
+    assert "docs/dangling.md" in said
+    assert "docs/loop_a.md" in said
+
+
+def test_a_symlink_to_a_real_directory_is_not_reported_as_unresolvable(kb: Path) -> None:
+    """The control that actually reaches the branch, and it was red before `exists()` landed.
+
+    `is_file()` is False for a symlink to a *directory* just as it is for a dangling one, so the
+    first guard — `is_symlink()` under `not is_file()` — reported every healthy directory alias as
+    *"could not be resolved … its target is missing, unreadable, or the link loops"*, false on every
+    counts. `exists()` follows the link: False for a missing target and False for a loop, True
+    here, so this link takes the same `continue` a plain directory takes.
+
+    Found by an adversarial review of the fix, not by writing it — the shape is the one the
+    control above had named in prose and never built.
+    """
+    (kb / "docs" / "real").mkdir()
+    (kb / "docs" / "real" / "page.md").write_text("# Real\n\nreal content\n", encoding="utf-8")
+    (kb / "docs" / "alias.md").symlink_to(kb / "docs" / "real")
+
+    report = run(kb)
+
+    assert report.unresolvable_symlinks == ()
+    assert "symlink could not be resolved" not in "\n".join(report.lines())
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_a_symlink_into_an_unreadable_directory_is_reported_without_naming_a_cause(
+    kb: Path,
+) -> None:
+    """`exists()` is False for a target this process may not reach, and the message must not lie.
+
+    The third cause, and the one the first wording denied: a link into a directory without `+x`
+    resolves to a file that is really there, so *"its target is missing or the link loops"* was
+    false on both counts. `exists()` swallows the `PermissionError` and returns False, and nothing
+    at this point can tell the three apart — so the line names all three rather than picking one.
+
+    Reporting it is still right: the document is not indexed, and the walk is the only place that
+    knows. What was wrong was the explanation, which is the same defect as the two this increment
+    already fixed — a sentence claiming to know more than the code does.
+    """
+    locked = kb / "docs" / "locked"
+    locked.mkdir()
+    (locked / "hidden.md").write_text("# Hidden\n\nhidden\n", encoding="utf-8")
+    (kb / "docs" / "link.md").symlink_to(locked / "hidden.md")
+    os.chmod(locked, 0o000)
+    try:
+        report = run(kb)
+    finally:
+        os.chmod(locked, 0o755)
+
+    assert "docs/link.md" in report.unresolvable_symlinks
+    assert "missing, unreadable, or the link loops" in "\n".join(report.lines())
+
+
+def test_a_healthy_tree_says_nothing_about_symlinks(kb: Path) -> None:
+    """The control. A report line that fired on every sync would be worse than the silence it
+    replaced, and an assertion on the broken case alone cannot see that."""
+    (kb / "docs" / "real.md").write_text("# Real\n\nreal content\n", encoding="utf-8")
+    report = run(kb)
+    assert report.unresolvable_symlinks == ()
+    assert "symlink could not be resolved" not in "\n".join(report.lines())
+
+
+def test_a_symlink_to_a_real_document_is_indexed_not_reported(kb: Path) -> None:
+    """A *working* file symlink is an ordinary document.
+
+    **This control could not fail, and saying so is the point.** It was written against the risk
+    that `unresolvable` might be populated by `is_symlink()` alone — but a symlink to a real file
+    passes `is_file()`, so it never reaches the `is_symlink()` branch at all, and the assertion
+    below held for both the correct guard and the broken one. The shape its first docstring named,
+    `docs/alias -> docs/real`, is a *directory* link, which is the case that does reach the branch
+    and is now tested by the function underneath. Kept, because it does pin that an aliased
+    document is indexed rather than skipped; renamed in its reasoning, because a control that
+    names one shape and builds another is worse than no control — it reports coverage that is not
+    there.
+    """
+    real = kb / "elsewhere.md"
+    real.write_text("# Real\n\nreal content\n", encoding="utf-8")
+    (kb / "docs" / "alias.md").symlink_to(real)
+
+    report = run(kb)
+
+    assert report.unresolvable_symlinks == ()
+    assert report.embedded == 1
