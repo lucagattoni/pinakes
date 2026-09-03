@@ -1456,5 +1456,9 @@ because the `\uXXXX` fallback shadows it. So the promise holds for this build, a
 because of what the shipped template happens to look like rather than because of anything
 asserted here. **The shipped template already interpolates outside a parsed string** — line 39 —
 so this is not a hypothetical about some third-party template: the case is in the wheel, and
-all thirteen rows are blind to it. What holds there is one escape entry, not an assertion. Closing that region needs a check that does not go through the escaper, and is its own
+thirteen of the fourteen rows are blind to it. The fourteenth is not, and it does not cover
+the position either: it pins the one escape entry the position rests on, so that entry can no
+longer be deleted in silence. **The escape is what holds at line 39, and the fourteenth row
+guards the escape rather than the position** — nothing here asserts that a value reaching
+line 39 is safe. Closing that region needs a check that does not go through the escaper, and is its own
 increment.

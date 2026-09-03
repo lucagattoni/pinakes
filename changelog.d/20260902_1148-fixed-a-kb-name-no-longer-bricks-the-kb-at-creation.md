@@ -29,18 +29,30 @@
   which is what keeps `dim = {{ embedding_dim }}` an integer.
 - **What it does not cover, stated in the file rather than implied.** Escaping makes a value safe
   inside a *basic* string. It cannot make one safe inside a TOML literal string, or bare into a key
-  or a number. Every variable this build supplies lands in a basic string except `embedding_dim`,
-  which is never user text — so the promise holds because of what the shipped template looks like,
-  not because anything asserts it. Closing that region needs a check that does not go through the
+  or a number. **The shipped template uses three positions, not two** — every variable lands in a
+  basic string except `embedding_dim`, which is bare, and `rerank_model`, which
+  `pinakes.toml.j2:39` *also* interpolates inside a **comment**, where TOML parses nothing and the
+  quotes are decorative. So the promise holds because of what the shipped template looks like, not
+  because anything asserts it. Closing that region needs a check that does not go through the
   escaper, and is its own increment.
-- **Added:** `tests/test_template.py` — 33 tests over the **three** classes the sweep named (`"`,
+- **Added:** `tests/test_template.py` — 37 tests over the **three** classes the sweep named (`"`,
   `\`, and control characters other than tab), opened out into eleven values, end to end through
   `load()` as well as at the render. **Four of them assert that nothing changed** and pass without
   the fix on purpose: over-escaping is the direction the obvious fix fails in, and a test that only
-  proves the escaper fires cannot catch it. Removing the hook turns **29** red and leaves exactly
-  those four green — measured by applying `finalize=None` and running the file, not counted.
+  proves the escaper fires cannot catch it. Removing the hook turns **33** red and leaves exactly
+  those four green — measured by neutralising the hook and running the file, not counted. That
+  arithmetic is the increment's cheapest adversary: it is what caught a fifth test, earlier in
+  this branch, that passed without the fix it was written to pin.
+- **Four of the six escapes were unobservable, and now one of them is not.** `\b`, `\f`, `\n`
+  and `\r` each have a single-letter TOML escape *and* fall under the `\uXXXX` fallback, which
+  shadows them: drop any one and the manifest still parses and still round-trips the exact
+  value. What changes is the file a human opens — `name = "a\nb"` against `name = "a\u000ab"`.
+  It matters beyond legibility: the shipped template interpolates `rerank_model` **inside a
+  comment** (`pinakes.toml.j2:39`), and newline escaping is the whole of what stops a value
+  there reaching a live line.
 - **Added:** `tools/batteries/src-pinakes-template.toml`, the first mutation battery over
-  `template.py` — 9 mutants, 9 killed, run rather than inferred from anchors. It found a gap in its
+  `template.py` — 10 mutants, 10 killed, run rather than inferred from anchors, with every
+  kill's *reason* checked against the row's own name. It found a gap in its
   own increment's tests: the row named *a backslash is left raw* was dying on a `TOMLDecodeError`
   rather than on an equality, because **both** backslash values in the corpus carry a sequence TOML
   rejects outright — `\k` in `C:\notes\kb`, and `\a` in `C:\a"b\\c`, and it is not the same one in
