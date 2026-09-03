@@ -17,17 +17,26 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260903 15:13 UTC
+## Where things stand right now — 20260903 16:55 UTC
 
-- **62 releases in 40 days** — **counted from `CHANGELOG.md`, not incremented from this
+- **63 releases in 40 days** — **counted from `CHANGELOG.md`, not incremented from this
   sentence's own previous value**, which is exactly how it drifted: it read **58** while the file
   held **59**. Across the **109** commits that have carried this sentence it agreed with the
   CHANGELOG in **70** and was wrong in **39** — all but two of them low, because a release added one
-  to the printed number instead of counting the entries. The three registers now reconcile: **63**
-  entries = **62** git tags + `0.30.3`, prepared and never tagged — **counted from
+  to the printed number instead of counting the entries. The three registers now reconcile: **64**
+  entries = **63** git tags + `0.30.3`, prepared and never tagged — **counted from
   `git ls-remote --tags`, the CHANGELOG's headings and this file's table, never incremented**, which is
   the discipline this row exists to keep and the one it previously failed.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725.
+  [`0.32.4`](#0324--a-directory-the-walk-could-not-enter-deleted-what-was-under-it--20260903-1638)
+  is **on PyPI as of 20260903 16:53** — landed 16:49:07 and on the index 4 minutes 5 seconds later,
+  the tag held until `minimum-python` had completed at *this* commit and been read in its log.
+  **Its control is the release's own defect, still visible in the wheel before it**: against one KB
+  with two indexed documents and a `chmod 000` source root, published 0.32.3 prints `2 removed` and
+  exits 0 while published 0.32.4 prints `2 unchanged, 0 removed`, names the directory and exits 1.
+  **The fix was broader than the design that ordered it** — the implementer found a third shape,
+  a `0o400` directory that lists but cannot be entered, which no error hook can see and which the
+  planner's decision had not covered.
   [`0.32.3`](#0323--the-tool-offered-to-delete-a-permanent-id--20260903-1438) is **on PyPI as of
   20260903 15:10** — landed 15:04:42 and on the index 6 minutes 4 seconds later. **That hold is
   the longest of the five and the only one lengthened deliberately**: the tag waited until
@@ -92,7 +101,7 @@ precision nobody measured.
   rather than folded away, because the record was written honestly and deleting it would erase the
   gap instead of correcting it. The **seven** tags below `v0.2.2` are not a second exception: they
   predate publishing altogether, since `PUBLISH_TO_PYPI` became `true` on 20260728 17:15.
-- **Latest on PyPI: `0.32.3`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.32.4`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
