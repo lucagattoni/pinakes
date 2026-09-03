@@ -573,7 +573,9 @@ def walk_document_paths(manifest: Manifest) -> frozenset[str]:
     return frozenset(file.path for file in files)
 
 
-def walk_sources(manifest: Manifest, *, _documents_only: bool = False) -> tuple[
+def walk_sources(
+    manifest: Manifest, *, _documents_only: bool = False
+) -> tuple[
     list[WalkedFile],
     list[WalkedSidecar],
     UnmatchedFiles,
@@ -702,11 +704,18 @@ def walk_sources(manifest: Manifest, *, _documents_only: bool = False) -> tuple[
                     escaping.add(pattern)
                     break  # bounds the escape; no static check can see a symlinked directory
                 if not candidate.is_file():
-                    # A symlink that `is_file()` rejects is one whose target is missing or loops.
+                    # A symlink is unresolvable when it resolves to **nothing**, and `exists()` is
+                    # what says so: it follows the link, so a missing target and a loop are both
+                    # False, while a link to a real directory is True and takes the same `continue`
+                    # a plain directory takes. `is_file()` cannot make that distinction — it is
+                    # False for a directory target too, so the first form of this guard reported
+                    # every healthy `docs/alias -> docs/real` as a broken link. Its own control
+                    # named that shape in its docstring and built a *file* symlink, which passes
+                    # `is_file()` and never reaches this branch: the control could not fail.
                     # Recorded before the `continue` because this is the only place that knows:
                     # every later stage sees a path that simply is not in `files`, which is
                     # indistinguishable from a file no pattern matched.
-                    if candidate.is_symlink():
+                    if candidate.is_symlink() and not candidate.exists():
                         unresolvable.add(key(candidate))
                     continue
                 # **`exclude` matches the *unresolved* path**, deliberately. Matching the resolved
@@ -1029,9 +1038,7 @@ def _estimate_only(manifest: Manifest, options: SyncOptions) -> SyncReport:
         )
 
     prices = load_prices()
-    files, _sidecars, _unmatched, _escaping, _unreadable, _unresolvable = walk_sources(
-        manifest
-    )
+    files, _sidecars, _unmatched, _escaping, _unreadable, _unresolvable = walk_sources(manifest)
     # Built on the first PDF, not up front: constructing the transport needs a key, and a KB with
     # no PDFs at all has nothing to estimate and no business demanding one.
     transport = None

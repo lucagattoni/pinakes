@@ -36,7 +36,7 @@ if TYPE_CHECKING:  # `sync` pulls numpy and the store; the CLI stays fast to sta
     from pinakes.sync import SyncReport
 
 from pinakes import __version__
-from pinakes.chunk import SOURCE_TYPES
+from pinakes.chunk import source_type_complaint
 from pinakes.errors import NotImplementedYetError, PinakesError
 from pinakes.manifest import Manifest
 
@@ -339,10 +339,9 @@ def _source_type(raw: str) -> str:
 
     Exit 2 like `-k`: a malformed invocation is argparse's, not an operational failure.
     """
-    if raw not in SOURCE_TYPES:
-        raise argparse.ArgumentTypeError(
-            f"{raw!r} is not a source type — it must be one of {', '.join(SOURCE_TYPES)}"
-        )
+    complaint = source_type_complaint(raw)
+    if complaint is not None:
+        raise argparse.ArgumentTypeError(complaint)
     return raw
 
 

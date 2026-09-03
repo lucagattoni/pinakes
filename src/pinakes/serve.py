@@ -27,6 +27,7 @@ from mcp.server.mcpserver import MCPServer
 
 from pinakes import __version__, store
 from pinakes import manifest as manifest_module
+from pinakes.chunk import source_type_complaint
 from pinakes.embed import EmbeddingBackend, Reranker, load_backend, load_reranker
 from pinakes.errors import PinakesError, ServeError
 from pinakes.extract import ExtractedText
@@ -593,6 +594,15 @@ def build(roots: list[Path], *, offline: bool = False) -> tuple[MCPServer, Serve
         `path:pN-M` when the passage spans pages, and `page_start`/`page_end` carry the same
         numbers as integers. Both are null for a source that has no pages.
         """
+        complaint = source_type_complaint(source_type)
+        if complaint is not None:
+            # The CLI refuses this at argparse and MCP had no equivalent, so the defect the sweep
+            # closed for `pnk search` went on shipping here — a client typo scoring zero passages
+            # under "nothing matched the filters", which reads as an empty KB.
+            raise ServeError(
+                complaint,
+                remedy="Pass one of those four, or omit source_type to search every kind.",
+            )
         served, result = server.search(
             query,
             kb=kb,

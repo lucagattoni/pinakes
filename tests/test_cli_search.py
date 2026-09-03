@@ -280,6 +280,42 @@ def test_an_empty_kb_does_not_blame_filters_the_user_never_passed(
     assert "filters" not in out
 
 
+def test_a_kb_whose_documents_hold_no_indexable_text_is_not_called_empty(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The third state, and the one the first fix invented a false sentence for.
+
+    `_allowed_chunks` joins `chunks` to `documents`, so an empty result means *no active document
+    produced a chunk* — not *no active document*. A whitespace-only file syncs cleanly:
+    `chunk_document` returns nothing for it and the row is written `active` regardless. Reading
+    "this KB has no active documents" off that join told the user their KB was empty while
+    `pnk doctor` counted the document, which is worse than the vague sentence it replaced: a
+    confident falsehood costs more than an unhelpful truth.
+
+    Found by an adversarial review of the fix. The test that shipped with it synced a KB with no
+    files at all — zero document rows — so it never reached this state.
+    """
+    register_embedding_backend("fake", lambda section, offline: FakeBackend())
+    register_reranker("fake", lambda section, offline: FakeReranker())
+    result = init(tmp_path / "blank", now="20260725 17:40")
+    manifest_path = result.root / "pinakes.toml"
+    text = manifest_path.read_text(encoding="utf-8")
+    text = text.replace('provider = "sentence-transformers"', 'provider = "fake"')
+    text = text.replace('model    = "BAAI/bge-small-en-v1.5"', 'model    = "fake-model"')
+    text = text.replace("dim      = 384", f"dim      = {len(VOCABULARY)}")
+    text = text.replace('model    = "BAAI/bge-reranker-base"', 'model    = "fake-reranker"')
+    manifest_path.write_text(text, encoding="utf-8")
+    (result.root / "docs").mkdir(exist_ok=True)
+    (result.root / "docs" / "blank.md").write_text("   \n\n   \n", encoding="utf-8")
+    sync(load(result.root), options=SyncOptions(), now="20260725 17:41")
+
+    assert main(["search", "anything", "--kb", str(result.root)]) == 0
+    out = capsys.readouterr().out
+    assert "no indexable text" in out
+    assert "no active documents" not in out
+    assert "filters" not in out
+
+
 def test_a_filter_that_excludes_everything_still_says_so(
     kb: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -881,3 +881,51 @@ def test_pinakes_search_and_get_payloads_are_unchanged(linked_kb: Path) -> None:
         }
     finally:
         made.close()
+
+
+def test_a_mistyped_source_type_over_mcp_is_refused_rather_than_answered_with_nothing(
+    kb: Path,
+) -> None:
+    """The sweep's Low class survived on MCP after the CLI was fixed, and a docstring said it had not.
+
+    `pnk search --source-type markdwon` is refused at argparse, but `pinakes_search` built
+    `Filters(source_type=...)` from whatever the client sent, so the same typo returned zero
+    passages under *"nothing matched the filters"* — which an agent reads as an empty KB and
+    reports to its user as one. `chunk.SOURCE_TYPES`' own docstring already claimed the MCP server
+    refused it, so the gap shipped with a written statement that it did not exist.
+
+    Driven through `mcp.call_tool` rather than the closure: a unit test proves a function refuses a
+    value, and only the real call proves the value reaches it.
+    """
+    import asyncio
+
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    mcp, server = build([kb])
+    try:
+        # `ToolError`, not `ServeError`: the tool layer wraps whatever a tool raises, and what a
+        # client actually receives is the wrapped form. Asserting the raised type instead would
+        # pin a boundary no client is on.
+        with pytest.raises(ToolError) as exc_info:
+            asyncio.run(
+                mcp.call_tool("pinakes_search", {"query": "sourdough", "source_type": "markdwon"})
+            )
+        said = str(exc_info.value)
+        assert "markdwon" in said
+        assert "markdown, code, pdf, text" in said
+    finally:
+        server.close()
+
+
+def test_every_valid_source_type_still_reaches_the_index_over_mcp(kb: Path) -> None:
+    """The control. A guard that refuses everything passes the test above and breaks the tool."""
+    import asyncio
+
+    mcp, server = build([kb])
+    try:
+        for valid in ("markdown", "code", "pdf", "text"):
+            asyncio.run(
+                mcp.call_tool("pinakes_search", {"query": "sourdough", "source_type": valid})
+            )
+    finally:
+        server.close()

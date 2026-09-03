@@ -242,6 +242,30 @@ def _allowed_chunks(connection: sqlite3.Connection, filters: Filters) -> set[int
     return {int(row["id"]) for row in rows}
 
 
+def _nothing_to_search(connection: sqlite3.Connection, filters: Filters) -> str:
+    """Why the candidate set is empty, in the terms the user can act on.
+
+    Three states land here and each needs a different move. With filters, the corpus is fine and
+    the filter was too narrow — widen it. With none, telling that user to widen a filter they never
+    passed sends them looking for a mistake they did not make (sweep, the Low classes).
+
+    **The third state is why this is a query and not a conditional.** `_allowed_chunks` joins
+    `chunks` to `documents`, so an empty result means *no active document produced a chunk* — not
+    *no active document*. A whitespace-only file syncs cleanly: `chunk_document` returns nothing
+    for it, `_index_document` writes the row `active` regardless, and the KB then holds a document
+    the index cannot answer from. Inferring "no active documents" from an empty join told that user
+    their KB was empty while `pnk doctor` counted the document — a confidently specific falsehood
+    replacing a merely vague one, which is the way a message like this usually gets worse.
+    `d.state = 'active'` is unconditional in `_filter_sql`, so the probe below asks exactly the
+    question the join cannot answer.
+    """
+    if filters.any_set():
+        return "nothing matched the filters"
+    if connection.execute("SELECT 1 FROM documents WHERE state = 'active' LIMIT 1").fetchone():
+        return "this KB's active documents hold no indexable text"
+    return "this KB has no active documents to search"
+
+
 def _lexical(
     connection: sqlite3.Connection, query: str, allowed: set[int], limit: int
 ) -> list[int]:
@@ -416,19 +440,7 @@ def fused_candidates(
 
     allowed = _allowed_chunks(connection, filters)
     if not allowed:
-        # Two states reach here and they need opposite actions from the user. With filters, the
-        # corpus is fine and the filter was too narrow — widen it. With none, there is nothing to
-        # search at all, and telling that user to widen a filter they never passed sends them to
-        # look for a mistake they did not make (sweep, the Low classes). `d.state = 'active'` is
-        # always in the SQL, so the unfiltered case is *no active documents* rather than an empty
-        # file: a KB whose every document has been soft-deleted lands here too, and "nothing
-        # indexed" would be wrong for it.
-        reason = (
-            "nothing matched the filters"
-            if filters.any_set()
-            else "this KB has no active documents to search"
-        )
-        return Fused((), {}, {}, {}, reason=reason)
+        return Fused((), {}, {}, {}, reason=_nothing_to_search(connection, filters))
 
     similarity: dict[int, float] | None = {} if expanding else None
     lexical = _lexical(connection, query, allowed, settings.candidates_per_source)

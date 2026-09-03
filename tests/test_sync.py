@@ -3514,6 +3514,28 @@ def test_a_symlink_that_resolves_to_nothing_is_reported_rather_than_skipped(kb: 
     assert "docs/loop_a.md" in said
 
 
+def test_a_symlink_to_a_real_directory_is_not_reported_as_unresolvable(kb: Path) -> None:
+    """The control that actually reaches the branch, and it was red before `exists()` landed.
+
+    `is_file()` is False for a symlink to a *directory* just as it is for a dangling one, so the
+    first guard — `is_symlink()` under `not is_file()` — reported every healthy directory alias as
+    *"resolves to nothing … its target is missing or the link loops"*, which is false on both
+    counts. `exists()` follows the link: False for a missing target and False for a loop, True
+    here, so this link takes the same `continue` a plain directory takes.
+
+    Found by an adversarial review of the fix, not by writing it — the shape is the one the
+    control above had named in prose and never built.
+    """
+    (kb / "docs" / "real").mkdir()
+    (kb / "docs" / "real" / "page.md").write_text("# Real\n\nreal content\n", encoding="utf-8")
+    (kb / "docs" / "alias.md").symlink_to(kb / "docs" / "real")
+
+    report = run(kb)
+
+    assert report.unresolvable_symlinks == ()
+    assert "symlink resolves to nothing" not in "\n".join(report.lines())
+
+
 def test_a_healthy_tree_says_nothing_about_symlinks(kb: Path) -> None:
     """The control. A report line that fired on every sync would be worse than the silence it
     replaced, and an assertion on the broken case alone cannot see that."""
@@ -3524,11 +3546,17 @@ def test_a_healthy_tree_says_nothing_about_symlinks(kb: Path) -> None:
 
 
 def test_a_symlink_to_a_real_document_is_indexed_not_reported(kb: Path) -> None:
-    """The second control, and the one that matters: a *working* symlink is an ordinary document.
+    """A *working* file symlink is an ordinary document.
 
-    Without it, `unresolvable` could be populated by `is_symlink()` alone — which would report
-    every aliased document in a KB that uses links deliberately, and `sync.py` already has a
-    branch explaining that `docs/alias -> docs/real` is a supported shape.
+    **This control could not fail, and saying so is the point.** It was written against the risk
+    that `unresolvable` might be populated by `is_symlink()` alone — but a symlink to a real file
+    passes `is_file()`, so it never reaches the `is_symlink()` branch at all, and the assertion
+    below held for both the correct guard and the broken one. The shape its first docstring named,
+    `docs/alias -> docs/real`, is a *directory* link, which is the case that does reach the branch
+    and is now tested by the function underneath. Kept, because it does pin that an aliased
+    document is indexed rather than skipped; renamed in its reasoning, because a control that
+    names one shape and builds another is worse than no control — it reports coverage that is not
+    there.
     """
     real = kb / "elsewhere.md"
     real.write_text("# Real\n\nreal content\n", encoding="utf-8")
