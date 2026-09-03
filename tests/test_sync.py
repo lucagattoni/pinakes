@@ -8,6 +8,7 @@ import sqlite3
 import subprocess
 import time
 from collections.abc import Iterator, Sequence
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -35,6 +36,7 @@ from pinakes.manifest import Manifest, load
 from pinakes.sidecar import SIDECAR_SUFFIX, Sidecar
 from pinakes.sync import (
     MAX_PROBED_PER_ROOT,
+    SourceWalk,
     SyncOptions,
     SyncReport,
     _is_path_still_held,  # pyright: ignore[reportPrivateUsage]
@@ -1860,11 +1862,8 @@ def test_a_sidecar_that_appears_after_the_walk_asks_for_a_rerun(
     run(kb)  # mints a perfectly good sidecar
     real_walk = sync_module.walk_sources
 
-    def walk_as_if_the_sidecar_arrived_late(
-        manifest: Manifest,
-    ) -> tuple[list[Any], list[Any], Any, tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
-        files, _sidecars, unmatched, escaping, unreadable, unresolvable = real_walk(manifest)
-        return files, [], unmatched, escaping, unreadable, unresolvable
+    def walk_as_if_the_sidecar_arrived_late(manifest: Manifest) -> SourceWalk:
+        return replace(real_walk(manifest), sidecars=())
 
     monkeypatch.setattr(sync_module, "walk_sources", walk_as_if_the_sidecar_arrived_late)
     report = run(kb, rebuild=True)
@@ -3658,6 +3657,212 @@ def test_the_unmatched_probe_survives_a_neighbour_it_cannot_reach(kb: Path) -> N
 
     assert [row["path"] for row in index(kb)] == ["docs/real.md"]
     assert "docs/note.txt" not in report.unmatched
+
+
+# ---------------------------------------------------------------------------------------------
+# A directory the walk cannot enter — the level above the unreadable *document*
+# ---------------------------------------------------------------------------------------------
+#
+# `pair()` reasons from absence, and an unreadable directory produces exactly that: `root.glob()`
+# yields nothing from one, silently and identically on 3.13 and 3.14. Measured on `main`, a KB whose
+# `[sources]` root was `chmod 000` reported `2 removed`, went to `0 active documents`, had
+# `pnk doctor` report OK and **exited 0**; `pnk search` then answered nothing with no surface saying
+# why. 0.32.0 guarded the unreadable *file* one level down and left this open.
+#
+# Three fixtures, because three syscalls fail differently and only one of them fires a hook:
+# a root behind a blocked ancestor, a `0o000` subdirectory, and a `0o400` subdirectory that lists
+# but cannot be entered. `chmod`, not injection, for the reason `tests/test_paths.py` gives: what is
+# under test is which call refuses on which interpreter.
+
+
+def _locked_root_kb(kb: Path) -> Path:
+    """A KB whose `[sources]` root is a symlink to an in-KB directory, with the ancestor lockable.
+
+    **The target has to stay inside the KB.** `manifest._check_include_containment` refuses a root
+    that resolves outside, with `ManifestError: reaches outside the KB`, so the obvious fixture —
+    a root symlinked to a sibling of the KB — never reaches the walk at all and proves nothing.
+    """
+    (kb / "store" / "realdocs").mkdir(parents=True)
+    (kb / "docs").rmdir()
+    (kb / "docs").symlink_to(Path("store") / "realdocs")
+    return kb / "store"
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_a_source_root_the_walk_cannot_enter_holds_every_document_under_it(kb: Path) -> None:
+    """The worst shape this repository has: the whole corpus out of search, at exit 0.
+
+    On 3.14 `Path.is_dir()` answered `False` for this root and the walk skipped it; on 3.13 the same
+    line raised `PermissionError` and ended the sync in a traceback. One tree, two wrong answers,
+    and the silent one is the one that lost data.
+    """
+    lockable = _locked_root_kb(kb)
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    run(kb)
+    indexed_before = [row["path"] for row in index(kb)]
+    assert indexed_before == ["store/realdocs/a.md"], (
+        "the walk keys a symlinked root by its resolved path, and the hold must match that"
+    )
+    os.chmod(lockable, 0o000)
+    try:
+        report = run(kb)
+    finally:
+        os.chmod(lockable, 0o755)
+
+    assert report.deleted == 0
+    assert [row["path"] for row in index(kb) if row["state"] == "active"] == indexed_before
+    assert not report.ok, "a run that could not read part of the corpus must not exit 0"
+    assert [path for path, _error, _remedy in report.failures] == ["store/realdocs"]
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_an_unlistable_subdirectory_holds_only_the_documents_beneath_it(kb: Path) -> None:
+    """Recursive, and scoped. A one-shot readability probe of the root passes here while the bug is
+    live, and a fix that held the whole KB whenever any directory was refused would stop an ordinary
+    edit elsewhere from being indexed."""
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "sub/b.md", "# Bravo\n\nSecond body.\n")
+    run(kb)
+    os.chmod(kb / "docs" / "sub", 0o000)
+    try:
+        (kb / "docs" / "a.md").write_text("# Alpha\n\nEdited body.\n", encoding="utf-8")
+        report = run(kb)
+    finally:
+        os.chmod(kb / "docs" / "sub", 0o755)
+
+    assert report.deleted == 0
+    assert {str(row["path"]) for row in index(kb) if row["state"] == "active"} == {
+        "docs/a.md",
+        "docs/sub/b.md",
+    }
+    assert chunks_for(kb, "docs/sub/b.md") > 0, "held means its chunks stay answerable"
+    assert report.embedded == 1, "the readable half of the KB is still synced normally"
+    assert [path for path, _error, _remedy in report.failures] == ["docs/sub"]
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_a_subdirectory_that_lists_but_cannot_be_entered_reaches_the_same_channel(
+    kb: Path,
+) -> None:
+    """`0o400` raises nothing for `os.walk`'s hook to catch — `scandir` succeeds.
+
+    The glob yields the entry by name and every `stat` on it then fails one at a time, so this half
+    is caught per candidate and recorded against the **parent**, which is the path a `chmod` has to
+    be aimed at. On 3.13 it was not even silent: `Path.is_symlink()` raised rather than answering.
+    """
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "sub/b.md", "# Bravo\n\nSecond body.\n")
+    run(kb)
+    os.chmod(kb / "docs" / "sub", 0o400)
+    try:
+        report = run(kb)
+    finally:
+        os.chmod(kb / "docs" / "sub", 0o755)
+
+    assert report.deleted == 0
+    assert {str(row["path"]) for row in index(kb) if row["state"] == "active"} == {
+        "docs/a.md",
+        "docs/sub/b.md",
+    }
+    assert [path for path, _error, _remedy in report.failures] == ["docs/sub"]
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_the_unreadable_directory_failure_names_the_directory_and_a_way_out(kb: Path) -> None:
+    """A failure with no remedy is a report the user cannot act on, and the remedy has to name
+    `+rx` rather than `+r`: read permission alone still cannot be entered, which is this defect's
+    third fixture."""
+    write(kb, "sub/b.md", "# Bravo\n\nSecond body.\n")
+    run(kb)
+    os.chmod(kb / "docs" / "sub", 0o000)
+    try:
+        report = run(kb)
+    finally:
+        os.chmod(kb / "docs" / "sub", 0o755)
+
+    reported = "\n".join(report.lines())
+    assert "failed: docs/sub: directory could not be entered" in reported
+    assert "chmod +rx" in reported
+    assert "held meanwhile, not deleted" in reported
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_the_pre_commit_half_also_reports_an_unreadable_directory(kb: Path) -> None:
+    """`--sidecars-only` returns before the index is touched, so this is recorded above that
+    return — the half that runs in a pre-commit hook is the last place it should pass in silence."""
+    write(kb, "sub/b.md", "# Bravo\n\nSecond body.\n")
+    run(kb)
+    os.chmod(kb / "docs" / "sub", 0o000)
+    try:
+        report = run(kb, sidecars_only=True)
+    finally:
+        os.chmod(kb / "docs" / "sub", 0o755)
+
+    assert [path for path, _error, _remedy in report.failures] == ["docs/sub"]
+    assert not report.ok
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_restoring_the_directory_permission_returns_the_sync_to_clean(kb: Path) -> None:
+    """Nothing is recorded that a later sync has to undo: the hold is a decision about this run."""
+    write(kb, "sub/b.md", "# Bravo\n\nSecond body.\n")
+    run(kb)
+    os.chmod(kb / "docs" / "sub", 0o000)
+    try:
+        run(kb)
+    finally:
+        os.chmod(kb / "docs" / "sub", 0o755)
+
+    report = run(kb)
+
+    assert report.ok
+    assert report.failures == []
+    assert report.deleted == 0
+    assert {str(row["path"]) for row in index(kb) if row["state"] == "active"} == {"docs/sub/b.md"}
+
+
+def test_a_deleted_source_directory_still_retires_its_documents(kb: Path) -> None:
+    """**The control that keeps deletion working**, and the reason the walk filters by exception
+    type rather than treating every `OSError` from a directory as a refusal.
+
+    Every other assertion in this section is that something was *not* deleted. A walk that had
+    simply stopped retiring rows would satisfy all of them, and a KB that can no longer forget a
+    directory the user removed is a different defect of the same size.
+    """
+    write(kb, "sub/b.md", "# Bravo\n\nSecond body.\n")
+    run(kb)
+    shutil.rmtree(kb / "docs" / "sub")
+
+    report = run(kb)
+
+    assert report.deleted == 1
+    assert report.ok
+    assert [row["state"] for row in index(kb)] == ["deleted"]
+
+
+def test_a_healthy_tree_reports_no_unreadable_directory(kb: Path) -> None:
+    """The control. A line that fired on every sync would be worse than the silence it replaced,
+    and an assertion on the broken case alone cannot see that."""
+    write(kb, "a.md", "# Alpha\n\nFirst body.\n")
+    write(kb, "sub/b.md", "# Bravo\n\nSecond body.\n")
+
+    report = run(kb)
+
+    assert report.ok
+    assert report.failures == []
+    assert "could not be entered" not in "\n".join(report.lines())
 
 
 def test_a_healthy_tree_says_nothing_about_symlinks(kb: Path) -> None:

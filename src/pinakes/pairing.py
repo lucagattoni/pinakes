@@ -230,6 +230,7 @@ def pair(
     force: bool = False,
     explicit_extract: bool = False,
     unreadable: frozenset[str] = frozenset(),
+    unreadable_directories: frozenset[str] = frozenset(),
 ) -> PairingResult:
     """`effective_backend`/`paid_backend_names` classify only the *recorded-paid* direction here
     (decision 9's other two clauses): a document whose `IndexedDocument.extraction_backend` is
@@ -242,6 +243,13 @@ def pair(
     set a document the owner merely `chmod 000`-ed would be soft-deleted and its chunks dropped.
     Held rather than retired, and held rather than re-embedded: the recorded row is the last honest
     description of a file nobody can currently read.
+
+    `unreadable_directories` is the same statement about a **subtree the walk could not enter**,
+    and it has to be a separate argument because the walk cannot name what is inside one. So the
+    paths it protects are read out of `before` rather than off the disk: every document this index
+    already knows under such a directory is held, and nothing else changes. Held on the same
+    reasoning and for a strictly worse case — an unreadable file costs one document, an unreadable
+    root costs the corpus.
     """
     _reject_duplicate_ids(after.sidecars)
 
@@ -258,7 +266,13 @@ def pair(
         sidecar.id for sidecar in after.sidecars if sidecar.document_path in after_by_path
     )
 
-    orphaned_documents = _orphaned_documents(after, unreadable)
+    # Everything this run must refuse to reason about from absence. Computed once: the three
+    # readers below — the hold loop, `_orphaned_documents` and `_orphans` — have to agree, and a
+    # document held here whose sidecar was still counted as orphaned would be offered to
+    # `pnk doctor --prune`, which deletes the permanent id `docs/INVARIANTS.md` guarantees.
+    held = _held_paths(before, unreadable, unreadable_directories)
+
+    orphaned_documents = _orphaned_documents(after, held)
 
     effective_is_paid = effective_backend is not None and effective_backend in paid_backend_names
 
@@ -275,7 +289,7 @@ def pair(
     # would retire the row, and the rename loop would offer its content hash to another file as a
     # move. Marking the id and the path handled here is what keeps both from firing on a document
     # that is still sitting on disk.
-    for path in sorted(unreadable):
+    for path in sorted(held):
         document = before_by_path.get(path)
         if document is None or document.state == DELETED:
             continue  # never indexed, or already retired: there is no row to hold
@@ -540,7 +554,7 @@ def pair(
     return PairingResult(
         actions=tuple(_order_for_path_availability(actions, before_by_path)),
         ambiguities=tuple(ambiguities),
-        orphaned_sidecars=_orphans(after, unreadable),
+        orphaned_sidecars=_orphans(after, held),
         source_gone_sidecar_kept=tuple(sorted(source_gone_sidecar_kept)),
         paid_extraction_protected=tuple(sorted(paid_extraction_protected)),
         paid_extraction_overwritten=tuple(sorted(paid_extraction_overwritten)),
@@ -691,6 +705,30 @@ def _order_for_path_availability(
     # collision since 20260831 and records it with a remedy instead of letting it escape.
     ordered.extend(actions[index] for index in sorted(remaining))
     return ordered
+
+
+def _held_paths(
+    before: IndexSnapshot, unreadable: frozenset[str], unreadable_directories: frozenset[str]
+) -> frozenset[str]:
+    """Every path this run must not reason about from absence: unreadable documents, plus every
+    document the index already holds under a directory the walk could not enter.
+
+    **Read out of `before`, which is the only place they can come from.** A walk that could not
+    enter a directory has nothing to say about its contents, so the question "what was under here"
+    is answerable by the index alone.
+
+    A refused directory recorded as `""` or `"."` is the KB root itself, and `str.startswith`
+    given `""` matches every path — which is the correct answer, not an accident: if the root
+    cannot be entered, every document in the KB is behind it.
+    """
+    if not unreadable_directories:
+        return unreadable
+    prefixes = tuple(
+        "" if directory in ("", ".") else f"{directory}/" for directory in unreadable_directories
+    )
+    return unreadable | frozenset(
+        document.path for document in before.documents if document.path.startswith(prefixes)
+    )
 
 
 def _orphaned_documents(

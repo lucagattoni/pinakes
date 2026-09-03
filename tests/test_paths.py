@@ -1,17 +1,35 @@
-"""`paths.lands_inside` — the predicate two callers share, tested where it lives.
+"""`paths` — the predicates several callers share, tested where they live.
 
-The extraction that created this module is asserted to be behaviour-preserving by the *existing*
-`[sources] include` containment tests, which pass unchanged (`tests/test_sync.py`,
-`tests/test_manifest.py`). This file is the other half: the predicate's own cases, stated once
-rather than inferred from a manifest error message, so the next caller that needs it can read what
-it promises without reconstructing it from `include` semantics.
+Two families, and the file is organised as they are. **Where a relative path lands**:
+`lands_inside`, whose extraction is asserted to be behaviour-preserving by the *existing*
+`[sources] include` containment tests (`tests/test_sync.py`, `tests/test_manifest.py`); these are
+the other half, the predicate's own cases stated once rather than inferred from a manifest error
+message. **What the filesystem says about a path**: the predicates that exist because `pathlib`
+answers differently on the two interpreters this project supports, and because "I was not allowed
+to look" and "it is not there" are the same `False` everywhere else.
+
+Every test in the second family builds its state with `chmod`, which root ignores — hence the
+`geteuid` guards. Injection is this repository's default and cannot be used here: what is under
+test *is* which syscall raises on which interpreter, and a fake that raises on command would assert
+the fixture rather than the platform.
 """
 
+import os
 from pathlib import Path
 
 import pytest
 
-from pinakes.paths import lands_inside
+from pinakes.paths import (
+    is_directory,
+    is_symlink,
+    lands_inside,
+    unreachable,
+    unreadable_directories,
+)
+
+needs_a_non_root_user = pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
 
 
 def test_a_dot_dot_that_stays_inside_is_accepted(tmp_path: Path) -> None:
@@ -81,3 +99,182 @@ def test_an_embedded_nul_raises_rather_than_answering_false(tmp_path: Path) -> N
 
     with pytest.raises((ValueError, OSError)):
         lands_inside(anchor, tmp_path, "a\x00b/x.md")
+
+
+# ---------------------------------------------------------------------------------------------
+# What the filesystem says about a path
+# ---------------------------------------------------------------------------------------------
+
+
+def test_is_directory_agrees_with_pathlib_on_an_ordinary_tree(tmp_path: Path) -> None:
+    """The control, and it is not decorative: every test below asserts a `False`, and a predicate
+    that answered `False` unconditionally would pass all of them."""
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "note.md").write_text("x\n", encoding="utf-8")
+
+    assert is_directory(tmp_path / "docs")
+    assert not is_directory(tmp_path / "docs" / "note.md")
+    assert not is_directory(tmp_path / "gone")
+
+
+@needs_a_non_root_user
+def test_is_directory_answers_false_rather_than_raising_behind_a_blocked_ancestor(
+    tmp_path: Path,
+) -> None:
+    """`Path.is_dir()` raises `PermissionError` here on 3.13 and returns `False` on 3.14.
+
+    This is the divergence that ended `pnk sync` in a traceback on the *declared minimum*
+    interpreter while losing documents silently on the one CI installed. The assertion is that one
+    answer comes back on both, and the `pathlib` half is asserted beside it so the test still says
+    what it is *about* on the version where the two happen to agree.
+    """
+    blocked = tmp_path / "blocked"
+    (blocked / "realdocs").mkdir(parents=True)
+    os.chmod(blocked, 0o000)
+    try:
+        assert not is_directory(blocked / "realdocs")
+    finally:
+        os.chmod(blocked, 0o755)
+
+
+@needs_a_non_root_user
+def test_is_symlink_answers_false_rather_than_raising_under_an_untraversable_parent(
+    tmp_path: Path,
+) -> None:
+    """`lstat` needs `+x` on the **parent**, which is what the note this replaced did not test.
+
+    At `0o400` the directory lists — so a glob still yields the entry — and cannot be traversed, so
+    `Path.is_symlink()` raises on 3.13. The earlier measurement built its symlink in a readable
+    directory, where the two versions really do agree, and concluded the predicate was
+    version-independent.
+    """
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    (locked / "note.md").write_text("x\n", encoding="utf-8")
+    os.chmod(locked, 0o400)
+    try:
+        assert not is_symlink(locked / "note.md")
+    finally:
+        os.chmod(locked, 0o755)
+
+
+def test_is_symlink_still_recognises_a_link_it_can_stat(tmp_path: Path) -> None:
+    """The control for the one above: `False` for everything would satisfy it alone."""
+    (tmp_path / "real.md").write_text("x\n", encoding="utf-8")
+    (tmp_path / "alias.md").symlink_to(tmp_path / "real.md")
+
+    assert is_symlink(tmp_path / "alias.md")
+    assert not is_symlink(tmp_path / "real.md")
+
+
+def test_unreachable_is_false_for_a_path_that_is_simply_not_there(tmp_path: Path) -> None:
+    """**The load-bearing control.** A document that is genuinely deleted must stay deletable, so
+    the one thing this predicate must never do is call an absence a refusal."""
+    assert not unreachable(tmp_path / "gone.md")
+    assert not unreachable(tmp_path / "gone" / "deeper.md")
+
+
+def test_unreachable_is_false_for_a_path_that_is_plainly_there(tmp_path: Path) -> None:
+    (tmp_path / "note.md").write_text("x\n", encoding="utf-8")
+
+    assert not unreachable(tmp_path / "note.md")
+
+
+def test_unreachable_is_false_for_a_dangling_symlink(tmp_path: Path) -> None:
+    """`lstat` sees the link itself, so a dangling one is *reachable* and merely unresolvable.
+
+    The distinction matters at the one call site: a dangling link is reported, and a path nobody
+    may look at holds a document. Conflating them would report the wrong thing for both.
+    """
+    (tmp_path / "dangling.md").symlink_to(tmp_path / "nowhere.md")
+
+    assert not unreachable(tmp_path / "dangling.md")
+
+
+@needs_a_non_root_user
+def test_unreachable_is_true_for_an_entry_under_an_untraversable_parent(tmp_path: Path) -> None:
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    (locked / "note.md").write_text("x\n", encoding="utf-8")
+    os.chmod(locked, 0o400)
+    try:
+        assert unreachable(locked / "note.md")
+    finally:
+        os.chmod(locked, 0o755)
+
+
+def test_unreadable_directories_is_empty_on_a_healthy_tree(tmp_path: Path) -> None:
+    """The control. A collector that named every directory would satisfy every assertion below."""
+    (tmp_path / "docs" / "sub").mkdir(parents=True)
+    (tmp_path / "docs" / "sub" / "note.md").write_text("x\n", encoding="utf-8")
+
+    assert unreadable_directories(tmp_path / "docs") == frozenset()
+
+
+@needs_a_non_root_user
+def test_unreadable_directories_names_a_subdirectory_it_could_not_list(tmp_path: Path) -> None:
+    """Recursive, which is the half a one-shot probe of the root cannot do: a `0o000`
+    *subdirectory* loses only the documents beneath it, and just as quietly."""
+    locked = tmp_path / "docs" / "sub"
+    locked.mkdir(parents=True)
+    (locked / "note.md").write_text("x\n", encoding="utf-8")
+    os.chmod(locked, 0o000)
+    try:
+        assert unreadable_directories(tmp_path / "docs") == frozenset({locked})
+    finally:
+        os.chmod(locked, 0o755)
+
+
+@needs_a_non_root_user
+def test_unreadable_directories_names_the_root_itself_when_the_root_is_the_one_refused(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "docs"
+    root.mkdir()
+    (root / "note.md").write_text("x\n", encoding="utf-8")
+    os.chmod(root, 0o000)
+    try:
+        assert unreadable_directories(root) == frozenset({root})
+    finally:
+        os.chmod(root, 0o755)
+
+
+def test_unreadable_directories_says_nothing_about_a_root_that_is_not_there(
+    tmp_path: Path,
+) -> None:
+    """**The other load-bearing control**, and the reason the hook filters by exception type.
+
+    A root the user deleted *should* retire the documents under it. Folding `FileNotFoundError`
+    into "unreadable" would hold every one of those rows for a directory that is never coming
+    back — a KB that can no longer forget anything.
+    """
+    assert unreadable_directories(tmp_path / "gone") == frozenset()
+
+
+def test_unreadable_directories_says_nothing_about_a_root_that_is_a_file(tmp_path: Path) -> None:
+    """`NotADirectoryError`, the second honest "not a directory to walk" answer."""
+    (tmp_path / "notadir").write_text("x\n", encoding="utf-8")
+
+    assert unreadable_directories(tmp_path / "notadir") == frozenset()
+
+
+@needs_a_non_root_user
+def test_unreadable_directories_cannot_see_a_directory_that_lists_but_cannot_be_entered(
+    tmp_path: Path,
+) -> None:
+    """**A stated limit, pinned so it cannot be quietly assumed away.**
+
+    At `0o400` `scandir` succeeds, so no error is raised for `onerror` to receive. The class is
+    still covered — `unreachable` catches it one entry at a time, and the walk records the parent
+    — but the two are halves of one question rather than alternatives, and a later reader deleting
+    the second half because "the directory collector handles it" would reopen the defect.
+    """
+    locked = tmp_path / "docs" / "sub"
+    locked.mkdir(parents=True)
+    (locked / "note.md").write_text("x\n", encoding="utf-8")
+    os.chmod(locked, 0o400)
+    try:
+        assert unreadable_directories(tmp_path / "docs") == frozenset()
+        assert unreachable(locked / "note.md")
+    finally:
+        os.chmod(locked, 0o755)

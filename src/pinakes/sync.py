@@ -93,7 +93,14 @@ from pinakes.pairing import (
     WalkSnapshot,
     pair,
 )
-from pinakes.paths import is_regular_file, resolves
+from pinakes.paths import (
+    is_directory,
+    is_regular_file,
+    is_symlink,
+    resolves,
+    unreachable,
+    unreadable_directories,
+)
 from pinakes.sidecar import (
     SIDECAR_SUFFIX,
     Sidecar,
@@ -554,6 +561,82 @@ class UnmatchedFiles:
     truncated: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class SourceWalk:
+    """Everything one pass over `[sources]` learned, including the four things it could not do.
+
+    **A record rather than a tuple, and the reason is the four `tuple[str, ...]` fields.** This was
+    six positional values before `unreadable_directories` made it seven, unpacked at three call
+    sites that each spelled out every name; four same-typed neighbours mean a transposition type-
+    checks, runs, and shows up as a KB quietly losing documents. Named access is what a strict
+    checker can hold to account.
+    """
+
+    files: tuple[WalkedFile, ...] = ()
+    sidecars: tuple[WalkedSidecar, ...] = ()
+    unmatched: UnmatchedFiles = field(default_factory=UnmatchedFiles)
+    """Files under the roots that no `include` pattern matched.
+
+    A file silently absent from the index is indistinguishable from one that was never there.
+    `pnk init` stamps no `**/*.pdf` glob, so a PDF dropped into a fresh KB matched nothing and
+    `pnk sync` reported `0 indexed` explaining nothing — skipped for a reason the user configured
+    without realising, which is exactly the class of thing a tool should say out loud."""
+    escaping_patterns: tuple[str, ...] = ()
+    """Glob patterns whose walk left the KB through a symlinked directory — containment's dynamic
+    half, where `manifest._check_include_containment` is the static one and neither covers the
+    other.
+
+    A **symlinked directory** inside the KB carries the walk out with no `..` and no absolute path
+    anywhere in the manifest: the escape exists only on disk, so no load-time check can see it, and
+    it cannot *be* a load error because nothing is resolvable until the walk runs.
+    `candidate.relative_to(manifest.root)` never caught it either — `relative_to` is lexical, and
+    under a symlink the candidate genuinely is under the root as a string. Measured on 0.7.0:
+    `docs/escape -> /outside` with `include = ["*/*.md"]` indexed the outside file and minted a
+    sidecar beside it.
+
+    Worth knowing, and *not* a guard: the **default** `include = ["**/*.md", "**/*.txt"]` does not
+    escape this way, because `pathlib`'s recursive `**` skips symlinked directories. That is luck
+    about the standard library, and any user who writes a non-recursive pattern loses it."""
+    unreadable: tuple[str, ...] = ()
+    """Documents an `include` pattern matched and this process could not open.
+
+    Neither indexable nor absent, and once neither reported nor survivable: `hash_file` let the
+    `PermissionError` escape the walk, so one `chmod 000` file aborted the entire sync with a raw
+    traceback and *no index database was created at all*. Skipping it silently would be worse
+    rather than better — `pair()` retires a row whose path the walk stopped reporting, so a
+    permission change would have soft-deleted the document and dropped its chunks, this
+    repository's worst recorded shape. So the path is carried out here, **held** by `pair()`, and
+    reported as a per-document failure."""
+    unreadable_directories: tuple[str, ...] = ()
+    """Directories under the roots that this walk could not enter, so nothing beneath them was
+    enumerated at all.
+
+    **The same reasoning as `unreadable`, one level up, and it is the level that had no guard.**
+    0.32.0 held the unreadable *file* and left the unreadable *directory* silent: `root.glob()`
+    yields nothing from one, `pair()` reads nothing as *gone*, and every document underneath was
+    retired at exit 0 with `pnk doctor` reporting OK. Held rather than retired, for exactly the
+    reason a single unreadable document is.
+
+    Two shapes reach this field, because two syscalls fail differently. A directory that cannot be
+    **listed** is collected by `paths.unreadable_directories`, whose `os.walk` hook fires. A
+    directory that lists but cannot be **traversed** raises nothing for a hook to catch — its
+    entries fail to `stat` one at a time instead — so the walk adds the *parent* of any candidate
+    `paths.unreachable` reports. The parent is always the culprit: a glob cannot descend past an
+    untraversable directory, so every candidate it still yields from one is a direct child."""
+    unresolvable_symlinks: tuple[str, ...] = ()
+    """Symlinks an `include` pattern matched whose target this process could not reach — dangling,
+    looping, or behind a permission it does not have.
+
+    `is_file()` is False for all three, so they took the same `continue` a directory takes and left
+    no trace anywhere: invisible to both `sync` and `doctor`, while `ls` shows the entry, so the
+    user had no way to tell an ignored symlink from a file no include pattern matched.
+
+    **Reported, never held and never retired.** Routing these into `unreadable` would have been
+    less code and would have changed what a soft delete means for a whole class of paths — a
+    question the plan that scheduled this did not answer, and not one to settle by picking the
+    cheaper diff."""
+
+
 def walk_document_paths(manifest: Manifest) -> frozenset[str]:
     """Which documents this KB collects, without reading a byte of any of them.
 
@@ -569,71 +652,32 @@ def walk_document_paths(manifest: Manifest) -> frozenset[str]:
     corpus with one unreadable file would take `pnk doctor` down with a raw traceback — the command
     you run when things are already broken. Nothing here opens a document or parses a sidecar.
     """
-    files, _sidecars, _unmatched, _escaping, _unreadable, _unresolvable = walk_sources(
-        manifest, _documents_only=True
-    )
-    return frozenset(file.path for file in files)
+    walked = walk_sources(manifest, _documents_only=True)
+    return frozenset(file.path for file in walked.files)
 
 
-def walk_sources(
-    manifest: Manifest, *, _documents_only: bool = False
-) -> tuple[
-    list[WalkedFile],
-    list[WalkedSidecar],
-    UnmatchedFiles,
-    tuple[str, ...],
-    tuple[str, ...],
-    tuple[str, ...],
-]:
-    """Collect source files, sidecars, files no `include` matched, patterns that left the KB,
-    documents that matched but could not be read, and symlinks that resolve to nothing.
+def walk_sources(manifest: Manifest, *, _documents_only: bool = False) -> SourceWalk:
+    """One pass over `[sources]`: everything it collected, and everything it could not reach.
+
+    **`SourceWalk` carries what each field means and what it cost to learn.** This is the
+    procedure; that is the vocabulary, and neither restates the other.
 
     Sidecars are excluded from the *document* set categorically, whatever the include patterns say:
     an `include = ["**/*.yaml"]` must never ingest a document's own metadata as a document.
 
-    The third element exists because a file silently absent from the index is indistinguishable
-    from one that was never there. `pnk init` stamps no `**/*.pdf` glob, so a PDF dropped into a
-    fresh KB matched nothing and `pnk sync` reported `0 indexed` explaining nothing — the file was
-    skipped for a reason the user configured without realising, which is exactly the class of thing
-    a tool should say out loud.
-
-    **The fourth is containment's dynamic half**; `manifest._check_include_containment` is the
-    static one, and neither covers the other. A **symlinked directory** inside the KB carries the
-    walk out with no `..` and no absolute path anywhere in the manifest — the escape exists only on
-    disk, so no load-time check can see it, and it cannot *be* a load error because nothing is
-    resolvable until the walk runs. `candidate.relative_to(manifest.root)` never caught it either:
-    `relative_to` is lexical, and under a symlink the candidate genuinely is under the root as a
-    string. Measured on 0.7.0 — `docs/escape -> /outside` with `include = ["*/*.md"]` indexed the
-    outside file and minted a sidecar beside it.
-
-    **The sixth is a symlink whose target is not there** — dangling, or a loop. `is_file()` is
-    False for both, so they took the same `continue` a directory takes and left no trace anywhere:
-    a sweep Low class, *invisible to both `sync` and `doctor`*. `ls` shows the entry, so the user
-    has no way to tell an ignored symlink from a file the include patterns never matched.
-
-    **Reported, never held and never retired.** Routing these into the fifth element would have
-    been less code and would have changed what a soft delete means for a whole class of paths —
-    a question the plan that scheduled this did not answer, and not one to settle by picking the
-    cheaper diff. So this element only makes the walk say what it found.
-
-    **The fifth is the unreadable half of the same completeness question the third asks.** A
-    document an `include` pattern matched and the process cannot open is neither indexable nor
-    absent, and it used to be neither reported nor survivable: `hash_file` let the `PermissionError`
-    escape the walk, so one `chmod 000` file aborted the entire sync with a raw traceback and *no
-    index database was created at all* — every other document in the KB unreachable because of one.
-    Skipping it silently would be worse rather than better: `pair()` retires a row whose path the
-    walk stopped reporting, so a permission change would have soft-deleted the document and dropped
-    its chunks, which is this repository's worst recorded shape. So the path is carried out here,
-    held by `pair()`, and reported as a per-document failure.
-
-    Worth knowing, and *not* a guard: the **default** `include = ["**/*.md", "**/*.txt"]` does not
-    escape this way, because `pathlib`'s recursive `**` skips symlinked directories. That is luck
-    about the standard library, and any user who writes a non-recursive pattern loses it.
+    **Every root is asked whether it can be entered, before and independently of being globbed.**
+    That is the one question this walk cannot answer from its own output — an unreadable directory
+    and an empty one yield the same nothing, on both supported interpreters — and the caller it
+    answers for is `pair()`, which deletes on absence. It costs one `os.walk` per root: a `scandir`
+    per directory, on a walk that already scandirs each of them once for the include patterns and
+    again for the sidecar sweep. The alternative was to keep inferring, and inference here is a
+    `SoftDelete`.
     """
     files: dict[str, WalkedFile] = {}
     sidecars: dict[str, WalkedSidecar] = {}
     unmatched: set[str] = set()
     unreadable: set[str] = set()
+    unreadable_dirs: set[str] = set()
     unresolvable: set[str] = set()
     anchor = manifest.root.resolve()
     # **One problem per pattern** — not per file, and not per `(root, pattern)`: a hostile `../**`
@@ -677,9 +721,30 @@ def walk_sources(
             posixpath.normpath(candidate.relative_to(manifest.root).as_posix())
         ).as_posix()
 
+    def key_if_inside(candidate: Path) -> str | None:
+        """`key`, for a path that is not already known to be under the KB.
+
+        `relative_to` raises rather than answering, and a `ValueError` escaping a walk reaches the
+        CLI as a traceback. Every path the glob loop keys has passed `inside`; a directory the
+        filesystem *refused* has passed nothing, because refusing it is all it did.
+        """
+        try:
+            return key(candidate)
+        except ValueError:
+            return None
+
     for root_name in manifest.sources.roots:
         root = (manifest.root / root_name).resolve()
-        if not root.is_dir():
+        # **Asked before the `is_directory` skip, never after it.** A root this process cannot
+        # reach answers `False` there and takes the `continue` — which is the silent half of the
+        # defect, because the walk then reports nothing under that root and `pair()` reads nothing
+        # as *gone*. Asking first is the whole of what separates "there is nothing here" from "I
+        # was not allowed to look", and no amount of looking at the yield can tell them apart.
+        for refused in unreadable_directories(root):
+            relative_directory = key_if_inside(refused)
+            if relative_directory is not None:
+                unreadable_dirs.add(relative_directory)
+        if not is_directory(root):
             continue
         for pattern in manifest.sources.include:
             # **Deliberately *not* `if pattern in escaping: continue`**, which is what
@@ -732,7 +797,24 @@ def walk_sources(
                     # Recorded before the `continue` because this is the only place that knows:
                     # every later stage sees a path that simply is not in `files`, which is
                     # indistinguishable from a file no pattern matched.
-                    if candidate.is_symlink() and not resolves(candidate):
+                    if unreachable(candidate):
+                        # **The glob yielded a name it cannot `stat`**, which happens under a
+                        # directory that is readable but not traversable (`0o400`): `scandir`
+                        # succeeds, so `paths.unreadable_directories` sees no error to hook, and
+                        # every entry then fails one at a time instead. Untreated, this is the same
+                        # deletion as an unreadable root, one directory narrower — and on 3.13 it
+                        # was not even silent, because `Path.is_symlink()` on the next line raises
+                        # rather than answering when it cannot `lstat`.
+                        #
+                        # **The parent is recorded, not the file.** It is always the culprit — a
+                        # glob cannot descend past an untraversable directory, so every candidate
+                        # still yielded from one is a direct child — and it is the thing the user
+                        # has to `chmod`. Recording the file instead would name a path whose
+                        # permissions are perfectly fine.
+                        relative_directory = key_if_inside(candidate.parent)
+                        if relative_directory is not None:
+                            unreadable_dirs.add(relative_directory)
+                    elif is_symlink(candidate) and not resolves(candidate):
                         unresolvable.add(key(candidate))
                     continue
                 # **`exclude` matches the *unresolved* path**, deliberately. Matching the resolved
@@ -798,18 +880,19 @@ def walk_sources(
     if not _documents_only:
         for root_name in manifest.sources.roots:
             root = (manifest.root / root_name).resolve()
-            if root.is_dir():
+            if is_directory(root):
                 found, hit_cap = _unmatched_under(root, manifest, matched=files)
                 unmatched.update(found)
                 truncated = truncated or hit_cap
 
-    return (
-        sorted(files.values(), key=lambda f: f.path),
-        sorted(sidecars.values(), key=lambda s: s.path),
-        UnmatchedFiles(paths=tuple(sorted(unmatched)), truncated=truncated),
-        tuple(sorted(escaping)),
-        tuple(sorted(unreadable)),
-        tuple(sorted(unresolvable)),
+    return SourceWalk(
+        files=tuple(sorted(files.values(), key=lambda f: f.path)),
+        sidecars=tuple(sorted(sidecars.values(), key=lambda s: s.path)),
+        unmatched=UnmatchedFiles(paths=tuple(sorted(unmatched)), truncated=truncated),
+        escaping_patterns=tuple(sorted(escaping)),
+        unreadable=tuple(sorted(unreadable)),
+        unreadable_directories=tuple(sorted(unreadable_dirs)),
+        unresolvable_symlinks=tuple(sorted(unresolvable)),
     )
 
 
@@ -1055,14 +1138,14 @@ def _estimate_only(manifest: Manifest, options: SyncOptions) -> SyncReport:
         )
 
     prices = load_prices()
-    files, _sidecars, _unmatched, _escaping, _unreadable, _unresolvable = walk_sources(manifest)
+    walked = walk_sources(manifest)
     # Built on the first PDF, not up front: constructing the transport needs a key, and a KB with
     # no PDFs at all has nothing to estimate and no business demanding one.
     transport = None
     lines: list[tuple[str, int, int, int, str]] = []
-    for walked in files:
+    for file in walked.files:
         # `WalkedFile.path` is the KB-relative string the index keys on, not a filesystem path.
-        source = manifest.root / walked.path
+        source = manifest.root / file.path
         if source.suffix.lower() not in PDF_SUFFIXES:
             continue
         # `page_count` imports pypdfium2, and `default_transport` needs a key. Both are deferred
@@ -1088,7 +1171,7 @@ def _estimate_only(manifest: Manifest, options: SyncOptions) -> SyncReport:
         )
         lines.append(
             (
-                walked.path,
+                file.path,
                 pages,
                 requests,
                 measured,
@@ -1215,12 +1298,28 @@ def _run(
     report: SyncReport,
     extraction_backend: str,
 ) -> None:
-    files, sidecars, unmatched, escaping, unreadable, unresolvable = walk_sources(manifest)
-    report.unmatched = unmatched.paths
-    report.unmatched_truncated = unmatched.truncated
-    report.unmatched_pdf_extra = _missing_pdf_extra(unmatched.paths, extraction_backend)
-    report.escaping_patterns = escaping
-    for path in unreadable:
+    walked = walk_sources(manifest)
+    files, sidecars = walked.files, walked.sidecars
+    report.unmatched = walked.unmatched.paths
+    report.unmatched_truncated = walked.unmatched.truncated
+    report.unmatched_pdf_extra = _missing_pdf_extra(walked.unmatched.paths, extraction_backend)
+    report.escaping_patterns = walked.escaping_patterns
+    for directory in walked.unreadable_directories:
+        # **A directory, in a list of per-document failures, deliberately.** It buys the two things
+        # a silent skip never had: `report.ok` is `not report.failures`, so the run that could not
+        # read part of the corpus stops exiting 0; and the line names the one path a `chmod` has to
+        # be aimed at. Naming the documents instead would print a list that changes every time the
+        # index does, and none of those paths is the one at fault.
+        report.failures.append(
+            (
+                directory,
+                "directory could not be entered: Permission denied.",
+                "Restore read and search permission on it (`chmod +rx`), or drop it from "
+                "`[sources]`. Every document already indexed underneath is held meanwhile, not "
+                "deleted — a directory this walk cannot enter says nothing about what is in it.",
+            )
+        )
+    for path in walked.unreadable:
         # A `failures` entry rather than a field of its own, for the reason this module's docstring
         # gives: a file that will not parse is recorded per document. It is also what keeps the run
         # honest — `report.ok` is `not report.failures`, so a KB holding an unreadable document
@@ -1287,11 +1386,12 @@ def _run(
             paid_backend_names=paid_backend_names(),
             force=options.force,
             explicit_extract=options.extract is not None,
-            unreadable=frozenset(unreadable),
+            unreadable=frozenset(walked.unreadable),
+            unreadable_directories=frozenset(walked.unreadable_directories),
         )
         report.ambiguities = result.ambiguities
         report.orphaned_sidecars = result.orphaned_sidecars
-        report.unresolvable_symlinks = unresolvable
+        report.unresolvable_symlinks = walked.unresolvable_symlinks
         report.source_gone_sidecar_kept = result.source_gone_sidecar_kept
         report.paid_extraction_protected = result.paid_extraction_protected
         report.paid_extraction_overwritten = result.paid_extraction_overwritten

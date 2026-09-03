@@ -69,6 +69,7 @@ from pinakes.linkscan import (
 )
 from pinakes.lock import LOCK_NAME, read_holder
 from pinakes.manifest import Manifest
+from pinakes.paths import is_directory
 from pinakes.search import check_coherence
 from pinakes.sidecar import (
     SIDECAR_SUFFIX,
@@ -408,7 +409,11 @@ def _sidecars(manifest: Manifest) -> tuple[dict[Path, Sidecar], list[Path], list
 
     for root_name in manifest.sources.roots:
         root = manifest.root / root_name
-        if not root.is_dir():
+        # `is_directory`, not `Path.is_dir()`: the `pathlib` spelling raises `PermissionError` on
+        # 3.13 for a root behind a directory this process may not traverse, and `pnk doctor` is the
+        # command you run when the KB is *already* broken. The same line in `sync.walk_sources`
+        # ended a sync in a traceback there.
+        if not is_directory(root):
             continue
         for path in sorted(root.rglob(f"*{SIDECAR_SUFFIX}")):
             try:

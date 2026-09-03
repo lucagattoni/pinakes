@@ -1164,6 +1164,105 @@ def test_an_unreadable_document_is_held_rather_than_soft_deleted() -> None:
     assert actions_of(result, Skip)[0].doc_id == doc
 
 
+def test_a_document_under_an_unreadable_directory_is_held_rather_than_soft_deleted() -> None:
+    """The same guarantee as the row above, one level up — and the level that had no guard.
+
+    An unreadable *file* costs one document. An unreadable *directory* costs everything beneath it,
+    because the walk cannot enumerate it and `pair()` reads nothing as *gone*: measured on `main`,
+    a `[sources]` root at `chmod 000` reported `2 removed`, took the index to `0 active documents`
+    and exited 0.
+
+    **The paths come out of `before`, not out of the walk**, which is the only place they can come
+    from: a walk that could not enter a directory has nothing to say about what is inside it.
+    """
+    inside_one, inside_two, elsewhere = mint_doc_id(), mint_doc_id(), mint_doc_id()
+    before = IndexSnapshot(
+        (
+            indexed(inside_one, "docs/sub/a.md", "ha"),
+            indexed(inside_two, "docs/sub/deeper/b.md", "hb"),
+            indexed(elsewhere, "docs/c.md", "hc"),
+        )
+    )
+    after = WalkSnapshot((walked("docs/c.md", "hc"),), ())
+
+    assert describe(pair(before, after)) == {"Skip": 1, "SoftDelete": 2}, (
+        "control: without the set, every path the walk stopped reporting is a deletion"
+    )
+
+    result = pair(before, after, unreadable_directories=frozenset({"docs/sub"}))
+    assert describe(result) == {"Skip": 3}
+    assert {action.doc_id for action in actions_of(result, Skip) if action.held} == {
+        inside_one,
+        inside_two,
+    }
+
+
+def test_only_documents_genuinely_under_the_unreadable_directory_are_held() -> None:
+    """A prefix test on a string is one missing separator away from holding the wrong rows.
+
+    `docs/subtle.md` starts with `docs/sub`, and holding it would leave a genuinely deleted
+    document in the index forever with `pnk sync` reporting nothing. The separator is what makes
+    the test a *path* test rather than a spelling one.
+    """
+    held_one, not_held = mint_doc_id(), mint_doc_id()
+    before = IndexSnapshot(
+        (indexed(held_one, "docs/sub/a.md", "ha"), indexed(not_held, "docs/subtle.md", "hs"))
+    )
+
+    result = pair(before, WalkSnapshot(), unreadable_directories=frozenset({"docs/sub"}))
+
+    assert describe(result) == {"Skip": 1, "SoftDelete": 1}
+    assert actions_of(result, Skip)[0].doc_id == held_one
+    assert actions_of(result, SoftDelete)[0].doc_id == not_held
+
+
+def test_an_unreadable_kb_root_holds_every_document() -> None:
+    """`[sources] roots = ["./"]` makes the refused directory the KB root, which keys as `"."`.
+
+    An empty prefix matches every path, and that is the right answer rather than an accident: if
+    the root cannot be entered, every document in the KB is behind it. Pinned because the natural
+    way to write the prefix — `f"{directory}/"` for everything — turns `"."` into `"./"` and
+    matches nothing, which is silent total data loss in the worst case the code has.
+    """
+    first, second = mint_doc_id(), mint_doc_id()
+    before = IndexSnapshot((indexed(first, "a.md", "ha"), indexed(second, "docs/b.md", "hb")))
+
+    assert describe(pair(before, WalkSnapshot(), unreadable_directories=frozenset({"."}))) == {
+        "Skip": 2
+    }
+
+
+def test_a_directory_the_walk_could_enter_still_retires_what_vanished_from_it() -> None:
+    """**The control that keeps deletion working.** Every assertion above is that something was
+    *not* deleted, and a `pair()` that had simply stopped retiring rows would satisfy all of them.
+    """
+    doc = mint_doc_id()
+    before = IndexSnapshot((indexed(doc, "docs/sub/a.md", "ha"),))
+
+    result = pair(before, WalkSnapshot(), unreadable_directories=frozenset({"docs/other"}))
+
+    assert describe(result) == {"SoftDelete": 1}
+
+
+def test_an_unreadable_documents_sidecar_is_not_reported_as_orphaned_under_a_held_directory() -> (
+    None
+):
+    """`--prune` deletes a sidecar, and a sidecar carries the permanent ULID.
+
+    A sidecar found beside a document the walk could not reach must never be called an orphan, and
+    the directory case has to reach the same conclusion as the file case through the same set —
+    two notions of "orphaned" and one printed `--prune` is how a permanent id gets offered up.
+    """
+    doc = mint_doc_id()
+    before = IndexSnapshot((indexed(doc, "docs/sub/a.md", "ha"),))
+    after = WalkSnapshot((), (sidecar("docs/sub/a.md", doc),))
+
+    result = pair(before, after, unreadable_directories=frozenset({"docs/sub"}))
+
+    assert result.orphaned_sidecars == ()
+    assert describe(result) == {"Skip": 1}
+
+
 def test_an_unreadable_document_is_not_offered_to_another_file_as_a_rename() -> None:
     """Holding the id is not enough on its own — the rename loop matches on content hash.
 
