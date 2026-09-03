@@ -2732,11 +2732,15 @@ yet, and it is rowed rather than guessed.
 rather than a silent empty result; an empty KB stops attributing its emptiness to filters nobody
 passed; and a broken symlink is reported rather than skipped.
 
-**Still open, and found by the audit this release prompted rather than fixed by it.** A `[sources]`
-root the process cannot read enumerates nothing, so `pair()` reasons from absence and **every
-document under it is removed from the index at exit 0** — measured on both interpreters, so not a
-floor defect at all. It is the same class 0.32.0 guarded one level down, for an unreadable *file*,
-and the root case was missed.
+**Still open, and found by the audit this release prompted rather than fixed by it — as *two*
+defects that share a symptom.** A `[sources]` root the process cannot reach loses every document
+under it, silently, at exit 0, and the two ways in behave differently. A root that is a **plain
+directory at `0o000`** is *not* a floor defect: `is_dir()` answers `True` on both interpreters and
+the loss happens one line later, where `root.glob(pattern)` yields nothing silently and `pair()`
+reasons from absence. A root that is a **symlink into a blocked ancestor** *is* one: 3.13 raises
+`PermissionError` at `.resolve()` — a line earlier than the audit said — while 3.14 resolves and
+returns `False`. **A fix for either alone leaves the other live.** Both are the class 0.32.0
+guarded one level down for an unreadable *file*, with the root case missed.
 
 **No `schema_version` bump and no rebuild.** The fixes ship in the wheel; the CI leg does not.
 
