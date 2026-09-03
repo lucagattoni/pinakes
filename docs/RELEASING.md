@@ -84,8 +84,17 @@ extended on 20260823 when it crossed it again. Nothing was dropped in either mov
    reports success three times over
    ([`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md)).
 5. (`land.py` pushed for you. If you landed by hand anyway, push now.)
-6. `git tag -a vx.y.z -m "…"` — **create the tag and do not push it.** Until it is pushed it is a
-   local object `git tag -d` removes without trace; the push is what reaches the publishing
+6. **First read `minimum-python`'s own conclusion in the CI run for the commit you are about to
+   tag** — in the job, not in the run's top line, and never from a local 3.13 run. That leg is the
+   only thing in CI that executes the interpreter `pyproject.toml` declares as the floor; the
+   `check` matrix varies extras and has always resolved to the newest interpreter available. It
+   runs **only on a push to `main`**, so every release commit gets its own first execution and no
+   earlier green transfers to it. **A green top-line is not this job, and a green job that skipped
+   is indistinguishable from one that worked** — read the interpreter it downloaded and the test
+   count it reported. Added at 0.32.3, for a defect under which every published release from at
+   least 0.25.0 crashed `pnk sync` on the declared minimum while CI had never once run it.
+   Then `git tag -a vx.y.z -m "…"` — **create the tag and do not push it.** Until it is pushed it
+   is a local object `git tag -d` removes without trace; the push is what reaches the publishing
    workflow, and PyPI does not allow re-uploading a version.
 7. `make release-check`, **then** push the tag. The gate sits between the two halves of this step
    and it can fail: it refuses when **no** release-shaped tag points at `HEAD` (or more than one
