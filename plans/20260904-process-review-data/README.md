@@ -24,6 +24,7 @@ describes.
 | `daily_tree.tsv` | 29 | one **day** | the tree at the last commit of each day |
 | `tree_growth.tsv` | 212 | one **change** in the file counts | `git ls-tree` at every commit; rows emitted only when a count moves |
 | `ci-runs.tsv` | *(coder)* | one CI run | `gh run list` over the whole history, with failing job **and step** |
+| `agent_tokens.tsv` | 1,627 | one agent transcript | `tools/agent_spend.py`'s own collector, `--project Pinakes` |
 
 ## Noise filtering — what was removed, and why
 
@@ -63,6 +64,18 @@ line counts of `src/**.py` and `docs/**.md`. **Days with no commit are absent, n
 **`tree_growth.tsv`** — `iso` `sha` `test_files` `battery_files` `tools_py`. One row per **change**
 in those three counts rather than per commit, so the file is a step function and consecutive rows
 are never equal.
+
+**`agent_tokens.tsv`** — `scope` `transcript` `workflow_run` `first` `last` `requests`
+`dominant_model` `models` `input_tokens` `cache_write_tokens` `cache_read_tokens` `output_tokens`
+`context_tokens` `sidechain_requests` `full_rewrites`. **Tokens only — no money, at the user's
+instruction.** Built by importing `tools/agent_spend.py` and calling its own `read_requests`, so
+the two documented traps are handled by the instrument that documents them: **one API response is
+written as several transcript lines sharing a `requestId`** (summing per line inflates by 2.14×),
+and **`output_tokens` is a running partial** (take the max, never the first).
+**Population: `--project Pinakes` only.** Figures taken without that filter count every project on
+the machine and are roughly 2× the main-loop count — an error made and corrected in this harvest.
+**Transcripts with zero parsed requests are omitted**, which is why this file has 1,627 rows
+where `agent_spend.py` reports 1,677 transcripts.
 
 **`ci-runs.tsv`** — harvested by the coder session; see the header block below, written by them
 and pasted here unchanged when it lands.

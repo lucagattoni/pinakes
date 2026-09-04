@@ -96,23 +96,30 @@ Against a target of under 100 lines, the file is at **455**. **The mechanism is 
 diagnosis demonstrating itself:** with no hooks and no agent definitions, prose is the only
 substrate available, so every lesson becomes another paragraph in the file already too long to read.
 
-### 3.3 Where the money is — and the tier is unpinned
+### 3.3 Where the tokens are — **corrected 20260904 10:59: my first figures were the wrong population**
 
-| scope | transcripts | est. $ | share of $ | $/transcript | Opus share of units |
-|---|---:|---:|---:|---:|---:|
-| **main loop (resident sessions)** | 261 | **$4,574.62** | **63.8%** | **$17.53** | **90.0%** |
-| subagents | 125 | $723.43 | 10.1% | $5.79 | 69.9% |
-| workflow agents | 1,466 | $1,867.28 | 26.1% | $1.27 | 55.3% |
-| **total** | **1,852** | **$7,164.92** | | | 77.1% |
+**Pinakes only** (`--project Pinakes`), tokens only, no money:
 
-<sub>Instrument: `tools/agent_spend.py --scope {main,subagent,workflow} models`, re-run 20260904.
-Dollars are an estimate from a cached rate card.</sub>
+| scope | transcripts | requests | output tokens | context tokens (input + cache) |
+|---|---:|---:|---:|---:|
+| main loop (resident sessions) | 131 | 20,522 | 19,924,499 | **5,382,856,712** |
+| subagents | 106 | 6,428 | 5,184,831 | 1,018,135,108 |
+| workflow agents | 1,440 | 28,946 | 18,511,665 | 2,561,587,703 |
 
-**Resident sessions are 14.1% of transcripts and 63.8% of spend.** A main-loop transcript costs
-**13.8×** a workflow agent. The analysis measured $3.38k over 130 main-loop transcripts on 20260903;
-**one day later it is $4.57k over 261** — roughly **$1.2k of main-loop spend in a single day** of
-two-session development. **Only `CLAUDE_CODE_SUBAGENT_MODEL` is pinned; nothing pins the main loop**,
-so 90% Opus at the most expensive layer is a default nobody chose.
+<sub>Instrument: `tools/agent_spend.py` with `--project Pinakes`, and `agent_tokens.tsv` in the data
+directory for the per-transcript rows. **Context tokens are what the model was *sent*** — the number
+re-transmitted on every turn — and they dominate output by two orders of magnitude.</sub>
+
+**The correction, recorded rather than quietly fixed.** My first version of this section reported
+**261 / 125 / 1,466 transcripts with dollar figures**. Those came from `agent_spend.py` run **without
+`--project`**, so they counted **every project on this machine**, not Pinakes. The true Pinakes
+main-loop population is **131 transcripts, not 261** — roughly half. **A ratio computed over the
+wrong population is the failure this whole review is about, and I committed it inside the evidence
+file for the review.** The dollar figures are gone at the user's instruction: **tokens only.**
+
+**What survives the correction:** resident main-loop sessions are **7.8%** of Pinakes transcripts
+(131 of 1,677) and carry **59.9%** of context tokens (5.38B of 8.96B). The shape of the earlier
+claim holds; its numbers did not.
 
 ### 3.4 Review efficacy — two independent runs, and neither gives a kill rate
 
