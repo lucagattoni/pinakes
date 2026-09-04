@@ -1608,3 +1608,41 @@ def test_a_partner_kb_that_is_present_but_unreadable_is_not_reported_as_absent(
     assert "not a directory" in why_not_a_kb(tmp_path / "afile")
     (tmp_path / "empty").mkdir()
     assert "no pinakes.toml there" in why_not_a_kb(tmp_path / "empty")
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_scan_reports_an_unreadable_partner_as_unreadable_not_as_absent(
+    tmp_path: Path,
+) -> None:
+    """The third caller of `why_not_a_kb`, after `pnk doctor` and `pnk link`.
+
+    All three probed with the `pathlib` spelling and all three regressed together on 3.14: the
+    probe stopped raising, their `except OSError` stopped firing, and a partner sitting behind a
+    directory this process may not traverse was scanned as one that does not exist. `scan_one`'s
+    reason is what `pnk sync` prints for the partner, so this is the message a user acts on.
+
+    The control is the same partner one mode bit later — it must scan cleanly, or the fix is bought
+    by reporting a permission problem for every partner.
+    """
+    local = make_kb(tmp_path / "local", "local", ["a"])
+    walled = make_kb(tmp_path / "walled" / "kb", "walled", ["w"])
+    local.connect(walled, "walled")
+    local.set_links("a", [(f"pnk://{walled.kb_id}/{walled.docs['w']}", "cites")])
+
+    os.chmod(tmp_path / "walled", 0o000)
+    try:
+        refused = {alias: message for alias, message, _ in run(local).link_scan}
+    finally:
+        os.chmod(tmp_path / "walled", 0o755)
+
+    assert "walled" in refused, refused
+    assert "Permission denied" in refused["walled"], refused["walled"]
+    assert "no such directory" not in refused["walled"], (
+        "the partner is present and merely unreadable, which is not the same as absent"
+    )
+
+    assert "walled" not in {alias for alias, _, _ in run(local).link_scan}, (
+        "control: the same partner, readable, scans without an issue"
+    )
