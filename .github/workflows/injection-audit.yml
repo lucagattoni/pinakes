@@ -1,0 +1,98 @@
+name: injection-audit
+
+# **The one question a macOS checkout cannot answer about itself.**
+#
+# `tools/vacuous_injection_audit.py` neutralises each `monkeypatch.setattr(Path|os|paths, …)` in
+# the suite and re-runs the test that owns it. A test that still passes is one of three things, and
+# only the first is a defect: its assertions never depended on the injected condition; **the real
+# environment produces that condition anyway**, so the fake is redundant *here* and may be
+# load-bearing elsewhere; or the probe mis-attributed the site.
+#
+# The middle case is why this job exists. `tests/test_cli_link.py:617` injects `ENAMETOOLONG`, and
+# a real 300-character filename raises it for real wherever `NAME_MAX` is 255 — so on a developer's
+# macOS checkout that fake decides nothing, while the test's own comment records the opposite on
+# CI. **Redundant on one platform, load-bearing on another, and not rulable from either alone.**
+# Every developer machine here is macOS; this is the missing half.
+#
+# **It is not folded into `ci.yml`.** That workflow's jobs gate a release; this one reports on the
+# *test suite's own instruments*, and conflating the two invites someone to read a red here as a
+# broken product. Filed as row 42 of `plans/20260901_1148-clear-the-user-facing-list.md`.
+
+on:
+  workflow_dispatch:
+  # Paths, so it fires exactly when the answer can change and costs nothing otherwise: the tests
+  # that hold the injections, the predicates they fake, the tool itself, and this file. A change
+  # anywhere else cannot move a verdict.
+  push:
+    branches: [main]
+    paths:
+      - "tests/**"
+      - "src/pinakes/paths.py"
+      - "tools/vacuous_injection_audit.py"
+      - ".github/workflows/injection-audit.yml"
+  pull_request:
+    paths:
+      - "tests/**"
+      - "src/pinakes/paths.py"
+      - "tools/vacuous_injection_audit.py"
+      - ".github/workflows/injection-audit.yml"
+
+concurrency:
+  group: injection-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    strategy:
+      # **Both interpreters, and the reason is a measurement rather than a preference.** Run on
+      # macOS 20260904, the verdict set was byte-identical on 3.13.15 and 3.14.7 — 15 sites, 1
+      # vacuous, 0 unruled, the same site both times — so nothing here is *known* to turn on the
+      # interpreter. The matrix is kept anyway because this repository's most expensive recurring
+      # defect is a measurement taken on one interpreter and reported as a fact about both
+      # (`Path.is_file()` raises on 3.13 and returns False on 3.14, which is the whole reason
+      # `src/pinakes/paths.py` exists), and closing that hole permanently costs one parallel job of
+      # about a minute. If a verdict ever does split across these two legs, this comment is wrong
+      # in the most useful possible way and the split is the finding.
+      fail-fast: false
+      matrix:
+        python: ["3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Python ${{ matrix.python }} and dependencies
+        # `[light]` only, per row 42. The audit probes predicate fakes on `Path`/`os`/`paths`;
+        # no injection site is in a `[pdf]` or `[claude]` code path, and a torch-free install keeps
+        # the job to a couple of minutes.
+        run: uv sync --frozen --python ${{ matrix.python }} --extra light
+
+      - name: Cache model weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ hashFiles('tests/demo-kb/pinakes.toml') }}
+          restore-keys: hf-
+
+      - name: Confirm the interpreter is the one this leg claims
+        # `minimum-python`'s guard, for its reason: `uv sync --python X` is a *request*. A leg that
+        # silently ran the other version would be a matrix reporting two results from one
+        # interpreter — the exact shape this job's own matrix comment exists to rule out.
+        run: |
+          set -e
+          uv run --frozen python -c "import sys; assert '.'.join(map(str, sys.version_info[:2])) == '${{ matrix.python }}', sys.version; print(sys.version)"
+
+      - name: Audit every injection site
+        # **Exit status is the *unruled* set, never the vacuous one.** A `VACUOUS` row is a finding
+        # for a person to split three ways and the tool exits 0 on it, for the same reason
+        # `mutate.py` exits 0 on a survivor. `UNSTABLE`, `INCONCLUSIVE` or a site with no caller
+        # found means the instrument did not rule, and an audit that cannot rule a site while
+        # exiting 0 is a harness reporting success for a measurement that did not happen.
+        #
+        # Run bare. `… | tee log` would make this step read `tee`'s exit status, which is the
+        # failure `CLAUDE.md` names and that landed two red commits on 20260904.
+        run: python3 tools/vacuous_injection_audit.py --runs 2
