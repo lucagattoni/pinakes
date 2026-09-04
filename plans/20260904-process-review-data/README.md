@@ -85,9 +85,22 @@ where `agent_spend.py` reports 1,677 transcripts.
 **`agent_tasks.tsv`** — as `agent_tokens.tsv` plus `task_prompt` (first user message, 300 chars),
 `duration_s`, `start`, `end`, `tool_calls`, `distinct_tools`, `distinct_targets`.
 
-**`tool_calls.tsv`** — `scope` `transcript` `seq` `timestamp` `tool` `target` `repeat_index`.
-`target` is the first present of `file_path`, `path`, `pattern`, `url`, `command`, `query`,
-`prompt`, truncated to 120 chars; **1,982 calls have no target** and carry an empty string.
+**`tool_calls.tsv`** — `scope` `transcript` `seq` `timestamp` `tool` `target` `call_hash`
+`repeat_index`. **`repeat_index` counts identical calls**: same tool and same *whole* normalised
+argument, keyed on `call_hash`, 0 on first use. **4,197 of 64,735 calls (6.5%) are repeats; 1,764
+are the same call made five or more times in one transcript.**
+
+> ⚠️ **This column was wrong twice before it was right, and the corrections are the useful part.**
+> **v1** keyed on the argument truncated to 120 characters, so every Bash call collapsed onto its
+> `cd <worktree> &&` prefix: it reported **18,573 repeats**, of which **8,800 — 47% — were that
+> prefix**, not a repeated command. **v2** stripped leading `cd` chains and reported **12,853**,
+> still dominated by `VAR=…` assignment preambles. **v3, current**, hashes the entire normalised
+> command. **A truncated prefix cannot identify a shell command**, and the first two versions
+> measured the working directory. Corrected 20260904 11:30; `target` is now the command's first two words
+> for Bash and the full argument for every other tool, and is a *label*, not the identity.
+
+**Reading it for repetition:** `SendMessage` and `TaskUpdate` repeats are coordination volume, not
+loops — the "same call" is the same recipient. Filter by `tool` before counting.
 
 **`plan_rows.tsv`** — `row` `title` `first_seen` `first_marked_done` `plan_commits_touching_file`.
 Done is any of ✅ ⛔ BUILT DONE LANDED SETTLED DEAD appearing in the row's line. **17 of 44 rows
