@@ -944,3 +944,62 @@ def test_check_sh_writes_the_marker_last_and_never_as_a_gate() -> None:
         if "land.py" in line and not line.lstrip().startswith("#")
     ]
     assert not executed, f"the guard must not run from inside the script it certifies: {executed}"
+
+
+def test_the_marker_is_written_where_every_worktree_can_find_it(tmp_path: Path) -> None:
+    """`--git-common-dir`, not `--git-dir`, and only a linked worktree can tell them apart.
+
+    The gate runs in the branch's worktree; the refusal that reads the marker runs in the primary
+    checkout. In the primary checkout the two spellings are identical (`.git`), so every test that
+    stays there passes under either — which is how this stayed unpinned until a mutant aimed at the
+    wrong file made it visible. In a linked worktree `--git-dir` is `.git/worktrees/<name>`, and a
+    marker written there is one the guard never looks at: every landing then refused with "no gate
+    certified this", which reads as the guard working rather than as the guard broken.
+    """
+    root = tmp_path / "repo"
+    root.mkdir()
+    for args in (
+        ("init", "--initial-branch=main"),
+        ("config", "user.email", "test@example.invalid"),
+        ("config", "user.name", "Test"),
+    ):
+        subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)
+    (root / "a.txt").write_text("one\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "base"], cwd=root, check=True, capture_output=True)
+
+    worktree = tmp_path / "feature"
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "-b", "feature", str(worktree), "main"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
+
+    def rev_parse(flag: str) -> str:
+        return subprocess.run(
+            ["git", "rev-parse", flag], cwd=worktree, capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+    assert rev_parse("--git-dir") != rev_parse("--git-common-dir"), (
+        "the fixture cannot discriminate: the two spellings agree even in the worktree"
+    )
+
+    completed = subprocess.run(
+        ["sh", "-e", "-c", _marker_block()], cwd=worktree, capture_output=True, text=True
+    )
+    assert completed.returncode == 0, completed.stderr
+
+    tree = subprocess.run(
+        ["git", "rev-parse", "HEAD^{tree}"],
+        cwd=worktree,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert (root / ".git" / "pinakes-gate-markers" / tree).is_file(), (
+        "the marker is not where the primary checkout will look for it"
+    )
+    assert not list((root / ".git" / "worktrees").rglob("pinakes-gate-markers")), (
+        "the marker was written into the worktree's own git dir, where nothing reads it"
+    )

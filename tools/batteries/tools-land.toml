@@ -49,12 +49,19 @@ new = '''    tree = merged_tree(root, branch)
 kills = "tests/test_land.py::test_a_branch_no_gate_has_certified_is_refused_and_nothing_moves"
 
 [[mutant]]
-name = "the marker directory is per-worktree, so the gate's own marker is never found"
+name = "the guard looks for markers under a different name than the gate writes"
 file = "tools/land.py"
-# The gate runs in the branch's linked worktree and this refusal runs in the primary checkout.
-# `--git-common-dir` is the one path they share; `--git-dir` is not, and it is the more obvious
-# spelling of the two. Under it every real landing is refused with "no gate certified this",
-# which reads as the guard working rather than as the guard broken.
-old = '''    common = Path(git("rev-parse", "--git-common-dir", cwd=root))'''
-new = '''    common = Path(git("rev-parse", "--git-dir", cwd=root))'''
+# **This row replaced one that could not discriminate, and the replacement is the finding.** The
+# first attempt mutated `--git-common-dir` to `--git-dir` here, reasoning that the gate runs in a
+# linked worktree and this refusal in the primary checkout. Measured: in the primary checkout the
+# two spellings are *identical* (`.git`), and `land.py` always runs with `cwd=root`, so no test
+# could ever tell them apart — an equivalent mutant, SURVIVED, and correctly so. The spelling that
+# is load-bearing is `check.sh`'s, where a linked worktree really does differ, and it is pinned by
+# `test_the_marker_is_written_where_every_worktree_can_find_it` rather than from here.
+#
+# What this mutant does catch is the pair going out of step: the gate writes one directory name and
+# the guard reads another, so every landing is refused with "no gate certified this" — which reads
+# as the guard working rather than as the guard broken.
+old = '''MARKER_DIRECTORY = "pinakes-gate-markers"'''
+new = '''MARKER_DIRECTORY = "pinakes-gate-marks"'''
 kills = "tests/test_land.py::test_landing_moves_the_default_branch_and_pushes"
