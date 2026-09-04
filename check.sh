@@ -197,6 +197,17 @@ python3 tools/release_order_gate.py
 # would be found with the evidence already gone.
 python3 tools/fragments.py --check
 
+# register-gate: the harvest README's documented row counts against the files it names. It caught a
+# register stating three different counts for one dataset, one of them a figure withdrawn twice and
+# sitting under the heading naming the user's own question. The directory is a dated artefact of a
+# pause and is expected to disappear, so the guard is explicit rather than silent: when it is gone
+# this says so, because a step that skips without saying so is a gate that passes vacuously.
+if [ -d plans/20260904-process-review-data ]; then
+  python3 tools/register_gate.py plans/20260904-process-review-data/README.md plans/20260904-process-review-data
+else
+  echo "register-gate: plans/20260904-process-review-data absent - nothing to check"
+fi
+
 # markdown-links: every relative link and heading anchor resolves in the Markdown the docs site
 # never sees. `mkdocs build --strict` resolves internal links, and it is the only thing that does —
 # it reads `docs/` alone (`mkdocs.yml` `docs_dir`) and `exclude_docs` drops `docs/README.md` even
