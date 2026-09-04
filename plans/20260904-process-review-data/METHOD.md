@@ -65,7 +65,12 @@ resolved.** Grepping the command string gives mentions, not runs, and no outcome
    file against it.** That comparison is the only thing that has ever caught this: two artifacts of
    one act, per `FRAMEWORK.md` § 9.5. *Found 20260904 by the planner losing a code span in § 9
    itself; detection ruled out by the coder the same day, reported as a negative result rather than
-   shipped as a 19%-false-positive gate.*
+   shipped as a 19%-false-positive gate.* **The same surface has a loud symptom too**: the coder
+   wrote `tools/register_gate.py` through a heredoc and `ruff format` rejected it outright. Nothing
+   about that file was wrong — a heredoc simply writes text other tools have opinions about, and the
+   gate found it in seconds. **Loud and silent are the same surface with opposite symptoms, and only
+   the silent one needs a rule**, which is why this entry is about content loss rather than
+   formatting.
 
 ## A tested reader
 
