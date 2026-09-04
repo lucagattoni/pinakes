@@ -11,6 +11,7 @@ the mistake L5b's own CRLF check made and had to be redone (docs/RETROSPECTIVES.
 from __future__ import annotations
 
 import contextlib
+import errno
 import io
 import os
 from pathlib import Path
@@ -605,15 +606,31 @@ def test_an_unreadable_directory_is_refused_rather_than_crashing(
 
     def name_too_long(target: Any, *args: Any, **kwargs: Any) -> os.stat_result:
         if isinstance(target, str | Path) and str(target).startswith(str(too_long)):
-            raise OSError(63, "File name too long")
+            # `errno.ENAMETOOLONG`, not the literal 63: that is macOS's number, and on Linux
+            # 63 is a different errno entirely. The assertions never caught it because the
+            # message is supplied here explicitly — a fake that simulated the wrong condition
+            # and said the right words, which is only visible now the test runs on both.
+            raise OSError(errno.ENAMETOOLONG, "File name too long")
         return real_stat(target, *args, **kwargs)
 
-    # **Redundant on this machine and load-bearing on CI, which is why it stays.** The row-41 audit
-    # neutralises each injection and re-runs its test; this one still passed, because a real
-    # 300-character name already raises `ENAMETOOLONG` here — measured, `NAME_MAX` is 255. It is
-    # kept because the comment above records the opposite result on CI, where the long name "simply
-    # was not a document": a fake that is redundant on one platform and necessary on another cannot
-    # be ruled from either one alone, and dropping it would restore the fixture bug.
+    # **Redundant on BOTH platforms — measured on Linux 20260904 10:39 UTC, which is what row 42
+    # existed to settle.** The audit neutralises each injection and re-runs its test; this one
+    # passes without its fake on macOS *and* on `ubuntu-latest`, because a real 300-character name
+    # raises `ENAMETOOLONG` wherever `NAME_MAX` is 255 — and it is 255 on both
+    # (`15 sites · 1 vacuous · 0 not ruled`, `probed under Python 3.13.15 on Linux
+    # 6.17.0-1022-azure (x86_64), NAME_MAX=255`, run `33864216950`).
+    #
+    # **The comment above is not wrong; it is superseded, and deleting it would lose the reason.**
+    # It records the long name failing to be a document on CI — true of the *pre-refactor* code
+    # path, which went through `Path.is_file()`, where 3.14 swallows `ENAMETOOLONG` and the guard
+    # never fired. `paths.unreachable_through_links` did not exist when that was written. Production
+    # now calls `os.stat` directly, twice, so the errno survives to the message on both platforms
+    # and the fixture bug it warns about can no longer be restored by dropping the fake.
+    #
+    # **So the fake decides nothing anywhere either platform has been measured, and the open
+    # question is whether it should stay at all.** Not taken here, deliberately: development is
+    # paused, and removing an injection is a change to what this test exercises rather than to what
+    # it says. The evidence for taking it is in this comment and in run `33864216950`.
     monkeypatch.setattr(os, "stat", name_too_long)
     with pytest.raises(PinakesError) as caught:
         add(load(local.root), source=f"docs/{'n' * 300}", target="docs/beta.md", rel="cites")
