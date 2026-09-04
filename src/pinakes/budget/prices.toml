@@ -42,8 +42,16 @@
 # around 16:00 CET -- so the newest fixing is still 2026-09-03 at 1.1615. Fifth re-read, still two
 # values. A morning release necessarily carries the previous business day; that is the step working,
 # not the step being skipped.
-as_of = "20260904 08:48"
-usd_per_eur = "1.1615"
+#
+# 0.32.6, at 20260904 14:55, is the same day's afternoon and the second release to catch the day's own
+# fixing: 16:5x CET is past the ECB's posting window, so 2026-09-04 was available at 1.1622 and the
+# rate moves 1.1615 -> 1.1622, up 0.06%. Sixth re-read, three values. The pair 0.32.5/0.32.6 is the
+# cleanest illustration this file has of why the window is read rather than assumed -- the same
+# calendar day, one release either side of 16:00 CET, two different fixings. Model prices re-checked
+# the same minute against claude.com/pricing: claude-opus-5 unchanged at 5.00 / 25.00 per Mtok,
+# which is the normal outcome and is recorded because "unchanged" is a measurement too.
+as_of = "20260904 14:55"
+usd_per_eur = "1.1622"
 
 # Measured against the live API on 20260729 03:17 with claude-opus-5, over the synthetic corpus
 # (docs/MEASUREMENT-RUN.md). Recorded here rather than only in a retrospective because the next

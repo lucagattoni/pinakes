@@ -157,12 +157,14 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   user 20260904 10:21 so they can review **the development process itself** — and this repository — against
   an analysis they commissioned, *Framing, Not Roles* (Claude artifact `2c7961ec`, written against
   `d474ffa`). Both live sessions shut down cleanly at that point.
-  **State at the pause, so nobody reconstructs it:** `main` green, in sync, no worktrees;
-  **fragments wait in `changelog.d/` and `retro.d/` — `ls` them, do not read a number here** — a
-  release is due and was **deliberately not cut**, because a tag publishes to PyPI and that is
-  starting work rather than stopping it; rows **9, 23, 25, 29** and row 36's remainder are open;
-  row 42 was the last increment in flight. *(This clause said **six** for two hours while eight sat
-  on disk — a count in prose has no column to check, so it is now an instruction to count.)*
+  **State at the pause, so nobody reconstructs it:** `main` green, in sync, no worktrees; rows
+  **9, 23, 25, 29** and row 36's remainder are open; row 42 was the last increment in flight.
+  **The release hold was LIFTED by the user 20260904 14:5x** — *"I would like you will handover with
+  clean state, with nothing uncut"* — and **0.32.6 was cut in response**, so the fragment streams
+  are empty and no work is waiting to be released. The pause on *development* stands; only the
+  release half was lifted. *(This clause said **six** fragments for two hours while eight sat on
+  disk, then said eight while ten did — a count in prose has no column to check, which is why it no
+  longer carries one.)*
   **What the analysis concludes, in one line each, so a resuming session does not re-derive it:**
   specialise by **framing, not job title** — a lens transfers almost no context, a role transfers
   all of it; the binding constraints are **fan-outs that die silently and report clean** and
@@ -258,18 +260,23 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   the floor** — the code is the fix, and it is written. Also wrong, in the other direction:
   `docs/RETROSPECTIVES.md:2218` distinguishes a developer machine from CI by *“different OS,
   different Python”*, when the interpreter is the one thing the matrix held constant.
-- **🚦 0.32.5 is CUT — three commands that reported a permission problem as something else — and
-  `changelog.d/` and `retro.d/` are empty.** Ten fragments. **PATCH**: the three fixes are bug
-  fixes, and the two tooling changes (`land.py`'s gate guard, `mutate.py` naming its interpreter)
-  **ship in no wheel**. *(Both precedents exist and were weighed: 0.27.0 took MINOR for adding a
-  whole developer tool, 0.22.2 took PATCH for adding a developer gate. This is a guard on an
-  existing tool, so it follows 0.22.2.)*
+- **🚦 0.32.6 is CUT — three instruments that could report success while measuring nothing — and
+  `changelog.d/` and `retro.d/` are empty.** Ten fragments, spliced at the cut; **count them with
+  `ls`, never from a number written here.** **PATCH**: one test fix, one CI workflow, one developer
+  gate (`register_gate.py`) — **none of which ship in a wheel** — plus documentation. *(0.22.2's
+  precedent, a PATCH for adding a developer gate, over 0.27.0's MINOR for adding a whole developer
+  tool: this is one small gate, not a tool.)*
+  **Two things in it do reach a user, and both are small**: `prices.toml` carries the 2026-09-04
+  fixing (1.1615 → 1.1622, EUR figures 0.06% apart), and two `pathlib` holdouts in `sync.py` and
+  `upgrade.py` became version-independent spellings — **hygiene on unreachable paths, measured
+  before the change, and deliberately carrying no changelog entry**, because a user can observe
+  nothing and an entry would have been the release's one false claim.
+  **This release caught the ECB's own posting window**: 0.32.5 at 08:48 and 0.32.6 at 14:55 are the
+  same calendar day either side of 16:00 CET, and they carry **different fixings**. That pair is the
+  clearest evidence this project has that step 3 is a measurement rather than a ceremony.
   **Read `minimum-python` in the CI run for the commit you tag** — it fires only on a push to
   `main`, so no earlier green transfers ([`docs/RELEASING.md`](docs/RELEASING.md) step 6).
-  **`prices.toml` re-read, rate unchanged**: the ECB posts around 16:00 CET, so a morning release
-  necessarily carries the previous business day's fixing — 1.1615, 2026-09-03. That is the step
-  working, not being skipped.
-  **`./check.sh` now runs AFTER your last commit, not before it** — `land.py` refuses a merged tree
+  **`./check.sh` runs AFTER your last commit, not before it** — `land.py` refuses a merged tree
   no gate certified, and a fragment committed after the gate changes the tree and fires the refusal.
   **What is still owed is the post-publish sweep** — STATUS's hold marker, its two published-version
   registers and ROADMAP's two prose blocks, none writable before the index has been read.
