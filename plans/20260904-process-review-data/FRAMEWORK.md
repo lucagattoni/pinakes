@@ -279,20 +279,25 @@ and it generalises past this project.
 is how a project deletes the gate that saves it next week.* They **declined to rank** the mutation
 batteries and the injection audit because this session ran neither.
 
-### 6.3b Instrument catch rates across 14 coder sessions ⟦measured, coder — **judge has not ruled**⟧
+### 6.3b Instrument catch rates across 14 coder sessions ⟦measured, coder — **judge ruled 20260904 12:22**⟧
 
-**Unadjudicated lens output plus the coder's direct measurements. Weight accordingly.**
+**41 findings: 30 SUPPORTED, 11 OVERSTATED, 0 unsupported. 5 of 5 lenses returned, none died.**
+Two figures below were corrected *by* the adjudication and one ranking was withdrawn:
+`fragments.py` was reported at 9.2% and is **4.2%**; `land.py`'s zero needed the age caveat; and
+**"fan-outs are the richest source of caught coder errors" is withdrawn** — not established against
+the gates, which went red 31 times on `check.sh` alone in the same population. **Both are real; the
+ranking is not.**
 
 | instrument | invocations | caught something |
 |---|---:|---|
 | `check.sh` | 157 | **31 of 139 resolved RED (22.3%)**, all 14 sessions |
 | `mutate.py` | 150 | `--check-anchors` **18%**; battery runs **16.7%** found a SURVIVED mutant |
-| `fragments.py` | 84 | **7 of 76 resolved (9.2%)** caught a real malformed fragment |
+| `fragments.py` | 84 | **3 of 72 resolved (4.2%)** caught a real malformed fragment |
 | `shared_file_overlap.py` | 39 | **2 of 38 resolved (5.3%)** — the one genuinely almost-always-null instrument |
-| `land.py` | 43 | **0 refusals.** Deterrence, not interception |
+| `land.py` | 43 | **0 refusals — but the figure is nearly vacuous.** The gate-certification refusal only landed 20260904 08:25Z, so **at most ~8 of the 43 could ever have exercised it.** Too young for a catch rate; measured effect remains deterrence |
 | workflow fan-outs | 34+ runs, 360+ child agents | in one increment a **pass-4 judge ruled DOES NOT LAND after three prior passes had cleared it** |
 
-### 6.3c My hypothesis has a number, and it is not a landslide ⟦measured, coder — unadjudicated⟧
+### 6.3c My hypothesis has a number, and it is not a landslide ⟦measured, coder — adjudicated⟧
 
 Of **45 correction events read in full context: ~29 (64%) were truth-cost** — population, staleness,
 an unmeasured claim. **The other ~16 were faulty logic or wrong scope, and 11–12 of those were caught
@@ -300,6 +305,63 @@ only by *running* something** — a mutation, a real interpreter, a real OS.
 
 **That is sharper than either of our positions.** Truth-cost dominates, **but a third of corrections
 are not truth-cost at all, and that third is invisible to reading.** It needs execution.
+
+### 6.3d What the adjudication added ⟦measured, coder + judge, 20260904 12:22⟧
+
+**The 791 has a mechanism, and it is sharper than "two runs landed in between".** The number came
+from a command: a `tool_result` at **10:43:38Z reads literally `791`**, 21 seconds before the
+harvest launched. **The drift was self-inflicted** — that session's own `land.py` push created run
+ids `33864815430` and `33864815456` at 10:46:32–33Z, both success, **678 + 2 = 680**. **The
+predecessor was invalidated by its own landing.**
+
+**The timestamp defect is two defects, not one.** `11:44` is a **+1 h local reading of a real
+mtime** — a unit error. **`11:55` corresponds to no event in either zone**; the session's last
+record is 10:49:48Z — a **composed** number. **The composed half is the more serious**, and merging
+them would have lost exactly the distinction §3.1 turns on.
+
+**Three findings that contradict the single-session view:**
+
+1. **Coder sessions are the *leanest* on context per output, not the heaviest.** Median
+   context∶output — **coder 189.5** (n=14), **planner 243.3** (n=10), **unnamed 285.1** (n=44). And
+   **compaction does not drive it**: the seven highest-ratio coder sessions have **zero**
+   compactions between them, while the session with fourteen sits at 150.5.
+2. **The user never fact-checks a coder's claim.** Across ~42–46 real human turns in all 14
+   transcripts — after excluding tool results, compaction summaries, task notifications, peer
+   messages and command wrappers — **zero correct a specific coder claim.** The dominant forms are
+   role assignment and *"I hit my usage limit, please continue"* (verbatim in 7 of 14).
+   **Error-catching is a peer, self and gate function. Scope-setting is the user's** — and this
+   widened review exists because of one user turn.
+3. **Elapsed time is unusable as a work proxy across most of the population.** One session shows a
+   single **5,593-minute gap** and a **1.9% active fraction** over 99.6 hours. Another is **25.8%**
+   active — **not the 35% a lens claimed**, and the judge caught that lens picking a flattering
+   threshold. **State the threshold with the number or the number means nothing.** ⟦This corrects
+   the corroboration I recorded for my own 120-second cut.⟧
+
+**A rule whose compliance is checkable after the fact — and nobody had checked it.** The 20260831
+subagent-model rule took effect and is measurable from `agent_tasks.tsv`'s `dominant_model` joined
+on run. Of **360 fan-out child agents** across 10 of 14 sessions: the 5 sessions **predating** the
+rule ran **96 of 103** non-synthetic agents on Opus; sessions **after** it ran **15 of 237 (6.3%)**,
+and those 15 are **approximately one per fan-out** — which is the judge the rule permits.
+
+**Two attribution warnings the judge issued:**
+
+- **Attributing a window's commits to whichever session was in flight is unsound whenever a planner
+  runs concurrently** — which here is always. Three commits credited to a coder session carry the
+  planner's token.
+- **Do not carry "compacts, then re-reads, pays twice" as measured.** Only 4 of 14 sessions
+  compacted, genuine content-repeat calls are **17 of 4,494 (0.4%)**, and the lens testing it
+  **disqualified its own control rather than claim the effect.**
+
+**And a consequence for any future measurement:** the 89%-Bash figure survives, but `echo` (632) and
+`python3` (610) alone are **28% of coder calls** and **cannot be typed from a 40-character target**.
+Measuring what a coder did requires parsing Bash `tool_result`s and exit codes.
+
+### 6.3e What the whole set agrees on
+
+**The handoff channel failed and the repair loop worked.** All three header claims passed between
+sessions were defective; **all three were caught and corrected by the receiving session within about
+65 minutes**, and the corrected values are on `main`. **A retrospective that stops at the error
+misses the half that worked** — and the coder notes this is not what their own fragment said.
 
 ### 6.4 Review is worth it, and its target should be prose
 
