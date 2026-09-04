@@ -240,7 +240,11 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   126 skipped** — the same counts as the local 3.13 run, which is what shows it ran a suite and not
   a no-op. The leg is one interpreter deep on `[light]` only; the `check` matrix still varies
   extras. **A green top-line is not this job** — the workflow triggers on push to `main`, so no
-  branch push runs it, and every future commit needs its own read.
+  branch push runs it, and every future commit needs its own read. **And the leg is no longer
+  unbroken: it has failed once**, run `33853409534` at `1d42e42d`, 20260904 08:26. The *first run
+  in this repository's history* was green and that sentence stands; **this file read as though
+  the leg had never failed, which is a different claim** — found in the harvested CI data, not by
+  anyone re-reading the file.
   **The false claim in the docs is a support claim, not a testing one**: nothing in `docs/` says
   3.13 is tested, while `docs/DESIGN.md` line 3, `docs/GUIDE.md` line 51, `README.md`'s badge and
   this file all say 3.13 is **supported**. Audited 20260903 13:23. **Do not "fix" those by raising
