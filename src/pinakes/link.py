@@ -195,15 +195,13 @@ def _via_alias(linked: LinkedKb, relative: str, *, local_root: Path) -> PnkUri:
         )
 
     root = resolved
-    try:
-        # `is_file()` swallows a missing path and nothing else, so a partner directory this user
-        # cannot read raises `PermissionError` here. `LinkedKbUnreachableError` is the right answer
-        # to all of it: a partner that cannot be read is unreachable, whether it is absent, locked,
-        # or named by a path that will not expand.
-        if not (root / MANIFEST_NAME).is_file():
-            raise LinkedKbUnreachableError(linked.name, root, reason=why_not_a_kb(root))
-    except OSError as exc:
-        raise LinkedKbUnreachableError(linked.name, root, reason=exc.strerror or str(exc)) from exc
+    # `LinkedKbUnreachableError` is the right answer to all of it: a partner that cannot be read is
+    # unreachable, whether it is absent, locked, or named by a path that will not expand — and
+    # `why_not_a_kb` now says which. The `except OSError` that stood here caught the
+    # `PermissionError` the `pathlib` probe raised on 3.13 and caught nothing on 3.14, where the
+    # same call returns `False`, so the locked case reached the user as "no such directory".
+    if not paths.is_regular_file(root / MANIFEST_NAME):
+        raise LinkedKbUnreachableError(linked.name, root, reason=why_not_a_kb(root))
 
     try:
         # **`PinakesError` is in the tuple, matching `linkscan.scan_one`.** `partner_sources` parses

@@ -1642,44 +1642,63 @@ def test_a_partner_roots_entry_that_cannot_be_resolved_is_not_a_traceback(
     assert "unresolved" not in detail
 
 
-def test_an_unreadable_linked_kb_path_is_a_warning_not_a_traceback(
-    kb: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_an_unreadable_linked_kb_is_reported_as_unreadable_not_as_absent(
+    kb: Path, tmp_path: Path
 ) -> None:
-    """`why_not_a_kb` raises `OSError` on an unreadable parent, and its docstring names this command
-    as the third caller needing the same `try` that `linkscan.scan_one` and `link._via_alias` have.
+    """`pnk doctor` told the user a partner KB did not exist while it sat on disk.
 
-    A diagnostic command reporting a traceback is the one outcome `pnk doctor` may not have.
+    **This test replaces an injected one that had gone vacuous, and the vacuity was measured
+    rather than suspected**: with its `monkeypatch` line disabled it still passed. Its fixture
+    built the partner directory *without* a `pinakes.toml`, so the WARN it asserted came from the
+    KB genuinely not being a KB, and the injected `PermissionError` decided nothing. The partner
+    here is a real, synced KB, so the only reason it cannot be reached is the permission — which
+    is what makes the assertion about permissions mean anything.
+
+    The 3.14 answer was "no such directory", identical to the string for a partner that is really
+    gone. A diagnostic command may not report a traceback; it equally may not report the one
+    situation the user will check and find false.
     """
-    locked = tmp_path / "locked"
-    (locked / "kb").mkdir(parents=True)
-    walled_id = mint_kb_id()
-    _declare_partner(kb, name="walled", kb_id=str(walled_id), path=str(locked / "kb"))
+    walled = _partner(tmp_path / "walled", "kb")
+    walled_id = load(walled).kb.id
+    _declare_partner(kb, name="walled", kb_id=str(walled_id), path=str(walled))
     # **A cross-KB link, so `_unresolved_cross_kb` actually runs.** Without one, `wanted` is empty
-    # and it returns before touching the partner — so this test, named for "the third caller
-    # needing the same `try`", reached only `_linked_kbs`'s guard and neither of the two in the
-    # function the review added. Same class as the fixtures L6 kept shipping.
+    # and it returns before touching the partner — so an earlier version of this test reached only
+    # `_linked_kbs`'s guard and neither of the two in the function the review added.
     sync(load(kb), options=SyncOptions(), now="20260729 05:31")
     _link_to(kb, f"pnk://{walled_id}/{mint_doc_id()}")
 
-    # **Injected, not chmod'd.** `chmod(0o000)` is not a portable way to deny a read: root ignores
-    # it, and CI's runner produced a stat that neither succeeded nor raised, so two runs of `main`
-    # went red on fixtures that could not build their own precondition. What is under test is that
-    # an `OSError` from the probe becomes a WARN rather than a traceback — so raise one.
-    real_is_file = Path.is_file
-
-    def denied(self: Path) -> bool:
-        if self.is_relative_to(locked):
-            raise PermissionError(13, "Permission denied")
-        return real_is_file(self)
-
-    monkeypatch.setattr(Path, "is_file", denied)
-    report = {c.name: (c.status, c.detail) for c in diagnose(load(kb)).checks}
-    monkeypatch.undo()
+    os.chmod(tmp_path / "walled", 0o000)
+    try:
+        report = {c.name: (c.status, c.detail) for c in diagnose(load(kb)).checks}
+    finally:
+        os.chmod(tmp_path / "walled", 0o755)
 
     status, detail = report["linked KBs"]
-    assert status is Status.WARN
+    assert status is Status.WARN, detail
     assert "walled" in detail
+    assert "Permission denied" in detail, detail
+    assert "no such directory" not in detail, (
+        "the partner is present and merely unreadable; reporting it as absent is the defect"
+    )
     assert report["links"][0] is Status.OK, "an unreadable partner was used as evidence of absence"
+
+    # **Control: the same KB and the same declaration, with only the mode bit changed.** It reports
+    # the partner as resolvable and says nothing about permissions, which is what shows the words
+    # above came from the block rather than from anything else about this fixture. Not "walled is
+    # absent from the detail" — `doctor` names it anyway, in its own warning about a committed
+    # absolute path, and asserting its absence tested that unrelated warning instead.
+    restored_status, restored_detail = {
+        c.name: (c.status, c.detail) for c in diagnose(load(kb)).checks
+    }["linked KBs"]
+    assert "1 resolvable" in restored_detail, restored_detail
+    assert "Permission denied" not in restored_detail, restored_detail
+    assert restored_status is Status.WARN, (
+        "still a WARN, but for the absolute path rather than the permission — the two are "
+        "different findings and this control exists to keep them apart"
+    )
 
 
 def test_a_partner_whose_sidecars_cannot_all_be_read_is_not_used_as_evidence(

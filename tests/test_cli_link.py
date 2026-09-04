@@ -232,20 +232,22 @@ def test_a_partner_kb_that_cannot_be_read_is_unreachable_not_a_traceback(
     left the rest — a defect class is not closed until it has been searched for.
     """
     local, partner = pair
-    # **The refusal is injected, not built out of filesystem permissions.** Two CI runs failed here
-    # while passing on macOS: `chmod(0o000)` is not a portable way to make a directory unreadable —
-    # root ignores it outright, and CI's runner produced a stat that neither succeeded nor raised
-    # `EACCES`, so `is_file()` answered `False` and the KB was reported as having no manifest.
-    # Skipping when the precondition cannot be built leaves the guard untested exactly where it
-    # broke. Raising the errno the guard exists for tests the guard on every platform.
-    real_is_file = Path.is_file
+    # **Injected at `os.stat`, the OS boundary, and it used to be injected at `Path.is_file`.**
+    # That was the spelling the production probe happened to use, and it stopped intercepting the
+    # moment the probe became version-independent — the same seam failure this file already
+    # records one test above. Worse, it had gone blind before it went red: on 3.14 the real
+    # `Path.is_file()` returns `False` for an unreadable directory instead of raising, so the
+    # guard under test was dead there while the fake entered it and this passed on both.
+    # `test_a_partner_kb_present_but_unreadable_is_not_reported_as_absent` is the non-injecting
+    # half; this one earns its place by running as root, where the `chmod` fixture is skipped.
+    real_stat = os.stat
 
-    def denied(self: Path) -> bool:
-        if self.is_relative_to(partner.root):
+    def denied(target: Any, *args: Any, **kwargs: Any) -> os.stat_result:
+        if isinstance(target, str | Path) and str(target).startswith(str(partner.root)):
             raise PermissionError(13, "Permission denied")
-        return real_is_file(self)
+        return real_stat(target, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "is_file", denied)
+    monkeypatch.setattr(os, "stat", denied)
     with pytest.raises(PinakesError) as caught:
         add(load(local.root), source="docs/alpha.md", target="partner:docs/one.md", rel="cites")
     monkeypatch.undo()
@@ -254,6 +256,49 @@ def test_a_partner_kb_that_cannot_be_read_is_unreachable_not_a_traceback(
     # The errno text, not just the class. Asserting only the prefix left the `strerror` extraction
     # unpinned — blanking the reason kept all 42 tests green.
     assert "Permission denied" in caught.value.message
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_a_partner_kb_present_but_unreadable_is_not_reported_as_absent(
+    pair: tuple[Kb, Kb], tmp_path: Path
+) -> None:
+    """The non-injecting half, and the one that would have caught the 3.14 regression.
+
+    A partner KB behind a directory this process may not traverse is *present*. Every filesystem
+    predicate answers `False` for it — the same `False` they give for a path that is not there — so
+    on 3.14 `pnk link` told the user the partner did not exist, with the directory on disk.
+
+    **Two shapes, because they enter `why_not_a_kb` at different points.** `walled` is refused at
+    the partner root itself; `partner` is a readable directory whose `pinakes.toml` cannot be
+    reached. Both must name the permission, and neither may say "no such directory".
+    """
+    local, partner = pair
+    walled = make_kb(tmp_path / "walled" / "kb", "walled", ["w"])
+    local.connect(walled, "walled")
+
+    os.chmod(tmp_path / "walled", 0o000)
+    os.chmod(partner.root, 0o000)
+    try:
+        with pytest.raises(PinakesError) as root_refused:
+            add(load(local.root), source="docs/alpha.md", target="walled:docs/w.md", rel="cites")
+        with pytest.raises(PinakesError) as manifest_refused:
+            add(load(local.root), source="docs/alpha.md", target="partner:docs/one.md", rel="cites")
+    finally:
+        os.chmod(tmp_path / "walled", 0o755)
+        os.chmod(partner.root, 0o755)
+
+    for caught, alias in ((root_refused, "walled"), (manifest_refused, "partner")):
+        message = caught.value.message
+        assert message.startswith(f"linked KB `{alias}` "), message
+        assert "Permission denied" in message, message
+        assert "no such directory" not in message, (
+            f"{alias} is present and merely unreadable, and must not be reported as absent"
+        )
+
+    # Control: with the permissions restored and nothing else changed, the same call goes through.
+    add(load(local.root), source="docs/alpha.md", target="partner:docs/one.md", rel="cites")
 
 
 def test_a_linked_kb_path_that_will_not_expand_is_unreachable_not_a_traceback(

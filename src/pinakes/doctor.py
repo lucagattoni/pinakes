@@ -1462,17 +1462,17 @@ def _linked_kbs(manifest: Manifest) -> Check:
         if root is None:
             unresolvable.append(f"{linked.name} ({why_unresolvable(manifest.root, linked.path)})")
             continue
-        try:
-            if (root / MANIFEST_NAME).is_file():
-                resolvable += 1
-            else:
-                absent.append(f"{linked.name} ({why_not_a_kb(root)})")
-        except OSError as exc:
-            # `why_not_a_kb` raises on an unreadable parent (`~root` is mode 0700 on macOS) and on
-            # ENAMETOOLONG, and so does the probe. Its docstring names this as its third caller
-            # needing the same `try` that `linkscan.scan_one` and `link._via_alias` have: a
-            # diagnostic command reporting a traceback is the one outcome `pnk doctor` may not have.
-            absent.append(f"{linked.name} ({exc.strerror or exc})")
+            # **No `try` here any more, and that is the change.** The probe is
+            # `is_regular_file`, which answers the same on both interpreters, and `why_not_a_kb`
+            # is total — a refusal is one of its cases rather than an exception. The `except
+            # OSError` that stood here caught a `PermissionError` raised by the `pathlib`
+            # spelling on 3.13 and caught nothing at all on 3.14, where the same call returns
+            # `False`; the reason it printed came from `exc.strerror`, and that is now the
+            # reason `why_not_a_kb` returns.
+        if is_regular_file(root / MANIFEST_NAME):
+            resolvable += 1
+        else:
+            absent.append(f"{linked.name} ({why_not_a_kb(root)})")
 
     detail = f"{len(manifest.links)} declared, {resolvable} resolvable"
     remedies: list[str] = []

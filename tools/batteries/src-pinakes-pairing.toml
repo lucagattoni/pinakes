@@ -33,7 +33,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 64
+mutants = 67
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -1001,6 +1001,16 @@ kills = "tests/test_pairing.py::test_an_unreadable_kb_root_holds_every_document"
 [[mutant]]
 name = "doctor's root guard reverts to the `pathlib` spelling, which raises on the declared floor"
 file = "src/pinakes/doctor.py"
+# Floor-only, and equivalent above it — which is why the row stays even though a 3.14 run
+# reports it SURVIVED. `is_directory` is `os.path.isdir`; the mutant restores `Path.is_dir()`.
+# Measured 20260904 on a `[sources]` root symlinked into a `0o000` ancestor: 3.13 raises
+# `PermissionError` from the `pathlib` spelling and returns `False` from the `os.path` one, so
+# the mutant dies there; on 3.14 **both spellings return `False`**, so the two programs are
+# behaviourally identical and nothing can kill it. Do not "fix" this by widening the `kills`
+# selector or by deleting the row: there is no assertion that could distinguish the mutant from
+# the original on 3.14, because there is no difference to observe. The `doctor` silence that
+# both spellings produce there is a real open question and it belongs to build-order row 28,
+# not to this battery. Run this row on the declared floor, or read its verdict as unknown.
 # **This row dies on 3.13 and SURVIVES on 3.14, and that is the row's content rather than a
 # weakness in it.** `Path.is_dir()` raises `PermissionError` behind a blocked ancestor on 3.13 and
 # returns `False` on 3.14, so on the newer interpreter the mutant merely skips the root and the
@@ -1141,3 +1151,53 @@ new = '''            if False:
                 paid_unreadable.append(path)
             else:'''
 kills = "tests/test_doctor.py::test_a_paid_document_the_process_cannot_reach_is_named_rather_than_dropped"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260904 · row 38 — a partner that is present, and reported absent
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# `why_not_a_kb` is the sentence three commands print about a partner they could not reach. It
+# became total in this row, so the refusal is one of its cases rather than an exception the callers
+# each had to remember to catch. These three mutants are about the two halves of that sentence
+# staying apart: *refused to look* and *not there* are the same `False` from every predicate, and
+# only the words can tell them apart.
+
+[[mutant]]
+name = "the partner-root refusal is dropped, so an unreadable partner is reported as absent"
+file = "src/pinakes/linkscan.py"
+# THE SHIPPED DEFECT on 3.14, restored in one line. The user is told there is no directory at a
+# path where a directory plainly is, which is the one answer they can check and disprove.
+old = '''    refused = _refusal(path)
+    if refused is not None:
+        return f"cannot be read: {refused}"'''
+new = '''    refused = None
+    if refused is not None:
+        return f"cannot be read: {refused}"'''
+kills = "tests/test_sync_links.py::test_a_partner_kb_that_is_present_but_unreadable_is_not_reported_as_absent"
+
+[[mutant]]
+name = "the manifest refusal is dropped, so an unreachable pinakes.toml reads as a missing one"
+file = "src/pinakes/linkscan.py"
+# The same defect one level in, and the level this docstring's own history says keeps being missed:
+# a readable partner directory whose `pinakes.toml` cannot be reached. "no pinakes.toml there"
+# sends the user to create a file that already exists.
+old = '''    refused = _refusal(manifest)
+    if refused is not None:
+        return f"the pinakes.toml there cannot be read: {refused}"'''
+new = '''    refused = None
+    if refused is not None:
+        return f"the pinakes.toml there cannot be read: {refused}"'''
+kills = "tests/test_cli_link.py::test_a_partner_kb_present_but_unreadable_is_not_reported_as_absent"
+
+[[mutant]]
+name = "every answer becomes a refusal, so a partner that is really gone is reported as unreadable"
+file = "src/pinakes/linkscan.py"
+# **The mirror, and the one that stops the fix being bought by reporting permissions for
+# everything.** Without it, a mutant that always claims a refusal would pass every assertion above
+# — each of those tests asserts what an *unreadable* partner says, and none would notice that an
+# absent one now says it too. The absent control is the assertion that dies here.
+old = '''    if not unreachable_through_links(path):
+        return None'''
+new = '''    if False:
+        return None'''
+kills = "tests/test_sync_links.py::test_a_partner_kb_that_is_present_but_unreadable_is_not_reported_as_absent"
