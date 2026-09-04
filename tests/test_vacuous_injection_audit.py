@@ -43,6 +43,22 @@ def tool_module() -> ModuleType:
     return module
 
 
+#: A sample injection line as fixture data — **assembled, never written out literally.**
+#:
+#: The tool's `TARGET` greps every `tests/test_*.py` for `monkeypatch.setattr(Path|os|paths, …)`
+#: on a line ending in `)`. Writing one out here as a string literal therefore adds *this file* to
+#: the audit's own population, and it did: the run went from 15 sites to **17**, and the probe that
+#: neutralised a line inside a string literal broke the file it lived in and came back
+#: `INCONCLUSIVE` — turning the whole audit red on a site that does not exist.
+#:
+#: `test_mutate.py` carries the same warning for a different gate: its fixtures are `dedent`ed
+#: because `test_verification.py` scans for `^def (\w+)` and would resolve a test defined only
+#: inside a string. **A grep over source lines cannot tell fixture data from code**, and a test
+#: file *about* an instrument is exactly where that data lives.
+SAMPLE = "monkeypatch." + 'setattr(os, "stat", denied)'
+SAMPLE_PATH = "monkeypatch." + 'setattr(Path, "read_bytes", denied)'
+
+
 def ruling(verdict: str) -> Callable[..., str]:
     """A `probe` that always returns `verdict`, typed so pyright strict can see through it."""
 
@@ -57,6 +73,20 @@ def naming(where: str | None) -> Callable[[Path], str | None]:
 
     def environment(_root: Path) -> str | None:
         return where
+
+    return environment
+
+
+def drifting(first: str, second: str) -> Callable[[Path], str | None]:
+    """An `environment` that answers differently the second time it is asked.
+
+    `main` asks once before the probe loop and once after; this is the shape that says the run
+    cannot be attributed to either answer.
+    """
+    answers = iter((first, second))
+
+    def environment(_root: Path) -> str | None:
+        return next(answers)
 
     return environment
 
@@ -177,15 +207,13 @@ def test_the_environment_line_sits_beside_the_counts_not_above_the_table(
     the table is the half that gets left behind in the terminal.
     """
     module = tool_module()
-    fake_sites(
-        monkeypatch, module, [("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)')]
-    )
+    fake_sites(monkeypatch, module, [("test_x.py", 0, ["test_a"], SAMPLE)])
     monkeypatch.setattr(module, "probe", ruling("sound"))
     monkeypatch.setattr(
         module, "environment", naming("Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255")
     )
 
-    assert module.main([]) == 0
+    assert module.main(["--min-sites", "0"]) == 0
     out = capsys.readouterr().out
 
     assert "probed under Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255." in out, out
@@ -199,13 +227,11 @@ def test_an_unidentifiable_environment_says_the_verdicts_cannot_be_read_without_
 ) -> None:
     """The admission has to name the consequence, or it reads as a cosmetic omission."""
     module = tool_module()
-    fake_sites(
-        monkeypatch, module, [("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)')]
-    )
+    fake_sites(monkeypatch, module, [("test_x.py", 0, ["test_a"], SAMPLE)])
     monkeypatch.setattr(module, "probe", ruling("sound"))
     monkeypatch.setattr(module, "environment", naming(None))
 
-    assert module.main([]) == 0
+    assert module.main(["--min-sites", "0"]) == 0
     out = capsys.readouterr().out
 
     assert "could not identify" in out, out
@@ -225,15 +251,13 @@ def test_a_vacuous_row_is_reported_and_exits_zero(
     survivor.
     """
     module = tool_module()
-    fake_sites(
-        monkeypatch, module, [("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)')]
-    )
+    fake_sites(monkeypatch, module, [("test_x.py", 0, ["test_a"], SAMPLE)])
     monkeypatch.setattr(module, "probe", ruling("VACUOUS"))
     monkeypatch.setattr(
         module, "environment", naming("Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255")
     )
 
-    assert module.main([]) == 0
+    assert module.main(["--min-sites", "0"]) == 0
     assert "VACUOUS   test_x.py:1" in capsys.readouterr().out
 
 
@@ -247,15 +271,13 @@ def test_a_site_the_instrument_could_not_rule_exits_non_zero(
     happen — the "review harness reported success because every agent died" shape.
     """
     module = tool_module()
-    fake_sites(
-        monkeypatch, module, [("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)')]
-    )
+    fake_sites(monkeypatch, module, [("test_x.py", 0, ["test_a"], SAMPLE)])
     monkeypatch.setattr(module, "probe", ruling(verdict))
     monkeypatch.setattr(
         module, "environment", naming("Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255")
     )
 
-    assert module.main([]) == 1
+    assert module.main(["--min-sites", "0"]) == 1
     assert "NOT RULED test_x.py:1" in capsys.readouterr().out
 
 
@@ -269,7 +291,7 @@ def test_a_site_with_no_caller_found_exits_non_zero_too(
     would otherwise imply it did.
     """
     module = tool_module()
-    fake_sites(monkeypatch, module, [("test_x.py", 0, [], 'monkeypatch.setattr(os, "stat", f)')])
+    fake_sites(monkeypatch, module, [("test_x.py", 0, [], SAMPLE)])
 
     def never(*_args: Any, **_kwargs: Any) -> str:
         raise AssertionError("a site with no target must not be probed")
@@ -279,7 +301,7 @@ def test_a_site_with_no_caller_found_exits_non_zero_too(
         module, "environment", naming("Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255")
     )
 
-    assert module.main([]) == 1
+    assert module.main(["--min-sites", "0"]) == 1
     assert "no caller found" in capsys.readouterr().out
 
 
@@ -292,8 +314,8 @@ def test_an_all_sound_run_exits_zero(
         monkeypatch,
         module,
         [
-            ("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)'),
-            ("test_y.py", 4, ["test_b"], 'monkeypatch.setattr(Path, "read_bytes", g)'),
+            ("test_x.py", 0, ["test_a"], SAMPLE),
+            ("test_y.py", 4, ["test_b"], SAMPLE_PATH),
         ],
     )
     monkeypatch.setattr(module, "probe", ruling("sound"))
@@ -301,6 +323,244 @@ def test_an_all_sound_run_exits_zero(
         module, "environment", naming("Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255")
     )
 
-    assert module.main([]) == 0
+    assert module.main(["--min-sites", "0"]) == 0
     out = capsys.readouterr().out
     assert "2 sites · 0 vacuous · 0 not ruled" in out, out
+
+
+# --- `probe`: a skip is not a pass --------------------------------------------------------------
+
+
+def completed(stdout: str, returncode: int) -> subprocess.CompletedProcess[str]:
+    return subprocess.CompletedProcess(["pytest"], returncode, stdout, "")
+
+
+@pytest.mark.parametrize(
+    ("stdout", "returncode", "expected"),
+    [
+        ("1 skipped in 0.01s", 0, "INCONCLUSIVE"),
+        ("8 skipped in 0.04s", 0, "INCONCLUSIVE"),
+        ("no tests ran in 0.01s", 5, "INCONCLUSIVE"),
+        ("0 passed in 0.01s", 0, "INCONCLUSIVE"),
+        ("2 deselected in 0.01s", 0, "INCONCLUSIVE"),
+        ("1 passed in 0.05s", 0, "VACUOUS"),
+        ("7 passed, 1 skipped in 0.20s", 0, "VACUOUS"),
+        ("1 failed in 0.05s", 1, "sound"),
+        ("1 failed, 7 passed in 0.30s", 1, "sound"),
+    ],
+)
+def test_a_run_that_passed_nothing_is_never_read_as_a_verdict(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    stdout: str,
+    returncode: int,
+    expected: str,
+) -> None:
+    """`1 skipped` exits 0 and contains neither `no tests ran` nor `0 passed`.
+
+    The comment at this site already said *"a skipped test also exits 0, and a skip is not a pass"*
+    while the code tested for two spellings out of at least four, so an all-skipped selector fell
+    through to `VACUOUS` with the exit status agreeing. That is a **false finding**, and it is the
+    one direction this tool must not fail in: a `sound` verdict withholds a finding, while a
+    `VACUOUS` verdict is what a person then acts on by deleting a fake.
+
+    The three `sound` and `VACUOUS` rows are the controls. Without them the fix is satisfied by a
+    function that answers `INCONCLUSIVE` to everything.
+    """
+    module = tool_module()
+    target = tmp_path / "test_x.py"
+    target.write_text(SAMPLE + "\n", encoding="utf-8")
+
+    def run(*_args: Any, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return completed(stdout, returncode)
+
+    monkeypatch.setattr(module.subprocess, "run", run)
+    assert module.probe(tmp_path, target, 0, ["test_a"]) == expected
+
+
+def test_a_real_always_skipped_test_reports_inconclusive_end_to_end(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The control that proves the trap is real, by forging the condition rather than describing it.
+
+    A parametrised table of summary strings is only as good as the strings in it; this runs pytest
+    for real against a test that always skips and asserts the tool does not call that a finding.
+    Measured 20260904: the summary is `1 skipped in 0.00s`, which the previous check did not match.
+    """
+    target = tmp_path / "test_skipped.py"
+    # Line 0 is a standalone statement because `probe` replaces *that* line with `pass` — the
+    # first draft put `import pytest` there, which the probe deleted, and the resulting collection
+    # error came back as `sound`. The fixture has to survive its own neutralisation.
+    target.write_text(
+        "INJECTION = 1  # the line the probe neutralises\n"
+        "import pytest\n\n\n"
+        '@pytest.mark.skipif(True, reason="stands in for a geteuid()==0 guard")\n'
+        "def test_a() -> None:\n"
+        "    assert False\n",
+        encoding="utf-8",
+    )
+    module = tool_module()
+    # **The real `run`, captured before the fake replaces it.** Calling `subprocess.run` inside the
+    # fake would call the fake — the first version of this test recursed until the stack ran out.
+    really_run = subprocess.run
+
+    def run(command: list[str], **_: Any) -> subprocess.CompletedProcess[str]:
+        real = really_run(
+            [sys.executable, "-m", "pytest", str(target), "-q", "-p", "no:cacheprovider"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert "skipped" in real.stdout, real.stdout
+        return real
+
+    monkeypatch.setattr(module.subprocess, "run", run)
+    assert module.probe(tmp_path, target, 0, ["test_a"]) == "INCONCLUSIVE"
+
+
+# --- the site floor ----------------------------------------------------------------------------
+
+
+def test_a_collapsed_site_list_is_refused_rather_than_reported_clean(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`0 sites · 0 vacuous · 0 not ruled` and a green exit is the shape to make impossible.
+
+    `TARGET` is a regex over source lines, so a reformat that wraps a `monkeypatch.setattr` across
+    two lines is enough to empty the collection — and the report would then certify that nothing
+    was measured. `wheel_import_gate.py` carries `--min-modules` for this exact reason.
+    """
+    module = tool_module()
+    fake_sites(monkeypatch, module, [])
+
+    assert module.main([]) == 2
+    out = capsys.readouterr().out
+    assert "REFUSED" in out, out
+    # The refusal *quotes* the summary it is refusing to emit, so asserting that string is absent
+    # would be satisfied by nothing. The header is what a real report always prints first, and the
+    # refusal returns before reaching it.
+    assert "probes each" not in out, "a refusal must not also print a report header"
+
+
+def test_the_floor_is_a_value_not_a_flag(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--min-modules 1` survived every test in the sibling gate; this is that lesson applied.
+
+    A check that only asserts the flag is present is satisfied by `--min-sites 1`, which restores
+    the hole in full. So the floor is asserted by its effect at a realistic value.
+    """
+    module = tool_module()
+    rows = [("test_x.py", i, ["test_a"], SAMPLE) for i in range(9)]
+    fake_sites(monkeypatch, module, rows)
+    monkeypatch.setattr(module, "probe", ruling("sound"))
+    monkeypatch.setattr(module, "environment", naming("Python 3.13.15 on Linux, NAME_MAX=255"))
+
+    assert module.main([]) == 2, "nine sites is below the default floor of ten"
+    capsys.readouterr()
+
+    # The same nine, with the floor lowered, are reported normally — so the refusal is the floor
+    # doing its job and not the tool being unable to handle a short list.
+    assert module.main(["--min-sites", "9"]) == 0
+    assert "9 sites · 0 vacuous · 0 not ruled" in capsys.readouterr().out
+
+
+def test_the_floor_can_be_disabled_outright(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--min-sites 0` is the escape hatch, and it must actually report rather than refuse."""
+    module = tool_module()
+    fake_sites(monkeypatch, module, [])
+    monkeypatch.setattr(module, "environment", naming("Python 3.13.15 on Linux, NAME_MAX=255"))
+
+    assert module.main(["--min-sites", "0"]) == 0
+    assert "0 sites · 0 vacuous · 0 not ruled" in capsys.readouterr().out
+
+
+def test_this_file_does_not_add_itself_to_the_audits_own_population() -> None:
+    """A test file *about* injections is where injection-shaped fixture data lives.
+
+    `TARGET` greps every `tests/test_*.py` for `monkeypatch.setattr(Path|os|paths, …)` on a line
+    ending in `)`. When this file wrote those out as string literals it joined the population it
+    was testing: the run went 15 sites -> **17**, and probing a "site" inside a string literal
+    broke the file it lived in and returned `INCONCLUSIVE`, turning the whole audit red over a site
+    that does not exist. Measured 20260904 10:19 UTC — read off the run's own artefact, because
+    the first version of this sentence carried a time that had not happened yet.
+
+    The guard is here rather than in the tool because **the tool's blind spot is real and is not
+    this increment's to close**: a regex over source lines cannot tell fixture data from code, and
+    the parse-not-grep question already belongs to an open, planner-owned row. What this pins is
+    that *this file* stays out of the way — the same stance `test_mutate.py` takes towards
+    `test_verification.py`'s `^def (\\w+)` scan, and for the same reason.
+    """
+    module = tool_module()
+    mine = Path(__file__).name
+    offenders = [
+        f"{path.name}:{index + 1}  {text}"
+        for path, index, _targets, text in module.sites(module.ROOT)
+        if path.name == mine
+    ]
+
+    assert not offenders, (
+        "this file has re-entered the audit's own population — assemble the literal "
+        f"(see SAMPLE) rather than writing it out: {offenders}"
+    )
+
+
+# --- the environment must hold still for the verdicts to mean anything --------------------------
+
+
+def test_the_environment_is_read_before_the_probes_not_after_them(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The line beside the counts must describe the run that produced them.
+
+    Asking at the end reports the environment the run *finished* in. On 20260904 at 10:23/10:24 UTC
+    this worktree's venv answered 3.13.15 to the audit and 3.14.7 to the very next command, in the
+    same directory with no `uv sync` between them — so "afterwards" is a different question from
+    "during", and only one of them qualifies a verdict.
+    """
+    module = tool_module()
+    fake_sites(monkeypatch, module, [("test_x.py", 0, ["test_a"], SAMPLE)])
+    monkeypatch.setattr(module, "probe", ruling("sound"))
+    monkeypatch.setattr(module, "environment", drifting("BEFORE-3.13", "AFTER-3.14"))
+
+    module.main(["--min-sites", "0"])
+    out = capsys.readouterr().out
+
+    assert "probed under BEFORE-3.13." in out, out
+    assert "probed under AFTER-3.14." not in out, (
+        "the report must not name the environment it ended in"
+    )
+
+
+def test_an_environment_that_moved_mid_run_makes_every_verdict_unattributable(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Not "this site could not be ruled" but "none of them is about anything in particular".
+
+    Both readings are printed rather than a bare mismatch flag, because the two values *are* the
+    finding — a reader needs to know which two environments were in play to decide what to re-run.
+    """
+    module = tool_module()
+    fake_sites(monkeypatch, module, [("test_x.py", 0, ["test_a"], SAMPLE)])
+    monkeypatch.setattr(module, "probe", ruling("sound"))
+    monkeypatch.setattr(module, "environment", drifting("BEFORE-3.13", "AFTER-3.14"))
+
+    assert module.main(["--min-sites", "0"]) == 1
+    out = capsys.readouterr().out
+    assert "UNATTRIBUTABLE" in out, out
+    assert "BEFORE-3.13" in out and "AFTER-3.14" in out, "both readings are the finding"
+
+
+def test_a_stable_environment_is_not_reported_as_drift(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The control. Without it the guard is satisfied by one that fires on every run."""
+    module = tool_module()
+    fake_sites(monkeypatch, module, [("test_x.py", 0, ["test_a"], SAMPLE)])
+    monkeypatch.setattr(module, "probe", ruling("sound"))
+    monkeypatch.setattr(module, "environment", drifting("SAME", "SAME"))
+
+    assert module.main(["--min-sites", "0"]) == 0
+    assert "UNATTRIBUTABLE" not in capsys.readouterr().out
