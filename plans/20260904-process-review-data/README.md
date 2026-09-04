@@ -116,6 +116,10 @@ Received only — a send is not recorded in the sender's own transcript, so this
 **`ci-runs.tsv`** — harvested by the coder session; see the header block below, written by them
 and pasted here unchanged when it lands.
 
+**`FRAMEWORK.md` sits beside these files** — how development here actually works, what the data
+can and cannot answer, and the two sessions' accounts where they disagree. **It characterises and
+does not prescribe**, at the user's instruction. Read it after the data, not instead of it.
+
 ## The two questions this harvest was steered to answer
 
 **Added 20260904 11:10 at the user's direction.** These are *pointers to columns*, not findings.
