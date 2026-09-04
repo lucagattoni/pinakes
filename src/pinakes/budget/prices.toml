@@ -37,7 +37,12 @@
 # 0.32.4, at 20260903 16:37, re-read the same source and got the 2026-09-03 fixing again at 1.1615: the ECB
 # publishes once a day, so a fourth release on the same day necessarily re-reads the same value.
 # Only as_of moves. Four re-reads, two values.
-as_of = "20260903 16:37"
+#
+# 0.32.5, at 20260904 08:48, is the next morning and the ECB had not yet published 2026-09-04 -- it posts
+# around 16:00 CET -- so the newest fixing is still 2026-09-03 at 1.1615. Fifth re-read, still two
+# values. A morning release necessarily carries the previous business day; that is the step working,
+# not the step being skipped.
+as_of = "20260904 08:48"
 usd_per_eur = "1.1615"
 
 # Measured against the live API on 20260729 03:17 with claude-opus-5, over the synthetic corpus
