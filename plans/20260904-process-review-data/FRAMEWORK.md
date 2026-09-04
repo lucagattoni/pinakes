@@ -543,6 +543,20 @@ discriminator.** What differs:
    copies of one act** instead of guessing at provenance.
    > **Design principle, and the most transferable thing in this section: make a rule compare two
    > artifacts of the same act, not the act to an intention.**
+3. **The principle also says which registers are cheap to check — and one of them was wrong.**
+   ⟦coder, 20260904, planner-verified⟧ A documented row count versus `wc -l` on the file it names is
+   two artifacts of one act: mechanically comparable, no judgement. Run across this harvest's own
+   `README.md`, **15 of 16 rows matched and `tool_calls.tsv` held three different counts in one
+   file** — 64,662 in the table, the correct 64,735 in the prose, and, under the section stating the
+   **user's own steering question**, `18,573 of 64,662`: the **v1 figure withdrawn twice**, 4.4x
+   high, fourteen lines below the block that withdraws it. A reader following the document's own
+   navigation reached the withdrawn number; a reader reading top to bottom reached the right one.
+   **Corrected 20260904 14:38.**
+   > **The pairing is the lesson.** The heredoc defect (`METHOD.md` gotcha 7) is undetectable
+   > because the detector must perform the deletion it looks for. This one is detectable in fifteen
+   > lines. **Same principle, opposite verdicts** — so "make it comparable" is not a slogan here, it
+   > is a test that returns *possible* or *impossible* before any gate is written. **The gate is
+   > proposed and deliberately unbuilt**: `tools/` is the implementer's, and development is paused.
 
 ### 9.6 What held, and one correction the coder made to their own judge
 
