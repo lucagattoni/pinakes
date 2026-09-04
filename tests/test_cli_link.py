@@ -20,6 +20,7 @@ import pytest
 import yaml
 from test_sync_links import Kb, links_in, make_kb, run
 
+from pinakes import paths
 from pinakes.cli import EXIT_FAILURE, EXIT_OK, main
 from pinakes.errors import PinakesError
 from pinakes.ids import mint_doc_id, mint_kb_id
@@ -570,6 +571,36 @@ def test_an_unreadable_directory_is_refused_rather_than_crashing(
     assert "File name too long" in caught.value.message
 
 
+def test_a_refusal_that_clears_between_the_two_stats_is_still_refused(
+    pair: tuple[Kb, Kb], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The one branch a real fixture cannot reach: the predicate refuses, the follow-up `stat`
+    succeeds.
+
+    `_is_file` asks `unreachable_through_links` and then `stat`s a second time, purely to put the
+    errno in the message — "Permission denied" is worth more than "cannot be read". Between those
+    two calls the permission can change, and then there is no `OSError` to name. The refusal must
+    stand anyway: the decision was taken on the first answer, and quietly proceeding because the
+    second disagreed would make `pnk link` behave differently depending on how a race landed.
+
+    **Injected deliberately, and this is the case the rule is for** — a race between two syscalls
+    cannot be built from a `chmod` fixture, and what is under test is this function's own control
+    flow rather than what the OS answers. The real-filesystem behaviour is covered by
+    `test_a_document_the_process_cannot_reach_is_refused_with_the_read_error`.
+    """
+    local, _partner = pair
+    monkeypatch.setattr(paths, "unreachable_through_links", lambda _path: True)
+    with pytest.raises(PinakesError) as caught:
+        add(load(local.root), source="docs/alpha.md", target="docs/beta.md", rel="cites")
+    monkeypatch.undo()
+
+    assert "cannot be read" in caught.value.message
+    assert caught.value.remedy is not None and "permissions" in caught.value.remedy
+    assert add(load(local.root), source="docs/alpha.md", target="docs/beta.md", rel="cites"), (
+        "control: the same call succeeds once the predicate is telling the truth again"
+    )
+
+
 def test_a_path_with_an_embedded_nul_is_refused_rather_than_crashing(pair: tuple[Kb, Kb]) -> None:
     """`Path.resolve()` raises `ValueError` — not an `OSError`, and not a `PinakesError` — on an
     embedded NUL. Unreachable through `argv`, which cannot carry one, but `add()` is a library
@@ -585,6 +616,14 @@ def test_a_path_with_an_embedded_nul_is_refused_rather_than_crashing(pair: tuple
     for source, target in (
         ("docs/a\x00b/x.md", "docs/beta.md"),
         ("docs/alpha.md", "docs/a\x00b/x.md"),
+        # **The filename case, which the paragraph above says falls through — it no longer does.**
+        # It was a graceful "is not a document in this KB" only because `Path.is_file()` answered
+        # `False` for a NUL. The permission fix replaced that call with `os.stat`, which raises
+        # `ValueError` — not an `OSError`, so it escaped `_is_file`'s guard entirely and reached
+        # `cli.main` as a traceback. Caught by an adversarial pass over that fix, with `main` as
+        # the control; it is here so the fall-through can never silently become a crash again.
+        ("docs/bad\x00name.md", "docs/beta.md"),
+        ("docs/alpha.md", "docs/bad\x00name.md"),
     ):
         with pytest.raises(PinakesError) as caught:
             add(load(local.root), source=source, target=target, rel="cites")

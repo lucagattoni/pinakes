@@ -353,7 +353,21 @@ def _is_file(path: Path, raw: str) -> bool:
     and `lstat` succeeds on the link itself. Restoring 3.13's answer on 3.14 is all this does —
     both callers already exit non-zero, so only the message moves.
     """
-    if paths.unreachable_through_links(path):
+    try:
+        refused = paths.unreachable_through_links(path)
+    except ValueError as exc:
+        # **An embedded NUL, and `_document_in`'s guard cannot see this one.** That guard resolves
+        # the *parent* only, so a NUL in a directory component raises there and a NUL in the
+        # filename arrives here intact. `Path.is_file()` answered `False` for it, which fell
+        # through to "is not a document in this KB"; `os.stat` raises `ValueError`, which is not an
+        # `OSError` and so escaped as a traceback — the exact class this function was written to
+        # stop, reintroduced one exception type over. Reported as the unusable path it is, in the
+        # same words `_document_in` uses, rather than restoring the vaguer message it had.
+        raise PinakesError(
+            f"{raw!r} is not a usable path: {exc}.",
+            remedy="Give a path relative to that KB's root, for example `docs/notes.md`.",
+        ) from exc
+    if refused:
         # A second `stat`, in the error path only, purely to name the errno in the message —
         # "Permission denied" is worth more to the user than "cannot be read". If the file became
         # readable in the microseconds between the two calls the race resolves to the generic

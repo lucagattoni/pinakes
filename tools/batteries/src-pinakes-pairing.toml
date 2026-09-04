@@ -1118,8 +1118,12 @@ file = "src/pinakes/link.py"
 # The shipped defect exactly as it was on 3.14, restored in one line. It matters that the mutant is
 # a *deletion of the question* rather than a changed message: the wrong message was never typed by
 # anyone, it fell out of a `False` that meant three things at once.
-old = '''    if paths.unreachable_through_links(path):'''
-new = '''    if False:'''
+# **The anchor moved once already**, when an adversarial pass over this very fix found that
+# `os.stat` raises `ValueError` on an embedded NUL where `Path.is_file()` returned `False`, and
+# wrapped the call to keep that from escaping as a traceback. The mutant is the same breakage at
+# the new shape: stop asking the question.
+old = '''        refused = paths.unreachable_through_links(path)'''
+new = '''        refused = False'''
 kills = "tests/test_cli_link.py::test_a_document_the_process_cannot_reach_is_refused_with_the_read_error"
 
 [[mutant]]
