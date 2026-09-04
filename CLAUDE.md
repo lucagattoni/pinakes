@@ -190,9 +190,13 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   **Why nothing caught any of it: no `.python-version`, no `setup-python`, and `uv sync --frozen`
   takes the newest interpreter available — 3.14 on the runner.** The `check` matrix varies
   *extras*, never interpreters, so the floor in `pyproject.toml` had never been executed by CI. **A
-  fresh worktree runs 3.14 and the primary checkout runs 3.13**, so one commit answers differently
+  fresh worktree ran 3.14 and the primary checkout ran 3.13**, so one commit answered differently
   in two directories on this machine — a branch gate green and the merged gate red on the same
-  tree. `.github/workflows/ci.yml` now carries a `minimum-python` leg that asserts the interpreter
+  tree. **That is history, not the machine you are on: as of 20260904 01:52 both resolve to 3.14.7**, so any
+  claim of the form *“measured on 3.13 because I ran it in the primary checkout”* is now
+  **unsupported**. Pass `--python 3.13` explicitly and print `sys.version` in the run that produces
+  the number; which directory you stood in never was the evidence, and now it is not even a
+  correlate. `.github/workflows/ci.yml` now carries a `minimum-python` leg that asserts the interpreter
   it actually got. **Its first run in this repository's history is green, and it was read in its
   log rather than from its status**: run `33765944569` for `934190c`, where `uv` downloaded
   `cpython-3.13.15-linux-x86_64-gnu`, the assertion step ran, and pytest reported **2425 passed,
