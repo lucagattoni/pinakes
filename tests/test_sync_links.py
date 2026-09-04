@@ -30,7 +30,7 @@ from pinakes.linkscan import (
     why_not_a_kb,
     why_unresolvable,
 )
-from pinakes.manifest import load
+from pinakes.manifest import MANIFEST_NAME, load
 from pinakes.sidecar import SIDECAR_SUFFIX
 from pinakes.sync import SyncOptions, SyncReport, sync
 
@@ -1646,3 +1646,66 @@ def test_scan_reports_an_unreadable_partner_as_unreadable_not_as_absent(
     assert "walled" not in {alias for alias, _, _ in run(local).link_scan}, (
         "control: the same partner, readable, scans without an issue"
     )
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_why_not_a_kb_answers_every_case_and_raises_for_none(tmp_path: Path) -> None:
+    """Totality, asserted — because three call sites stopped guarding this function on it.
+
+    Their `except OSError` clauses were removed when `why_not_a_kb` became total, so "it always
+    returns" is no longer a property of the code that happens to hold: it is the thing standing
+    between a refusal and a traceback out of `pnk doctor`, `pnk link` and `pnk sync`. Nothing else
+    checks it, and the next person to add a raising call inside this function would reintroduce the
+    escape with no guard left to catch it.
+
+    **The count is asserted too, and it is asserted as distinctness rather than as a number in
+    prose.** The docstring above this function said "six cases" while the function returned from
+    seven places — written that way in the very increment that added the seventh. A number in a
+    sentence cannot fail; seven answers that must all differ can.
+    """
+    refused_root = tmp_path / "walled" / "kb"
+    refused_root.mkdir(parents=True)
+    (refused_root / MANIFEST_NAME).write_text("[kb]\n", encoding="utf-8")
+
+    refused_manifest = tmp_path / "sealed"
+    refused_manifest.mkdir()
+    (refused_manifest / MANIFEST_NAME).write_text("[kb]\n", encoding="utf-8")
+
+    (tmp_path / "afile").write_text("x\n", encoding="utf-8")
+    (tmp_path / "empty").mkdir()
+    dangling = tmp_path / "dangling"
+    dangling.mkdir()
+    (dangling / MANIFEST_NAME).symlink_to(dangling / "nowhere.toml")
+    directory_manifest = tmp_path / "as-a-directory"
+    (directory_manifest / MANIFEST_NAME).mkdir(parents=True)
+
+    os.chmod(tmp_path / "walled", 0o000)
+    os.chmod(refused_manifest, 0o000)
+    try:
+        answers = {
+            "the root itself is refused": why_not_a_kb(refused_root),
+            "absent": why_not_a_kb(tmp_path / "never-existed"),
+            "a regular file": why_not_a_kb(tmp_path / "afile"),
+            "the manifest is refused": why_not_a_kb(refused_manifest),
+            "the manifest is a broken symlink": why_not_a_kb(dangling),
+            "the manifest is not a regular file": why_not_a_kb(directory_manifest),
+            "there is no manifest": why_not_a_kb(tmp_path / "empty"),
+        }
+    finally:
+        os.chmod(tmp_path / "walled", 0o755)
+        os.chmod(refused_manifest, 0o755)
+
+    # Nothing raised — reaching this line at all is half the assertion, and the half the three
+    # removed `except OSError` clauses used to stand in for.
+    assert all(isinstance(answer, str) and answer for answer in answers.values()), answers
+    assert len(set(answers.values())) == len(answers), (
+        f"two cases share an answer, so one of them cannot be diagnosed from the message: {answers}"
+    )
+    assert len(answers) == 7, "a case was added or removed without this count moving"
+
+    # The two that matter most are the two that were one string until this row: a partner that is
+    # present and refused, and one that is genuinely gone.
+    assert "cannot be read" in answers["the root itself is refused"]
+    assert answers["absent"] == "no such directory"

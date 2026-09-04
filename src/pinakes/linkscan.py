@@ -225,11 +225,14 @@ def _refusal(path: Path) -> str | None:
 def why_not_a_kb(path: Path) -> str:
     """Why `path` holds no readable `pinakes.toml`, in words that name the actual situation.
 
-    Six cases, not two. A two-way `is_dir()` split reported a `[[links.kb]] path` that points at an
-    existing *regular file* as "no such directory", which is the one answer a person would check
-    and find false — the path is right there.
+    Seven answers, not two, and `test_why_not_a_kb_answers_every_case_and_raises_for_none` holds
+    the count so it cannot drift from the code again — this paragraph said "six" while the function
+    returned from seven places, in the increment that added the seventh. A two-way `is_dir()` split
+    reported a `[[links.kb]] path` that points at an existing *regular file* as "no such
+    directory", which is the one answer a person would check and find false — the path is right
+    there.
 
-    **Cases four and five are the same defect, one level down**, and the three-way split had it
+    **Answers five and six are the same defect, one level down**, and the three-way split had it
     too: the caller's probe is a file test, so a `pinakes.toml` that exists but is a directory, or
     is a symlink to nothing, was reported as "no pinakes.toml there" — with the file visible in
     `ls`. Found in review 9 by reading this docstring's own justification against its code.
