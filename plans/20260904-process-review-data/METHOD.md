@@ -52,6 +52,20 @@ resolved.** Grepping the command string gives mentions, not runs, and no outcome
 6. **Grepping command text under-counts anything inside an `&&` chain**, and this harvest's
    `tool_calls.tsv` keeps only the first two words of a Bash command. **Parse `input.command` from
    the `tool_use` block instead.**
+7. **A heredoc writing prose that contains code spans is a command-substitution surface.**
+   `cat >> file <<EOF` executes every backtick as a command, so `` `land.py` `` becomes empty and
+   takes its own backticks with it. The shell prints one *command not found* line to stderr and
+   **exits 0**, so nothing fails; `./check.sh` and `make docs` both pass, because no gate here
+   compares written text to what was meant. **Backtick parity does not detect it** — losses come in
+   pairs, so the count stays even; a parity check reads as verification and behaves as a placebo.
+   Neither does the double-space signature the deletion leaves, because **ignoring code spans in
+   order to look for it performs the same deletion** (measured by the coder: 19.0% false positives
+   over 40,979 prose lines in 78 files). **Use `<<'EOF'` always** and substitute timestamps
+   afterwards, or write the file from Python — and **where a source still exists, diff the landed
+   file against it.** That comparison is the only thing that has ever caught this: two artifacts of
+   one act, per `FRAMEWORK.md` § 9.5. *Found 20260904 by the planner losing a code span in § 9
+   itself; detection ruled out by the coder the same day, reported as a negative result rather than
+   shipped as a 19%-false-positive gate.*
 
 ## A tested reader
 

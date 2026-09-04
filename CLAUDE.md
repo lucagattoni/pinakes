@@ -157,10 +157,12 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   user 20260904 10:21 so they can review **the development process itself** — and this repository — against
   an analysis they commissioned, *Framing, Not Roles* (Claude artifact `2c7961ec`, written against
   `d474ffa`). Both live sessions shut down cleanly at that point.
-  **State at the pause, so nobody reconstructs it:** `main` green, in sync, no worktrees; **six
-  fragments wait in `changelog.d/` and `retro.d/`** — a release is due and was **deliberately not
-  cut**, because a tag publishes to PyPI and that is starting work rather than stopping it; rows
-  **9, 23, 25, 29** and row 36's remainder are open; row 42 was the last increment in flight.
+  **State at the pause, so nobody reconstructs it:** `main` green, in sync, no worktrees;
+  **fragments wait in `changelog.d/` and `retro.d/` — `ls` them, do not read a number here** — a
+  release is due and was **deliberately not cut**, because a tag publishes to PyPI and that is
+  starting work rather than stopping it; rows **9, 23, 25, 29** and row 36's remainder are open;
+  row 42 was the last increment in flight. *(This clause said **six** for two hours while eight sat
+  on disk — a count in prose has no column to check, so it is now an instruction to count.)*
   **What the analysis concludes, in one line each, so a resuming session does not re-derive it:**
   specialise by **framing, not job title** — a lens transfers almost no context, a role transfers
   all of it; the binding constraints are **fan-outs that die silently and report clean** and
@@ -177,10 +179,15 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   [`plans/20260904_1027-development-paused-handover-and-evidence.md`](plans/20260904_1027-development-paused-handover-and-evidence.md)** —
   exact state, how to resume, the open rows with the decision each carries, and **measured
   evidence for the analysis's proposed steps**, including the one measurement that moved
-  *against* us: this file was 302 lines when the analysis called it too long and is **427**
-  now. Read it before this bullet's summary, and
+  *against* us: this file was **302 lines when the analysis called it too long** and has grown at
+  every correction since, this one included — **run `wc -l`, never quote a number from here**; it
+  said **427** for two hours while it was already 459. Read it before this bullet's summary, and
   **read the artifact before acting on either** — it states its populations and lists in its
   § 6 the nine claims that did *not* survive checking, several of which this file has repeated.
+  **The harvested evidence is `plans/20260904-process-review-data/`** — 16 TSVs plus `README.md`
+  (per-file instrument and population — **read it before any TSV**), `METHOD.md` (extraction and its
+  traps) and `FRAMEWORK.md`, whose **§ 9 audits which written rules are actually followed: 9
+  followed, 5 broken, 12 not auditable at all**.
 - **🧭 The live build order is
   [`plans/20260901_1148-clear-the-user-facing-list.md`](plans/20260901_1148-clear-the-user-facing-list.md)** —
   its § 3 is the queue. **§ 4 was ANSWERED by the user 20260902 — option E**, no freeze plus a
