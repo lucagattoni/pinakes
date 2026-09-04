@@ -430,6 +430,14 @@ def test_an_unreadable_paid_document_does_not_crash_the_whole_diagnosis(
 
     assert "sqlite" in produced, "the diagnosis stopped before it finished"
     assert "paid extraction stale" in produced
+    # **This assertion is what makes the injection load-bearing, and it was missing.** The two above
+    # say only that `doctor` finished, which is equally true when nothing is denied — so the test
+    # passed with its own `monkeypatch` line neutralised, and would have kept passing on the day the
+    # production code stopped calling `Path.read_bytes`. Found by the row-41 audit, which disables
+    # each injection and re-runs the test that owns it.
+    assert produced["paid extraction unreadable"][0] is Status.WARN, (
+        "the denial never reached the code under test, so this test is asserting nothing"
+    )
 
 
 def test_paid_extraction_unreadable_names_the_document_whose_staleness_is_undecided(
