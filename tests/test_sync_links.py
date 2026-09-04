@@ -27,6 +27,7 @@ from pinakes.linkscan import (
     is_stale,
     resolve_path,
     sidecars_under,
+    why_not_a_kb,
     why_unresolvable,
 )
 from pinakes.manifest import load
@@ -1564,3 +1565,46 @@ def test_reverse_rows_never_enter_the_authored_count(pair: tuple[Kb, Kb]) -> Non
 
     assert authored == 0, "the local KB authored no links in this fixture"
     assert links_in(local, origin="reverse-scan"), "...but it did learn an inbound one"
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_a_partner_kb_that_is_present_but_unreadable_is_not_reported_as_absent(
+    tmp_path: Path,
+) -> None:
+    """*Refused to look* and *not there* are the same `False`, and only one of them is true here.
+
+    `why_not_a_kb`'s answer is what three commands print about a partner they could not reach —
+    `pnk doctor`'s cross-KB check, `pnk link`'s partner resolution and `linkscan`'s scan. On 3.13
+    the probe above it raised `PermissionError` and the caller printed `Permission denied`; on 3.14
+    the probe returns `False`, the `except OSError` never fires, and this function answers **"no
+    such directory"** — the identical string it gives for a partner that genuinely does not exist.
+
+    A user checking that message finds a directory sitting exactly where it says there is none,
+    which is the one answer that sends them to look in the wrong place. The requirement is that the
+    two states stay distinguishable on both interpreters, not that either wording is preserved.
+
+    The controls are the point of the test: **absent must keep saying absent**, or this is bought
+    by reporting a permission problem for everything.
+    """
+    real = tmp_path / "walled" / "kb"
+    real.mkdir(parents=True)
+    (real / "pinakes.toml").write_text("[kb]\n", encoding="utf-8")
+    os.chmod(tmp_path / "walled", 0o000)
+    try:
+        refused = why_not_a_kb(real)
+    finally:
+        os.chmod(tmp_path / "walled", 0o755)
+
+    assert "no such directory" not in refused, (
+        f"a present-but-unreadable partner reported as absent: {refused!r}"
+    )
+    assert "cannot be read" in refused, refused
+
+    # Controls, on the same tmp_path and with nothing injected.
+    assert "no such directory" in why_not_a_kb(tmp_path / "never-existed")
+    (tmp_path / "afile").write_text("x\n", encoding="utf-8")
+    assert "not a directory" in why_not_a_kb(tmp_path / "afile")
+    (tmp_path / "empty").mkdir()
+    assert "no pinakes.toml there" in why_not_a_kb(tmp_path / "empty")

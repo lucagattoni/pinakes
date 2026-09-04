@@ -35,6 +35,7 @@ someone else's links is the silently-incomplete answer §6.2 refuses.
 every commit red. The caller decides what to do with them; `SyncReport.ok` does not count them.
 """
 
+import os
 import tomllib
 from dataclasses import dataclass
 from datetime import datetime
@@ -51,7 +52,13 @@ from pinakes.errors import (
 )
 from pinakes.ids import DocId, KbId, parse_kb_id
 from pinakes.manifest import LinkedKb, Manifest
-from pinakes.paths import is_regular_file
+from pinakes.paths import (
+    is_directory,
+    is_regular_file,
+    is_symlink,
+    resolves,
+    unreachable_through_links,
+)
 from pinakes.sidecar import SIDECAR_SUFFIX
 from pinakes.sidecar import read as read_sidecar
 
@@ -198,34 +205,65 @@ def why_unresolvable(root: Path, raw: str) -> str:
     return "not a usable path"
 
 
+def _refusal(path: Path) -> str | None:
+    """The `strerror` behind a refusal to answer about `path`, or `None` when it answered.
+
+    `unreachable_through_links` takes the decision — the errno set lives in one place and is not
+    re-derived here — and the `stat` is repeated only to name the reason, in the error path alone.
+    A permission that changes between the two calls resolves to the generic wording; nothing else
+    about the answer depends on it.
+    """
+    if not unreachable_through_links(path):
+        return None
+    try:
+        os.stat(path)
+    except OSError as exc:
+        return exc.strerror or str(exc)
+    return "the filesystem would not say"
+
+
 def why_not_a_kb(path: Path) -> str:
     """Why `path` holds no readable `pinakes.toml`, in words that name the actual situation.
 
-    Five cases, not two. A two-way `is_dir()` split reported a `[[links.kb]] path` that points at
-    an existing *regular file* as "no such directory", which is the one answer a person would check
+    Six cases, not two. A two-way `is_dir()` split reported a `[[links.kb]] path` that points at an
+    existing *regular file* as "no such directory", which is the one answer a person would check
     and find false — the path is right there.
 
-    **The last two are the same defect, one level down**, and the three-way split had it too: the
-    caller's probe is `is_file()`, so a `pinakes.toml` that exists but is a directory, or is a
-    symlink to nothing, was reported as "no pinakes.toml there" — with the file visible in `ls`.
-    Found in review 9 by reading this docstring's own justification against its code.
+    **Cases four and five are the same defect, one level down**, and the three-way split had it
+    too: the caller's probe is a file test, so a `pinakes.toml` that exists but is a directory, or
+    is a symlink to nothing, was reported as "no pinakes.toml there" — with the file visible in
+    `ls`. Found in review 9 by reading this docstring's own justification against its code.
 
-    **Unlike `resolve_path`, this one may raise, and the callers guard it.** `exists()`,
-    `is_symlink()` and `is_dir()` raise on an unreadable parent (`~root` on macOS is mode 0700) and
-    on `ENAMETOOLONG`. Both call sites place it inside their `except OSError`, verified. Stated
-    rather than fixed: the totality argument that applies to `resolve_path` does not, because there
-    is no answer this function could return for "I could not tell" that a caller would not have to
-    branch on anyway — and every caller is already branching. L7's `pnk doctor` will be the third
-    caller; it needs the same `try`.
+    **The sixth is that same defect one level further out, and it is why this function no longer
+    raises.** A directory this process may not traverse is *present*, and every predicate here
+    answered `False` for it — the same `False` they give for a path that is not there. This
+    docstring used to say the function "may raise, and the callers guard it", with `exists()`,
+    `is_symlink()` and `is_dir()` raising on an unreadable parent, and called that **verified**.
+    It was verified on **one interpreter**: `Path`'s predicates raise on 3.13 and return `False`
+    on 3.14, so on the newer one nothing raised, no `except OSError` fired, and all three callers
+    told the user "no such directory" about a partner sitting on disk.
+
+    **So it is total now, and the argument that it could not be is retracted with its reason.**
+    That argument was: there is no answer this function could return for "I could not tell" that a
+    caller would not have to branch on anyway. There is — *why* it could not tell is exactly what
+    the callers were already printing from `exc.strerror`, so the refusal is one more case rather
+    than an exception. This is the contract `resolve_path` in this module already argues for: a
+    function three call sites each had to remember to guard is a function with the wrong contract.
     """
-    if not path.exists():
+    refused = _refusal(path)
+    if refused is not None:
+        return f"cannot be read: {refused}"
+    if not resolves(path):
         return "no such directory"
-    if not path.is_dir():
+    if not is_directory(path):
         return "not a directory"
     manifest = path / MANIFEST_NAME
-    if manifest.is_symlink() and not manifest.exists():
+    refused = _refusal(manifest)
+    if refused is not None:
+        return f"the pinakes.toml there cannot be read: {refused}"
+    if is_symlink(manifest) and not resolves(manifest):
         return "the pinakes.toml there is a broken symlink"
-    if manifest.exists():
+    if resolves(manifest):
         return "the pinakes.toml there is not a regular file"
     return "no pinakes.toml there"
 
@@ -539,16 +577,14 @@ def scan_one(
 
     path = resolved
     base = ScannedKb(alias=linked.name, declared_id=linked.id, path=path)
-    try:
-        if not (path / MANIFEST_NAME).is_file():
-            return _with(
-                base,
-                issues=(LinkedKbUnreachableError(linked.name, path, reason=why_not_a_kb(path)),),
-            )
-    except OSError as exc:
+    # One branch rather than two: `is_regular_file` answers the same on both interpreters and
+    # `why_not_a_kb` is total, so there is no `OSError` left for a second arm to catch. The arm
+    # that stood here fired only on 3.13; on 3.14 the probe returned `False` and a locked partner
+    # was scanned as an absent one.
+    if not is_regular_file(path / MANIFEST_NAME):
         return _with(
             base,
-            issues=(LinkedKbUnreachableError(linked.name, path, reason=exc.strerror or str(exc)),),
+            issues=(LinkedKbUnreachableError(linked.name, path, reason=why_not_a_kb(path)),),
         )
 
     try:
