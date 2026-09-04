@@ -1012,7 +1012,61 @@ def _render(result: Result, baseline: PytestRun) -> str:
     )
 
 
-def report(results: Sequence[Result], *, allow_zero_kills: bool) -> int:
+#: What the probe below asks the launcher to run. One line, so a shell-quoted command stays short.
+_INTERPRETER_PROBE = "import sys; print(sys.version.split()[0] + ' at ' + sys.executable)"
+
+
+def probe_command(command: Sequence[str]) -> list[str] | None:
+    """The `pytest` command, rewritten to print its interpreter instead of running tests.
+
+    **The launcher is asked, never this process.** `mutate.py`'s own `sys.version` is the wrong
+    answer and would be wrong in exactly the case worth reporting: the documented invocation is
+    `python3 tools/mutate.py`, which is the *system* interpreter, while the tests run under
+    `uv run --frozen pytest` — the project venv. Printing the launcher's own version would have
+    read as an answer while naming a Python no test ever touched.
+
+    Two shapes, because those are the two this tool documents: the default `[… , "pytest"]` and
+    the `[sys.executable, "-m", "pytest"]` form the tests use. Anything else returns `None` and is
+    reported as unknown rather than guessed at — the same stance `run_pytest` takes towards a
+    JUnit report it cannot parse.
+    """
+    if len(command) >= 2 and tuple(command[-2:]) == ("-m", "pytest"):
+        return [*command[:-2], "-c", _INTERPRETER_PROBE]
+    if command and command[-1] == "pytest":
+        return [*command[:-1], "python", "-c", _INTERPRETER_PROBE]
+    return None
+
+
+def interpreter_under_test(root: Path, command: Sequence[str]) -> str | None:
+    """The Python the tests ran under, or `None` if this run could not establish it.
+
+    One extra subprocess per battery, not per mutant. It exists because a battery's verdict can
+    depend on the interpreter and the report could not say which one produced it: the row for
+    `doctor`'s root guard is KILLED on 3.13 and SURVIVED on 3.14 — equivalent above the floor,
+    since both spellings answer `False` there — and a reader handed `67 killed` had no way to tell
+    which of the two numbers they were holding. A count whose meaning depends on an unstated
+    variable is the shape this repository keeps being caught by.
+    """
+    probe = probe_command(command)
+    if probe is None:
+        return None
+    try:
+        completed = subprocess.run(
+            probe,
+            cwd=root,
+            env=child_environment(),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=300,
+        )
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return None
+    answer = completed.stdout.strip().splitlines()
+    return answer[-1] if completed.returncode == 0 and answer else None
+
+
+def report(results: Sequence[Result], *, allow_zero_kills: bool, interpreter: str | None) -> int:
     """Print the summary and decide the exit status. Survivors are a finding, not a failure.
 
     The summary is a Markdown table on purpose. Every battery in this repository's record was
@@ -1034,6 +1088,15 @@ def report(results: Sequence[Result], *, allow_zero_kills: bool) -> int:
     print(
         f"\n{len(results)} mutant(s): {len(tally[Outcome.KILLED])} killed, "
         f"{len(tally[Outcome.SURVIVED])} survived, {len(tally[Outcome.ERRORED])} errored."
+    )
+    # **Beside the counts, not only in the header**, because the counts are what gets pasted into a
+    # commit message and the header is what gets left behind in the terminal.
+    print(
+        f"tests ran under Python {interpreter}."
+        if interpreter is not None
+        else "tests ran under an interpreter this run could not identify — the `pytest` command is "
+        "neither `… pytest` nor `… -m pytest`, so these counts do not say which Python produced "
+        "them."
     )
 
     if tally[Outcome.ERRORED]:
@@ -1257,7 +1320,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         print(f"\nmutate: interrupted ({exc}){restored}", file=sys.stderr)
         return 1
-    return report(results, allow_zero_kills=allow_zero_kills)
+    return report(
+        results,
+        allow_zero_kills=allow_zero_kills,
+        interpreter=interpreter_under_test(root, battery.pytest),
+    )
 
 
 if __name__ == "__main__":

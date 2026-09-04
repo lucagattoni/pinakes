@@ -18,7 +18,7 @@
 #   target under `tests/`. Its guards are pinned by the batteries it reads being real, which is the
 #   one thing a mutation run cannot arrange.
 
-mutants = 18
+mutants = 21
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260823 · `--check-anchors` — the pre-flight without the subprocesses
@@ -177,3 +177,53 @@ new = '''        restored = (
             " — nothing was written, so there was nothing to restore."
             if not check_only'''
 kills = "tests/test_mutate.py::test_an_interrupted_check_does_not_claim_a_restore_it_never_made"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260904 · row 40 — which interpreter produced these counts
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# A battery's verdict can depend on the interpreter: one committed row is KILLED on 3.13 and
+# SURVIVED on 3.14, equivalent above the floor because both spellings of its predicate answer
+# `False` there. So `67 killed` and `66 killed` are both true of the same tree, and until this row
+# the report could not say which of the two a reader was holding.
+
+[[mutant]]
+name = "the unknown interpreter falls back to this process's own version"
+file = "tools/mutate.py"
+# **The plausible "improvement", which is why it is first.** Printing the launcher's `sys.version`
+# looks strictly more helpful than printing nothing, and it is worse: the documented invocation is
+# `python3 tools/mutate.py`, the system interpreter, while the tests run under the project venv.
+# Measured 20260904 — launcher 3.14.7, venv 3.13.15 — so this mutant makes the report name a Python
+# no test in the run ever touched, in a sentence that reads as measured.
+old = '''        f"tests ran under Python {interpreter}."
+        if interpreter is not None'''
+new = '''        f"tests ran under Python {interpreter or sys.version.split()[0]}."
+        if True'''
+kills = "tests/test_mutate.py::test_an_unrecognisable_pytest_command_is_reported_as_unknown_not_guessed_at"
+
+[[mutant]]
+name = "only the trailing-`pytest` shape is probed, so `-m pytest` reports unknown"
+file = "tools/mutate.py"
+# The two shapes are not decorative: the default battery command ends in `pytest` and this repo's
+# own mutate tests run `sys.executable -m pytest`. Dropping either arm silently downgrades half the
+# runs to "could not identify" — a regression that looks like caution rather than a defect.
+old = '''    if len(command) >= 2 and tuple(command[-2:]) == ("-m", "pytest"):
+        return [*command[:-2], "-c", _INTERPRETER_PROBE]'''
+new = '''    if False:
+        return [*command[:-2], "-c", _INTERPRETER_PROBE]'''
+kills = "tests/test_mutate.py::test_the_summary_names_the_interpreter_the_tests_ran_under"
+
+[[mutant]]
+name = "the interpreter is printed above the table instead of beside the counts"
+file = "tools/mutate.py"
+# Placement is the whole delivery. The counts are what gets pasted into a commit message; the
+# header is what gets left behind in the terminal. A correct sentence in the wrong place is how the
+# `pytest = …` line already present in the header failed to answer this question for a year.
+old = '''    print("| Mutant | Outcome | Killed by |")'''
+new = '''    print(
+        f"tests ran under Python {interpreter}."
+        if interpreter is not None
+        else "tests ran under an interpreter this run could not identify."
+    )
+    print("| Mutant | Outcome | Killed by |")'''
+kills = "tests/test_mutate.py::test_the_summary_names_the_interpreter_the_tests_ran_under"

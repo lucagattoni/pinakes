@@ -425,7 +425,10 @@ def test_the_table_withholds_a_killer_even_when_an_errored_row_has_failures(
 
     assert result.outcome is module.Outcome.ERRORED
     assert run.failed, "the constructed state must carry a failure the table could wrongly name"
-    _ = module.report([result], allow_zero_kills=True)
+    # `interpreter=None` is the unknown case, and it is passed explicitly rather than defaulted:
+    # a default would let a future call site drop the argument and silently report an unknown
+    # interpreter as if nobody had asked.
+    _ = module.report([result], allow_zero_kills=True, interpreter=None)
 
     row = next(
         line for line in capsys.readouterr().out.splitlines() if line.startswith("| both at once")
@@ -1563,3 +1566,68 @@ def test_the_committed_batteries_all_spell_the_file_key_the_same_way() -> None:
         "these batteries align the `file` key, which the documented routing grep cannot see: "
         + ", ".join(aligned)
     )
+
+
+def test_the_summary_names_the_interpreter_the_tests_ran_under(repo: Path) -> None:
+    """A count whose meaning depends on an unstated variable, stated.
+
+    This battery's own record has a row that is KILLED on 3.13 and SURVIVED on 3.14 — equivalent
+    above the floor, because both spellings of the predicate answer `False` there — so `67 killed`
+    and `66 killed` are both true of the same tree and the report could not say which one you were
+    holding. It goes beside the counts rather than only in the header because the counts are what
+    gets pasted into a commit message.
+    """
+    result = mutate(str(battery(repo, clamp_mutant())), cwd=repo)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    running = sys.version.split()[0]
+    assert f"tests ran under Python {running}" in result.stdout, result.stdout
+    counts = result.stdout.index("mutant(s):")
+    assert result.stdout.index("tests ran under Python") > counts, (
+        "the interpreter belongs with the counts it qualifies, not above the table"
+    )
+
+
+def test_an_unrecognisable_pytest_command_is_reported_as_unknown_not_guessed_at(repo: Path) -> None:
+    """`None` rather than this process's own `sys.version`, and the distinction is the whole point.
+
+    The documented invocation is `python3 tools/mutate.py`, which is the *system* interpreter,
+    while the tests run under the project venv. Falling back to the launcher's version would print
+    an answer naming a Python no test had touched — worse than saying nothing, because it reads as
+    measured. Verified by hand on 20260904: launcher 3.14.7, venv 3.13.15, and the line said
+    3.13.15.
+    """
+    path = battery(
+        repo,
+        clamp_mutant(),
+        # Runs pytest perfectly well and ends with neither `pytest` nor `-m pytest`, which is
+        # exactly the shape the probe must decline rather than guess at.
+        command=[sys.executable, "-m", "pytest", "--color=no"],
+    )
+    result = mutate(str(path), cwd=repo)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "could not identify" in result.stdout, result.stdout
+    assert "tests ran under Python" not in result.stdout, (
+        "an unknown interpreter must not be reported as a known one"
+    )
+
+
+def test_probe_command_rewrites_only_the_two_documented_shapes() -> None:
+    """The mapping, stated once, so the end-to-end tests above are not the only thing holding it."""
+    tool = tool_module()
+    assert tool.probe_command(["uv", "run", "--frozen", "pytest"]) == [
+        "uv",
+        "run",
+        "--frozen",
+        "python",
+        "-c",
+        tool._INTERPRETER_PROBE,
+    ]
+    assert tool.probe_command([sys.executable, "-m", "pytest"]) == [
+        sys.executable,
+        "-c",
+        tool._INTERPRETER_PROBE,
+    ]
+    assert tool.probe_command(["uv", "run", "pytest", "-q"]) is None
+    assert tool.probe_command([]) is None
