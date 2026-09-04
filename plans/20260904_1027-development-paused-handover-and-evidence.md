@@ -43,120 +43,139 @@ resumes cuts 0.32.6 when the process question is settled.
 
 ---
 
-## 3. Evidence for the analysis's proposed steps
+## 3. Evidence — long-run trends first
 
-**Measured 20260904 10:27 on the tree at `7b079e54a26ff432feb3097018a6e41441554a53`, except where a population is stated otherwise.**
-Each row says what it supports and what it does *not*.
+**Measured 20260904 on the tree at `c281463`. Every figure names its instrument. Nothing here is
+quoted from a docstring.**
 
-### 3.1 Structural claims — re-verified, and one has moved against us
+### 3.1 The long-run trend: `src/` churn collapsed while prose and retrospectives grew
 
-| Claim in the analysis | Measured now | Verdict |
+| ISO week | commits | `src/` | code | prose | prose % | retro frags | releases |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 2026-W30 | 51 | 5,893 | 10,404 | 7,596 | 42.2% | 0 | 0 |
+| 2026-W31 | 231 | 14,959 | 43,798 | 31,480 | 41.8% | 15 | 15 |
+| 2026-W32 | 206 | 6,558 | 27,155 | 23,877 | 46.8% | 35 | 16 |
+| 2026-W33 | 84 | 5,080 | 12,091 | 6,584 | 35.3% | 9 | 7 |
+| 2026-W34 | 124 | **593** | 14,282 | 8,188 | 36.4% | 12 | 16 |
+| 2026-W35 | 152 | 1,156 | 8,026 | 12,264 | **60.4%** | 26 | 3 |
+| 2026-W36 *(4 days)* | 235 | 2,012 | 11,686 | 15,738 | **57.4%** | **63** | 7 |
+
+<sub>Instrument: `git log --no-merges --numstat` over all history, bucketed by `%G-W%V`. code =
+`src/ tests/ tools/ .github/`; prose = everything else. Line churn overweights prose-heavy files —
+used deliberately, because commit counts overweight the one-commit-per-review-pass habit.</sub>
+
+**Three trends, and they point the same way.**
+
+1. **`src/` churn fell about tenfold** — 5.9k–15k lines/week in W30–W33, then 593 / 1,156 / 2,012.
+   Maturation explains part of it. It does not obviously explain all of it.
+2. **Prose became the majority of churn** in the last two weeks — 42% early, **60.4%** and **57.4%**
+   now. The project writes more about its work than it changes.
+3. **Retrospective fragments grew fastest of anything** — 0 → 15 → 35 → 9 → 12 → 26 → **63 in four
+   days**. W36 alone has more retrospectives than any complete week in the project's life.
+
+**The honest counterweight, stated because it cuts against the conclusion:** in *this* two-day
+window code was **49.3%** of churn (`src/` 1,568, `tests/` 2,532, `tools/` 1,659 against 5,963 of
+prose). This window built more than the trend suggests. The trend is still down.
+
+### 3.2 `CLAUDE.md` grew fastest when it was most criticised
+
+| date | lines |
+|---|---:|
+| 20260725 | 76 |
+| 20260731 | 225 |
+| 20260826 | 276 |
+| 20260902 | 321 |
+| 20260903 *(the analysis calls it too long, quoting the official "bloated CLAUDE.md" guidance)* | 410 |
+| **20260904** | **455** |
+
+<sub>Instrument: line count at the last commit of each day the file changed; **150 commits** have
+touched it.</sub>
+
+**+42% in the two days after it was named as a defect, and this planner wrote nearly all of it.**
+Against a target of under 100 lines, the file is at **455**. **The mechanism is the analysis's own
+diagnosis demonstrating itself:** with no hooks and no agent definitions, prose is the only
+substrate available, so every lesson becomes another paragraph in the file already too long to read.
+
+### 3.3 Where the money is — and the tier is unpinned
+
+| scope | transcripts | est. $ | share of $ | $/transcript | Opus share of units |
+|---|---:|---:|---:|---:|---:|
+| **main loop (resident sessions)** | 261 | **$4,574.62** | **63.8%** | **$17.53** | **90.0%** |
+| subagents | 125 | $723.43 | 10.1% | $5.79 | 69.9% |
+| workflow agents | 1,466 | $1,867.28 | 26.1% | $1.27 | 55.3% |
+| **total** | **1,852** | **$7,164.92** | | | 77.1% |
+
+<sub>Instrument: `tools/agent_spend.py --scope {main,subagent,workflow} models`, re-run 20260904.
+Dollars are an estimate from a cached rate card.</sub>
+
+**Resident sessions are 14.1% of transcripts and 63.8% of spend.** A main-loop transcript costs
+**13.8×** a workflow agent. The analysis measured $3.38k over 130 main-loop transcripts on 20260903;
+**one day later it is $4.57k over 261** — roughly **$1.2k of main-loop spend in a single day** of
+two-session development. **Only `CLAUDE_CODE_SUBAGENT_MODEL` is pinned; nothing pins the main loop**,
+so 90% Opus at the most expensive layer is a default nobody chose.
+
+### 3.4 Review efficacy — two independent runs, and neither gives a kill rate
+
+| | this session's floor audit | the coder's row-42 fan-out |
 |---|---|---|
-| No `.claude/` directory in the repo | `.claude` **absent** | holds |
-| No hooks anywhere | global `settings.json` `hooks: <none>` | holds |
-| `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` set | set | holds |
-| `review_pass_gate.py` never run against a live journal | `check.sh` **0**, `Makefile` **0**, all three CI workflows **0**, `tests/` **2** (control: `paid_path_gate` in `check.sh` = 1) | holds |
-| `CLAUDE.md` is 302 lines, target under 100 | **427 lines** at `d474ffa`+2 days — **+41%** | **worse**, and mostly written by this planner |
-
-**The CLAUDE.md growth is the sharpest self-indictment available.** The analysis named the file's
-size as a defect on 20260903 and quoted the official guidance — *"Bloated CLAUDE.md files cause
-Claude to ignore your actual instructions"*. In the two days since, the planner added 125 lines to
-it, every one of them a correction or a status note. **The mechanism that produced the growth is the
-one the analysis diagnoses**: with no hooks and no agent definitions, prose is the only substrate
-available, so every lesson becomes another paragraph in the file that is already too long to read.
-
-### 3.2 Step 1 — coverage in every fan-out's return value <span>**supported, with a measured instance**</span>
-
-The floor audit run this session (`wf_89bdaf06-435`) is a direct test. **Its judge died on an API
-529 with 13 of 14 agents complete**, and the workflow returned `judgement: null`.
-
-- **What saved it:** the script carried explicit coverage — `lenses_launched/returned`,
-  `refuters_launched/returned`, `refuters_ran_both`, and a named list of findings capped without
-  refutation. Reading those is what said *PARTIAL*, not the null conclusion.
-- **What would have hidden it:** a reader who looked only at `judgement`. A null there is
-  indistinguishable at a glance from "nothing found".
-- **Population:** one workflow, 14 agents, journal on disk. Re-run of the judge alone later returned
-  `run_quality: PARTIAL` **naming the cap** — 10 of 18 findings never refuted, 56% of the raise.
-
-**This supports step 1 as written and adds one thing the analysis does not say: coverage counts are
-necessary but not sufficient — the conclusion field must not be readable as a result on its own.**
-
-### 3.3 Step 4 — calibrate the review instrument <span>**the strongest evidence, and it arrived by accident**</span>
-
-The floor audit's findings were followed to their end over the following hours. **That chain is the
-first measured false-positive characteristic this project has:**
-
-| stage | count | instrument |
-|---|---|---|
-| Raised by 5 lenses | **18** | journal, counted |
-| Refuted (8 launched, 8 returned, **8/8 ran both interpreters**) | 6 CONFIRMED, 2 ALREADY_FIXED | journal |
-| Capped with **no refuter at all** | **10 (56%)** | judge's own report |
-| Ruled survivors by the Opus judge | **5** | judge |
-| **Real, user-visible, and fixed in 0.32.5** | **3** | the release's own controls, read from two wheels |
-| **Reachable in production at all** | **0** at the time of the audit's own verdict | measured against production paths |
-
-**Two separate corrections were needed to get there, and both were caught by the implementer, not by
-the instrument.** The judge's most severe finding named the wrong cause — `root.is_dir()`, which
-answers identically on both interpreters. And the two sites later filed as live defects were
-**unreachable**, one of them because a guard landed earlier the same day already refused the
-directory at the walk.
+| agents | 14 (5 lenses + 8 refuters + judge) | 19 |
+| harness failures | **judge died on a 529**; returned `judgement: null` | 0 errors, 0 empty |
+| raised | **18** | 4 |
+| never refuted (capped) | **10 — 56% of the raise** | 0 |
+| survivors after judging | 5 | — |
+| **real, user-visible** | **3** (all fixed in 0.32.5) | **2** (in already-gated work) |
+| **reachable in production** | **0** at the verdict | — |
+| stale raises | — | **2**, from readers whose tree moved under them mid-review |
 
 **What this licenses:** an audit that raises 18 and yields 3 real defects has a shape worth knowing
-before the next fan-out is sized. **What it does not license:** a kill rate. Nobody seeded known
-defects, so the *false-negative* half is still unmeasured — which is exactly what step 4 asks for and
-this does not provide.
+before the next fan-out is sized. **What it does not:** a kill rate — nobody seeded known defects, so
+the false-negative half is unmeasured. That is exactly what the analysis's step 4 asks for.
 
-### 3.4 Step 5 — ownership and land rules as hooks <span>**supported, two instances in one day**</span>
+**One novel failure mode the analysis does not name**, from the coder's run: **two of four raises were
+stale because three commits landed underneath the reviewers while they read.** The fix is a named
+commit for the review to pin, not more reviewers — and **nothing in the harness surfaced it**; a
+later-launched judge is what contradicted them.
 
-- **Two sessions landed over a red gate in a single day**, hours apart, **both while quoting the rule
-  at each other**. One used `check | tail && git commit`; the other used `check; echo $?` and an
-  unconditional commit. Neither was ignorance — the rule is in `CLAUDE.md` and both had cited it.
-- **The guard that fixed it is code, not prose** (row 39): `tools/land.py` now refuses a merged tree
-  no `./check.sh` run has certified. **It policed its own landing** — the first thing it refused was
-  the branch that introduced it.
-- **The merged-tree subtlety was found before it shipped**: keying the marker to the branch tip would
-  have been blind whenever `main` had moved. Counted over **every merge since 20260903 12:00 — 35
-  merges, 5 differ (~14%), and every one of the five landed while a second session was active.**
+### 3.5 What a hook would have caught, measured
 
-**This is step 5's argument made twice**: a rule that two informed agents broke in one day is a rule
-that needs a mechanism, and the mechanism worked immediately.
+| failure | instances | analysis step |
+|---|---:|---|
+| Landing over a red gate — **two informed agents, one day, both quoting the rule at each other** | 2 | 5 |
+| Landed rows still reading open, nearly causing a **rebuild of shipped work** by a cleared session | 4 rows | 7 |
+| A fan-out returning a null conclusion with 13/14 agents done | 1 | 1 |
 
-### 3.5 Step 7 — a status-claim linter <span>**supported, and it nearly cost a rebuild**</span>
+**And the counter-example, which is the strongest argument for the hook direction:** the guard built
+for the first of these (`tools/land.py` refusing an uncertified merged tree) **policed its own
+landing** — the first branch it refused was the one introducing it. Prose did not stop two informed
+agents; the mechanism stopped its own author immediately.
 
-**Four landed rows still read as open** hours after landing, and a **freshly-cleared coder session
-proposed taking one of them** — work that had shipped in 0.32.5. `CLAUDE.md` already records this
-exact failure twice before. **Cause, named rather than apologised for:** the planner spent the
-morning appending corrections into row *bodies* and never returned to the *titles*, which is the half
-a scanning reader reads.
+### 3.6 The one hand-rolled mechanism to leave alone
 
-**A linter checking that every `BUILT` cell carries a sha that is an ancestor of `origin/main`
-would have caught all four mechanically.** That is step 7 exactly.
+Fragment lifetime, **re-measured on a fresh cohort**: **39 paired fragments since 20260903, median
+2.2 h, max 6.8 h.** The analysis measured **2.1 h over 297** paths across all history. Two
+independent populations, one answer. **It does not rot.**
 
-### 3.6 The fragment mechanism — independently re-measured, **holds**
+### 3.7 Structural claims re-verified
 
-The analysis measured 297 fragment paths, median lifetime **2.1 h**, none over seven days.
-**Re-measured on a fresh cohort — 39 fragments paired since 20260903 — median 2.2 h, max 6.8 h.**
-Two independent populations, the same answer. **This is the one hand-rolled mechanism the evidence
-says to leave alone.**
-
-### 3.7 Where the analysis is *not* supported by this session
-
-- **"Review is ~36.8% of delegated spend"** — not re-run here. Quoted, not measured.
-- **The re-derivation figures (95.8% / 35.6%)** — the analysis itself flags them as quoted from a
-  docstring dated 20260826 and not re-run. Still not re-run.
-- **Truncation is value-biased against the runtime lens** — the audit capped 10 of 18 findings, but
-  **its lenses were not scheduled slow-first**, so this run neither confirms nor refutes the bias.
-  A run with the ordering applied would.
+`.claude/` **absent** · global hooks **`<none>`** · `CLAUDE_CODE_SUBAGENT_MODEL` **sonnet** ·
+`review_pass_gate.py` referenced in `check.sh` **0**, `Makefile` **0**, all three CI workflows **0**,
+`tests/` **2** — control: `paid_path_gate` in `check.sh` **1**, so the selector fires.
 
 ---
 
-## 4. What this session could not establish
+## 4. What is still not established
 
-- **The review instrument's kill rate.** Requires seeded defects. Nobody has done it.
-- **Whether the ownership boundary ever costs throughput.** The two sessions gave opposite answers on
-  20260903 and neither re-measured it today.
-- **Whether `ty` and `pyright` should both run in `check.sh`.** The coder measured them
-  disagreeing **in both directions** on one file today; that is one file, not a population.
+- **The review kill rate.** Needs seeded defects. Nobody has run it. § 3.4 gives the false-positive
+  side only.
+- **Whether the ownership boundary costs throughput.** The coder measured it twice today — cost zero
+  once, one message round-trip once, **never blocking**. Two data points, opposite in kind to the
+  planner's earlier "write-latency" claim, and neither is a population.
+- **Whether `ty` and `pyright` should both run in `check.sh`.** They disagreed **in both directions**
+  on one file today. One file is not a population.
+- **Re-derivation figures** (95.8% of files re-opened, 35.6% repeat tokens) — still quoted from a
+  docstring dated 20260826, still not re-run. `tools/review_ledger.py --measure` would settle it.
+- **Whether truncation is value-biased against the runtime lens.** This session's audit capped 10 of
+  18, but its lenses were **not** scheduled slow-first, so it neither confirms nor refutes the claim.
 
 ---
 
