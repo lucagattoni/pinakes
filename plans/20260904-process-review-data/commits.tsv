@@ -1,0 +1,1087 @@
+sha	iso	subject	src	tests	tools	ci	docs	plans	frag	claudemd	changelog	files
+cc92c09bb525	2026-09-04T11:35:49+01:00	Row 42: what the review fan-out actually caught, counted	0	0	0	0	0	0	34	0	0	1
+366eb5836351	2026-09-04T11:34:10+01:00	Row 42 review 3: the path filter was silent for the failure the tool names	0	0	0	95	0	0	3	0	0	2
+63c75eeaa4a5	2026-09-04T11:32:21+01:00	Row 42: the prediction set, written down before the run	0	0	0	0	0	0	34	0	0	1
+d481ba2dbc27	2026-09-04T11:31:41+01:00	Row 42's cell, dictated by the coder and pasted unchanged	0	0	0	0	0	2	0	0	0	1
+9152cd80e298	2026-09-04T11:29:21+01:00	Row 42 fragments: one changelog entry and one retrospective	0	0	0	0	0	0	112	0	0	2
+363800d89b38	2026-09-04T11:28:27+01:00	Handover and evidence for the paused development	0	0	0	0	1	180	0	8	0	3
+ff6a108173d7	2026-09-04T11:27:32+01:00	Row 42 review 2: the audit's own test file joined the population it measures	0	302	81	0	4	0	0	0	0	3
+d36d21992be6	2026-09-04T11:21:55+01:00	Development is paused pending a review of the process itself	0	0	0	0	0	0	0	22	0	1
+3e02b10af698	2026-09-04T11:13:28+01:00	Row 42 review: the test file left a fake in the global `subprocess` module	0	125	0	0	0	0	0	0	0	1
+09e4bf808601	2026-09-04T11:11:07+01:00	Row 42: run the injection audit on Linux, which is the half macOS cannot do	0	0	0	98	2	0	0	0	0	2
+a073658f2774	2026-09-04T11:08:51+01:00	Row 42: the audit could not name the interpreter or platform it ran on	0	249	89	0	0	0	0	0	0	2
+2e5defe70b42	2026-09-04T11:00:37+01:00	Row 42's assertion said the opposite of the clause beside it	0	0	0	0	0	2	0	0	0	1
+abb4745f36c8	2026-09-04T10:57:10+01:00	Four landed rows still read open, and a fresh coder proposed one	0	0	0	0	0	8	0	0	0	1
+e77819d30ad7	2026-09-04T10:52:14+01:00	A correction a thousand characters after the number it corrects	0	0	0	0	0	2	0	0	0	1
+b8ccd8c58ea3	2026-09-04T10:44:18+01:00	Row 43: repair the battery anchor my own change rotted	0	0	7	0	0	0	0	0	0	1
+6d768853b021	2026-09-04T10:38:22+01:00	Row 43: two pathlib holdouts converted, as hygiene — not as a fix	41	86	0	0	0	0	38	0	0	5
+57121382245b	2026-09-04T10:31:51+01:00	Row 43 retracted: zero live defects, not two, and the ranking was mine	0	0	0	0	0	4	0	0	0	1
+4636100f6fc1	2026-09-04T10:21:01+01:00	Row 36 delivered: the class is real and much smaller than the ceiling	0	0	0	0	0	5	0	0	0	1
+5e97a4f7577f	2026-09-04T10:16:42+01:00	A grep for the defect matched the comments warning against it	0	0	0	0	0	4	0	0	0	1
+032fb4137cb0	2026-09-04T10:10:36+01:00	0.32.5 is on the index, and a rule whose noun was too narrow	0	0	0	0	38	5	0	0	0	4
+597118332742	2026-09-04T10:00:52+01:00	Row 41: commit the audit as a tool, with its own bug in the docstring	0	0	172	0	0	0	0	0	0	1
+33e5c6e69b0a	2026-09-04T09:54:03+01:00	Row 41: the vacuous-injection audit, and the one test it found	0	14	0	0	0	0	45	0	0	4
+2300ddb3a048	2026-09-04T09:52:42+01:00	Release 0.32.5 — a permission problem reported as three other things	9	0	0	0	243	0	225	26	53	17
+8180d798e8e6	2026-09-04T09:45:10+01:00	CLAUDE.md: state the mechanism, not today's interpreters	0	0	0	0	0	0	0	21	0	1
+77c84bc7c304	2026-09-04T09:35:25+01:00	Row 39 is answered, and it has a measured hole	0	0	0	0	0	2	0	0	0	1
+adf1b228bf56	2026-09-04T09:33:14+01:00	Row 39: one changelog fragment and one retrospective	0	0	0	0	0	0	45	0	0	2
+c780b839ac0b	2026-09-04T09:32:52+01:00	Row 39: pin check.sh's --git-common-dir, and replace a mutant that could not discriminate	0	59	21	0	0	0	0	0	0	2
+050a268cf561	2026-09-04T09:30:17+01:00	Row 39: refuse to land a tree no ./check.sh run certified	0	201	60	0	0	0	0	0	0	3
+66ddb8f172a8	2026-09-04T09:25:58+01:00	WIP row 39: the guard, before its tests	0	0	79	0	0	0	0	0	0	2
+5e1d560c9e01	2026-09-04T04:40:02+01:00	Rule row 41's form, and approve row 40's deviation from my own spec	0	0	0	0	0	4	0	0	0	1
+fb7c884a8aef	2026-09-04T04:14:50+01:00	Row 40: one changelog fragment and one retrospective	0	0	0	0	0	0	41	0	0	2
+bb56f0f25d58	2026-09-04T04:14:08+01:00	Row 40: mutate.py names the interpreter its counts came from	0	70	123	0	0	0	0	0	0	3
+d5059751fabc	2026-09-04T04:02:31+01:00	Row 38: assert the totality the three removed guards used to stand in for	13	65	0	0	4	0	0	0	0	3
+0ba8b55c0737	2026-09-04T03:59:27+01:00	Row 41: a fake must be shown to matter	0	0	0	0	0	1	0	0	0	1
+7f3cc6709248	2026-09-04T03:56:06+01:00	Row 38: one changelog fragment and one retrospective	0	0	0	0	0	0	42	0	0	2
+e2a10db980f1	2026-09-04T03:54:52+01:00	Row 38: three mutants, and row 40's dictated comment on the floor-only row	0	113	62	0	0	0	0	0	0	3
+8495fa5cc6ea	2026-09-04T03:51:19+01:00	Row 38: `why_not_a_kb` is total, and a present-but-unreadable partner says so	128	113	0	0	0	0	0	0	0	5
+8c6691b15f8f	2026-09-04T03:48:26+01:00	Row 40: an equivalent mutant, not an unkilled one	0	0	0	0	0	1	0	0	0	1
+ec481cb408c1	2026-09-04T03:40:30+01:00	Row 39: make a commit impossible over a gate nobody read	0	0	0	0	0	1	0	0	0	1
+a4ee5fe537e2	2026-09-04T03:35:52+01:00	Row 32: type the race test's stub so pyright strict is clean	0	6	0	0	0	0	0	0	0	1
+13d60ceb5d9c	2026-09-04T03:35:16+01:00	Retro: a gate I read but did not obey	0	0	0	0	0	0	41	0	0	1
+4996633ce37c	2026-09-04T03:10:56+01:00	Row 32, review pass: `os.stat` raises ValueError where `is_file()` returned False	16	39	8	0	0	0	0	0	0	3
+f857e39e5a38	2026-09-04T03:07:50+01:00	On 3.14 pathlib ignores everything, so my brief named no set	0	0	0	0	0	2	0	0	0	1
+70af57612143	2026-09-04T03:06:44+01:00	Row 32: five mutants, appended to the battery that already claims these files	0	0	98	0	0	0	0	0	0	1
+590b5e381cdf	2026-09-04T03:03:48+01:00	Row 32: two changelog fragments and one retrospective	0	0	0	0	0	0	56	0	0	3
+19ca641a5b60	2026-09-04T03:02:50+01:00	The ruled discriminator was wrong, and the survivor list is down to one	0	0	0	0	0	3	0	0	0	1
+38eafc86da1e	2026-09-04T03:02:15+01:00	Row 32b: a paid document nothing can reach is named, not dropped	43	0	0	0	0	0	0	0	0	1
+68128b0d5d03	2026-09-04T03:01:15+01:00	Row 32a: `pnk link` raises the error it was written to raise, on both interpreters	109	137	0	0	0	0	0	0	0	4
+8c979eb76748	2026-09-04T02:55:20+01:00	The routing table was seven rows behind, and the interpreter claim is stale	0	0	0	0	2	0	0	8	0	2
+57cefe0818e8	2026-09-04T02:54:37+01:00	Row 32: pin both survivors with real chmod fixtures — RED on 3.14 by design	0	105	0	0	0	0	0	0	0	2
+cb658df9e09d	2026-09-03T18:11:12+01:00	Rule the two row-32 survivors, and the injection rule they falsify	0	0	0	0	0	4	0	0	0	1
+bca85a557263	2026-09-03T18:01:33+01:00	0.32.4 is on the index — row 31 closed, verified against two wheels	0	0	0	0	27	3	0	23	0	4
+53747005faac	2026-09-03T17:48:55+01:00	Release 0.32.4 — a directory the walk could not enter deleted what was under it	8	0	0	0	231	4	165	30	19	12
+fe985fca265e	2026-09-03T17:29:46+01:00	Row 31: record the real run, which is what shows the tests are about `pnk`	0	0	0	0	0	0	10	0	0	1
+32c14ee561d6	2026-09-03T17:29:46+01:00	Row 31, review pass: a remedy that promised a route the code cannot honour	9	43	33	0	1	0	9	0	0	5
+dce986e3a9ca	2026-09-03T17:29:46+01:00	Row 31: one changelog fragment and two retrospectives	0	0	0	0	0	0	95	0	0	3
+6ae7760af958	2026-09-03T17:29:46+01:00	Row 31: the fourteen `tests/test_paths.py` rows, dictated by the planner	0	0	0	0	14	0	0	0	0	1
+514fe46e864b	2026-09-03T17:29:46+01:00	Row 31: hold documents under a source directory the walk cannot enter	424	551	193	0	21	0	0	0	0	10
+dba0024d58cf	2026-09-03T17:20:41+01:00	An exclude pattern does not suppress an unreadable directory	0	0	0	0	0	2	0	0	0	1
+18250b2dc0aa	2026-09-03T17:05:49+01:00	Option B was blind to a third case, and a row counted four of six	0	0	0	0	6	2	0	0	0	2
+02aa982cf730	2026-09-03T16:42:16+01:00	The audit's judge ruled PARTIAL, and it corrected me	0	0	0	0	14	7	0	0	0	2
+876bccff835d	2026-09-03T16:34:31+01:00	The floor check belongs in the procedure, not in a record of doing it	0	0	0	0	13	0	0	6	0	2
+0f2c23bee780	2026-09-03T16:26:54+01:00	Retro: a two-way selector that could only ever fall one way	0	0	0	0	0	0	51	0	0	1
+7d6d79899b9f	2026-09-03T16:22:34+01:00	Decide row 31, and record what 0.32.2 did on 3.14 rather than on 3.13	0	0	0	0	11	2	0	0	0	2
+5c2087a4f94c	2026-09-03T16:16:59+01:00	0.32.3 is on the index — the sweep, and a hold made longer on purpose	0	0	0	0	29	1	0	35	0	4
+d42df0e16dcb	2026-09-03T16:04:37+01:00	Release 0.32.3 — the tool offered to delete a permanent id	20	0	0	0	394	3	354	55	65	23
+2ced5bf607dc	2026-09-03T15:27:08+01:00	Reframe the floor defect around the ULID, and correct row 28	0	0	0	0	0	3	0	87	0	2
+e5edf068dd23	2026-09-03T15:11:35+01:00	Two user-facing fixes the review found had no changelog entry, and its lesson	0	0	0	0	0	0	45	0	0	2
+1bcb6687939c	2026-09-03T15:09:40+01:00	The linkscan site was not a crash, so its test says what it actually pins	0	36	0	0	0	0	0	0	0	1
+0fe2da603836	2026-09-03T15:07:53+01:00	Record the 3.13 crash, and a tag pointing at a run CI never finished	0	0	0	0	0	0	38	21	0	2
+18d7fd79df2d	2026-09-03T15:05:05+01:00	The review found the fix stopped at the wrong boundary, and one worse bug	155	42	53	0	0	0	0	0	0	7
+0a8c0ff345b4	2026-09-03T14:54:15+01:00	Fragments for the 3.13 fix, and the same false claim caught before it published	0	0	0	0	0	0	119	0	0	5
+bc8dbe5d3b59	2026-09-03T14:52:45+01:00	The battery survived a row, and the test was the wrong half	0	7	6	0	0	0	0	0	0	2
+370595e826b7	2026-09-03T14:50:15+01:00	Three battery rows for the interpreter fix, and two anchors it rotted	0	0	70	0	0	0	0	0	0	1
+22fdc8834faf	2026-09-03T14:47:28+01:00	`pnk sync` crashed on Python 3.13, the version pyproject.toml promises	87	89	0	46	0	0	0	0	0	3
+010da63c72df	2026-09-03T14:17:13+01:00	0.32.2 is on the index — the sweep, and two numbers I composed	0	0	0	0	36	5	0	47	0	5
+868cff9a9f9b	2026-09-03T14:09:00+01:00	Two gate failures in tests I wrote, neither in the code under test	0	9	0	0	0	0	0	0	0	2
+6a8fd0b40dc6	2026-09-03T14:07:31+01:00	Release 0.32.2 — four reports that were not true	10	0	0	0	275	1	202	24	47	18
+5100898adabd	2026-09-03T14:01:25+01:00	The battery's witness was wrong, and four retrospective fragments	0	0	19	0	0	0	135	0	0	5
+8ebede752e25	2026-09-03T13:58:38+01:00	Batteries for row 8: the closed set, the symlink, the empty result	0	0	210	0	0	0	0	0	0	3
+01ffff37fc6b	2026-09-03T13:55:14+01:00	The symlink line named two causes it cannot tell apart	33	40	0	0	0	0	9	0	0	3
+4414db4f5916	2026-09-03T13:49:34+01:00	One landing, three registers, and none of them noticed	0	0	0	0	0	33	0	0	0	2
+a359ed2af86b	2026-09-03T13:47:49+01:00	Three defects the review found in row 8's own fixes	113	175	0	0	0	0	0	0	0	10
+e9f4ddb587c1	2026-09-03T13:30:30+01:00	A review lens opens the same window a battery does	0	0	25	0	0	4	0	0	0	2
+bbe1e4404829	2026-09-03T13:24:43+01:00	Row 8 fragments, and the battery README's denominator paragraph	0	0	26	0	0	0	20	0	0	4
+203f09654339	2026-09-03T13:22:45+01:00	Row 7 landed 23 minutes before this, and the register never said so	0	0	0	0	0	19	0	14	0	2
+6226b09c9fc1	2026-09-03T13:02:25+01:00	Row 8: the three Low classes that were still open, as three separate defects	125	203	0	0	0	0	0	0	0	8
+3a0ecaf71f17	2026-09-03T12:06:53+01:00	CLAUDE.md: name the uncut release, because nothing else on main does	0	0	0	0	0	0	0	13	0	1
+78b1b0e771ee	2026-09-03T11:55:17+01:00	docs/CLI.md: -k is refused below 1, and 0 is the arm nobody predicts	0	0	0	0	2	0	0	0	0	1
+d46f37f372fa	2026-09-03T11:55:04+01:00	A retro fragment is inside the tree the retired-sentence gate searches	0	0	0	0	0	0	13	0	0	1
+c8596fde5c34	2026-09-03T11:52:42+01:00	Two retired sentences that nothing was recording, and an argument that did not hold	0	16	32	0	0	0	52	0	0	4
+c493c0342a1a	2026-09-03T11:52:42+01:00	The mutant that proved there was nothing to prove, and S8/S9's rows	0	0	108	0	0	0	0	0	0	2
+146a7fa855af	2026-09-03T11:52:42+01:00	WIP: the S5–S7 battery section, with one survivor still to resolve	0	0	111	0	0	0	0	0	0	1
+8a728f34e043	2026-09-03T11:52:42+01:00	Row 7's fragments, and three anchors my own changes rotted	0	1	20	0	0	0	117	0	0	9
+85ac2d8a0f19	2026-09-03T11:52:42+01:00	S7: the failure ledger clears, and doctor stops printing a false remedy	63	124	0	0	0	0	0	0	0	6
+dfa23de09c3f	2026-09-03T11:52:42+01:00	S6: gate the move hint on the orphaned sidecar, and stop asserting a mint	74	98	0	0	0	0	0	0	0	4
+f111c7c19005	2026-09-03T11:52:42+01:00	S5: the two halves of one sync, each naming what the other does	21	26	0	0	0	0	0	0	0	2
+e38539d49059	2026-09-03T11:52:42+01:00	S8 and S9 are one missing check, and it belongs at the boundary	33	34	0	0	0	0	0	0	0	2
+29809ecb370b	2026-09-03T11:48:55+01:00	S20, and the record of a refutation that was attempted and failed	0	0	0	0	0	25	0	0	0	1
+736276eaa513	2026-09-03T11:27:24+01:00	Three mechanisms, not one shape: correct the sweep plan's build-order summary	0	0	0	0	0	24	35	0	0	2
+efa73d1041d2	2026-09-03T11:17:45+01:00	0.32.1 is on the index -- the hold marker comes off, verified with a control	0	0	0	0	31	0	0	0	0	2
+43c79508fa61	2026-09-03T11:07:19+01:00	A link the release deletes, and a count whose denominator I could not name	0	0	0	0	6	2	0	0	10	4
+d9ac82fc2074	2026-09-03T10:38:05+01:00	Release 0.32.1 -- a KB name no longer bricks the KB at creation	2	0	0	0	568	0	581	0	98	17
+edbffc5f7800	2026-09-03T10:33:13+01:00	Refresh prices.toml for 0.32.1 -- the rate moved, so this is not a re-stamp	10	0	0	0	0	0	0	0	0	1
+883fabc73fa6	2026-09-03T10:31:57+01:00	S4's registers flip, and two rows whose owner cell never rendered	0	0	21	0	2	14	0	0	0	4
+3ea484e3c57f	2026-09-03T10:07:12+01:00	The measured counts, the third position, and the planner's closing sentence	0	0	0	0	6	0	109	0	0	3
+c8d7318eff99	2026-09-03T10:02:39+01:00	Correct a claim about mutate.py in the paragraph that was about unread evidence	0	0	16	0	0	0	0	0	0	1
+cf1389931bce	2026-09-03T10:01:15+01:00	Row 23's hypothetical is already in the wheel	0	0	0	0	0	2	0	0	0	1
+c7a337829b72	2026-09-03T10:01:00+01:00	Pass 3: four findings, each confirmed by my own measurement before building	18	30	86	0	15	0	0	0	0	5
+fce90a8cb794	2026-09-03T09:42:33+01:00	Two claims in the changelog fragment that its own later bullets refuted	0	0	0	0	0	0	12	0	0	1
+7dba9addb47e	2026-09-03T09:37:24+01:00	Two rows the S4 review produced, and a stale cell it outgrew	0	0	0	0	0	9	0	0	0	1
+a0dc26d6ce56	2026-09-03T09:35:24+01:00	VERIFICATION: four new S4 rows and three corrections, as the planner dictated	0	0	0	0	40	0	0	0	0	1
+79a3289b6611	2026-09-03T09:31:15+01:00	Retro: a commit taken inside a mutation window shipped the mutant	0	0	0	0	0	0	49	0	0	1
+9e1de7955416	2026-09-03T09:30:33+01:00	Restore the control-character arm a concurrent mutation run committed as False	2	0	0	0	0	0	0	0	0	1
+719398335eae	2026-09-03T02:46:58+01:00	Retro: the review harness reported a clean pass while nobody had looked	2	0	0	0	0	0	18	0	0	2
+c29cbc0d3ca0	2026-09-02T22:24:17+01:00	Retro: the S4 fix reproduced S4, and what the corpus could not have found	0	0	0	0	0	0	91	0	0	1
+bfa8f3ac68f7	2026-09-02T22:18:36+01:00	S4 review pass 2: the fix reproduced the defect it fixes, on one input class	45	65	56	0	0	0	27	0	0	5
+77ee88f05528	2026-09-02T17:33:31+01:00	S4 adversarial review, pass 1: three confirmed findings, and one the review could not see	0	23	19	0	0	0	11	0	0	3
+15108cab275c	2026-09-02T13:08:41+01:00	Row 5 read as available while a branch held it	0	0	0	0	0	4	0	0	0	2
+920d37bd9780	2026-09-02T13:06:29+01:00	S4 review pass: a mutation battery, and the gap its kill reasons found	0	37	136	0	0	0	56	0	0	6
+5f89b68ea150	2026-09-02T13:04:33+01:00	An example I reasoned about instead of running	0	0	0	0	0	2	41	0	0	2
+5077e2df00b3	2026-09-02T13:00:00+01:00	Two pointers a cleared session would have followed	0	0	0	0	0	0	0	25	0	1
+c53858899111	2026-09-02T12:52:42+01:00	A summary sentence above a growing table nobody re-read	0	0	0	0	0	16	0	0	0	1
+7217be9947e9	2026-09-02T12:52:03+01:00	S4: a KB name is escaped where it is rendered, not checked where it is typed	59	177	0	0	43	0	24	0	0	4
+ed39d384a9ee	2026-09-02T12:44:02+01:00	Four blockers pointed at work that had landed hours earlier	0	0	0	0	0	22	0	0	0	2
+c7dbadfbcb2a	2026-09-02T12:26:55+01:00	Row 20 was cured by row 15 and nobody struck it	0	0	0	0	0	2	0	0	0	1
+818f8a77deab	2026-09-02T12:23:58+01:00	The two tasks the user authorised existed only in a session	0	0	0	0	0	2	0	0	0	1
+6293712d2db6	2026-09-02T12:20:26+01:00	Row 3's blocker column still read live after its title said done	0	0	0	0	0	2	0	0	0	1
+a0a81cbda8a5	2026-09-02T12:16:47+01:00	Row 3 still asked for a release that was already published	0	0	0	0	2	2	0	0	0	2
+1cdb021cfd23	2026-09-02T12:06:40+01:00	Record the money path's first mutation battery, verified this time	0	0	0	0	7	0	0	0	0	2
+ec860b0e459f	2026-09-02T12:02:33+01:00	main is green again: close the red across the three registers	0	0	0	0	22	0	0	16	0	3
+3560f1d6a9c2	2026-09-02T12:02:32+01:00	Incorporate the coder's two proposals for row 15	0	0	12	0	0	2	0	0	0	2
+aeb32f2427ab	2026-09-02T11:58:32+01:00	The money path gets its first mutation coverage, and its seam named	0	11	97	0	0	0	0	0	0	3
+562bcd451f28	2026-09-02T11:46:57+01:00	The fragments: a constant neither test mentions, and a trigger that is scheduled	0	0	0	0	0	0	52	0	0	2
+c23db3a8c734	2026-09-02T11:44:59+01:00	The mechanism I published for the red build was invented	0	0	0	0	16	0	39	12	0	4
+a397f2485c3a	2026-09-02T11:44:20+01:00	A rate refresh cannot silence this guard, because it never reads the rate	0	73	0	0	0	0	0	0	0	1
+cf1f1cb7e133	2026-09-02T11:35:48+01:00	An equality quantisation cannot hold, and its latent twin one hop down	0	37	0	0	0	0	0	0	0	1
+a981b2ca7e78	2026-09-02T11:30:15+01:00	0.32.0 is on PyPI — the post-publish sweep, and a red main it will not hide	0	0	0	0	26	0	66	7	0	5
+eb16a9f68357	2026-09-02T11:24:50+01:00	Two counts of my own, wrong the way row 15's were	0	12	0	0	0	0	15	0	0	2
+ed8cb9969d4e	2026-09-02T11:08:01+01:00	Fragments for row 15	0	0	0	0	0	0	49	0	0	2
+0239c472192e	2026-09-02T11:05:51+01:00	Release 0.32.0 — one unreadable file no longer takes the KB with it	22	0	0	0	1664	0	1810	0	269	46
+c806b135f21a	2026-09-02T10:54:44+01:00	Row 15: gate the battery section-header format, and the audit's own blind spot	0	82	2	0	0	0	0	0	0	2
+0fba1ce8ebec	2026-09-02T10:43:37+01:00	Three documents the planner dictated, pasted unchanged	0	0	0	0	48	0	0	0	0	3
+04502fcf43a2	2026-09-02T10:40:09+01:00	Section 4 ANSWERED by the user: option E, with the trigger written out	0	0	0	0	0	92	0	0	0	1
+793990ac99da	2026-09-02T10:38:28+01:00	The search assertion passed for a word in no document	0	23	0	0	0	0	0	0	0	1
+665ba31a7eca	2026-09-02T10:33:11+01:00	S1: say what the assertion measures, not what it implies	0	4	0	0	0	0	0	0	0	1
+0129df0e9113	2026-09-02T10:30:43+01:00	The watcher written to fix the watcher suppressed its own verdict line	0	0	0	0	0	0	29	0	0	1
+6e593ef51e74	2026-09-02T10:28:59+01:00	S1: fragments, and the rebuild case the review pass turned up	0	33	0	0	0	0	73	0	0	3
+512e0682fd02	2026-09-02T10:27:12+01:00	S1: the same unguarded read in `pnk doctor`, which is where the remedy sends you	23	70	0	0	0	0	0	0	0	2
+492639549777	2026-09-02T10:21:30+01:00	S1: ten mutation rows, and one rotted anchor repaired	0	6	160	0	0	0	0	0	0	2
+60601e5751ff	2026-09-02T10:21:16+01:00	cancelled is two states wearing one word, and a short sha is not a sha to gh	0	0	0	0	0	0	37	0	0	1
+a4ec0f0a5cf8	2026-09-02T10:18:41+01:00	S1: pin the fix with eleven tests, five of them controls	0	232	0	0	0	0	0	0	0	2
+3f6a3edb04b9	2026-09-02T10:18:41+01:00	S1: one unreadable document no longer aborts the whole index	94	0	0	0	0	0	0	0	0	2
+d3cf6fe76ff8	2026-09-02T10:14:11+01:00	Mark build-order rows 1 and 2 built; row 3 now waits only on the user	0	0	0	0	0	6	0	0	0	1
+833b1b9ebbd4	2026-09-02T10:00:52+01:00	The measurement the conclusion rests on is the one that gets checked	0	0	0	0	0	0	10	0	0	1
+732ebe52345c	2026-09-02T09:57:00+01:00	Fragments, the dictated example note, and a 252-character line	0	0	0	0	0	0	66	0	0	4
+d723ad3d0908	2026-09-02T09:57:00+01:00	Review pass: a README's headings are not the document's, and both were on main	0	20	15	0	1	0	49	0	0	6
+96dcf02c7607	2026-09-02T09:57:00+01:00	Battery: six ways the splice-destination arm could be absent and green	0	0	66	0	0	0	0	0	0	1
+f2e714ba2f88	2026-09-02T09:57:00+01:00	The link gate resolves a fragment where its body is going	0	167	134	0	0	0	28	0	0	6
+34a1a365f424	2026-09-02T09:40:44+01:00	"Row 1 says ""the two code-spanned links"" and there are four"	0	0	0	0	0	2	0	0	0	1
+3651c71e11f4	2026-09-02T09:34:44+01:00	Three more instruments that could not fire, in the same hour	0	0	0	0	0	0	10	0	0	1
+ae3eb264635f	2026-09-02T09:34:44+01:00	I certified an anchor with a renderer I had assembled from the config	0	0	0	0	0	0	46	0	0	1
+e01e27bbb58d	2026-09-02T09:29:57+01:00	"""25 fragments"" named no population, in the cell that closes the class"	0	0	0	0	0	2	0	0	0	1
+8d71489acd7f	2026-09-02T09:22:40+01:00	The anchor was wrong, and b4fa8e8's commit message claims otherwise	0	0	0	0	0	0	25	0	0	3
+3f7bf45675ea	2026-09-02T09:18:35+01:00	Row 1 was understating itself: the forbidden form is live, not just the degraded one	0	0	0	0	0	2	0	0	0	1
+b4fa8e8fc94f	2026-09-02T09:17:14+01:00	Two fragments would have failed the release build; and a watcher that could not fire	0	0	0	0	0	0	60	0	0	3
+394939d5e068	2026-09-02T09:03:25+01:00	A cited path is unchecked text; a link is a gated reference	0	0	0	0	0	0	16	0	0	1
+0d9f6da4c456	2026-09-02T08:55:35+01:00	Pass 10 was my own diff, and it held two more false counts	0	0	2	0	0	0	24	0	0	3
+bb0a07f8acbe	2026-09-02T08:50:08+01:00	VERIFICATION.md: three cells the planner dictated, pasted unchanged	0	0	0	0	4	0	0	0	0	1
+2fd47bcb8002	2026-09-02T08:44:55+01:00	Row the coder's two findings, and fix three misfiled owners	0	0	0	0	0	15	30	2	0	4
+bc68475b8249	2026-09-02T08:42:06+01:00	The four commit messages nobody reviewed, and one finding that did not survive	0	10	0	0	0	0	67	0	0	2
+bf1e78ebe33e	2026-09-02T08:36:37+01:00	The fix duplicated a split and the battery lost a kill to it	0	0	29	0	0	0	0	0	0	2
+f48e1cf413db	2026-09-02T08:34:16+01:00	Row 12 review pass 9: the stamp arm judged a line the heading was not on	0	58	79	0	0	0	24	0	0	4
+6cb80b4a0f57	2026-09-02T04:09:48+01:00	Two numbers of mine that named no measurement point, one falsified by the commit that wrote it	0	0	17	0	0	0	7	0	0	2
+bfa48bbddb40	2026-09-02T03:46:57+01:00	Pin the selector: --all is not a corpus, and one row had two populations	0	0	0	0	0	4	30	0	0	2
+e0bb4954fc41	2026-09-02T03:38:23+01:00	A cleared session could not find the live build order	0	0	0	0	0	0	0	4	0	1
+1015353bfc6d	2026-09-02T03:05:36+01:00	Correct rows 17 and 18: the sibling claim was false, and widen the rule	0	0	0	0	0	4	62	0	0	3
+1c1032810f5f	2026-09-02T03:00:14+01:00	Row 18: defer date validation, and record why it splits from row 17	0	0	0	0	0	1	0	0	0	1
+9ac95fce2100	2026-09-02T02:54:59+01:00	VERIFICATION.md: the exemption is keyed on a pattern, not on a file's age	0	0	0	0	2	0	0	0	0	1
+56a970c0dbb1	2026-09-02T02:54:59+01:00	The gate read a different string than the renderer, and three of my own claims were wrong	0	29	40	0	0	0	14	0	0	4
+2f2e9254aae3	2026-09-02T02:54:04+01:00	Rule row 17: narrow the stamp exemption, and say why it is not new process	0	0	0	0	0	1	0	0	0	1
+04497a93c8dc	2026-09-02T01:11:24+01:00	Two false sentences of my own, a third caught inside the fragment describing the mechanism	0	0	20	0	0	0	32	0	0	2
+5a3cb583a39e	2026-09-02T01:08:28+01:00	Correct row 14's count, and row the gate that disagrees with its renderer	0	0	0	0	0	3	66	0	0	4
+2914b0937eb8	2026-09-01T21:58:07+01:00	Pass 7's two false sentences, the dictated rows, and a header that named a date instead of a release	0	0	19	0	6	0	0	0	0	3
+a4077b5aed5e	2026-09-01T21:37:39+01:00	Row the second heading and refuse a gate, then get row 15 wrong	0	0	0	0	0	2	59	0	0	3
+6bc80784d5a4	2026-09-01T21:28:23+01:00	Row 12 review pass 6: I wrote a new false sentence in the commit that fixed the false sentences	0	0	3	0	0	0	0	0	0	1
+2fd21de396bf	2026-09-01T21:04:04+01:00	retro: merge-base is not the branch point after a rebase	0	0	0	0	0	0	35	0	0	1
+5329d24b8c8f	2026-09-01T21:02:54+01:00	Row 12 review pass 5: a kill that stopped being a kill when another pass moved a different line	0	0	36	0	0	0	9	0	0	3
+0e424c717d48	2026-09-01T19:53:41+01:00	Row 12 review pass 4: two corrections that asserted a property one character deeper than they delivered	0	62	91	0	0	0	94	0	0	6
+4df5129657b7	2026-09-01T19:30:12+01:00	A status header called a shipped flag a proposal, two releases on	0	0	0	0	23	1	48	0	0	5
+b0ef81e7d48e	2026-09-01T19:24:57+01:00	retro.d/README.md: the rule the gate enforces, dictated by the planner	0	0	0	0	0	0	17	0	0	1
+b83138b63ce5	2026-09-01T19:23:53+01:00	"Row 12 review pass 3: the docstring I ""corrected"" in pass 2 was wrong in three checkable ways"	0	39	108	0	1	0	0	0	0	4
+f1de4c1caf20	2026-09-01T19:23:53+01:00	Row 12 review pass 2: the message quoted the line stripped of the thing it was complaining about	0	39	37	0	0	0	0	0	0	3
+360441667267	2026-09-01T19:23:53+01:00	Row 12, review pass 1: a BOM, a mis-named mutant, and a number I copied	0	35	37	0	0	0	30	0	0	4
+0fd4a8670661	2026-09-01T19:23:53+01:00	Refuse a retro fragment that would be absorbed into the incident above it	0	168	136	0	3	0	43	0	0	6
+437b18e55df1	2026-09-01T18:57:37+01:00	Section 6 listed four decisions owed by the user; three were wrong	0	0	0	0	0	10	8	0	0	2
+ac05e8cdd9b4	2026-09-01T18:54:27+01:00	The plan about registers decaying, decayed	0	0	0	0	0	15	65	0	0	3
+d246d5f62b9e	2026-09-01T13:11:01+01:00	Adopt the ordering plan, and re-correct the incident fragment	0	0	0	0	9	272	73	0	0	4
+b83730a172b0	2026-09-01T12:57:27+01:00	Correct the incident's cause: two agents, not one, and two symptoms	0	0	0	0	0	0	52	0	0	2
+840891f001d9	2026-09-01T12:43:35+01:00	Audit both registers in the sweep plan; row 3 read open for nine days	0	0	0	0	0	35	97	0	0	4
+e476bd79825d	2026-09-01T12:26:33+01:00	Unblock red main: a correct cross-fragment link the gate cannot see	0	0	0	0	0	23	81	0	0	6
+53f27a78c486	2026-09-01T12:16:00+01:00	Stamp the audit closure with its landing sha and time	0	0	0	0	0	7	0	0	0	1
+e158c0f492b6	2026-09-01T12:14:18+01:00	Close the 20260807 docs audit — 34 findings, as one unit	0	0	0	0	110	60	211	0	0	17
+2d62cd197d3d	2026-09-01T07:58:19+01:00	Refuse an unreadable golden set too, and stop stating a frame count as a fact	0	81	106	0	2	0	47	0	0	6
+bc6561da2da9	2026-09-01T07:56:45+01:00	Close the audit's registers — all 62 findings are spent	0	0	0	0	2	13	0	0	0	2
+37797bd122dc	2026-09-01T07:49:22+01:00	Pay the adversary's two real refutations, and rule against its other six	0	0	0	0	2	2	0	0	0	2
+b691c8171974	2026-09-01T07:43:50+01:00	Close the 33 cosmetic entry-point findings, by re-measuring rather than pasting	0	0	0	0	0	67	36	0	0	5
+657da0b0ee00	2026-09-01T07:32:27+01:00	Repair the guard's test, which was not a pin, and a frame count nobody counted	0	25	43	0	0	0	38	0	0	4
+238ce363fe96	2026-09-01T07:30:08+01:00	Correct four entry points the audit's cosmetic residue named, re-measured not pasted	0	0	0	0	7	0	0	0	0	2
+d7ed5dabd1de	2026-09-01T00:59:47+01:00	Make the duplicated lesson's cross-reference point both ways	0	0	0	0	0	0	10	0	0	1
+b15599de9a7e	2026-09-01T00:58:26+01:00	Place the reflexive instance, and name the lesson's durable home	0	0	0	0	0	18	0	0	0	1
+d35bfcccad6f	2026-09-01T00:57:55+01:00	Refuse a mistyped --questions at argparse time, before the corpus is built	0	40	63	0	1	0	0	0	0	4
+9eca3b06cce7	2026-09-01T00:53:18+01:00	Name what the settle guard's clock actually measures, and fix a span I got wrong twice	0	0	24	0	0	0	29	0	0	3
+9909a1c8b287	2026-09-01T00:50:41+01:00	Correct the fable-5 zeros, then correct the correction, and rule on two rows	0	0	0	0	23	381	0	0	0	6
+b47eda639768	2026-09-01T00:48:57+01:00	Retract the fragment's correction: the row it corrected was right	0	0	0	0	0	0	67	0	0	2
+669daf2bb175	2026-09-01T00:40:08+01:00	Do not count a running agent as a lost one	0	52	59	0	0	0	17	0	0	4
+f02c6eac8920	2026-09-01T00:33:06+01:00	Make the scopes a partition, and correct a date I generalised from six rows	0	49	67	0	0	0	28	0	0	4
+1d5e7ace6a91	2026-09-01T00:31:16+01:00	The ceiling probe takes its golden set as an argument	0	120	105	0	3	0	38	0	0	7
+273b618d9419	2026-09-01T00:20:47+01:00	0.31.1 is on PyPI — the post-publish sweep, and a misplaced entry it found	0	0	0	0	46	0	0	0	0	2
+4e37ea11808a	2026-09-01T00:13:44+01:00	Make the population selectable, and give the retro fragment its heading	0	65	41	0	0	0	14	0	0	4
+bf004717bbcb	2026-09-01T00:09:16+01:00	Release 0.31.1 — and the price nobody was watching	12	37	0	0	387	0	305	0	110	17
+e6134e61cb78	2026-09-01T00:02:49+01:00	Measure agent spend from the transcripts, and correct a zero I reported	0	223	556	0	0	0	42	0	0	4
+802d40b281f2	2026-08-31T23:47:22+01:00	Correct all 13 misleading entry points, and one blocker the audit missed	0	0	44	0	68	189	0	0	0	8
+77a6ed8bf553	2026-08-31T23:41:11+01:00	S3: the CONTROL row survived, which was a finding about the fix	0	2	18	0	0	0	0	0	0	2
+54c175b0e3f7	2026-08-31T23:35:21+01:00	Pay the four corrections the row-5 pass owed, and disposition the eight unrowed rows	0	0	0	0	0	53	0	0	0	5
+1b997d7041e2	2026-08-31T23:33:13+01:00	S3: the serve mutants belong to the battery that already owns serve.py	0	15	173	0	0	0	0	0	0	4
+4b855a7f6063	2026-08-31T23:31:54+01:00	S3 follow-up: correct the trigger, pin the leak, add the battery	21	63	104	0	0	0	58	0	0	7
+b26ae6064bad	2026-08-31T23:26:30+01:00	Check the 22 findings nobody had ever checked, and close the last planner row	0	0	0	0	0	56	0	9	0	2
+e526e29ae308	2026-08-31T23:22:25+01:00	S3: pnk serve answers after a pause instead of raising	97	127	0	0	0	0	42	0	0	5
+c65af58e5959	2026-08-31T23:16:59+01:00	Restore the antecedent my own S16 correction deleted	0	0	0	0	0	0	0	8	0	1
+3fcd9fd919ce	2026-08-31T23:12:54+01:00	CLAUDE.md called a landed fix a live defect, in two places	0	0	0	0	0	0	0	11	0	1
+185d7cdea56a	2026-08-31T23:08:42+01:00	S16's rows, and the sentence its fix falsified	0	0	0	0	8	2	0	0	0	2
+4662c7c43c27	2026-08-31T23:02:15+01:00	Adversarial pass: the exit code was the thing nothing pinned	0	5	0	0	0	0	55	0	0	3
+244f0b28dcb1	2026-08-31T22:56:37+01:00	Pin the narrow half, and correct three claims the fix falsified	13	20	71	0	0	0	0	0	0	3
+28e8cba17623	2026-08-31T22:48:15+01:00	"Row 2 read ""blocked on: nothing"" while S16 was held on the user"	0	0	0	0	0	2	0	0	0	1
+930fc3c83aab	2026-08-31T22:48:09+01:00	S16's residue: a path collision is a recorded failure, not a traceback	58	176	0	0	0	0	0	0	0	3
+cce042e38ecd	2026-08-31T22:26:50+01:00	Preserve the entry-point audit, which was about to die in a scratchpad	0	0	0	0	0	424	0	0	0	1
+54ad32fcbbd5	2026-08-31T22:21:24+01:00	Close 13 stale blockers: the documents outlived their own incident	0	0	0	0	2	25	0	4	0	4
+825e49b45a9d	2026-08-31T22:11:24+01:00	S18's heading read OPEN for a day after it shipped	0	0	0	0	0	23	0	0	0	1
+54d6ffc79c10	2026-08-31T22:10:29+01:00	TZ=UTC git log --date=format: does not give UTC, and a record here proves it	0	0	0	0	0	31	0	0	0	2
+621f5e04a4c8	2026-08-31T22:08:55+01:00	Unstale the two entry points a cleared session actually reads	0	0	0	0	2	0	0	18	0	2
+e696e3600572	2026-08-30T16:23:41+01:00	Where the neighbourhood audit fails: inside corrections	0	0	0	0	0	27	0	0	0	1
+bda45e6ce65b	2026-08-30T16:21:51+01:00	The battery denominator was wrong, in the file I corrected today	0	0	9	0	0	0	0	0	0	1
+40d318f21777	2026-08-30T16:19:24+01:00	The VERIFICATION row, the fragments, and who took the decision	0	0	0	0	1	0	62	0	0	3
+8bb4be09bc06	2026-08-30T16:16:46+01:00	"DESIGN.md: a retired row that comes back is RETIRED, not ""content changed"""	0	0	0	0	1	0	0	0	0	1
+3ba264e23552	2026-08-30T16:15:34+01:00	Battery rows for the two ways the reason can go wrong	0	0	34	0	0	0	0	0	0	1
+a2f5b86fd631	2026-08-30T16:14:17+01:00	S18: a restored paid document is not told its content changed	58	77	0	0	0	0	0	0	0	4
+91758c154a43	2026-08-30T16:07:25+01:00	The VERIFICATION row this change owes, and its fragments	0	0	0	0	1	0	49	0	0	3
+6f055d575047	2026-08-30T16:04:52+01:00	A sixth instance of the shape, and the rule's first return	0	0	0	0	0	37	0	0	0	1
+87b336f7756d	2026-08-30T16:03:38+01:00	Battery rows for the three ways the declaration's scope can rot	0	0	49	0	0	0	0	0	0	1
+9c2a91b7c3a1	2026-08-30T16:02:51+01:00	Five defects of one shape, and the rule that would have caught them	0	0	0	0	0	50	0	0	0	1
+576df94051d3	2026-08-30T16:02:50+01:00	Declare 0.30.3 absent from the two lists that record what PyPI serves	0	109	41	0	0	0	0	0	0	2
+2209014a6517	2026-08-30T15:58:27+01:00	Post-publish sweep for 0.31.0 (BLOCKED on a gate declaration)	0	0	0	0	13	0	0	0	0	2
+c7b0bd90d209	2026-08-30T15:53:51+01:00	Release 0.31.0 — the gates that could not fail	4	0	0	0	994	0	1077	0	196	34
+eb54c7f8d932	2026-08-30T15:47:47+01:00	The row I owe, and a red gate the last commit left behind	0	2	0	0	1	0	0	0	0	2
+f54ca3be8660	2026-08-30T15:35:43+01:00	Fragments for the price-clock seam	0	0	0	0	0	0	60	0	0	2
+797ec683e312	2026-08-30T15:25:47+01:00	Review pass: say why a malformed `as_of` fails, in the file that reads it	0	6	0	0	0	0	0	0	0	1
+02100e01000a	2026-08-30T15:22:14+01:00	Every matrix leg fails; the named leg is a fail-fast race, not a scope	0	0	0	0	0	16	0	0	0	1
+240e12175baf	2026-08-30T15:19:03+01:00	Stop the test suite reading the wall clock against prices.toml	0	79	0	0	0	0	0	0	0	2
+8ce50a60ef52	2026-08-30T15:14:47+01:00	0.30.3 was prepared and never published; say so, and fix two links that pointed at the tag that proves it	0	0	0	0	0	0	0	0	14	1
+9310ca57b437	2026-08-30T15:10:29+01:00	Record the pipe class, including the case where the same three characters are required syntax	0	0	0	0	0	38	0	0	0	1
+04f4deb7f4d7	2026-08-30T15:08:31+01:00	The last three: a false anecdote, a citation to an unlanded tree, a row that said STOP four days after the user answered	0	0	0	0	6	13	0	0	0	3
+335cd2eaed33	2026-08-30T15:06:41+01:00	Four more confirmed defects, each re-verified before the edit	0	0	2	0	2	6	5	0	0	4
+51498a660e74	2026-08-30T15:04:25+01:00	The pipe defect is a class with two halves, and no escape fixes both	0	0	0	0	29	44	0	0	0	9
+a2cc94406581	2026-08-30T10:57:04+01:00	Add the price-refresh release step, and correct my own item-1 inference	0	0	0	0	30	68	0	0	0	2
+85b6ecea59f0	2026-08-30T10:51:01+01:00	Correct three build-order rows and the CI prediction I shipped	0	0	0	0	0	128	0	0	0	1
+6b14730f733d	2026-08-30T10:45:56+01:00	Four of the review's five findings, fixed -- the fifth is the user's	41	60	34	0	0	0	0	0	0	3
+d5e495cf1dab	2026-08-30T10:35:49+01:00	Two claims I shipped an hour ago, falsified by my own narrowing	0	0	0	0	2	0	0	9	0	2
+f1af6a0c5a44	2026-08-30T10:34:30+01:00	Narrow the price-table decision: C is a correction, not a preference	0	0	0	0	0	41	0	0	0	1
+350349321748	2026-08-30T10:33:43+01:00	Record: main is red on the clock, and a review that half ran	0	0	0	0	1	147	47	8	0	4
+1f0f0379afd3	2026-08-30T10:03:05+01:00	Recover an adversarial review that reported zero findings while dying	0	0	0	0	0	0	79	0	0	3
+3a225ec2a84b	2026-08-26T12:51:44+01:00	Two conventions made checkable: a live ratio out, a stamp rule in	0	0	0	0	18	0	46	0	0	3
+31c5524e3fca	2026-08-26T12:46:26+01:00	The batteries README remedy had a false positive, in the advice	0	0	23	0	0	0	35	0	0	2
+284a4f56c35b	2026-08-26T12:44:14+01:00	Fourth pass: read this increment's own fragments, per its own finding	0	0	34	0	0	0	55	0	0	3
+ec73b1ff3200	2026-08-26T12:40:26+01:00	VERIFICATION.md: a section for renames, and the counts come OUT rather than get fixed	0	14	0	0	68	0	0	0	0	2
+3e31cca85159	2026-08-26T12:39:42+01:00	Sync the population figure the turn-floor fix moved	0	0	3	0	0	0	0	0	0	1
+a54b304a89ff	2026-08-26T12:37:55+01:00	Review pass: applying the new rule to my own fragments found three	0	0	0	0	0	0	51	0	0	4
+6809cf89b5fc	2026-08-26T12:36:41+01:00	Third pass: the turn floor was hiding the deaths it feeds	0	22	17	0	1	0	0	0	0	4
+490984849a80	2026-08-26T12:35:58+01:00	Second review pass: a detection gap was being reported as a finding	0	2	99	0	2	0	20	0	0	5
+f17abf21cdc4	2026-08-26T12:30:24+01:00	A review pass opens the fragments its own increment wrote	0	0	0	0	29	0	30	0	0	2
+065f13321b9c	2026-08-26T12:30:11+01:00	The battery found a coverage regression I caused, and something worse under it	0	83	42	0	0	0	0	0	0	2
+d809a7140815	2026-08-26T12:29:34+01:00	Adversarial pass on the ledger: four findings, three of them defects	0	95	76	0	3	0	8	0	0	6
+be39dd44072b	2026-08-26T08:43:41+01:00	VERIFICATION rows, fragments, and the measured claim corrected to its size	0	22	20	0	26	0	77	0	0	6
+f7d16e3cea69	2026-08-26T08:37:25+01:00	A surviving mutant found the normalisation was backwards	0	18	41	0	0	0	0	0	0	3
+dc97a4cf0289	2026-08-26T08:35:40+01:00	Tests and a mutation battery for the review ledger	0	372	91	0	0	0	0	0	0	2
+fbf17da8f294	2026-08-26T08:33:13+01:00	Record the cycle price: three of S2 guards, not a temporary path	0	0	0	0	0	39	28	0	0	2
+bb2fe8fbabca	2026-08-26T08:32:40+01:00	WIP: tools/review_ledger.py — what earlier review passes already did	0	0	923	0	0	0	0	0	0	1
+2aaf520432ed	2026-08-26T08:32:35+01:00	S16/S19: a rename chain is now ordered so the database will accept it	131	309	84	0	0	0	0	0	0	4
+c284b03eef30	2026-08-26T08:27:56+01:00	X7 doc half: the procedure never asked for the marker	0	0	0	0	4	6	42	0	0	6
+11d268e5a5c6	2026-08-26T08:22:08+01:00	S19 measured on both sides, and the pinning case changed	0	0	0	0	0	49	27	2	0	3
+3424f5ea1b92	2026-08-26T08:13:23+01:00	Two counted paragraphs, dictated by the planner and pasted unchanged	0	0	2	0	51	0	0	0	0	2
+c11164596eed	2026-08-26T08:11:13+01:00	One gate landed and six documents became false; this is the other half	0	0	0	0	58	24	40	4	0	8
+a18225bf941c	2026-08-26T08:03:40+01:00	Retrospective: the retrospective loop is 44% of subagent spend, and its yield halves	0	0	0	0	0	0	33	0	0	1
+f6db2f49c3f1	2026-08-26T08:03:04+01:00	Fragments for D-35 layer 2 -- one changelog entry pair, one retrospective	0	0	0	0	0	0	60	0	0	2
+53c908ea1b1f	2026-08-26T07:59:56+01:00	Two counted claims the merge falsified, re-measured not carried	0	0	2	0	19	0	0	0	0	2
+d15df03f8d5f	2026-08-26T07:59:39+01:00	Mutation and review: 54 killed, and I caught myself running the piped gate	0	0	13	0	0	0	0	0	0	1
+16362877d8e9	2026-08-26T07:55:00+01:00	D-35 layer 2: the hold marker becomes a check, in the direction nothing could see	0	227	383	0	8	0	0	0	0	7
+38df3bd9ad2d	2026-08-26T07:53:25+01:00	Retrospective: every arithmetic claim in the review-cost report had an error	0	0	0	0	0	0	57	0	0	1
+3fc33fad7c68	2026-08-26T07:52:29+01:00	S16 was a claim nobody had re-checked; I ran it, and it is still live	0	0	0	0	0	23	10	6	0	3
+ef1465a50d84	2026-08-26T07:46:28+01:00	Review pass: four claims of mine did not survive checking	0	0	0	0	8	33	13	4	0	7
+bb56fbd7143a	2026-08-26T07:44:10+01:00	Correct the retention figures this gate's own docstring cites	0	0	26	0	0	0	6	0	0	2
+91df574fafb2	2026-08-26T07:42:27+01:00	Re-review found the citation class inside the fix for the citation class	0	0	14	0	0	0	72	0	0	3
+027c886b61d9	2026-08-26T07:37:33+01:00	Adversarial review: a test of this gate had the escape hatch the gate removes	0	22	36	0	2	0	0	0	0	4
+29856b908ae4	2026-08-26T07:36:44+01:00	The queues describe the tree: an owner is not a schedule	0	0	11	0	4	144	82	32	0	9
+9d1ea19b589f	2026-08-26T07:34:48+01:00	Mutation pass: 40 mutants, 40 killed -- and one kill was for the wrong reason	0	0	13	0	0	0	0	0	0	1
+224cac38549f	2026-08-26T07:31:46+01:00	make release-check gated rather than printed -- and each leg watched red	0	251	337	0	8	0	0	0	0	6
+16146f12813c	2026-08-26T06:30:58+01:00	Pass 5: three, all the same class -- a neighbour that did not move	0	0	0	0	0	8	0	5	0	3
+84bbe81639ed	2026-08-26T06:14:21+01:00	Pass 4: eleven more, including S17 still live in CLAUDE.md	0	0	0	0	8	35	2	7	0	8
+376481e2971c	2026-08-26T05:57:48+01:00	A citation is a measurement -- S17 and S18 are the same failure	0	0	0	0	0	20	0	0	0	1
+aaf8318218a3	2026-08-26T05:44:17+01:00	Pass 3, and S17 was fixed on main while I was recording it as open	0	0	0	0	4	51	0	5	0	4
+0dc4af3ea54f	2026-08-26T05:32:34+01:00	S17 was fixed by the increment that reported it open, and two sentences were false	12	28	0	0	0	0	34	0	0	4
+2216216d67f4	2026-08-26T05:28:39+01:00	A deletion task with a checkable precondition, and the gate lesson measured	0	0	0	0	0	25	12	0	0	2
+a309488ad244	2026-08-26T05:14:25+01:00	Preserve S2s abandoned branch record before it is deleted	0	0	0	0	0	40	0	0	0	1
+7365bee27a7d	2026-08-26T05:08:37+01:00	Adversarial review pass 2: my fixes were where the new defects were	0	0	0	0	46	12	0	13	0	8
+10e3123f1715	2026-08-26T05:03:05+01:00	"""Free, within noise"" was noise. The check costs 12-17%."	0	0	0	0	0	0	29	0	0	1
+b6f0487299f9	2026-08-26T04:59:35+01:00	The planner-dictated section on reading a SURVIVED row	0	0	20	0	0	0	0	0	0	1
+57f19b03c60e	2026-08-26T04:58:25+01:00	S18 and S19 recorded, and the sweep's counts stop being asserted	0	0	0	0	4	68	0	5	0	3
+e0896fe62ff1	2026-08-26T04:48:32+01:00	The gate said EXIT=1 while its notification said 0, and a claim I had dropped turns out true	0	49	0	0	0	0	9	0	0	2
+e3bb923efbe5	2026-08-26T04:45:34+01:00	The check said OK over a lost document, and two clauses nothing pinned	35	63	44	0	0	0	0	0	0	5
+68eb26a9f361	2026-08-26T04:42:12+01:00	Adversarial review pass 1: thirteen findings, all mine, all fixed	0	0	0	0	27	64	8	10	0	13
+60cac0eb7d03	2026-08-26T00:27:58+01:00	P0 review pass 2: a rewrap left an orphaned line in the live-run message	0	8	1	0	0	0	0	0	0	2
+a2acfe578140	2026-08-26T00:25:20+01:00	DO NOT LAND THE PREVIOUS COMMIT — it regressed a loud failure into a silent one	37	127	37	0	0	0	53	0	0	6
+7b75881dda34	2026-08-26T00:23:49+01:00	P0 review pass: two surviving mutants were real coverage gaps	0	40	0	0	0	0	0	0	0	1
+681e7329bc3f	2026-08-26T00:18:44+01:00	P0: a review fan-out that lost agents no longer reports success	0	260	494	0	0	0	16	0	0	3
+8da6fca16135	2026-08-26T00:12:47+01:00	S17: sync prints a remedy that never works, and I measured the one that does	0	0	0	0	4	56	0	9	0	3
+14e0815ab3ee	2026-08-25T23:56:07+01:00	Churn numbers the planner measured, replacing ones nobody had run	0	0	7	0	0	0	0	0	0	1
+bc980d8b4025	2026-08-25T23:55:13+01:00	The adversarial pass found the writer I missed, and it had a control	75	33	30	0	0	0	0	0	0	3
+1539ad97af02	2026-08-25T23:53:50+01:00	Three coder-owned corrections recorded, and a heading that carried a count	0	0	0	0	22	52	20	0	0	5
+e011379359dd	2026-08-25T20:00:41+01:00	Timed it rather than claiming it: the check is free	0	0	0	0	0	0	17	0	0	1
+979da3fed09c	2026-08-25T19:56:35+01:00	The mutation pass, and the two survivors that were one blind spot	0	65	143	0	0	0	71	0	0	8
+988446c8832f	2026-08-25T19:56:06+01:00	Fragments: what this pass changed, and the six things writing it found	0	0	0	0	0	0	78	0	0	2
+9a7d7b431e21	2026-08-25T19:53:36+01:00	The trackers catch up: nine sweep questions, four ROADMAP claims, two plans	0	0	0	0	32	66	0	11	0	5
+cd9f00986a87	2026-08-25T19:49:18+01:00	S2: a plan that retires an id it also adopts, and a doctor that could not see it	86	266	0	0	0	0	0	0	0	5
+f3e4ced7329a	2026-08-25T19:46:27+01:00	requires_pinakes closed-superseded, expect_green declined, six stale pointers fixed	0	0	0	0	36	84	0	0	0	6
+cbf6fe66d9a7	2026-08-25T19:43:11+01:00	Three residues ruled, and arity requirement 3 closed	0	0	0	0	0	102	0	1	0	4
+1a27c46ff64d	2026-08-25T19:40:08+01:00	WIP: S2 rework — pairing stops retiring an id the same plan adopts	194	0	0	0	0	0	0	0	0	3
+b6457d0464d9	2026-08-25T19:39:39+01:00	D-34 answered: promises only, and the audit that made it honest	0	0	0	0	67	0	0	0	0	1
+76c053144573	2026-08-25T19:23:50+01:00	Sixteen, not fifteen — the count S16 falsified	0	0	0	0	2	0	0	5	0	2
+74cb3aa0cdee	2026-08-25T19:22:07+01:00	S16: a two-file rename swap crashes sync and leaves the index wrong	0	0	0	0	0	37	0	0	0	1
+ee914bd0fc00	2026-08-25T19:18:54+01:00	All eight decisions taken by the user, 20260825 18:16	0	0	0	0	7	48	0	7	0	4
+7961b89e5514	2026-08-25T19:09:17+01:00	The row count's twin, two paragraphs down	0	0	0	0	2	0	0	0	0	1
+430c477ddd24	2026-08-25T19:06:33+01:00	Every open decision, evaluated — and none of them taken	0	0	0	0	7	1009	0	0	0	3
+960653a41763	2026-08-25T14:35:15+01:00	X2's residual, written down rather than left to be found	0	0	0	0	0	31	0	0	0	2
+8f05e731995c	2026-08-25T14:34:21+01:00	X2: a heading in plans/ now carries its own disposition	0	0	0	0	0	201	0	0	0	17
+93cef3e78295	2026-08-25T14:12:07+01:00	Four citations that rotted, and a retrospective's wrong example	0	0	0	0	13	16	0	0	0	4
+24953975b264	2026-08-25T14:08:27+01:00	Four docs claims that stopped being true, from X3's corrections list	0	0	0	0	26	0	0	0	0	3
+da91d5966291	2026-08-25T14:03:24+01:00	X5a, X5c and X6: three conventions re-derived and never written	0	0	0	0	38	6	0	8	0	3
+5ba4aacdc5a0	2026-08-25T13:55:13+01:00	X3: all twenty plans/ files read, 93 heading/body mismatches	0	0	0	0	3	576	0	0	0	3
+c770c0fae571	2026-08-25T13:51:05+01:00	X4 and X5b: a scope paragraph that had been wrong for a long time	0	0	0	0	54	6	0	0	0	3
+1b93caf64cde	2026-08-25T13:42:40+01:00	The two pointers this branch's own work falsified	0	0	0	0	9	0	0	16	0	2
+d23f1b441de3	2026-08-25T13:41:47+01:00	Running Pinakes found fifteen defects that reading it did not	0	0	0	0	0	145	0	0	0	1
+3263b6ef0344	2026-08-25T13:40:02+01:00	D-35 answered: __version__ means landed, and the marker gets a gate	0	0	0	0	11	170	0	0	0	2
+fb601a3ea2c3	2026-08-25T09:50:56+01:00	STATUS said 0.30.3 was the latest release. PyPI said 0.30.2	0	0	0	0	9	84	0	0	0	3
+d3a8f681afb2	2026-08-25T09:40:23+01:00	Release 0.30.3 — the question the probes could not ask	2	0	0	0	213	0	158	0	24	8
+316f5373c88a	2026-08-25T09:36:44+01:00	X1 is built: correct the four pointers, before and apart from the release	0	0	0	0	8	33	0	4	0	4
+a5b69ab68876	2026-08-25T09:26:20+01:00	VERIFICATION: the row whose reason X1 disproved, and the promises it left	0	0	0	0	9	0	0	0	0	1
+b9b666b0051e	2026-08-25T09:23:03+01:00	The plan prescribed a test that could not fail	0	0	0	0	0	25	17	0	0	2
+ed761c315462	2026-08-25T09:18:23+01:00	The remedy names an absolute path, and claims only what was measured	15	17	0	0	0	0	62	0	0	4
+56e06f88f4a2	2026-08-25T09:13:13+01:00	init sees a KB git is already tracking	112	154	0	0	0	0	0	0	0	3
+d01bb9e50d7a	2026-08-25T09:10:59+01:00	CLAUDE.md: one plan is scheduled, and a heading is a status claim	0	0	0	0	0	0	0	22	0	1
+0b25f79d704e	2026-08-25T09:05:38+01:00	Plan: the check that runs before the hazard can exist	0	0	0	0	21	360	79	0	0	5
+733374e955e7	2026-08-25T02:09:44+01:00	0.30.2 verified from the index, and a hazard the pipe hid	0	0	0	0	44	0	0	0	0	3
+97b7c44cd917	2026-08-25T02:03:32+01:00	Fold the diagnostic fix into the untagged 0.30.2	0	0	0	0	56	0	63	0	9	4
+7eb2df554857	2026-08-25T01:56:46+01:00	The sentence describing the fix overclaimed in turn	0	0	0	0	7	0	15	0	0	2
+c1d28a1f2b02	2026-08-25T01:53:58+01:00	Rows and fragments for the diagnostic fix	0	0	0	0	2	0	48	0	0	3
+58acf8b1410d	2026-08-25T01:52:55+01:00	The diagnostic showed nothing, in the only case it was printed	10	69	19	0	0	0	0	0	0	4
+f3c68645300d	2026-08-25T01:49:42+01:00	Release 0.30.2 — the check that was not git	2	0	0	0	379	0	317	0	30	8
+1e389f3a0578	2026-08-25T01:43:40+01:00	The two documents that described the check as looking for text	0	2	0	0	17	0	10	0	0	4
+ae41f2c71c64	2026-08-25T01:39:36+01:00	Three lessons the review produced, recorded where they survive the session	0	0	0	0	0	0	23	0	0	1
+c9ae1b04f92d	2026-08-25T01:37:55+01:00	The remedy must never instruct an action that would not change the verdict	33	51	16	0	1	0	0	0	0	5
+60d4f93c833b	2026-08-25T01:33:47+01:00	Format the parametrize rows the gate wrapped	0	13	0	0	0	0	0	0	0	1
+1cb444ae4cc1	2026-08-25T01:32:51+01:00	The fragments say what the review changed	0	0	0	0	0	0	96	0	0	2
+e68c26340b98	2026-08-25T01:31:44+01:00	A test whose own name claimed the property it had stopped pinning	0	23	0	0	0	0	0	0	0	1
+d9498fa72d82	2026-08-25T01:30:48+01:00	Three named files were not a cover, and the review caught a regression	203	98	89	0	6	0	0	0	0	4
+1ffa5b4bad08	2026-08-25T01:27:10+01:00	A sweep for one direction of error is blind to its mirror	0	0	0	0	0	0	41	0	0	1
+2ec324eeed84	2026-08-25T01:25:28+01:00	The verification section for the check that asks git	0	0	0	0	10	0	0	0	0	1
+8d09229d624c	2026-08-25T01:22:21+01:00	The battery denominator said four while five were on disk	0	21	19	0	0	0	0	0	0	3
+e58e7df16a3e	2026-08-25T01:15:54+01:00	Two precedents that agreed, and the three that refuted them	0	0	0	0	0	0	105	0	0	1
+24c13d2f20c0	2026-08-25T01:15:15+01:00	Fragments for the detector that now asks git	0	0	0	0	0	0	84	0	0	2
+23b6f4f748f4	2026-08-25T01:13:42+01:00	The tests answered from the developer's machine, not from the code	0	19	0	0	0	0	0	0	0	1
+9096350db2c6	2026-08-25T01:11:49+01:00	0.30.1 verified from the index, and a row that had gone stale twice	0	0	0	0	24	0	0	0	0	2
+8dc7190d7855	2026-08-25T01:11:32+01:00	Re-anchor the trailing-slash mutant onto the simplified loop	0	0	6	0	0	0	0	0	0	1
+8ab601715d12	2026-08-25T01:11:17+01:00	The comment-skip was never what excluded a comment	24	0	18	0	0	0	0	0	0	2
+6ca42f127210	2026-08-25T01:10:07+01:00	The first mutation battery under `src/`	0	0	83	0	0	0	0	0	0	1
+08a1c52ccded	2026-08-25T01:08:31+01:00	A commented-out `.gitignore` line read as protection, and the ledger stayed tracked	80	109	0	0	0	0	0	0	0	2
+cbfbca360d35	2026-08-25T01:05:09+01:00	Release 0.30.1 — the assembled document nobody read	2	0	0	0	83	0	0	0	9	6
+51a34bb04142	2026-08-24T04:07:00+01:00	Splice the seven owed fragments into the two assembled documents	0	0	0	0	224	0	278	0	65	9
+3224df9016a5	2026-08-24T01:36:52+01:00	Four sentences told an implementer to write files the ownership table forbids	0	0	0	0	31	113	12	16	0	8
+e7b2d9104f0f	2026-08-24T01:27:52+01:00	Three instruments that reported the previous truth, one of them mine	0	0	23	0	0	0	25	0	0	3
+b05e70150a5f	2026-08-24T01:23:54+01:00	A closing note credited a fix three days older than the defect it claimed to fix	0	0	0	0	0	0	49	0	0	1
+9718aaaf8d95	2026-08-24T01:17:43+01:00	Five blocks of front-matter residue were rendering as headings, two on the live site	0	0	0	0	8	0	43	0	59	4
+0f7fbaf061ba	2026-08-24T01:17:42+01:00	The retro fragment names the invariant the widening buys	0	0	0	0	0	0	27	0	0	1
+e312ae992ec9	2026-08-24T01:16:58+01:00	--check simulates a write now, so it and --apply share one definition of the assembly	0	43	34	0	0	0	0	0	0	3
+20664178f606	2026-08-23T20:40:28+01:00	The changelog fragment says what the check actually reads	0	0	0	0	0	0	10	0	0	1
+840e0207854b	2026-08-23T20:39:55+01:00	--check now reads the document --apply would write, which is the item's own sentence	0	38	78	0	0	0	0	0	0	3
+f7e82211bb8e	2026-08-23T20:36:11+01:00	Fragments for the three defects the adversarial pass found	0	0	0	0	0	0	35	0	0	2
+f3e47332363d	2026-08-23T20:34:59+01:00	The splicer and the checker disagreed about what a heading is — and --apply was not atomic	0	70	72	0	0	0	0	0	0	3
+ae9de3fdd306	2026-08-23T20:31:28+01:00	A skipped region is not a checked region, and a message must name its own stream's mechanism	0	45	59	0	0	0	0	0	0	3
+4a088ed54807	2026-08-23T17:15:43+01:00	The retro fragment carries the finding the false-positive probe actually produced	0	0	0	0	0	0	29	0	0	1
+7bbc873c5930	2026-08-23T17:14:52+01:00	The front-matter residue was measured on one stream and reported as the whole story	0	0	12	0	0	0	0	0	0	1
+c6c8d1791406	2026-08-23T16:44:39+01:00	Fragments for the document gate	0	0	0	0	0	0	66	0	0	2
+26dd54a3510c	2026-08-23T16:34:51+01:00	Both survivors were real: one of them a regression this increment caused	0	21	0	0	0	0	0	0	0	1
+3786e5760ad7	2026-08-23T16:22:53+01:00	Eight mutants for the document gate, and the hole the spec decided to leave	0	17	74	0	0	0	0	0	0	2
+d3546f66734d	2026-08-23T16:22:01+01:00	0.30.0 verified from the index, and a count that was not a verdict	0	0	0	0	21	0	0	0	0	2
+cccb3826724d	2026-08-23T16:21:12+01:00	The document nothing read: fragments.py now gates its own output	0	138	146	0	0	0	0	0	0	2
+9d188b0700d8	2026-08-23T16:14:36+01:00	Release 0.30.0 — the Markdown the docs site never sees, now gated	2	0	0	0	153	25	114	9	40	13
+06c2acb26c29	2026-08-23T16:04:06+01:00	0.29.2 verified from the index, and a changelog nothing has ever read	0	0	0	0	24	0	9	0	92	4
+1132ea63c104	2026-08-23T16:01:09+01:00	Landing beside a peer: the overlap tool answers a different question	0	0	0	0	29	0	38	5	0	4
+ea0f0e7c25aa	2026-08-23T15:53:02+01:00	The gate would have crashed on every release from this one onward	0	38	59	0	1	0	0	0	0	4
+d50456e29921	2026-08-23T15:51:59+01:00	Release 0.29.2 — the links no gate reads	2	0	0	0	93	0	64	0	29	7
+2913f38aeb7d	2026-08-23T15:50:01+01:00	Adversarial pass: three false-positive classes, one of them in my own oracle	0	26	13	0	0	0	0	0	0	3
+3f26592c4b63	2026-08-23T15:47:24+01:00	The false-negative test the control leg cannot stand in for	0	17	2	0	0	0	0	0	0	2
+5cd79241c8e8	2026-08-23T15:46:15+01:00	Re-aim two mutants the mutation pass proved were aimed at nothing	0	6	9	0	0	0	0	0	0	2
+6d7c9e3009b6	2026-08-23T15:44:09+01:00	A link gate for the Markdown the docs site never sees	0	439	538	33	11	0	67	0	0	9
+562d0feecf9e	2026-08-23T15:42:31+01:00	The link surface no gate reads: 11 broken, and three spans rendering as wreckage	0	0	0	0	2	16	64	0	8	7
+78c7dd38fee0	2026-08-23T15:09:15+01:00	0.29.1 verified from the index, and a release a user's environment cannot observe	0	0	0	0	21	0	0	0	0	2
+d281f0ec0251	2026-08-23T15:03:21+01:00	Release 0.29.1 — the instruction file, extracted to its own guideline	2	0	0	0	111	0	76	0	35	8
+b194dc480fd4	2026-08-23T14:53:15+01:00	CLAUDE.md extracted to its own guideline: 274 -> 220, nothing lost	0	0	0	0	124	0	76	190	0	9
+0fa97ef8626f	2026-08-23T14:01:54+01:00	0.29.0 verified from the index, and a negative artifact claim checked a fourth time	0	0	0	0	21	0	0	0	0	2
+a1b6b22fcbfd	2026-08-23T13:54:49+01:00	Release 0.29.0 — the batteries were kept, and one caught what four green gates missed	2	0	0	0	201	0	172	0	59	10
+db25a4d980c0	2026-08-23T13:49:06+01:00	Settle your role before anything else — the rule, and where it lives	0	0	0	0	32	0	15	18	0	4
+b3d32e5b9a8f	2026-08-23T13:41:18+01:00	Review pass 4: the mutation pass found a tautology in a test written this session	0	43	0	0	0	0	0	0	0	2
+30d089eb1a8a	2026-08-23T09:27:03+01:00	Review pass 3: the gate gets the control every other gate here has	0	106	0	0	0	0	0	0	0	1
+c2160409e228	2026-08-23T09:22:04+01:00	Review pass 2: the corpus gets an inventory, and the documents get their numbers right	0	103	178	0	2	0	174	0	0	6
+5f3fa678ef94	2026-08-23T09:16:55+01:00	Review pass 1: two mutants that were killed about nothing, and the guard that class needed	0	171	462	0	0	0	0	0	0	6
+f93be6a51c3f	2026-08-23T08:40:05+01:00	The documents catch up, and mutate.py gets a battery of its own	0	3	112	0	28	0	77	5	0	9
+9e58a50c641f	2026-08-23T08:33:21+01:00	Mutation batteries get a committed home, and two ways to ask if they still hold	0	351	4	0	0	0	0	0	0	3
+332736861b92	2026-08-23T08:27:15+01:00	WIP: mutation batteries get a committed home, and a way to ask if they still hold	0	0	929	0	0	0	0	0	0	5
+0eb355a7882c	2026-08-23T04:18:32+01:00	0.28.3 verified from the index, and the first entry the gate wrote whole	0	0	0	0	30	0	0	0	0	2
+2f633a8f6b29	2026-08-23T04:13:47+01:00	Release 0.28.3 — a gate that could not see the list next door	2	0	0	0	129	0	88	0	41	7
+ffcc0d82806c	2026-08-23T04:08:13+01:00	The documents catch up with the seventh sequence	0	0	0	0	13	0	0	0	0	3
+b95c3643a26e	2026-08-23T04:01:35+01:00	0.28.2 verified from the index, and a check earning its keep on the second run	0	0	0	0	33	0	0	0	0	2
+949ddb2a7e7f	2026-08-23T03:55:39+01:00	release-order gate: verification rows and fragments for the not-behind rule	0	0	0	0	3	0	33	0	0	3
+c99ae7f6d57f	2026-08-23T03:55:39+01:00	release-order gate: the row may not lag the prose recording the same verification	0	104	63	0	0	0	0	0	0	2
+c8500cde7c76	2026-08-23T03:55:39+01:00	release-order gate: the Published versions row is a seventh sequence	0	212	84	0	3	0	55	0	0	5
+794089fee293	2026-08-23T03:53:01+01:00	Release 0.28.2 — the Guide's commands were re-run against the build that ships them	2	0	0	0	115	0	51	0	27	8
+7b913f2d0610	2026-08-23T03:46:30+01:00	The Guide, re-run against 0.28.1 — a stamp twenty-six releases old	0	0	0	0	109	0	51	0	0	4
+b836e1d637ae	2026-08-23T03:25:12+01:00	0.28.1 verified from the index, and the claim two checks could not carry	0	0	0	0	42	0	0	0	0	2
+3c57c1b1763c	2026-08-23T03:11:41+01:00	Release 0.28.1 — a gate audited against itself	2	0	0	0	141	0	65	0	29	8
+426e832c87f5	2026-08-23T02:52:50+01:00	STATUS: 0.28.0 verified from the index, and 0.27.2's entry that was never written	0	0	0	0	31	0	0	0	0	1
+ccd6dbda6ce4	2026-08-23T02:45:11+01:00	retro: when a constant cannot be declared, constrain it	0	0	0	0	0	0	45	0	0	1
+3d1caad6409f	2026-08-23T02:45:11+01:00	review pass: the ascend test asserted a sentence, not a pair	0	6	0	0	0	0	0	0	0	1
+6fdd6e4ccc90	2026-08-23T02:45:11+01:00	release-order: a Part cannot claim versions another Part already holds	0	93	57	0	2	0	9	0	0	4
+335cbe80b3f5	2026-08-23T02:45:11+01:00	review pass: a condition no test could ever pin	0	12	7	0	0	0	0	0	0	2
+40e2200da352	2026-08-23T02:45:11+01:00	release-order: bound how far a lagging sequence may fall behind	0	99	36	0	1	0	11	0	0	4
+f3ddfbfa1af3	2026-08-23T02:42:53+01:00	Release 0.28.0 — the port was four lines, the gate was not	2	0	0	0	212	0	211	0	67	12
+0cf44d5ca833	2026-08-23T02:32:09+01:00	The race is at every protocol version, and now the numbers say so	0	0	16	0	0	0	0	0	0	1
+f5de7b71e666	2026-08-23T02:26:59+01:00	Round two: the fixes had the defect they fixed, at the call sites they missed	0	116	0	0	0	0	0	0	0	1
+41085245a3e1	2026-08-22T19:26:34+01:00	docs/CLI.md: pnk serve now reports Pinakes' version in serverInfo	0	0	0	0	7	0	0	0	0	1
+3f6285709529	2026-08-22T19:24:09+01:00	Fragments: the changelog entries and the increment's retrospective	0	0	0	0	0	0	114	0	0	2
+a894160f33fb	2026-08-22T19:17:38+01:00	The timeout test pinned its message and not its clock; the battery said so	0	15	0	0	0	0	0	0	0	1
+4f1d4243bd62	2026-08-22T19:14:51+01:00	Review pass: sixteen findings, and the one sitting in the release's path	0	359	65	0	0	0	6	0	0	7
+dbc00e288f73	2026-08-22T19:02:36+01:00	retro: a gate must not derive a constant from the document it polices	0	0	0	0	0	0	50	0	0	1
+68eec0139533	2026-08-22T18:58:47+01:00	release-order: every release present in every sequence that declares it	0	89	131	0	3	0	10	0	0	5
+e03c211b74d4	2026-08-22T18:58:24+01:00	Merge origin/main (placement gate, doc corrections) into the mcp 2.x port	0	0	0	0	0	0	26	0	0	2
+f693276b9e5e	2026-08-22T18:49:54+01:00	review pass: two survivors, and one was a test satisfied by absence	0	48	0	0	0	0	0	0	0	1
+b3fa00e6056d	2026-08-22T18:44:58+01:00	release-order: every section under the Part whose range holds it	0	175	161	0	2	0	9	0	0	5
+cd41642f22e7	2026-08-22T18:43:29+01:00	The handshake the port broke, replaced by one that cannot flake	0	373	448	124	6	0	0	0	0	8
+a641cb34c483	2026-08-22T18:35:24+01:00	PROPOSAL (planner to land): STATUS :907 past tense, RELEASING row 71 and the negative artifact check	0	0	0	0	22	0	0	0	0	2
+1a0d9b497115	2026-08-22T13:25:30+01:00	WIP: serve.py on mcp 2.x — the port itself, before the gates	24	0	0	0	0	0	0	0	0	2
+bf2599bd5f98	2026-08-22T11:06:12+01:00	Release 0.27.2 — the install is a region no test reached	2	0	0	0	250	0	213	0	46	9
+ad013fe919ef	2026-08-22T10:49:10+01:00	The last survivor: a test that read the help text instead of the behaviour	0	26	5	0	0	0	0	0	0	2
+be9160c9dad6	2026-08-22T10:44:49+01:00	Third review: exit 0, the job, the floor's value, and make's ignore prefix	0	166	26	0	4	0	27	0	0	6
+fa4752a6cac7	2026-08-22T10:09:28+01:00	Two more survivors: the exit status, and the pipe on the continuation line	0	21	0	0	0	0	0	0	0	1
+e16c1ddc9c70	2026-08-22T10:05:47+01:00	Pin make smoke's own two checks, so the target cannot regress silently	0	24	0	0	0	0	0	0	0	1
+3b159457f8a1	2026-08-22T10:04:16+01:00	Second review: the remedies for the first review's findings had defects too	0	197	43	39	2	0	46	0	0	9
+2343386b1194	2026-08-22T09:27:14+01:00	Three mutants survived, so three assertions were not pinned	0	68	0	0	0	0	0	0	0	2
+bc715b547480	2026-08-22T09:25:15+01:00	Review pass: the allowance forgave the module the gate exists for	0	188	112	102	4	0	129	0	0	13
+15f1fac72f7b	2026-08-22T08:50:17+01:00	Cap mcp below 2.0, and make CI resolve dependencies the way a user does	0	397	262	76	0	0	20	0	0	9
+d525254f6974	2026-08-22T08:34:59+01:00	retro: the mechanism half — refute the proposed fix as a separate verdict	0	0	0	0	0	0	14	0	0	1
+62f81a44af94	2026-08-22T08:28:35+01:00	retro: verify the remedy, not only the finding	0	0	0	0	0	0	35	0	0	1
+9b88ad7f4966	2026-08-22T08:17:39+01:00	Verify 0.27.1 reached PyPI, and flip the claims held back for evidence	0	0	0	0	38	0	0	0	0	2
+689b54444782	2026-08-22T08:09:36+01:00	Release 0.27.1 — the gates read what they were cited for	2	0	0	0	90	0	53	0	24	8
+fcfd54eccef5	2026-08-22T08:00:15+01:00	retro: a gate cited by a procedure it cannot read	0	0	0	0	0	0	38	0	0	1
+8a74efcfd77a	2026-08-22T07:59:29+01:00	review pass: a stale CI comment, and the cost of the lag exemption said out loud	0	0	7	2	0	0	0	0	0	2
+5eef75301c54	2026-08-22T07:53:35+01:00	release-order: read STATUS's Published on PyPI prose, the sixth sequence	0	121	76	0	22	0	9	0	0	6
+edb718733324	2026-08-22T07:41:28+01:00	fragments: refuse a fragment that opens with a front-matter fence	0	63	30	0	0	0	6	0	0	3
+e030b482d7f9	2026-08-22T07:36:10+01:00	Verify 0.27.0 reached PyPI, and flip the claims held back for evidence	0	0	0	0	25	0	0	0	0	2
+60d4ae4df1f3	2026-08-22T07:29:43+01:00	Release 0.27.0 — the mutation step gets its guard	2	0	0	0	151	23	102	6	33	10
+722ef94de344	2026-08-22T07:18:38+01:00	VERIFICATION rows and the two fragments; docs/BUILDING.md § 4 proposed, not edited	0	0	0	0	10	0	102	0	0	3
+9117769d4a6c	2026-08-22T07:11:33+01:00	Two more redundant guards, now tested on the states no battery can produce	0	60	0	0	0	0	0	0	0	1
+4c3d698b12e6	2026-08-22T07:08:41+01:00	Review pass 2: pytest's <error> tag covers two opposite events, and conflating them lost real kills	0	110	100	0	0	0	0	0	0	2
+617fa3655fc3	2026-08-22T02:48:40+01:00	The two mutants nobody killed, and the tests that now do	0	52	0	0	0	0	0	0	0	1
+161f8a6c222e	2026-08-22T02:45:17+01:00	Two more guards nothing had watched fail: SIGHUP/SIGQUIT, and the redundant anchor check	0	49	0	0	0	0	0	0	0	1
+b1d1fb3d62e7	2026-08-22T02:45:17+01:00	Review pass 1: eleven confirmed defects in the harness, and the tests that watch each one fail	0	543	595	0	0	0	0	0	0	2
+3d9fad7e5cbb	2026-08-22T02:45:17+01:00	The mutation harness: tools/mutate.py, and its tests	0	614	667	0	0	0	0	0	0	2
+735cee10695a	2026-08-22T02:43:29+01:00	Verify 0.26.0 reached PyPI, and a list that had been six releases behind	0	0	0	0	31	0	0	0	0	2
+321e49fedaff	2026-08-22T02:37:53+01:00	Release 0.26.0 — a paid run tells you what it learned about your KB	2	0	0	0	223	89	99	28	34	12
+95e2f8bfde99	2026-08-22T02:35:36+01:00	ign	0	0	0	0	0	0	0	0	0	1
+725f2d274700	2026-08-22T02:27:11+01:00	E7: fragments, and one more docstring that claimed a constraint it did not have	10	0	0	0	0	0	99	0	0	4
+ca22a3a6db89	2026-08-22T02:21:18+01:00	E7 review pass 2: a DESIGN risk row that has been false since E4	0	0	0	0	7	0	0	0	0	2
+bef76b1200e2	2026-08-22T02:17:32+01:00	E7 review pass: six findings, four of them defects the tests could not see	62	111	0	0	5	0	0	0	0	5
+b53c9dd2bbc0	2026-08-22T02:09:30+01:00	E7: the control mutant survived — nothing pinned the values it prints	6	23	0	0	66	0	0	0	0	5
+876dafa1975a	2026-08-22T02:00:49+01:00	E7: the direction tests could not tell path order from mint order	5	22	0	0	0	0	0	0	0	2
+471b19265d1f	2026-08-22T01:59:01+01:00	E7: a deep run ends by printing the links its own citations propose	359	546	0	0	0	0	0	0	0	6
+f9d402efed71	2026-08-21T23:57:07+01:00	Verify 0.25.4 reached PyPI, and flip the claims held back for evidence	0	0	0	0	11	0	0	0	0	2
+b1dcf8d9d883	2026-08-21T23:53:46+01:00	Release 0.25.4 — what the mutation battery cannot reach	2	0	0	0	79	0	0	0	12	6
+8c783fc9c962	2026-08-21T23:46:05+01:00	Verify 0.25.3 reached PyPI, and flip the claims held back for evidence	0	0	0	0	12	0	0	0	0	2
+6f5418c49133	2026-08-21T23:43:45+01:00	estimate.py: restore the shell command my own reflow flattened	4	0	0	0	0	0	0	0	0	1
+cc20f17d9a46	2026-08-21T23:40:10+01:00	"Adversarial pass: ""two thirds of a round's price"" is a defaults-only claim"	5	0	0	0	13	0	0	0	0	5
+3d6b11579074	2026-08-21T23:36:11+01:00	Release 0.25.3 — the deep loop is measured	2	0	0	0	126	0	104	0	45	9
+7117e894a642	2026-08-21T23:33:35+01:00	E6 is built: the handover, across all five surfaces	0	0	0	0	42	67	0	10	0	6
+5efe095d5394	2026-08-21T23:33:35+01:00	changelog: the report's settlement defects and the tests that hold them	0	0	0	0	0	0	15	0	0	1
+585f3dec45f0	2026-08-21T23:33:35+01:00	E6: tests for tools/deep_reservation.py, the tool that publishes the numbers	0	592	0	0	0	0	0	0	0	1
+815a45b3320e	2026-08-21T23:33:35+01:00	deep_reservation: the report could print a wrong factor and say nothing	0	0	218	0	0	0	0	0	0	1
+a4076cfda17b	2026-08-21T23:33:35+01:00	"DESIGN §5: over-reservation is measured, and it is not ""slight"""	0	0	0	0	34	0	0	0	0	1
+5bca13baa2fb	2026-08-21T23:33:35+01:00	E6: the measurement run is done, and its runbook had two defects in one step	0	0	0	0	95	0	89	0	0	4
+b598d4d8c1b2	2026-08-21T23:33:35+01:00	E6: every deep-estimate constant carries its measurement and the command	86	0	0	0	0	0	0	0	0	1
+847e1a01b7ce	2026-08-21T23:33:35+01:00	deep_reservation: --json raised TypeError on every row, on both subcommands	0	0	29	0	0	0	0	0	0	1
+0b52d3c6d5ee	2026-08-21T23:32:45+01:00	Verify 0.25.2 reached PyPI, and flip the claims held back for evidence	0	0	0	0	12	0	0	0	0	2
+af9b2f5c9268	2026-08-21T23:27:54+01:00	Review pass: nine findings fixed, one judged no-change	0	0	0	0	14	6	0	10	0	5
+84af1054dcab	2026-08-21T16:03:45+01:00	Release 0.25.2 — the guidance carries its own lessons	2	0	0	0	37	0	8	0	16	5
+a1b709f3e881	2026-08-21T08:48:07+01:00	Route the retrospectives' recurring lessons into the guidance that runs	0	0	2	0	86	76	8	55	0	8
+640e9c8d5427	2026-08-21T08:29:47+01:00	Verify 0.25.1 reached PyPI, and that the wheel contains the fix	0	0	0	0	31	0	0	0	0	2
+e10c300b5545	2026-08-21T08:26:44+01:00	CLAUDE.md: rebalance the bold spans in the deep-release pointer	0	0	0	0	0	0	0	2	0	1
+e534f1c937d0	2026-08-21T08:23:36+01:00	Release 0.25.1 — `pnk ask --deep` works against the live API	2	0	0	0	104	0	40	2	23	7
+5389b7e01ee5	2026-08-12T09:20:37+02:00	E6: price the enum's growth, and verify both branches against the live API	9	0	0	0	0	0	0	0	0	1
+2fec56ad23cc	2026-08-12T09:13:06+02:00	E6: keep the citation bound as an enum; the API refuses the form E4 wrote	92	87	36	0	0	0	0	0	0	3
+f03f3bd02856	2026-08-12T08:41:44+02:00	E6: record the schema finding where it survives the machine	0	0	0	0	0	0	40	0	0	1
+ebda2826356d	2026-08-12T08:14:14+02:00	E6: the measurement run finds `pnk ask --deep` 400s on every live call	0	0	356	0	0	0	0	0	0	1
+7028978999bd	2026-08-12T08:07:08+02:00	E6 WIP: the deep-loop half of docs/MEASUREMENT-RUN.md	0	0	0	0	289	0	0	0	0	1
+fe653bcfde0c	2026-08-12T07:42:34+02:00	docs/README.md's plan row said eight decisions; the plan has ten	0	0	0	0	2	0	0	0	0	1
+c4b52abd46fc	2026-08-12T07:40:15+02:00	Verify 0.25.0 reached PyPI, and that the wheel contains E5	0	0	0	0	24	0	0	0	0	2
+8643fe946c7c	2026-08-12T07:35:38+02:00	Release 0.25.0 — a paid run leaves a record of what it was asked	2	0	0	0	171	0	74	0	36	7
+681036376d5f	2026-08-12T07:30:06+02:00	E5 sixth review pass: two overclaims in prose this increment wrote	0	0	0	0	14	0	0	0	0	2
+7dab18d3cec6	2026-08-12T07:28:03+02:00	E5 fifth review pass: the free-path gate now covers the second `pinakes.deep` module	0	20	0	0	0	0	7	0	0	3
+ed18fee5fefd	2026-08-12T07:24:21+02:00	E5 fourth review pass: the module docstring stated the opposite of a shipped test	24	0	0	0	0	0	0	0	0	1
+96f5779c3738	2026-08-12T07:22:15+02:00	E5 third review pass: what the increment's neighbours inherit from it	0	0	0	0	0	26	0	12	0	2
+dcf5a36f35a9	2026-08-12T07:19:11+02:00	E5 second review pass: the confirmation opened with €0.0000, and a path that depended on the OS	29	7	0	0	0	0	0	0	0	2
+260b6c6c2f9e	2026-08-12T07:15:48+02:00	E5 first review pass: a comment a mutation-restore had silently reverted, and the documents	15	0	0	0	67	63	67	2	0	13
+1c39375b8a5d	2026-08-12T07:07:03+02:00	E5 mutation pass: six assertions broken on purpose, and one test that did not notice	0	96	0	0	0	0	0	0	0	1
+31023e7c1206	2026-08-12T07:01:29+02:00	E5: the run transcript under `.pinakes/deep/<operation_id>.json`	574	525	0	0	0	0	0	0	0	5
+34403ff8f32a	2026-08-12T00:41:30+02:00	Handover: two entry points still sent E5 to do work E4 closed	0	0	0	0	2	2	0	0	0	2
+311a8764156a	2026-08-12T00:38:44+02:00	Verify 0.24.0 reached PyPI, and that the wheel contains the flag	0	0	0	0	16	0	0	0	0	1
+afb9d4670e2b	2026-08-12T00:33:17+02:00	Release 0.24.0 — `pnk ask --deep` answers	2	0	0	0	408	0	343	0	125	17
+397bc00f236e	2026-08-12T00:23:39+02:00	E4 sixth review pass: the free path's *positive* half, and a sweep that found nothing else	0	21	0	0	1	0	0	0	0	2
+efb453d327eb	2026-08-12T00:20:50+02:00	E4 fifth review pass: a stop reason added later would have lied about which bound ended the run	52	44	0	0	2	0	0	0	0	4
+1a8d85eff8ab	2026-08-12T00:14:21+02:00	E4 fourth review pass: three claims checked by running them, and E5 got smaller	6	51	0	0	7	12	0	2	0	7
+3889118e14ca	2026-08-12T00:07:31+02:00	E4 third review pass: the documentation, read by running the commands it shows	31	101	0	0	341	63	28	2	0	13
+41fa202c4591	2026-08-11T23:53:07+02:00	E4 second review pass: a Ctrl-C voided a call that may have billed — in both paid clients	21	64	0	0	1	0	29	0	0	6
+75ab3703ce38	2026-08-11T23:46:39+02:00	E4 first review pass: four findings, all in what the code does rather than how it reads	75	85	0	0	2	0	0	0	0	7
+339c74017cd5	2026-08-11T23:40:49+02:00	E4 mutation pass: six targets, five already killed, one hole found and closed	0	35	0	0	1	0	0	0	0	2
+11067e6b67e0	2026-08-11T23:38:19+02:00	E4: the loop — `pnk ask --deep` answers, bounded by [deep] and [budget]	1527	1394	0	0	30	0	30	0	0	32
+3219747e46d5	2026-08-11T22:12:25+02:00	Two decisions taken at E3's boundary: nothing in the deep plan is undecided	0	0	0	0	8	88	0	2	0	4
+cc2b40031f47	2026-08-11T19:30:14+02:00	E3 handover: E4 is next, and it is blocked on a question no plan answered	0	0	0	0	24	79	0	2	0	5
+449c63d49c16	2026-08-11T19:25:19+02:00	E3 fourth review pass: two sentences this commit falsified, in the file it edited	12	0	0	0	0	0	10	0	0	2
+4792ddc2517f	2026-08-11T19:23:49+02:00	E3 third review pass: a module with no test file of its own	0	268	0	0	16	0	13	0	0	4
+6541a89dcce2	2026-08-11T19:19:37+02:00	E3 second review pass: a settable ceiling, and a version nothing read	35	76	0	0	6	0	29	0	0	4
+404ccb10fe76	2026-08-11T19:14:54+02:00	E3 review pass: six findings, and a ceiling spent twice over	84	242	0	0	0	0	67	0	0	3
+b337290100da	2026-08-11T19:05:40+02:00	E3: the deep client, and the second entry on the allowlist	1189	1193	0	0	35	0	28	5	0	27
+d032165c4fe4	2026-08-11T18:33:47+02:00	E2 handover: E3 is next, and what E2 measured that E3 and E4 need	0	0	0	0	5	55	0	2	0	5
+796afc0b53e0	2026-08-11T18:26:05+02:00	E2 third review pass: pin the second measurement, mark the assumed half	9	11	10	0	0	0	0	0	0	3
+a9cff4655e36	2026-08-11T18:22:23+02:00	E2 second review pass: a ceiling below its own measurement	29	32	17	0	0	0	36	0	0	5
+5296a45f0d8d	2026-08-11T18:16:12+02:00	E2 review pass: the question was never priced, and three smaller findings	62	86	0	0	0	0	52	0	0	3
+72c71756c0f3	2026-08-11T18:08:08+02:00	E2: the deep release's round estimator	421	429	126	0	0	0	21	0	0	7
+02e81efba11b	2026-08-11T17:45:56+02:00	0.23.0 is on PyPI, verified by installing it	0	0	0	0	18	0	8	0	0	2
+ae511f14f2a8	2026-08-11T17:41:02+02:00	Rule: a boundary needing a context clear is a stop	0	0	0	0	21	0	10	14	0	3
+4dfd73a64367	2026-08-11T17:34:40+02:00	Release 0.23.0 — `pnk ask` exists	2	0	0	0	116	0	103	0	88	14
+a3517b1657cf	2026-08-11T17:24:27+02:00	E1 handover: every pointer a merge would falsify	0	0	0	0	12	22	0	2	0	4
+bbfaa5255001	2026-08-11T17:20:10+02:00	E1 review: one vocabulary, and the notice carried not re-derived	35	0	0	0	0	0	39	0	0	2
+c887248cc5cc	2026-08-11T17:15:26+02:00	E1 docs: pnk ask, and the third `unknown` branch	0	34	0	0	136	0	0	0	0	5
+fb7eebba7b98	2026-08-11T17:07:26+02:00	E1: pnk ask, the free question surface	268	442	0	0	0	0	18	0	0	7
+c6008d546339	2026-08-11T16:50:02+02:00	E1's spec: what it must not build	0	0	0	0	0	29	9	0	0	2
+41a30acaa2a6	2026-08-11T16:43:31+02:00	STATUS: the wedged run does not hold the concurrency group	0	0	0	0	20	0	7	0	0	2
+d856c434415c	2026-08-11T16:39:42+02:00	STATUS: a run that never reported success had already shipped	0	0	0	0	36	0	10	0	0	2
+e82667124358	2026-08-11T16:20:25+02:00	Eight decisions taken: the deep-release plan is a build order now	0	0	0	0	18	67	10	4	0	5
+fb100309e842	2026-08-11T16:11:18+02:00	The deep release has a plan, and eight decisions that block it	0	0	0	0	34	485	10	5	0	5
+308818de060e	2026-08-11T15:55:42+02:00	STATUS: 0.22.2 verified against the index, and the lag is now the expected shape	0	0	0	0	10	0	0	0	0	1
+cac1d2ccbd92	2026-08-11T15:52:28+02:00	Release 0.22.2 — the release history reads in order, and a gate keeps it that way	2	0	0	0	122	0	64	0	21	7
+2922a0c50506	2026-08-11T15:47:42+02:00	Third pass: two claims this branch falsified, and one it walked past	0	0	0	0	4	0	4	0	0	3
+ef02ce0d6873	2026-08-11T15:44:23+02:00	Second pass: the new gate was not itself gated	0	28	0	0	6	0	0	0	0	2
+0ccc200cb4e3	2026-08-11T15:41:35+02:00	Adversarial pass: the gate must fail as a gate, and be watched doing it	0	12	25	0	0	0	0	0	0	2
+48945d784e86	2026-08-11T15:38:16+02:00	Release order is a gate, not a convention	0	146	132	31	303	6	60	0	0	10
+178dd1c1f31f	2026-08-11T14:36:06+02:00	STATUS: 0.22.1 verified, and which of the three caches lied	0	0	0	0	25	0	0	0	0	2
+93c20aba7450	2026-08-11T14:31:33+02:00	Release 0.22.1 — a release sweep is table-shaped	2	0	0	0	115	0	57	0	24	8
+1eebb15d151e	2026-08-11T14:25:37+02:00	Docs: the roadmap's narrative said 0.21.0 while its tables said 0.22.0	0	0	0	0	86	0	57	2	0	5
+497bda0c206a	2026-08-11T10:39:39+02:00	STATUS: 0.22.0 verified, and the first release this project did not finish by hand	0	0	0	0	20	0	0	0	0	1
+df832fe840dd	2026-08-11T10:30:44+02:00	Release 0.22.0 — eight decisions, and two of them were never decisions	2	0	0	0	80	0	54	25	69	13
+70ee2d9a75fe	2026-08-11T10:25:50+02:00	D-19 review pass: the flag assertion was satisfied by the comment explaining the flag	0	12	0	0	0	0	0	0	0	1
+205b32d28e96	2026-08-11T10:23:16+02:00	D-19: the release workflow creates the release, six misdiagnoses later	0	36	0	23	15	0	6	0	0	4
+58adfe28a81b	2026-08-11T10:19:11+02:00	D-20: `pnk init --backend`, and three copies of a false sentence	47	43	0	0	42	0	11	0	0	8
+0a60429fda39	2026-08-11T10:12:00+02:00	D-15 review pass: nothing asserted that a rebuild never spends	0	77	0	0	0	32	0	0	0	3
+45e89381b22f	2026-08-11T10:05:14+02:00	D-15: --rebuild re-chunks a protected paid document from the extraction cache	186	113	0	0	0	0	12	0	0	4
+00e95051a561	2026-08-11T09:56:26+02:00	D-17 review pass: adding a header field makes older artifacts un-comparable	10	0	0	0	0	30	0	0	0	2
+98add80ebefb	2026-08-11T09:53:29+02:00	D-17: the eval header records the tier that ran, beside the one that was asked for	16	52	5	0	0	0	8	0	0	4
+776767ef3fd5	2026-08-11T09:48:30+02:00	D-16 review pass: docs/CLI.md stated the old behaviour, and the JSON path had no test	0	23	0	0	3	34	0	0	0	4
+992dcf1c4ae3	2026-08-11T09:43:46+02:00	D-16: `--apply` records the reference when there is no diff to write	60	70	0	0	4	0	9	0	0	5
+17409759ac5d	2026-08-11T09:36:43+02:00	Close open-corrections item 4 in the plan that owns it	0	0	0	0	0	43	0	0	0	1
+88643168e1b3	2026-08-11T09:34:11+02:00	D-18 review pass: the create case was tested and the adoption case was not	0	31	0	0	0	0	0	0	0	1
+99723ade6b64	2026-08-11T09:31:29+02:00	D-18: `pnk init` validates before it writes, and the item's premise was false	77	81	0	0	0	0	8	0	0	4
+f7d7447e70cb	2026-08-11T09:26:45+02:00	Decisions: both gates answered, and all four open corrections unblocked	0	0	0	0	20	300	0	4	0	6
+42406db6f337	2026-08-10T04:14:55+02:00	CLAUDE.md: a nested `**` inverted the emphasis for the rest of the entry	0	0	0	0	0	0	0	2	0	1
+864ce6eb75fb	2026-08-10T04:10:41+02:00	The recurring release failure was an absent step, not a broken one	0	0	0	0	41	0	0	0	0	2
+5cb1aff76935	2026-08-10T04:01:13+02:00	STATUS: 0.21.1 verified against the published wheel, and the sixth manual release	0	0	0	0	23	0	0	0	0	1
+c83e877d1f05	2026-08-10T03:55:46+02:00	Release 0.21.1 — a damaged template says so, and the gate reads what it was chunked under	2	0	0	0	149	89	65	17	39	10
+f23383138585	2026-08-10T03:47:28+02:00	The changelog fragment covers what passes 2 and 3 changed	0	0	0	0	0	0	11	0	0	1
+98c0b417e5f5	2026-08-10T03:45:09+02:00	Review pass 4: a comment claimed the fixture discriminated, one test after measuring that it does not	0	21	0	0	0	0	0	0	0	1
+16f40b4a62ab	2026-08-10T03:42:27+02:00	Review pass 3: the OSError arm could print the install path, and the first test for it could not fail	9	59	0	0	0	0	0	0	0	2
+5b2047fbed72	2026-08-10T03:37:08+02:00	Review pass 2: the permission test used the one mechanism this repo has ruled out twice	12	38	7	0	0	0	0	0	0	3
+70fd5870b347	2026-08-10T03:30:12+02:00	Review pass: absent and damaged are opposite advice, so they are two exceptions	50	58	0	0	0	0	35	0	0	7
+4c0ff080277e	2026-08-08T20:21:44+02:00	Open corrections 1 and 3: the graph gate reads `chunking`, a damaged template is a message	115	262	14	0	0	0	19	0	0	9
+56c0e2317741	2026-08-08T12:28:50+02:00	STATUS: 0.21.0 verified against the wheel, and the fifth manual release	0	0	0	0	26	0	0	0	0	1
+96b3b3534b95	2026-08-08T12:22:59+02:00	Release 0.21.0 — a template says what it installs	2	0	0	0	255	36	100	9	37	16
+a8bebc3927f6	2026-08-08T12:11:24+02:00	T7 review pass 5: TOML-escape the fixture's declared file list	0	7	0	0	0	0	0	0	0	1
+64c5482f4143	2026-08-08T12:09:10+02:00	T7 review pass 4: the extraction dropped one of the four failed attempts	10	0	0	0	0	0	0	0	0	2
+f78cd40781c4	2026-08-08T12:06:56+02:00	T7 review pass 3: `init` was never tested against a declaration	0	33	0	0	1	0	0	0	0	2
+807f1843ff8a	2026-08-08T12:03:52+02:00	T7 review pass 2: `files` sat outside the invariant that should cover it	0	52	52	0	3	0	32	0	0	5
+20501e5730c8	2026-08-08T11:55:16+02:00	T7 review pass 1: a test that was green for the wrong reason	64	92	0	0	3	0	55	0	0	6
+0c3ccd60fdf5	2026-08-08T11:48:31+02:00	T7: `pnk templates`, and a template declares the files it writes	278	353	0	0	15	0	13	0	0	12
+4be7975d043d	2026-08-08T08:55:25+02:00	STATUS: 0.20.1 verified against the wheel, and the fourth manual release	0	0	0	0	16	0	0	0	0	1
+2da0e07e222e	2026-08-08T08:49:04+02:00	Release 0.20.1 — a tier that is not built stops being accepted	2	0	0	0	128	0	49	4	24	9
+893743b89da5	2026-08-08T08:39:33+02:00	T5 review pass 2: the GUIDE sent slow-search users straight into the break	0	0	0	0	3	0	0	0	0	1
+b404e56113bf	2026-08-08T08:36:32+02:00	T5 review pass 1: two stale ROADMAP claims, and the same defect two files away	4	0	0	0	14	32	0	0	0	3
+2cfcf8f33a13	2026-08-08T08:32:00+02:00	T5 docs: the tier row, DESIGN's reasoning, D-4 recorded, fragments	0	0	0	0	27	36	49	0	0	8
+31ea8a92973e	2026-08-08T08:25:10+02:00	"T5: vector_tier = ""sqlite-vec"" is refused instead of silently ignored"	83	88	0	0	0	0	0	0	0	6
+574b6977945b	2026-08-08T07:54:41+02:00	STATUS: 0.20.0 verified against the wheel, and the manual release step is now a rule	0	0	0	0	15	0	0	0	0	1
+d429a2ce5b57	2026-08-08T07:47:05+02:00	Release 0.20.0 — adopting the change, after you have seen it	2	0	0	0	242	44	188	4	35	9
+bf721e2a6dea	2026-08-08T07:40:20+02:00	T4 review pass 5: no new defect, and the coverage claim made checkable	0	0	0	0	0	0	9	0	0	1
+4745b9b3bb41	2026-08-08T07:37:22+02:00	T4 review pass 4: nothing in the code, three falsehoods in documents T4 never opened	0	0	0	0	13	0	20	0	0	3
+e58cdef55c69	2026-08-08T07:32:34+02:00	T4 review pass 3: two fixes that were not finished, and a gap stated rather than closed	17	49	0	0	4	0	17	0	0	5
+dc160b4e58b9	2026-08-08T07:28:17+02:00	T4: fix a long line pass 2 committed over a red gate, and record how	0	3	0	0	0	0	9	0	0	2
+dcc8f7d9b912	2026-08-08T07:26:27+02:00	T4 review pass 2: a correct function reused one scope too wide	44	84	0	0	3	0	23	0	0	4
+712f238e0d2a	2026-08-08T07:24:13+02:00	T4 review pass 1: five defects, all of them properties of the write	64	94	0	0	5	0	18	0	0	4
+9ab2d6d68ae1	2026-08-08T07:18:57+02:00	T4: the eleven mutation targets, run and recorded	0	0	0	0	0	0	26	0	0	1
+05350bbdcac1	2026-08-08T07:17:03+02:00	T4 docs: the manifest has exactly one writer, and three documents said otherwise	9	0	0	0	176	0	66	0	0	9
+a8528df55388	2026-08-08T07:11:33+02:00	T4: pnk upgrade --apply, with its tests and its verification rows	16	871	0	0	29	0	0	0	0	5
+83c3c770ff39	2026-08-08T06:58:01+02:00	WIP T4: pnk upgrade --apply, working end to end against the plan's fixture	747	0	0	0	0	0	0	0	0	3
+e27c0decd6c5	2026-08-08T06:45:42+02:00	CLAUDE.md: offering a context clear is part of finishing an increment	0	0	0	0	0	0	0	5	0	1
+46b7826777b6	2026-08-08T06:41:03+02:00	CLAUDE.md: working mode is autonomous, and where its limit is	0	0	0	0	0	0	0	15	0	1
+86b882b90bb9	2026-08-08T06:31:36+02:00	CLAUDE.md: T3 shipped in 0.19.0, and the stamp is its landing	0	0	0	0	0	0	0	2	0	1
+67a75982197d	2026-08-08T06:26:53+02:00	STATUS: 0.19.0 verified on the index, and two ways the verification nearly lied	0	0	0	0	14	0	0	0	0	1
+2403e48fc9b1	2026-08-08T06:22:13+02:00	Release 0.19.0 — what the template changed, in your own file	2	0	0	0	277	0	245	0	36	8
+186af6c4f58e	2026-08-08T06:18:07+02:00	T3 review, pass 5: no defect in shipped behaviour — the loop closes	30	58	0	0	8	15	17	0	0	7
+17f7c2a71adb	2026-08-08T05:19:43+02:00	T3 review, pass 4: two headline fixes were unpinned, and three batches had silently aborted	13	120	0	0	13	1	29	0	0	8
+1f30f19310d2	2026-08-08T04:48:26+02:00	T3 retro: pass 3's three findings, recorded	0	0	0	0	0	0	25	0	0	1
+500d925f158f	2026-08-08T04:47:31+02:00	T3 review, pass 3: a remedy that names the wrong version, and a table the correction broke	13	94	0	0	35	47	5	2	0	11
+aeb067d4ac70	2026-08-08T03:20:36+02:00	T3 review, pass 2: the fixes needed the same scrutiny as the code they fixed	10	98	0	0	37	34	35	0	0	12
+a9c1487b171f	2026-08-08T02:36:58+02:00	T3 review: the writes-nothing test could not see a write, and the predicate asked the wrong question	165	205	0	0	57	29	63	0	0	14
+76649aa50c6b	2026-08-08T02:03:22+02:00	T3 mutation testing: two survivors, one of them the harness lying	0	27	0	0	1	0	52	0	0	3
+f44af32905f6	2026-08-08T01:58:39+02:00	T3: pnk upgrade prints what the template changed, and whether it still fits	516	861	0	0	167	0	27	2	0	15
+c546ee6d6a0e	2026-08-08T01:28:00+02:00	T3 decision: O-2's exit code 3, applied over the sentence that contradicted it	0	0	0	0	0	83	0	0	0	1
+da92d4e3f3ea	2026-08-08T00:47:56+02:00	STATUS: 0.18.0 verified on the index, not assumed	0	0	0	0	11	0	0	0	0	1
+e46a2eecac5c	2026-08-08T00:42:24+02:00	Release 0.18.0 — the drift warning says something you can act on	2	0	0	0	120	0	76	0	42	8
+0b7e2e4c95d5	2026-08-08T00:33:49+02:00	T2 docs: the check's four outcomes, and the caveat it half-closes	0	0	0	0	39	27	0	2	0	5
+25cf06054d5a	2026-08-08T00:28:22+02:00	T2 review: four findings, two of them in strings a user reads	37	43	0	0	0	0	67	0	0	4
+c9a7313d1872	2026-08-08T00:23:14+02:00	T2: two mutants survived the first pass; both were test defects	0	24	0	0	0	0	0	0	0	1
+3e55814e5b2f	2026-08-08T00:18:49+02:00	T2: pnk doctor reports template drift as a diff, not a version string	183	373	15	0	0	0	0	0	0	6
+b60b8a0f58e1	2026-08-07T23:47:38+02:00	Docs audit: the twelve that misled a reader, and .env.example	0	0	0	0	101	477	9	0	0	9
+8b44aa88714a	2026-08-07T23:25:28+02:00	STATUS: 0.17.0 verified on the index, not assumed	0	0	0	0	16	0	0	0	0	1
+063dbe161d02	2026-08-07T23:19:43+02:00	Release 0.17.0 — the template release, interim cut (T1)	2	0	0	0	289	0	131	2	32	13
+b33414f3f3c0	2026-08-07T22:27:01+02:00	T1 review fixes: the gate claimed the strong mode over a tree it never looked at	2	257	241	0	12	0	52	0	0	5
+5a3d126033c8	2026-08-07T21:38:32+02:00	T1 review: what mutation testing found — a dead branch, a shared vector, a leg order	0	10	21	0	0	0	55	0	0	3
+aa3cd53b2af5	2026-08-07T21:31:04+02:00	T1: the template version archive, and the drift gate that makes a version mean something	207	598	465	50	31	0	24	0	0	22
+b8430fefbcf3	2026-08-07T15:27:25+02:00	Template plan: Baseline re-run at 71911e2 — four substantive changes, ~30 citations	0	0	0	0	0	298	0	0	0	1
+011a799c121f	2026-08-07T15:11:38+02:00	Metadata plan §0: name the two index legs, so a second reading is 80 seconds	0	0	0	0	0	18	0	0	0	1
+b6f2b088f976	2026-08-07T13:55:56+02:00	STATUS: record that 0.16.0 was verified against the index, not the run	0	0	0	0	7	0	0	0	0	1
+5bc2df9f1e0d	2026-08-07T13:51:27+02:00	0.16.0 — metadata injection, measured and answered	26	77	0	0	624	138	573	8	178	29
+13c50cee0af1	2026-08-07T12:37:10+02:00	2d review 2: the argument for the key's placement was false when written	249	159	0	0	0	0	97	0	0	7
+d06672bd5e20	2026-08-07T11:58:25+02:00	2d review: say what the two-leg gate cannot check	0	0	7	0	0	0	0	0	0	1
+3ed8b061467c	2026-08-07T11:56:37+02:00	2d review: a rebuild could leave half the index injected	97	163	93	0	0	0	74	0	0	8
+4f240e1b02ac	2026-08-07T11:09:09+02:00	2d: the screen returned no-go — 6 improved, 6 regressed, 84 unchanged	0	7	19	0	0	0	78	0	0	3
+cdfdf18b8df2	2026-08-07T10:16:17+02:00	2d: the two-leg comparison, and three docstrings the code had moved under	11	231	296	0	0	0	49	0	0	8
+0ea1bda3bedd	2026-08-07T10:05:23+02:00	2d WIP: the [chunking] metadata option and its two call sites	86	254	0	0	0	0	0	0	0	9
+9146a9b32c0a	2026-08-07T08:05:25+02:00	planner review 4: the corpus was on disk the whole time, and it says 43 353	0	0	0	0	2	44	0	2	0	3
+ee27f35608b4	2026-08-07T07:44:50+02:00	"planner review 3: the grammar is opt-in, so ""a corpus built today carries heading paths"" was false twice"	0	0	0	0	38	45	0	2	0	10
+c5e07dfd4787	2026-08-07T07:18:22+02:00	planner review 2: the corpus I said was gone is a public repo, and a promise's test asserts its opposite	0	0	0	0	11	4	0	0	0	4
+64c6e7ee94a3	2026-08-07T06:49:00+02:00	planner review: the sweep fixed one copy and created a contradiction in the file it edited most	0	0	0	0	76	92	0	0	0	10
+ab639c3c221b	2026-08-06T22:52:32+02:00	planner: 2c shipped, 2d is next — and eleven neighbours nobody had swept	0	0	0	0	141	277	0	2	0	9
+599352111eba	2026-08-06T13:55:44+02:00	2c review: the artifact could not say what it was chunked at	12	43	5	0	0	0	17	0	0	6
+a42d9623fb1f	2026-08-06T13:47:02+02:00	2c: freeze the golden set, calibrate it, capture the before leg	0	236	1079	0	0	0	70	0	0	9
+eb27e0fdac2c	2026-08-06T12:39:52+02:00	2c WIP: the frozen golden set, authored blind, and its verifier	0	108	559	0	0	0	0	0	0	4
+8939e47f1f5e	2026-08-06T11:42:12+02:00	Planner pass: 2b shipped, and three findings it closed	0	0	0	0	10	63	0	2	0	3
+e1ea575b302d	2026-08-06T10:33:08+02:00	2b review: one name for a persisted separator, and a blank title is no title	25	20	0	0	0	0	11	0	0	3
+9905140c1edf	2026-08-06T10:26:30+02:00	2b: build the metadata prefix, and refuse one that would be truncated	182	222	0	0	0	0	60	0	0	4
+bcedd17cbb84	2026-08-06T09:57:44+02:00	Planner pass: 2a shipped, and the reserve numbers it falsified	0	0	0	0	0	68	0	2	0	2
+e7d14bc77910	2026-08-06T08:17:16+02:00	2a review: state two divergences the code left silent	0	0	12	0	0	0	0	0	0	1
+fcd28bc70a7d	2026-08-06T08:15:44+02:00	2a: real RFC titles in sidecars, and a measured chunking reserve	0	366	265	0	0	0	57	0	0	4
+8e21ce92bfae	2026-08-06T07:49:52+02:00	Entry points said step 2 was unblocked; it is not	0	0	0	0	9	0	0	2	0	3
+829a2ee0c4df	2026-08-06T07:41:56+02:00	Injection experiment: eight adversarial rounds, ten decisions, five self-corrections	0	0	0	0	0	363	60	0	0	2
+12c2b954e194	2026-08-06T02:59:06+02:00	Post-release sweep for 0.15.1	0	0	0	0	11	0	0	0	0	1
+2e087c0a189a	2026-08-06T02:56:19+02:00	Release 0.15.1 — One clock	2	0	0	0	109	0	92	0	57	8
+549dc4b02d2b	2026-08-06T02:44:46+02:00	UTC everywhere: the last three naive-local timestamps Pinakes wrote	19	41	6	0	4	0	20	0	0	11
+aceecd6d6a5f	2026-08-06T02:35:59+02:00	Review: 13 more pointers named CLAUDE.md for content that moved	21	16	6	0	0	0	46	0	0	14
+54530e5f4adc	2026-08-06T02:35:40+02:00	CLAUDE.md: 273 lines to 191, into docs/BUILDING.md and docs/INVARIANTS.md	0	0	12	0	121	0	26	182	0	12
+d164c49f382f	2026-08-06T01:38:50+02:00	CLAUDE.md: a do-this-first block for the next session	0	0	0	0	0	0	0	13	0	1
+7f4c318835b2	2026-08-06T01:30:21+02:00	CLAUDE.md: correct the entry points a fresh session reads first	0	0	0	0	0	0	0	16	0	1
+fe2b0da514e4	2026-08-06T00:54:07+02:00	Post-release sweep for 0.15.0	0	0	0	0	8	0	0	0	0	1
+904aca8c4e77	2026-08-06T00:50:20+02:00	Release 0.15.0 — A document says what it is called	2	0	0	0	27	0	18	0	26	5
+761e05f4bb25	2026-08-06T00:42:46+02:00	A Markdown document is titled by its own # heading	61	92	0	0	3	2	18	0	0	7
+17f7310c592d	2026-08-06T00:27:57+02:00	Post-release sweep for 0.14.0	0	0	0	0	8	0	0	0	0	1
+52c9a886767e	2026-08-06T00:24:06+02:00	Release 0.14.0 — The tool stops crying wolf	2	0	0	0	112	0	124	0	66	10
+775c4512fa60	2026-08-06T00:21:39+02:00	pnk doctor reports minted titles — the last open correction	62	51	0	0	60	20	17	0	0	7
+bc353982a669	2026-08-06T00:15:10+02:00	pnk init adopts a directory that already has content	98	82	0	0	64	19	47	0	0	11
+2f5e97c531ef	2026-08-05T23:59:33+02:00	Heading coverage warns only for markdown, and the sync-CPU number exists	76	70	0	0	51	91	60	0	0	7
+22c0923be5ce	2026-08-05T23:08:38+02:00	Post-release sweep for 0.13.0	0	0	0	0	8	0	0	0	0	1
+8a3cbce09bbe	2026-08-05T23:04:09+02:00	Release 0.13.0 — Plain text can carry a heading path	2	0	0	0	172	0	217	0	96	12
+df867a8c9559	2026-08-05T23:00:29+02:00	The corpus, and what it did to the predicate (§5.3 measured)	41	41	215	0	0	52	78	0	0	7
+cec776f36067	2026-08-05T22:26:08+02:00	A [chunking] edit is no longer a silent no-op (correction 5)	121	170	0	0	55	45	52	0	0	12
+288ee0f43370	2026-08-05T21:17:59+02:00	"Numbered plain-text headings, behind [chunking] headings = ""numbered"""	180	177	0	0	59	128	87	0	0	11
+7aa2e601a63a	2026-08-05T20:32:39+02:00	Settle §5.2 and §5.3 — step 1 is unblocked	0	0	0	0	0	95	0	0	0	2
+056c7bed3464	2026-08-05T20:28:28+02:00	Post-release sweep, and the two decisions the user took	0	0	0	0	37	147	0	0	0	4
+980ac5a5230a	2026-08-05T20:08:42+02:00	Release 0.12.0 — The check that would have caught it	2	0	0	0	297	0	269	0	73	18
+e8e71a9df1e2	2026-08-05T20:01:25+02:00	Open corrections: close two landed items, and stop asserting an open question	0	0	0	0	0	65	0	0	0	1
+361ed289854b	2026-08-05T19:56:52+02:00	Fix a red main: an exact assertion between two different roundings	0	19	0	0	0	0	35	0	0	2
+1de5a4c39cab	2026-08-05T19:51:33+02:00	Fixture copies must exclude .pinakes/, at every call site not just four	0	22	0	0	0	0	39	0	0	6
+519cae10f0c7	2026-08-05T19:39:52+02:00	Retro fix: measure the process tree, not the launched pid	0	32	76	0	0	0	45	0	0	3
+0a992c7bb9ce	2026-08-05T19:23:43+02:00	The metadata investigation, written down before a context compaction	0	0	0	0	0	176	0	4	0	2
+ef000277ac79	2026-08-05T19:14:31+02:00	DESIGN 4.6 claimed heading_path is used for filtering; nothing filters on it	0	0	0	0	10	0	0	0	0	1
+61265466e293	2026-08-05T15:16:18+02:00	Three decisions: init adoption, titles, and the grammar's scope	0	0	0	0	0	165	0	0	0	2
+4e4cfcd5d637	2026-08-05T10:15:53+02:00	`[chunking] strategy` is inert, not merely limited — my own wording understated it	0	0	0	0	10	0	0	0	0	2
+e3dd5718b52a	2026-08-05T10:09:13+02:00	Retrospective: item 5's fix is clean, two residual leaks noted out of scope	0	0	0	0	0	0	29	0	0	1
+293bf3791929	2026-08-05T10:09:13+02:00	pnk doctor: never print the operator's home directory	46	61	0	0	0	0	10	0	0	3
+d68459ab7e86	2026-08-05T10:04:15+02:00	Document the heading-coverage check, and correct the item that asked for it	0	0	0	0	27	67	0	0	0	5
+776ea1d0e015	2026-08-05T09:57:18+02:00	Add tools/measure_sync_cpu.py: the cores-busy measurement item 6 requires	0	88	141	0	0	0	6	0	0	3
+de8161b101ea	2026-08-05T09:50:24+02:00	pnk doctor reports heading coverage, and warns on a source type at zero	71	115	0	0	5	0	65	0	0	5
+4b0347d9d34f	2026-08-05T09:43:30+02:00	Fix item 2: the [light] backend error prescribes a 2GB install	78	87	0	0	0	0	29	0	0	5
+56c12b074a7b	2026-08-05T09:37:46+02:00	CLAUDE.md pointed agents at G3, which shipped in 0.11.0	0	0	0	0	78	24	0	27	0	3
+b99258fbf873	2026-08-05T09:30:19+02:00	ROADMAP still said the graph release was building; my sweep script discarded the fix	0	0	0	0	8	2	0	0	0	2
+61cb6c9eaf43	2026-08-05T09:21:30+02:00	Record 0.11.0 as published, and the fourth thing that hides a good upload	0	0	0	0	7	0	0	0	0	2
+70f88f1f8487	2026-08-05T09:17:34+02:00	Release 0.11.0 — the graph release	2	0	0	0	473	0	579	1	142	19
+f2d31f62c20d	2026-08-05T09:09:43+02:00	G6: pin the tiebreak's kind component, which nothing reached	0	29	0	0	15	0	0	0	0	4
+6814013f344c	2026-08-05T09:05:16+02:00	G6: the sort key is what makes the output deterministic, said plainly	21	0	0	0	0	0	0	0	0	1
+f007feda57c8	2026-08-05T08:03:21+02:00	G6 review, round one: an implicit order standing in for an explicit one	14	47	0	0	2	0	45	0	0	4
+a499bbb8869a	2026-08-05T07:50:44+02:00	G6: pnk doctor reports the highest-degree structural edge hubs	76	78	0	0	8	0	11	0	0	4
+e6cd361c5681	2026-08-05T02:11:21+02:00	Incorporate G5's documentation, and record the gate result	0	0	0	0	58	8	0	0	0	4
+e3b8125ebb5a	2026-08-05T01:50:03+02:00	G5: the gate result, recorded	0	0	0	0	0	0	121	0	0	1
+f44a4da822a3	2026-08-05T00:41:14+02:00	G5: the parent-child tail, measured — and it is alarming	0	0	0	0	0	0	37	0	0	1
+38adcad20486	2026-08-05T00:32:24+02:00	G5 review, round four: a root spends a fan-out slot it is then discarded from	27	36	0	0	2	0	51	0	0	5
+57028f999dd0	2026-08-05T00:16:12+02:00	G5 review, round three (cont.): the tests for the unpinned behaviours	54	325	23	0	0	0	0	0	0	5
+800d6285099e	2026-08-04T23:43:51+02:00	G5: say what the roots are, accurately	6	0	0	0	0	0	0	0	0	1
+f9db37ffc332	2026-08-04T23:43:01+02:00	G5 review, round three (cont.): one header function, not two	9	0	52	0	0	0	0	0	0	2
+860a623d5e31	2026-08-04T23:40:54+02:00	G5 review, round three: a root is expanded, never emitted	24	20	0	0	1	0	0	0	0	3
+0f53efc39147	2026-08-04T23:36:36+02:00	G5: line length in a test helper; check.sh green	0	4	0	0	0	0	0	0	0	1
+d54a5903f5f0	2026-08-04T23:32:37+02:00	G5: the retrospective fragment for the channel	0	0	0	0	0	0	58	0	0	1
+10600757346c	2026-08-04T23:31:22+02:00	G5 review, round two: two findings from my own pass	79	48	0	0	0	0	0	0	0	2
+6c83bde6b19e	2026-08-04T23:26:29+02:00	G5: the ceiling probe forces the channel off, so a re-run stays comparable	0	4	9	0	0	0	0	0	0	2
+31a2b76546a9	2026-08-04T23:24:22+02:00	G5: the changelog fragment	0	0	0	0	0	0	50	0	0	1
+2a9ae496a9aa	2026-08-04T23:20:40+02:00	G5: cosine ranks the channel, distance breaks the tie	36	62	0	0	2	0	0	0	0	3
+f176b9da6805	2026-08-04T23:09:53+02:00	G5 review, round one: the root-document exclusion nothing caught	0	137	0	0	4	0	0	0	0	2
+99623c35aa25	2026-08-04T23:06:34+02:00	G5: the parent-child ceiling, and the VERIFICATION rows the tests require	0	0	0	0	26	0	54	0	0	2
+c780c0ae9fd1	2026-08-04T23:02:09+02:00	G5: the reported knobs and tools/graph_matrix.py	122	22	336	0	0	0	0	0	0	5
+f7c4350e3394	2026-08-04T22:49:36+02:00	G5: the expansion channel and its tests, green	0	922	10	0	0	0	0	0	0	3
+498b94ca086d	2026-08-04T22:39:04+02:00	G5 (wip): the channel, its manifest key, the eval header and the gate	593	0	457	0	0	0	0	0	0	5
+aa400548283f	2026-08-04T20:51:42+02:00	Slim CLAUDE.md 271 -> 244, and fix the drift the pass exposed	0	0	0	0	8	0	0	127	0	2
+15840e8f82c5	2026-08-04T20:46:53+02:00	parent-child stays transitive; its cost is measured before G5	0	0	0	0	0	82	0	0	0	2
+76fb34b33386	2026-08-04T20:44:25+02:00	Incorporate G3's doc proposal	0	0	0	0	69	0	0	0	0	4
+e03e6db34868	2026-08-04T19:08:46+02:00	G3 review, round two: an independent adversarial pass	106	204	0	0	6	0	66	0	0	7
+3ba4a6222011	2026-08-04T18:36:42+02:00	G3 review: two defects the implementation pass missed	34	100	0	0	2	0	58	0	0	5
+8550dfd86f6d	2026-08-04T18:32:33+02:00	G3: the node model and the edge set (`schema_version` 3)	733	950	0	0	35	0	24	0	0	9
+11a4e8d626cb	2026-08-04T18:32:33+02:00	G3: capture the pre-bump `pnk links --json` surface as a fixture	0	2154	0	0	0	0	0	0	0	2
+2f1b121107b7	2026-08-04T18:18:25+02:00	land.py --cleanup-only: finish a landing you started earlier	0	36	54	0	4	0	5	9	0	6
+dc2fe3023054	2026-08-04T18:14:58+02:00	tools/land.py: landing verifies it landed	0	150	179	0	12	0	9	24	0	6
+07038fa2d31f	2026-08-04T17:46:11+02:00	The authored-weight warning still said G3 is blocked	0	0	0	0	0	3	0	0	0	1
+392ad862252a	2026-08-04T16:49:15+02:00	G3 starts: record the decision and unblock the graph release	0	0	0	0	109	193	0	12	0	7
+3517cac6d7a2	2026-08-04T15:59:06+02:00	Correct ROADMAP against main: 0.10.0 shipped, 0.9.0 reached PyPI	0	0	0	0	52	0	0	0	0	1
+b15a90c79600	2026-08-04T15:55:27+02:00	Link ROADMAP.md throughout — 46 in-page anchors, 105 cross-doc links	0	0	0	0	363	0	0	0	0	1
+ec893a631ebf	2026-08-04T15:44:37+02:00	Record 0.10.0 as published; name the third cache that hides a good upload	0	0	0	0	24	0	0	0	0	2
+a31bb8da85cd	2026-08-04T15:43:28+02:00	Add docs/ROADMAP.md — the development story on one page, for a human	0	0	0	0	484	0	12	0	0	4
+fb5423f397e0	2026-08-04T15:38:40+02:00	Release 0.10.0	2	0	0	0	132	0	135	0	45	12
+02daa51f5b7d	2026-08-04T15:33:07+02:00	Mark the estimate-only UTC test pinakes[pdf]-only; record why check.sh missed it	0	5	0	0	0	0	26	0	0	3
+ab08f987925c	2026-08-04T15:26:40+02:00	Close the interrupted-sync trio; keep the lock guidance true after the UTC fix	0	0	0	0	2	84	0	0	0	2
+5351cc6b4589	2026-08-04T15:22:41+02:00	Document the sync completeness WARN; correct DESIGN's lock-age claim	0	0	0	0	7	0	0	0	0	2
+ebdc6a7d25b4	2026-08-04T15:11:35+02:00	Fix the GUIDE's install line and lock remedy; add a measure-first parallelism item	0	0	0	0	11	107	20	0	0	5
+eb131fcb5d98	2026-08-04T15:07:00+02:00	Fix adversarial-review finding: progress printer can leave a dangling line	81	32	0	0	0	0	25	0	0	3
+0fe8f1660819	2026-08-04T14:49:00+02:00	Fix the three defects an interrupted pnk sync exposes	95	242	0	0	0	0	49	0	0	12
+970f50ecf6ff	2026-08-04T14:37:15+02:00	Record that v0.9.0 is tagged but not on PyPI, and why	0	0	0	0	16	0	28	0	0	2
+25292276f052	2026-08-04T14:32:30+02:00	Release 0.9.0 — the docs become a site, and the project gets its capital P	2	0	0	0	104	0	125	0	40	9
+134f920dff26	2026-08-04T14:12:06+02:00	Rename the repo to lucagattoni/pinakes; capitalise the project name in prose	60	0	0	4	178	82	9	18	58	46
+a9ca282bad3f	2026-08-04T14:03:49+02:00	Publish docs/ as a MkDocs Material site on GitHub Pages	0	0	0	65	312	0	43	7	0	24
+22484d4a9e18	2026-08-04T13:33:49+02:00	Timestamps are UTC from 20260804 11:32, and that settles the lock-clock fix	0	0	0	0	0	2	0	9	0	2
+b0bf4152e7d7	2026-08-04T11:47:02+02:00	Fix defects an adversarial review found in the edge census	0	133	26	0	0	0	63	0	0	4
+a88131964fdf	2026-08-04T11:27:26+02:00	Add a per-kind edge census to the reachable-ceiling probe	0	250	77	0	3	0	38	0	0	5
+b694a685473f	2026-08-04T10:52:50+02:00	O-1 and O-2 decided: `pnk templates` accepted, `cannot compare` exits 3	0	0	0	0	1	4	0	0	0	2
+21a401f4c094	2026-08-04T10:19:40+02:00	Incorporate three reviewed plans, with decisions 1-3 taken	0	0	0	0	3	3006	0	0	0	5
+9786d829a7c2	2026-08-04T09:27:57+02:00	Two defects I introduced myself, found by the graph-drafts review	0	0	0	0	0	26	0	0	0	2
+304c01b15231	2026-08-04T08:53:46+02:00	Post-publish sweep: 0.8.0 is on PyPI, verified against the index	0	0	0	0	6	0	0	0	0	1
+befb29a1be05	2026-08-04T08:41:29+02:00	Release 0.8.0 — the paid key must be aimed at pinakes	2	0	0	0	200	0	314	0	137	13
+8797afd39612	2026-08-04T08:38:40+02:00	STATUS: the realism corpus, and the premise it falsified	0	0	0	0	41	0	0	0	0	1
+b70680005e21	2026-08-04T08:36:28+02:00	corpus-probe-run: a per-kind edge census, because two kinds are already zero	0	0	0	0	0	31	0	0	0	1
+60e54d4c8532	2026-08-04T08:34:17+02:00	open-corrections: nine defects the RFC corpus found by being used	0	0	0	0	0	72	0	0	0	1
+a107a059d2cc	2026-08-04T08:26:05+02:00	The paid key is PINAKES_ANTHROPIC_API_KEY, passed explicitly, with no fallback	53	86	0	0	6	0	10	15	0	10
+09b517161268	2026-08-04T07:03:21+02:00	Fragments: adopt the timestamp prefix `main` introduced under this branch	0	0	0	0	0	0	0	0	0	2
+be804c1b9055	2026-08-04T07:01:59+02:00	Sixth review pass: a false justification, and two claims the code had outgrown	0	7	19	0	0	0	6	0	0	3
+7bc6563430bf	2026-08-04T07:01:59+02:00	Fifth review pass: the fixture-satisfied assertion, twice, in the last commit	0	46	42	0	2	0	34	0	0	5
+a6a931b305d8	2026-08-04T07:01:59+02:00	Fourth review pass: the golden set is an input too, and a contradiction that moved	0	77	97	0	3	0	39	0	0	5
+be68f93a0db2	2026-08-04T07:01:59+02:00	Third review pass: the reranker model, a double accusation, a spliced sentence	9	88	66	0	6	0	41	0	0	6
+1d4d3e698a27	2026-08-04T07:01:59+02:00	Second review pass: `filters`, an assertion its fixture satisfied, and the configuration	15	162	168	0	4	0	64	0	0	6
+7ddb9085a84b	2026-08-04T07:01:59+02:00	Retrospective review: four more absorptions, and a test that could not fail	11	201	151	0	9	0	137	0	0	6
+832cb2f8b283	2026-08-04T07:01:59+02:00	Probe: refuse a golden set it cannot measure, and name the KB it measured	16	110	152	0	5	0	69	0	0	6
+61f1975f0b74	2026-08-04T06:41:29+02:00	Every plan and fragment carries a YYYYMMDD_HHMM prefix, applied retrospectively	53	78	35	6	68	50	18	13	40	62
+39f78026deb1	2026-08-04T05:10:02+02:00	Incorporate two proposal branches that never landed, from 20260801	0	0	0	0	0	167	0	0	0	3
+f77ced61c874	2026-08-04T04:29:07+02:00	open-corrections: doctor's model-coherence remedy destroys an interrupted sync	0	0	0	0	0	50	0	0	0	1
+0da5da175737	2026-08-04T04:26:43+02:00	Docs audit, MEDIUM batch: a stale build-order pointer and five outlived claims	0	0	0	0	13	0	9	6	0	6
+db7d1c1a3aaa	2026-08-04T04:23:43+02:00	VERIFICATION.md: rows for 0.7.1, and an honest remedy row	0	0	0	0	32	0	10	0	0	3
+b2a70bb3d7ab	2026-08-04T04:19:32+02:00	Docs audit: nine wrong public claims, verified against the code and corrected	0	0	0	0	32	50	9	0	0	9
+e3685e1b1b73	2026-08-03T23:10:02+02:00	[budget] monthly_eur default 5.00 -> 30.00, in proportion	6	4	0	0	2	0	10	0	0	6
+97309d8aa14a	2026-08-03T23:01:42+02:00	[budget] per_operation_eur default 0.05 -> 0.30	6	4	0	0	2	0	10	0	0	6
+a8d6d729003c	2026-08-03T22:50:45+02:00	Review pass: the CI negative check is pinned as a command, not a substring	0	17	0	0	0	0	0	0	0	1
+4b0ee988febd	2026-08-03T22:43:29+02:00	status-header gate: docs/STATUS.md line 3 must name pinakes.__version__	0	108	102	34	4	0	8	0	0	7
+45afd80b733c	2026-08-03T22:39:39+02:00	plans/corpus-probe-run.md: the second measurement, and the seam it could leak through	0	0	0	0	1	104	0	0	0	4
+6fc53234fd73	2026-08-03T22:32:37+02:00	RELEASING: grep for claims the release just falsified; fragment for the sweep	0	0	0	0	8	0	8	0	0	2
+4f8dc892bcfe	2026-08-03T22:29:02+02:00	"Stale sweep: one failure class, seven instances — ""unreleased"" outlived the release"	0	0	0	0	27	7	0	0	0	6
+eaf5bcb5f820	2026-08-03T22:24:52+02:00	STATUS's header said 0.4.1 for four releases — fixed, and gated as an item	0	0	0	0	3	43	0	0	0	3
+5bef91fa7fa1	2026-08-03T22:21:29+02:00	Plan: the open-corrections list is empty, and the corpus is all that remains	0	0	0	0	0	103	0	0	0	2
+d56bb3542ebd	2026-08-01T13:47:11+02:00	Post-publish sweep: 0.7.1 is on PyPI, verified against the index	0	0	0	0	6	0	0	0	0	1
+85ca73305309	2026-08-01T13:44:13+02:00	Release 0.7.1 — the source walk stays inside the KB	2	0	0	0	134	0	143	0	37	7
+edfb94d68288	2026-08-01T13:37:57+02:00	Second review pass, and the two tooling corrections	11	44	7	0	0	0	28	0	0	6
+a6caaf766bd9	2026-08-01T13:32:53+02:00	Source-walk review: three mutation survivors, two of them defects	20	77	0	0	0	0	33	0	0	3
+1a053b09a0cd	2026-08-01T13:28:46+02:00	Source-walk containment: `[sources] include` stays inside the KB	203	258	0	0	0	0	82	0	0	6
+f3591b5ee43c	2026-08-01T13:23:15+02:00	Plan: the graph release is blocked, and the corpus is the critical path	0	0	0	0	22	181	0	0	0	5
+363736112623	2026-08-01T12:44:37+02:00	Post-publish sweep: 0.7.0 is on PyPI, verified against the index	0	0	0	0	11	0	0	0	0	1
+d928390c9b55	2026-08-01T12:42:23+02:00	Release 0.7.0 — the evaluation grew, and the graph release's gate did not open	2	0	0	0	81	0	109	0	48	7
+a635ffdf9d45	2026-08-01T12:36:02+02:00	PROPOSAL fix: G1 and G4 shipped in 0.6.0, so this cut is G2 alone	0	0	0	0	2	0	0	0	0	1
+a81149665c40	2026-08-01T12:24:05+02:00	PROPOSAL (planner-owned docs): G2's measurement and what it closes	0	0	0	0	125	39	0	0	0	3
+73737ba1447c	2026-08-01T12:19:52+02:00	G2 review: three findings, two of them behaviour	37	29	0	0	2	0	18	0	0	5
+9595370e0f17	2026-08-01T12:15:56+02:00	G2: per-question outcomes, the grown golden set, and the measurement it exists for	407	1216	655	0	15	0	91	0	0	13
+99e5de44bf87	2026-08-01T11:41:59+02:00	G2: a briefing block — what the agent should actually look for	0	0	0	0	0	40	0	0	0	1
+220b6786d77b	2026-08-01T11:36:26+02:00	Fix a NUL byte in open-corrections.md, and gate against the class	0	0	0	0	0	0	0	0	0	1
+31cc65e3d2fb	2026-08-01T11:33:00+02:00	Close out open-corrections; the plan's header says what is actually built	0	0	0	0	0	6	0	0	0	1
+e6193b545940	2026-08-01T11:24:35+02:00	Post-publish sweep: 0.6.0 is on PyPI	0	0	0	0	6	0	0	0	0	1
+5920f41fb457	2026-08-01T11:00:51+02:00	Release prep: two false claims, a duplicate CHANGELOG heading, two records	0	0	0	0	19	36	0	0	9	4
+563d82b3510c	2026-08-01T10:57:52+02:00	Plan: sync to a finished links release; G2 is the only next step	0	0	0	0	0	390	0	0	0	1
+68ca96b7b405	2026-08-01T10:53:56+02:00	Release 0.6.0 — the links release, final cut	2	0	0	0	621	0	693	1	100	16
+4bfa0a9bcb4a	2026-08-01T07:49:58+02:00	Plan: a real corpus (RFCs, public) and a private dogfooding KB	0	0	0	0	1	124	0	0	0	3
+a36d65fd08e7	2026-08-01T05:41:36+02:00	L8 verification: an unsynced KB did not say the link checks could not run	12	14	0	0	1	0	4	0	0	4
+2975695263d9	2026-08-01T05:34:41+02:00	Fix: the last two fixtures that asked the OS for an error instead of raising one	0	48	0	0	0	0	12	0	0	3
+2506f91f22bc	2026-08-01T05:28:55+02:00	Fix: inject the permission failure instead of arranging for one	0	121	0	0	0	0	23	0	0	4
+e69ad65b1527	2026-08-01T05:21:46+02:00	Fix: four permission fixtures could not be built on CI, and `main` went red for two merges	0	58	0	0	0	0	35	0	0	6
+e54ae8ffe66c	2026-08-01T05:14:37+02:00	L7 review 2 — no behavioural defect; four guards pinned, three of them new	13	50	0	0	1	0	20	0	0	4
+d4a803656031	2026-08-01T04:58:01+02:00	L7 review — the cross-KB check broke the rule stated in the module it imports from	106	231	0	0	8	0	65	0	0	4
+efefae2a896b	2026-08-01T04:39:34+02:00	L7 — `pnk doctor`: link coverage as a ratio, and cross-KB targets resolved	183	232	0	0	13	0	12	0	0	4
+d9217e8814ba	2026-08-01T04:32:49+02:00	Incorporate L6's six-document proposal	0	0	0	0	159	0	0	0	0	5
+f5ea8ff25dd0	2026-08-01T02:11:30+02:00	CLAUDE.md: 253 -> 217, and docs/RELEASING.md holds the procedure	0	0	0	0	62	0	0	167	0	3
+8ee27a136745	2026-08-01T01:52:39+02:00	VERIFICATION.md: give the links release its own sections	0	0	0	0	16	0	0	0	0	1
+0992c4c39bee	2026-08-01T01:49:37+02:00	Sync the plan to what is built; index plans/ in the routing table	0	0	0	0	10	63	0	0	0	2
+dd90c390ed03	2026-08-01T01:42:43+02:00	L6 review 16 — no behavioural defect; a wrong comment, a wrong claim, and named gaps	8	24	0	0	1	0	25	0	0	4
+19f9de2885cf	2026-08-01T01:41:28+02:00	Incorporate the G1 and G4 doc proposals, reconciled	0	0	0	0	99	0	0	0	0	6
+e6e205160254	2026-08-01T01:36:59+02:00	G4 review — a 5000-digit version crashed every command	104	117	0	0	73	0	2	0	0	9
+a2498624fd9a	2026-08-01T01:36:59+02:00	G4 — `[kb] requires_pinakes`, read before the strict validator	112	187	0	0	78	0	9	0	0	9
+afdfffce57c5	2026-08-01T01:33:21+02:00	L6 — hand the six planner-owned documents back, as proposals	0	0	0	0	159	0	0	10	0	6
+8b5e314332c6	2026-08-01T01:32:35+02:00	G1 — hand docs/STATUS.md back to the planner, as a proposal	0	0	0	0	40	0	0	0	0	2
+e98ff64fe89f	2026-08-01T01:30:57+02:00	G1 review — a gate that advertised a field it had retired	0	20	56	0	6	0	51	0	0	5
+ed16194064e9	2026-08-01T01:30:44+02:00	G1 — the eval was reproducible by luck, and the luck was invisible	43	454	325	101	51	0	63	0	0	11
+2cae8ca5c4e5	2026-08-01T01:27:54+02:00	Incorporate the G-track's correction to the two-tracks contract	0	0	0	0	0	12	0	5	0	2
+87ebabba1eb2	2026-08-01T01:26:09+02:00	Documentation has one owner: the planner	0	0	0	0	0	0	0	20	0	1
+7a90278b6399	2026-08-01T01:22:13+02:00	"L6 review 15 — the ""one bad entry"" fix was incomplete one line either side of itself"	43	68	0	0	4	0	35	0	0	4
+53ea6cda3ecd	2026-08-01T01:22:13+02:00	source-walk-containment: resync to L6 review 14 — `**` out of the probe	0	0	0	0	0	12	0	0	0	1
+f90cab5c2691	2026-08-01T01:13:04+02:00	RETROSPECTIVES: a way in, and two increments that had no heading	0	0	0	0	32	0	0	0	0	1
+4e1e955f2d90	2026-08-01T01:09:55+02:00	DESIGN.md: it is not bloated, it is drifted	0	0	0	0	29	0	0	0	0	1
+425d10660f73	2026-08-01T01:04:02+02:00	L6 review 14 — `**` matches zero components, and two guards had gone dead	51	88	0	0	3	0	31	0	0	4
+ae49058feae8	2026-08-01T01:02:31+02:00	Slim links-and-graph.md: 26,884 -> 13,260 words	0	0	0	0	0	1021	0	6	0	3
+8a2a9018a6ad	2026-08-01T01:00:11+02:00	source-walk-containment: rewritten to L6 review 13's spelling	0	0	0	0	0	89	0	0	0	1
+3fda636a33f5	2026-08-01T00:31:27+02:00	L6 review 13 — one containment rule, four spellings, three of them wrong	88	79	0	0	3	0	92	0	0	4
+fdbeda206a2d	2026-08-01T00:24:03+02:00	The two-tracks contract: G1/G2/G4 alongside L6/L7/L8	0	0	0	0	0	37	0	0	0	1
+00c01aa38b1d	2026-08-01T00:17:47+02:00	G1–G6 readiness audit — two defects, first pass since they were written	0	0	0	0	0	26	0	0	0	1
+2fddc5efa182	2026-08-01T00:12:33+02:00	L6 review 12 — the escape refusal refused a legitimate manifest too	36	101	0	0	2	0	57	0	0	4
+168571a2c5d6	2026-08-01T00:04:28+02:00	L7 readiness audit against the L6 tip — three gaps closed	0	0	0	0	0	37	0	0	0	1
+5a28eb7cba94	2026-07-31T21:31:16+02:00	L6 review 11 — the escape refusal refused the results without bounding the walk	84	122	0	0	4	0	16	0	0	4
+a00007266caf	2026-07-31T21:28:17+02:00	Plan: the local source walk escapes the KB — its own increment	0	0	0	0	0	152	0	0	0	3
+2fd4acedec80	2026-07-31T21:11:42+02:00	L6 review 10 — a containment rule argued in prose, implemented for half its inputs	37	83	0	0	2	0	57	0	0	4
+dbebd8b58fd3	2026-07-31T20:50:47+02:00	L6 review 9b — a severity claimed rather than measured, and a docstring's own defect	12	55	0	0	1	0	46	0	0	4
+72656ae903f4	2026-07-31T20:45:05+02:00	L7 after L6 reviews 8/8b/9; open-corrections item 9 closed	0	0	0	0	0	33	0	0	0	2
+38e3a375a4fd	2026-07-31T20:35:54+02:00	L6 review 9 — the new reason stuttered the path it was already given	12	11	0	0	0	0	0	0	0	2
+cdee8d882af7	2026-07-31T17:38:25+02:00	L6 review 8b — the freshness test asserted something the branch did not decide	0	9	0	0	2	0	8	0	0	3
+9c8f66734c08	2026-07-31T17:36:11+02:00	L6 review 8 — round 7's fix was worse than the defect it closed	135	112	0	0	4	0	56	0	0	6
+7688e3948242	2026-07-31T17:31:59+02:00	open-corrections item 9: L6 review 7's freshness test misses its branch	0	0	0	0	0	45	0	0	0	1
+95573893a188	2026-07-31T17:21:15+02:00	Plan: L7 and L8 after an adversarial pass — 5 HIGH, four in L7	0	0	0	0	0	169	0	0	0	2
+1d4de4e56bff	2026-07-31T17:16:19+02:00	L6 review 7 — the class closed at the source, not at the sixth call site	128	61	0	0	3	0	145	0	0	6
+b54940be4b83	2026-07-31T16:01:49+02:00	L6 review 6 — the fallback named a directory that had nothing to do with the failure	29	14	0	0	0	0	0	0	0	5
+7b3f0a34e3df	2026-07-31T15:47:52+02:00	L6 review 5 — the fourth instance, and the same class in the module next door	100	99	0	0	6	0	50	0	0	8
+2784db58fef2	2026-07-31T15:31:45+02:00	L6 review 4 — the third instance of one defect class, one branch over	16	19	0	0	1	0	11	0	0	4
+986faf392634	2026-07-31T13:48:03+02:00	L6 review 3 — the docstring outlived the rule it described	38	41	0	0	55	0	259	0	0	7
+3ce150ec70b8	2026-07-31T13:28:55+02:00	L6 review 2 — the containment fix had traded one defect for two	62	55	0	0	62	0	33	0	0	9
+ddf5cbfb5802	2026-07-31T13:08:40+02:00	L6 review — nine findings from the adversarial pass, and their fixes	67	147	0	0	37	0	128	0	0	9
+b96d247ee415	2026-07-31T12:44:21+02:00	L6 — `pnk link`, the authoring command	259	571	0	0	139	0	17	10	0	13
+b3165f23b5e3	2026-07-31T12:15:08+02:00	The open-corrections list, worked through	5	0	0	0	14	38	0	2	11	6
+8ed065df0f33	2026-07-31T12:03:51+02:00	Fix the lint gate properly, having read its output this time	0	0	3	0	0	0	0	0	0	1
+8df24c2aeec5	2026-07-31T12:03:23+02:00	Fix the lint gate I broke, and the reason I broke it	0	0	3	0	0	0	0	0	0	1
+9d6fb0faa554	2026-07-31T12:02:34+02:00	Plan: an unambiguous correction list for the coder	0	0	0	0	0	116	0	0	0	1
+074c88d0b356	2026-07-31T11:59:40+02:00	Plan: L6, L7 and L8 after an adversarial pass — seven HIGH	0	0	2	0	2	58	0	0	0	3
+d9d492101ca0	2026-07-31T11:56:26+02:00	Docs: three claims about 0.5.0 that the release review falsified	0	0	0	0	11	0	9	0	0	4
+d9e0d46b1c68	2026-07-31T11:48:10+02:00	Plan: decision 19's row still said L5c would build it	0	0	0	0	0	2	0	0	0	1
+2ca1d6914222	2026-07-31T11:47:42+02:00	Plan: L5c is closed unbuilt — 0.5.0 already ships decision 19	0	0	0	0	0	45	0	0	0	1
+e3ba8d3365ba	2026-07-31T11:45:38+02:00	Plan: L6 was not ready — it contradicted itself and what 0.5.0 shipped	0	0	0	0	0	51	0	0	0	1
+2796581d2a9e	2026-07-31T11:44:35+02:00	Post-release sweep: a half-swept PyPI table, and a fourth breaking change	0	0	0	0	2	0	0	0	6	2
+3ffda75cf94e	2026-07-31T11:29:53+02:00	Release 0.5.0 — the links release, interim cut	2	0	0	0	461	0	584	0	147	16
+f2f8291b1772	2026-07-31T11:26:37+02:00	L5b verification re-run at 2c67e01, and a stale GUIDE example it caught	0	0	0	0	4	0	0	0	0	1
+090f678fb8d0	2026-07-31T11:26:37+02:00	L5b: the shared parser was corrupting across documents, and four more	130	205	0	0	5	0	28	0	0	7
+604608cafa23	2026-07-31T11:26:37+02:00	L5b verification: the ten steps, run	0	11	0	7	0	0	8	0	0	3
+ed53c63916f2	2026-07-31T11:26:37+02:00	L5b: the exclusions were claims; pinning them found two more	0	146	0	0	12	0	22	6	0	7
+27c3fdbbb6ef	2026-07-31T11:26:37+02:00	L5b: a reused anchor name is refused again, whatever the caller's filters say	24	40	0	0	2	0	14	0	0	7
+94a159ec150e	2026-07-31T11:26:37+02:00	L5b after pass 7: two defects pass 6's own fix introduced, and a union escape	150	70	0	0	3	0	23	0	0	5
+682c35a0f1e4	2026-07-31T11:26:37+02:00	L5b review: the exit criterion was the thing nobody ran	98	240	0	0	23	0	32	0	0	8
+df3ca9b0a083	2026-07-31T11:26:37+02:00	L5b after the plan's pass 6: two real defects in code already committed	38	119	0	0	4	0	20	0	0	5
+c012669588cf	2026-07-31T11:26:37+02:00	L5b docs: the deferral becomes a delivery, and a testable promise	0	0	0	14	92	0	0	14	0	8
+5aba849b0372	2026-07-31T11:26:37+02:00	L5b: ruamel.yaml replaces pyyaml in the sidecar	409	749	18	0	0	0	59	0	0	20
+3fed438738a8	2026-07-31T11:10:06+02:00	Plan: a doc's commands must be diffed, not just run	0	0	0	0	0	7	0	0	0	1
+4a499fe37c83	2026-07-31T10:44:26+02:00	Plan: the shared YAML instance is a cross-document corruption bug	0	0	0	0	0	57	0	0	0	1
+68f15a2bce91	2026-07-31T10:40:48+02:00	Plan: a stray `import yaml` would succeed on a real install, not fail	0	0	0	0	0	7	0	0	0	1
+a3a1966c0c0c	2026-07-31T10:29:53+02:00	Plan: a missing trailing newline is added, and exclusions need pinning tests	0	0	0	0	0	11	0	0	0	1
+b06c2b579ef3	2026-07-31T09:07:08+02:00	Plan: L5b after pass 7 — the self-link rebuild, and two defects pass 6 added	0	0	0	0	0	63	0	0	0	1
+5fdb7d9c9e94	2026-07-31T08:53:41+02:00	"Plan: ""assign only when changed"" hides every reconciliation defect"	0	0	0	0	0	14	0	0	0	1
+a3dcc2a7ba18	2026-07-31T08:44:01+02:00	Plan: L5b after pass 6 — seven HIGH, and a repeat offence	0	0	0	0	0	91	0	0	0	1
+c0acc78ef88e	2026-07-31T08:41:12+02:00	Plan: the JSON check is one call on the union, and ValueError is unreachable	0	0	0	0	0	30	0	0	0	2
+56916c89b8f1	2026-07-31T08:36:31+02:00	Plan: sequence deletion wipes comments, and the limitation covers sequences	0	0	0	0	0	38	0	0	0	1
+de0b4630d72a	2026-07-31T08:27:57+02:00	Plan: L5b after pass 5 — seven HIGH, most inside pass 4's fix	0	0	0	0	0	94	0	0	0	2
+1376ad097eaf	2026-07-31T08:15:25+02:00	Plan: tags entries carry comments too, and wholesale replacement kills them	0	0	0	0	0	22	0	0	0	1
+009367086da8	2026-07-31T08:04:24+02:00	Plan: L5b after pass 4 — six HIGH, seam and L5c cleared	0	0	0	0	0	92	0	0	0	2
+04e6e93a7746	2026-07-31T08:01:21+02:00	Plan: L5b after an independent review — five findings, one behavioural	0	0	0	0	0	46	0	0	0	2
+ce1aca680bdd	2026-07-31T07:50:37+02:00	Plan: fix the split's seam — decision 26 belongs to L5b	0	0	0	0	2	187	0	0	0	3
+6fa9e3ae9135	2026-07-31T07:46:38+02:00	Plan: split L5b into L5b and L5c, and flag it everywhere	0	0	0	0	2	238	0	0	0	3
+f1f3c0d5068d	2026-07-31T07:39:24+02:00	Plan: L5b after pass 3 — 7 HIGH, one self-inflicted by the last commit	0	0	0	0	0	139	0	0	0	2
+3d9a4176bf9a	2026-07-31T07:33:38+02:00	Plan: remove every ambiguity from L5b	0	0	0	0	0	90	0	0	0	1
+9c8496cc3711	2026-07-31T07:29:10+02:00	Docs: name the audience and the goal before writing	0	0	0	0	17	6	0	4	0	3
+9a5ae0af9909	2026-07-31T07:28:21+02:00	Compact the docs, and make compaction a convention	0	0	0	0	26	693	0	3	0	4
+ee89b8fdada9	2026-07-31T07:23:42+02:00	Sweep decisions 19-27 for implications, and widen the rule that finds them	0	0	0	0	22	35	0	9	0	3
+8b913d233807	2026-07-31T07:19:32+02:00	Plan: L5b revised after pass 2 — two decisions superseded	0	0	0	0	0	199	0	0	0	2
+23d09dbad41e	2026-07-31T07:05:24+02:00	L5 review round 5: the precedence rule was freely reversible, suite green	2	67	0	0	8	0	13	0	0	6
+8f94b1094a56	2026-07-31T06:59:13+02:00	Plan: L5b revised after adversarial review — 8 HIGH	0	0	0	0	0	291	0	0	0	2
+56c4e1ea9098	2026-07-31T06:48:33+02:00	L5 review round 4: the round-3 fix reached one surface of two	44	39	0	0	25	0	23	0	0	11
+5c3c933dfc05	2026-07-31T06:29:58+02:00	Plan: L5b, the ruamel.yaml swap, specified from measurement	0	0	0	0	0	211	0	0	0	2
+e00f2edb9b36	2026-07-31T06:28:20+02:00	L5 review round 3: an assignment nobody asserted, and a substring that matched	37	83	0	0	22	0	30	0	0	9
+c01d5dee5386	2026-07-31T06:02:44+02:00	Decision: adopt ruamel.yaml, superseding plan decision 18	0	0	0	0	0	140	0	0	0	2
+f070003e99fe	2026-07-31T05:57:20+02:00	L5 review round 2: the direction fix was itself wrong at depth >= 2	75	163	0	0	18	0	19	0	0	15
+3c94579b7dc1	2026-07-31T05:34:31+02:00	L5 review fixes: direction was backwards, and eight fields could be constants	251	471	0	0	39	0	49	0	0	15
+cc10683c0c47	2026-07-31T05:09:47+02:00	L5: `pinakes_links` on the MCP surface	163	250	0	0	57	0	12	0	0	9
+16b19411b716	2026-07-30T18:07:40+02:00	Review fixes: the response was half-capped, and the gate could not fail	213	210	76	12	17	0	76	0	0	10
+e111c55a257e	2026-07-30T17:57:37+02:00	L4: the SQLite provider and `pnk links`	395	332	0	0	114	0	11	2	0	12
+31d0a8e0147f	2026-07-30T17:45:49+02:00	L3: the bounded traversal core, pure	305	429	142	18	35	0	11	0	0	13
+a686e21adaaa	2026-07-30T16:52:46+02:00	Review fixes: three partner-controlled inputs the scan trusted	169	150	0	0	9	0	69	0	0	8
+7570a6908aa2	2026-07-30T16:38:18+02:00	L2: reverse-scan, kb_refs, and the deletes that keep inbound links true	669	679	0	0	87	0	15	0	0	11
+816f3e3bd671	2026-07-29T08:48:04+02:00	Review fixes: the density gate did not gate the shape it was built for	0	171	117	6	21	2	59	5	0	11
+feb0a19dce08	2026-07-29T08:25:27+02:00	L1: the partner corpus, sparse authored links, and the density gate	0	688	211	28	47	0	11	0	0	61
+553c474c49fe	2026-07-29T07:49:41+02:00	Release 0.4.1	2	0	0	0	74	0	136	0	81	9
+8ac208bd9bec	2026-07-29T07:47:58+02:00	Review fixes: the same broken sidecar still aborted an already-indexed corpus	106	141	0	0	15	0	47	0	0	10
+5443884d9637	2026-07-29T07:28:19+02:00	Fix: a sidecar that will not parse is no longer replaced by a freshly minted one	81	165	0	0	7	0	55	0	0	8
+3529d09405cc	2026-07-29T06:05:48+02:00	plans/links-and-graph.md: revised after adversarial pass 7, and the YAML question settled	0	0	0	0	0	266	11	0	0	2
+fe234b917f21	2026-07-29T05:44:11+02:00	plans/links-and-graph.md: revised after adversarial pass 6	0	0	0	0	0	110	27	0	0	2
+89216583e808	2026-07-29T05:41:12+02:00	Docs: 0.4.0's post-release sweep, and a CDN caveat for the rule	0	0	0	0	9	0	16	4	0	3
+8da61297597d	2026-07-29T05:33:28+02:00	Release 0.4.0	2	0	0	0	109	0	349	0	264	16
+3c19e03f348c	2026-07-29T05:30:33+02:00	I9 review: neighbourhood audit of the docs this increment touched	0	0	0	0	6	0	0	0	0	1
+9c7b60515ba6	2026-07-29T05:28:44+02:00	I9 review: rows mapped from a test name rather than from the test	0	0	0	0	27	0	0	0	0	1
+85db3d8a5346	2026-07-29T05:28:44+02:00	I9: the verification table, audited — and given a gate that reads it	0	279	0	57	238	9	62	0	0	12
+15e6edc02f00	2026-07-29T05:28:09+02:00	Docs: a docs change audits its neighbourhood, not its diff	0	0	0	0	12	0	16	4	0	3
+59804751cac8	2026-07-29T05:25:28+02:00	Docs: six claims 0.3.0 falsified, one of them about PyPI itself	0	0	0	0	18	0	28	8	0	6
+4151bc488907	2026-07-29T05:09:21+02:00	plans/links-and-graph.md: revised after adversarial pass 5	0	0	0	0	0	120	37	0	0	2
+d34f1d06fcaf	2026-07-29T05:05:09+02:00	I8 review: a health check that crashed on an unhealthy KB, and two more	82	67	0	0	0	0	37	0	0	6
+49ede26fc73c	2026-07-29T04:58:16+02:00	I8: path:page citations on both surfaces, and pnk doctor's text yield	562	917	0	0	86	0	76	0	0	21
+1d122e6c6d38	2026-07-29T04:51:35+02:00	plans/links-and-graph.md: revised after adversarial pass 4	0	0	0	0	0	254	38	0	0	2
+176d083c64f5	2026-07-29T04:32:51+02:00	plans/links-and-graph.md: restructured after adversarial pass 3	0	0	0	0	0	938	38	0	0	2
+f8fea1fb9405	2026-07-29T04:25:52+02:00	Docs: the landing checklist still pointed at CHANGELOG.md	0	0	0	0	18	0	17	0	0	2
+9f7ed5c3481a	2026-07-29T04:20:24+02:00	Release 0.3.0 — the paid extraction release	2	60	57	0	172	0	150	0	357	10
+bb4fa8668563	2026-07-29T04:12:07+02:00	plans/links-and-graph.md: rewritten after adversarial pass 2	0	0	0	0	0	988	83	0	0	3
+f588f0346c7d	2026-07-29T04:07:07+02:00	Shared-file contention: remove the cause, report what remains	0	359	410	0	0	0	119	22	0	10
+820728d9f29d	2026-07-29T03:46:55+02:00	Record four Claude-vision fixtures from the live API	29	1152	216	0	56	0	0	0	36	22
+14fe2c37cd96	2026-07-29T03:40:35+02:00	plans/links-and-graph.md: rewritten after adversarial pass 1	0	0	0	0	0	858	0	0	74	2
+3db965a85470	2026-07-29T03:40:17+02:00	Naming: the links release splits out of the graph release	4	0	0	0	47	0	0	3	0	12
+13ce351cba85	2026-07-29T03:29:17+02:00	plans/graph-release.md: draft - NOT YET REVIEWED, do not implement from this	0	0	0	0	0	491	0	0	33	2
+c99c8c56db25	2026-07-29T03:24:38+02:00	Eval: a multi-hop question is scored on its hops, not on its last query	38	133	0	0	30	0	0	0	37	7
+6ebfdf4eaa0d	2026-07-29T03:22:21+02:00	The measurement run: what the live API actually says	42	20	0	0	59	0	0	0	14	6
+3c24bc96e6d4	2026-07-29T03:09:32+02:00	Secrets: .env is gitignored, and pinakes still does not read it	0	0	0	0	38	0	0	5	0	4
+c24e8c54c424	2026-07-29T03:00:55+02:00	Docs: write down the measurement run, with its steps and its euros	0	0	0	0	152	0	0	0	0	3
+680ddc412c55	2026-07-29T02:56:33+02:00	I7c: the paid extraction cache is not disposable either	0	0	0	0	0	0	0	8	0	1
+de990669c13e	2026-07-29T02:49:15+02:00	I7c review, pass 3: the audit had nowhere to be seen	151	114	0	0	11	0	0	0	0	9
+e5f89f1a77cf	2026-07-29T02:43:43+02:00	I7c review, pass 2: the audit made the mistake it was written to avoid	20	36	0	0	23	0	0	0	0	5
+8b7c8b0a1f1b	2026-07-29T02:39:54+02:00	I7c review: three mutation survivors, all the same shape	0	144	0	0	48	0	0	0	0	2
+58d1b655e1e0	2026-07-29T02:34:51+02:00	I7c: on_exceed finally does something, and the flag scope is written down	68	65	0	0	52	0	0	0	33	7
+3c83015094f9	2026-07-29T02:29:31+02:00	I7c (wip): --clear-cache prices what it is about to destroy	86	119	0	0	0	0	0	0	0	4
+6ce1bd6647dd	2026-07-29T02:24:03+02:00	I7c (wip): the audit wired in, staging wired in, and their tests	116	266	0	0	0	0	0	0	0	4
+6ff7b7021223	2026-07-29T02:16:54+02:00	Docs: the paid extractor is built, not a stub	0	0	0	0	15	0	0	0	18	4
+76d40447eac4	2026-07-29T02:13:35+02:00	I7c (wip): the completeness audit, and the staging that stops re-payment	207	0	0	0	0	0	0	0	0	2
+d14f1e29d59e	2026-07-29T01:05:16+02:00	Docs: pinakes is on PyPI — every install line says so	0	0	0	0	47	0	0	8	17	5
+d72c69460445	2026-07-29T01:02:29+02:00	I7b review, pass 7: I had not actually run the [light] leg	6	0	0	0	12	0	0	0	0	2
+32f9b3123b1e	2026-07-29T00:42:41+02:00	I7b review, pass 6 fix: a test that deleted a registry entry instead of restoring it	9	7	0	0	9	0	0	0	0	3
+cc452f4fa5bf	2026-07-29T00:40:06+02:00	I7b review, pass 6: nothing drove `pnk sync` itself	0	85	0	0	9	0	0	0	0	2
+b6461a507a54	2026-07-29T00:38:24+02:00	I7b review, pass 5: three named tests in the plan that had no implementation	18	109	0	0	11	0	0	0	0	3
+ffb5e311ff98	2026-07-29T00:35:14+02:00	I7b review, pass 4: the fingerprint omitted the model it was keyed on	37	35	0	0	18	0	0	0	5	9
+9f4ecc59efdf	2026-07-29T00:30:53+02:00	I7b review, pass 3: markdown emphasis rendered as asterisks in --help	4	15	0	0	8	0	0	0	0	3
+f2a86f7cd185	2026-07-29T00:28:01+02:00	I7b review, pass 2: a key demanded for nothing, and two pieces of dead code	24	19	0	0	9	0	0	0	0	4
+2ec8d28d1fc9	2026-07-29T00:25:36+02:00	I7b review: a reconciliation that reconciled nothing, and an escape hatch	56	57	0	0	60	0	0	0	9	4
+4a9f239e99f9	2026-07-29T00:19:36+02:00	I7b: the two mutations that survived, and the tests that now catch them	0	49	0	0	0	0	0	0	0	1
+8b7865f4be7c	2026-07-29T00:18:51+02:00	Convention: unbuilt work is named, never numbered	26	2	0	0	166	6	0	24	30	22
+703bb4e8eb38	2026-07-29T00:15:41+02:00	I7b (wip): docs, and the release hold's reason expiring	0	0	0	0	53	0	0	0	39	4
+2c77d522ab04	2026-07-29T00:13:25+02:00	I7b (wip): --estimate-only, and the confirmation that was config with no reader	148	102	0	0	0	0	0	0	0	5
+23749da55876	2026-07-29T00:09:34+02:00	I7b (wip): sync builds the accountant, and the cache joins the ledger	47	39	0	0	0	0	0	0	0	4
+1635b451e47f	2026-07-29T00:05:41+02:00	I7b (wip): the registry entry, the fixture set, and the branch suite	129	1089	0	0	0	0	0	0	0	21
+5ad8b27ddab4	2026-07-28T23:54:10+02:00	I7b (wip): parse the allowlist independently of the gate under test	0	13	0	0	0	0	0	0	0	1
+e270a24b165d	2026-07-28T23:53:49+02:00	I7b (wip): the Claude-vision extractor's implementation	863	22	0	0	0	0	0	0	0	6
+7008391c4c74	2026-07-28T23:43:41+02:00	STATUS: re-argue the release hold on a premise that is still true	0	0	0	0	30	0	0	0	0	1
+c441e8996bec	2026-07-28T23:39:38+02:00	CLAUDE.md: promote I6b's two ledger invariants	0	0	0	0	0	0	0	7	0	1
+c641ff203d8c	2026-07-28T23:35:23+02:00	I6b review, pass 4: replace an estimated record size with the measured one	6	0	0	0	0	0	0	0	0	1
+ad5319b19e4a	2026-07-28T23:33:57+02:00	I6b review, pass 3: a notice that described the wrong file	17	11	0	0	10	0	0	0	3	6
+044ec3f70067	2026-07-28T23:31:39+02:00	I6b review, pass 2: a silent cap and a flag value that said the opposite	27	62	0	0	10	0	0	0	4	6
+fb0211f5159d	2026-07-28T23:28:39+02:00	I6b review: an invariant opted out of one layer up, and three narrower holes	103	140	0	0	62	0	0	0	21	10
+50c10c83826b	2026-07-28T23:20:21+02:00	I6b: budget I/O — the ledger, `pnk budget`, and hooks that cannot spend	1526	1591	0	0	164	0	0	0	45	28
+e2d510affbca	2026-07-28T19:29:29+02:00	I7a review pass 2: prove the paid probe ran, rather than assuming it	0	36	0	0	0	0	0	0	0	2
+34d53fb4f8eb	2026-07-28T19:27:13+02:00	I7a retrospective: a gate whose own paid fixture was never paid, and a latent false positive	0	70	0	0	63	0	0	0	4	4
+fc59c7683b68	2026-07-28T19:22:49+02:00	I7a: the paid-path allowlist gate, landing before the code it guards	122	579	207	21	33	0	0	9	47	17
+f9f443497cee	2026-07-28T18:51:05+02:00	Release 0.2.2	2	0	0	0	8	0	0	0	5	3
+0bdfb0b6c017	2026-07-28T18:48:00+02:00	Review fixes: a probe that rejected valid CJK, and a multi-root ordering artefact	149	202	0	0	9	0	0	0	44	5
+6c7d236b651b	2026-07-28T18:43:25+02:00	Docs: a design note for updating an existing KB	0	0	0	0	174	0	0	0	24	5
+954a2dd5ae18	2026-07-28T18:23:40+02:00	Require mutating the source to prove tests can detect a defect	0	0	0	0	0	0	0	7	10	2
+232e14e89b7c	2026-07-28T18:21:32+02:00	Name files skipped for want of an include glob, instead of dropping them in silence	123	122	0	0	32	0	0	0	41	8
+6160e3eea416	2026-07-28T17:59:39+02:00	Docs: describe I6a, and the shipped-vs-merged distinction the docs lacked	0	0	0	0	197	0	0	0	49	6
+a58d77e90e79	2026-07-28T17:47:38+02:00	I6a retrospective: uncaught InvalidOperation, an unexercised timezone conversion, and three test gaps	50	171	0	0	0	0	0	0	38	8
+8efa044005ae	2026-07-28T17:11:44+02:00	I6a: budget core, pure -- Decimal caps, request-shaped estimation, the accountant	591	499	0	0	0	22	0	52	99	16
+4814973a7dd1	2026-07-28T16:54:54+02:00	Release 0.2.1	2	0	0	0	0	0	0	0	5	2
+01c60db7f31c	2026-07-28T16:54:15+02:00	Docs: one fact one home, and a guide that was actually run	6	0	0	0	1407	0	0	0	56	12
+d921e9389320	2026-07-28T14:08:00+02:00	Release 0.2.0	2	0	0	0	0	0	0	0	5	2
+e23710814204	2026-07-28T14:03:50+02:00	I5: PDF chunking, page provenance, and a backend-aware sync	1044	961	0	0	176	0	0	5	90	24
+e970bfd2c176	2026-07-28T10:29:36+02:00	I4 retrospective: temp-file glob collision, provenance typing, remedy split	37	146	0	0	53	0	0	0	0	6
+e4c264e2502b	2026-07-28T09:58:35+02:00	I4: the extraction cache	385	374	0	0	24	0	0	0	35	11
+5f7df64df68d	2026-07-28T08:41:35+02:00	Font-embedding fix retrospective: platform-independent regression test	0	41	0	0	18	0	0	0	0	4
+fcbcd2a4ceda	2026-07-28T08:15:40+02:00	Fix cross-platform scanned-fixture rendering: embed a real font	0	371	0	0	51	0	0	0	29	5
+9b0fbf4ff01a	2026-07-28T03:09:15+02:00	I3b retrospective: slice_pages' silent full-document return, and three testability gaps	187	138	0	0	80	0	0	0	0	8
+5ee16756cf91	2026-07-28T02:23:04+02:00	I3b: pypdfium2 adapter, extraction-quality metrics, and the two fitted floors	1104	860	0	19	44	0	0	0	50	25
+1b1248d85361	2026-07-28T00:54:39+02:00	I3a retrospective: anchor column clustering, fix y-band rounding, close the import-purity blind spot	89	80	0	0	68	4	0	0	9	5
+ec99273fb52a	2026-07-28T00:19:09+02:00	I3a: extraction core, pure -- character stream to ordered, de-furnished text	417	541	0	0	0	0	0	0	19	4
+9d632d20c81e	2026-07-27T23:46:04+02:00	I2 retrospective: a gate that could not fire, and two wrong ground truths	0	179	0	0	47	0	0	0	3	11
+93002783a423	2026-07-27T23:07:58+02:00	I2: the synthetic hard-case PDF corpus and its generator	0	2523	0	2	0	0	0	0	15	47
+3ed2f9e3310a	2026-07-27T22:30:05+02:00	I1 retrospective: untested marker predicates, a doctor probe path bug, stale CI docs	9	57	0	5	32	0	0	5	0	8
+4e31e1bf6351	2026-07-27T21:56:27+02:00	I1: extras, the extractor seam, and an honest core-only failure	347	325	0	23	38	0	0	4	18	21
+edaf18cc707a	2026-07-27T21:21:30+02:00	Release 0.1.4: the reviewed v0.2 build order	2	0	0	0	0	0	0	0	16	2
+e7c44fb640fa	2026-07-27T21:05:56+02:00	plans/v0.2.md: fix adversarial pass 4 (19 HIGH, 39 MEDIUM, 23 LOW)	0	0	0	0	37	501	0	0	0	2
+200d6c9116bc	2026-07-27T20:41:05+02:00	plans/v0.2.md: fix adversarial pass 3 (12 HIGH, 31 MEDIUM, 17 LOW)	0	0	0	0	41	1367	0	0	0	2
+83df8515fc28	2026-07-27T17:03:15+02:00	Fix four future-dated timestamps, and make the clock the source	0	0	0	0	33	10	0	7	0	3
+b92582d4141e	2026-07-27T16:59:57+02:00	plans/v0.2.md: fix adversarial pass 2 (5 HIGH, 18 MEDIUM, 8 LOW)	0	0	0	0	0	1134	0	0	0	1
+40525486c420	2026-07-27T16:15:38+02:00	plans/v0.2.md: fix adversarial pass 1 (7 HIGH, 19 MEDIUM, 8 LOW)	0	0	0	0	0	1112	0	0	0	1
+4c1ffb2ae1ce	2026-07-27T15:43:55+02:00	plans/v0.2.md: draft - NOT YET REVIEWED, do not implement from this	0	0	0	0	0	579	0	0	0	1
+8f633c87c64c	2026-07-27T14:52:00+02:00	Record this session's findings where they will change behaviour	2	0	0	0	48	0	0	18	17	4
+18da114c7cf9	2026-07-27T14:47:46+02:00	README told four things that were not true; fix them	2	0	0	0	7	0	0	0	33	4
+3eff2125d86a	2026-07-27T14:44:01+02:00	Close out plans/v0.1.md, and ship the free-path gate it promised	0	0	0	14	0	147	0	0	11	3
+347406a4ba30	2026-07-27T14:39:15+02:00	Tooling and release plumbing: Makefile, gated publish, landing rules	2	7	0	14	0	0	0	30	36	6
+bfb74954ec64	2026-07-27T14:32:10+02:00	Fix red main: ruff-format the Python block in hipporag.md	0	0	0	0	9	0	0	0	0	1
+d4d5922ea4f1	2026-07-27T14:28:44+02:00	Graph research: relocate GRAPH_RAG.md into docs/graph/, close privacy findings	0	0	0	0	12	0	0	0	0	3
+edfd3f9c927a	2026-07-26T09:32:05+02:00	Graph synthesis: fix fifth-pass finding (1 LOW) and nits	0	0	0	0	12	0	0	0	0	1
+75cfed27f254	2026-07-26T09:28:37+02:00	Graph synthesis: fix fourth-pass review findings (1 MEDIUM, 2 LOW, 2 nits)	0	0	0	0	30	0	0	0	0	1
+bec35a4c902a	2026-07-26T09:23:50+02:00	Graph synthesis: fix third-pass review findings (4 MEDIUM, 4 LOW)	0	0	0	0	53	0	0	0	0	1
+c1b13b59633e	2026-07-26T09:17:34+02:00	Graph synthesis: fix second-pass review findings (2 MEDIUM, 5 LOW)	0	0	0	0	105	0	0	0	0	1
+f5b73e89a3ec	2026-07-26T09:11:44+02:00	Graph synthesis: fix all 27 adversarial-review findings	0	0	0	0	305	0	0	0	0	1
+e23a0c6d7364	2026-07-26T09:09:29+02:00	Graph synthesis: PINAKES_APPROACH.md draft	0	0	0	0	301	0	0	0	0	1
+b28709927106	2026-07-26T08:56:42+02:00	Graph research: ClaudeKB second pass - playbooks, kbtool, D-decisions, retrieval-layer fit	0	0	0	0	272	0	0	0	0	1
+73698890a43d	2026-07-26T08:56:12+02:00	Graph research: LogicRAG deep-dive	0	0	0	0	147	0	0	0	0	1
+34757b3ffb21	2026-07-26T08:53:32+02:00	Graph research: code-graph-rag, MiniRAG, Youtu-GraphRAG deep-dives	0	0	0	0	472	0	0	0	0	3
+ec2a2f807e54	2026-07-26T08:52:45+02:00	Graph research: datastax/graph-rag deep-dive	0	0	0	0	152	0	0	0	0	1
+293340f5a046	2026-07-26T08:52:20+02:00	Graph research: LinearRAG deep-dive	0	0	0	0	162	0	0	0	0	1
+5ab9df14bbcb	2026-07-25T15:36:00+02:00	Graph research: first-pass deep-dive docs (6 listed projects + ClaudeKB)	0	0	0	0	1136	0	0	0	0	7
+c9c56eb4d5fb	2026-07-25T15:28:40+02:00	I15: CI, packaging, and the 0.1.0 release	5	2	0	158	20	0	0	0	25	8
+9fdc72c31244	2026-07-25T15:27:26+02:00	Add graph/RAG research summary (GRAPH_RAG.md) as branch baseline	0	0	0	0	203	0	0	0	0	1
+2a120601b4c0	2026-07-25T15:25:25+02:00	I14: the scoreboard, and the first honest number it produced	519	803	0	0	34	0	0	0	7	70
+0c8cd2defa4d	2026-07-25T15:13:50+02:00	I13: the MCP server, and a boundary that is tested rather than asserted	309	210	0	0	23	0	0	0	6	7
+3edbac94fcd1	2026-07-25T15:10:31+02:00	I12 retrospective: make the gate a script that can actually fail	0	5	0	0	8	0	0	3	0	4
+9e8510a60a18	2026-07-25T15:09:36+02:00	I12: the three git hooks, and the two refusals that matter	151	171	0	0	18	0	0	0	5	7
+cf42c2441287	2026-07-25T15:07:04+02:00	I11: pnk doctor, where the design's stated limits become visible	424	193	0	0	20	0	0	0	5	6
+3e6112f5f4c4	2026-07-25T15:03:25+02:00	I10 retrospective: warnings as errors, and a gate I ran too early	0	2	0	0	24	0	0	0	0	2
+873d2e2a66d1	2026-07-25T15:02:26+02:00	I10: pnk init, the notes template, and pnk search	436	299	0	0	0	0	0	0	9	15
+5ec0c8de69f0	2026-07-25T14:56:59+02:00	I9 retrospective: zero-similarity candidates, and the missing date column	0	0	0	0	24	0	0	0	0	1
+2d5e31bff63f	2026-07-25T14:56:37+02:00	I9: the free retrieval pipeline, with an honest confidence signal	377	348	0	0	7	0	0	0	6	5
+24181bda5b73	2026-07-25T14:52:33+02:00	I8b retrospective: WAL companions, read-only writes, a leaked helper	0	0	0	0	28	0	0	0	0	1
+242fc1fe007b	2026-07-25T14:52:11+02:00	I8b: pnk sync, the advisory lock, and the atomic rebuild swap	822	449	0	0	0	0	0	0	8	9
+f29abb99c3aa	2026-07-25T14:44:29+02:00	I8a retrospective: fix a model-test guard that checked the wrong half	0	0	0	0	21	0	0	0	0	1
+d039fa7b9584	2026-07-25T14:44:06+02:00	I8a: two-phase sync pairing as a pure function	381	305	0	0	0	0	0	0	7	5
+8291f542ecaf	2026-07-25T14:42:33+02:00	I7: embedding and reranking backends behind open registries	311	169	0	0	27	0	0	0	6	6
+b51533e1909d	2026-07-25T14:32:14+02:00	I6 retrospective: overlap could exceed max_tokens; exact piece offsets	22	20	0	0	29	0	0	0	0	3
+19c33a44de0b	2026-07-25T14:30:56+02:00	I6: structural chunking with exact spans	341	202	0	0	7	0	0	0	6	5
+9e625134552c	2026-07-25T14:26:19+02:00	I5 retrospective: atomic writes, keep explicit empties, unhedge a test	35	55	0	0	25	0	0	0	2	4
+0d0f46d9fa3e	2026-07-25T14:24:46+02:00	I5: sidecar read, write, and link resolution	240	212	0	0	0	0	0	0	5	4
+e8bab675e294	2026-07-25T14:22:28+02:00	I4 retrospective: halve vector-load peak, keep error subclasses	58	33	0	0	29	0	0	0	2	6
+894f384e7a29	2026-07-25T14:20:43+02:00	I4: SQLite storage, FTS5 triggers, vector loading	331	248	0	0	0	0	0	0	6	4
+a963a8fc88ba	2026-07-25T14:17:03+02:00	I3 retrospective: empty values, assert-based narrowing, missing docs	58	25	0	0	33	0	0	0	0	6
+71503e39ce32	2026-07-25T14:15:21+02:00	I3: manifest parsing, strict validation, KB root discovery	650	311	0	0	0	0	0	0	7	6
+9eaaf491973b	2026-07-25T14:02:39+02:00	I2 retrospective: kill a tautological test, narrow two blind excepts	22	17	0	0	28	0	0	0	1	6
+1cd33d19220f	2026-07-25T14:00:57+02:00	I2: ULID identity and pnk:// URIs	181	152	0	0	0	0	0	0	5	6
+d2166cc81dbb	2026-07-25T13:50:22+02:00	Timestamp every date with HH:MM, and backfill the existing ones	0	0	0	0	19	0	0	4	7	4
+4ec680ee1304	2026-07-25T13:40:55+02:00	I1 retrospective: fix unpicklable errors and the public dispatch dest	25	27	0	0	24	3	0	3	2	8
+83f01c76851e	2026-07-25T13:35:45+02:00	I1: package skeleton, error hierarchy, CLI dispatch	129	67	0	0	9	0	0	3	4	6
+a97600b3ce27	2026-07-25T13:32:15+02:00	Record the per-increment build workflow in CLAUDE.md	0	0	0	0	0	0	0	16	0	1
+7b01615e1f34	2026-07-25T13:25:51+02:00	plan/v0.1: reviewed — ready to implement (5 passes, 28 findings)	0	0	0	0	0	2	0	0	5	2
+db74b412f3e1	2026-07-25T13:25:22+02:00	plan/v0.1: pass 4 — 1 finding resolved (1 LOW)	0	0	0	0	0	5	0	0	0	1
+ae558ac2d126	2026-07-25T13:24:42+02:00	plan/v0.1: pass 3 — 5 findings resolved (1 MEDIUM, 4 LOW)	0	0	0	0	0	21	0	0	0	1
+699570311a88	2026-07-25T13:23:46+02:00	plan/v0.1: pass 2 — 8 findings resolved (1 HIGH, 4 MEDIUM, 3 LOW); design pass 7	0	0	0	0	37	52	0	0	8	4
+0c82105c6c32	2026-07-25T13:20:01+02:00	plan/v0.1: pass 1 — 14 findings resolved (2 HIGH, 5 MEDIUM, 7 LOW)	0	0	0	0	0	69	0	0	0	1
+e8a9c3e7c468	2026-07-25T13:17:22+02:00	plan/v0.1: preliminary draft — 15 increments decomposing DESIGN.md §8	0	0	0	0	0	250	0	0	0	1
+84d2bfc3b4cd	2026-07-25T13:13:32+02:00	Design pass 6: resolve the v0.1 implementation-contract gaps	0	0	0	0	90	0	0	0	12	3
+c95b6325bba1	2026-07-25T09:18:44+02:00	Point repository URLs at lucagattoni/Pinakes after rename	2	0	0	0	2	0	0	0	2	4
+5a53f4bc5f69	2026-07-25T08:57:14+02:00	Bootstrap pinakes: reviewed design, Apache-2.0, uv toolchain	64	28	0	0	588	0	0	49	23	10
