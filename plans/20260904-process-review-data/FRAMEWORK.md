@@ -294,7 +294,7 @@ ranking is not.**
 | `mutate.py` | 150 | `--check-anchors` **18%**; battery runs **16.7%** found a SURVIVED mutant |
 | `fragments.py` | 84 | **3 of 72 resolved (4.2%)** caught a real malformed fragment |
 | `shared_file_overlap.py` | 39 | **2 of 38 resolved (5.3%)** — the one genuinely almost-always-null instrument |
-| `land.py` | 43 | **0 refusals — but the figure is nearly vacuous.** The gate-certification refusal only landed 20260904 08:25Z, so **at most ~8 of the 43 could ever have exercised it.** Too young for a catch rate; measured effect remains deterrence |
+| `land.py` | 43 | **0 refusals across that population — and the figure was nearly vacuous.** The gate-certification refusal shipped 20260904 08:25Z (`66ddb8f`), so **at most ~8 of the 43 could ever have exercised it.** ⟦read, coder, ~12:30⟧ **It has since fired — see §6.3f.** |
 | workflow fan-outs | 34+ runs, 360+ child agents | in one increment a **pass-4 judge ruled DOES NOT LAND after three prior passes had cleared it** |
 
 ### 6.3c My hypothesis has a number, and it is not a landslide ⟦measured, coder — adjudicated⟧
@@ -362,6 +362,33 @@ Measuring what a coder did requires parsing Bash `tool_result`s and exit codes.
 sessions were defective; **all three were caught and corrected by the receiving session within about
 65 minutes**, and the corrected values are on `main`. **A retrospective that stops at the error
 misses the half that worked** — and the coder notes this is not what their own fragment said.
+
+### 6.3f The guard fired, on the session landing the sentence that said it never had ⟦read, coder — 20260904 12:30⟧
+
+**Roughly four hours after the refusal shipped, `land.py` refused a landing.** ⟦read⟧ from the
+coder; the mechanism is ⟦observed⟧ in `tools/land.py:160`, which emits *"no ./check.sh run has
+certified the tree this would land"*, names all three trees, gives the remedy, and states **"There is
+no override."** The refusal was added in `66ddb8f`, 20260904 08:25Z.
+
+**What triggered it is the point.** `main` moved during their `check.sh` run, so the merge produced a
+tree **no gate had certified** — which is *exactly* the mechanism they reported as their session's
+dominant wall-clock cost, and the **fourth** occurrence of it for them that day. **This time the
+guard converted a silent stale-tree landing into a stop.**
+
+**And it caught the session in the act of landing a document that said it had never fired.** They
+recorded a postscript rather than tidying it away, on the ground that the alternative is *"a document
+whose own landing falsified it silently."*
+
+**What this does and does not change.** The zero across 43 remains what it was: **a number that could
+not have come out differently**, over a population that mostly predates the refusal. **What makes
+this event evidence is that the same instrument, on a population where it *could* fire, did.**
+Deterrence and interception are both real; the historical count only ever showed the first.
+
+**It is the strongest single argument in this review for encoding a rule as an executable guard
+rather than as prose** — and unlike most of what is argued here, it is a measured event rather than
+an inference. Set beside §3.3: **two informed sessions broke the prose version of this rule in one
+day while quoting it at each other**, and the executable version stopped its own author within hours
+of existing.
 
 ### 6.4 Review is worth it, and its target should be prose
 
