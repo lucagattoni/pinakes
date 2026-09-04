@@ -14,26 +14,41 @@ name: injection-audit
 # CI. **Redundant on one platform, load-bearing on another, and not rulable from either alone.**
 # Every developer machine here is macOS; this is the missing half.
 #
-# **It is not folded into `ci.yml`.** That workflow's jobs gate a release; this one reports on the
-# *test suite's own instruments*, and conflating the two invites someone to read a red here as a
-# broken product. Filed as row 42 of `plans/20260901_1148-clear-the-user-facing-list.md`.
+# **It is not folded into `ci.yml`, and the reason is mechanical rather than aesthetic.** `on:` is
+# declared once per workflow file and applies to every job in it, so a job living in `ci.yml`
+# cannot have its own trigger or its own path filter — it would pay its cost on every unrelated
+# push and PR forever. Filed as row 42 of `plans/20260901_1148-clear-the-user-facing-list.md`.
 
 on:
   workflow_dispatch:
-  # Paths, so it fires exactly when the answer can change and costs nothing otherwise: the tests
-  # that hold the injections, the predicates they fake, the tool itself, and this file. A change
-  # anywhere else cannot move a verdict.
+    inputs:
+      python:
+        description: "Interpreter to audit under (default: the declared floor)"
+        default: "3.13"
+        type: string
+
+  # **The two events want different filters, because they answer to different failure modes.**
+  #
+  # A pull request is gated narrowly — the tests that hold the injections, the tool, and this file.
+  # It therefore never fires on an ordinary code PR, so nobody acquires a reason to disable it.
+  #
+  # `main` additionally watches `src/pinakes/**`, and that is the tool's *own* stated motivating
+  # failure: "the day the production code stops calling the faked name, the test goes on passing
+  # while covering nothing." The faked names are reached through `link.py`, `linkscan.py`,
+  # `sync.py`, `sidecar.py`, `doctor.py` and more — **not** `paths.py` alone. A filter naming only
+  # `paths.py` stays silent for exactly the change the audit exists to catch: not a false green, a
+  # false silence. Production drift is a standing property of `main` rather than something urgent
+  # inside one PR, which is the same trade `minimum-python` already makes by running on push only.
   push:
     branches: [main]
     paths:
       - "tests/**"
-      - "src/pinakes/paths.py"
+      - "src/pinakes/**"
       - "tools/vacuous_injection_audit.py"
       - ".github/workflows/injection-audit.yml"
   pull_request:
     paths:
       - "tests/**"
-      - "src/pinakes/paths.py"
       - "tools/vacuous_injection_audit.py"
       - ".github/workflows/injection-audit.yml"
 
@@ -44,19 +59,7 @@ concurrency:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    strategy:
-      # **Both interpreters, and the reason is a measurement rather than a preference.** Run on
-      # macOS 20260904, the verdict set was byte-identical on 3.13.15 and 3.14.7 — 15 sites, 1
-      # vacuous, 0 unruled, the same site both times — so nothing here is *known* to turn on the
-      # interpreter. The matrix is kept anyway because this repository's most expensive recurring
-      # defect is a measurement taken on one interpreter and reported as a fact about both
-      # (`Path.is_file()` raises on 3.13 and returns False on 3.14, which is the whole reason
-      # `src/pinakes/paths.py` exists), and closing that hole permanently costs one parallel job of
-      # about a minute. If a verdict ever does split across these two legs, this comment is wrong
-      # in the most useful possible way and the split is the finding.
-      fail-fast: false
-      matrix:
-        python: ["3.13", "3.14"]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -65,11 +68,26 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install Python ${{ matrix.python }} and dependencies
-        # `[light]` only, per row 42. The audit probes predicate fakes on `Path`/`os`/`paths`;
-        # no injection site is in a `[pdf]` or `[claude]` code path, and a torch-free install keeps
-        # the job to a couple of minutes.
-        run: uv sync --frozen --python ${{ matrix.python }} --extra light
+      - name: Install Python ${{ inputs.python || '3.13' }} and dependencies
+        # `[light]` only, per row 42: no injection site sits in a `[pdf]` or `[claude]` code path.
+        #
+        # **One leg on the floor, not a 3.13/3.14 matrix, and that is a measurement rather than a
+        # preference.** Run on macOS 20260904 at 10:01 and 10:03 UTC the verdict set was
+        # byte-identical on 3.14.7 and 3.13.15 — 15 sites, 1 vacuous, 0 unruled, the same site both
+        # times. The mechanism agrees: the 3.13/3.14 split lives in `Path.is_file()` and
+        # `Path.exists()`, and `src/pinakes/paths.py` exists so production no longer calls them —
+        # none of the fifteen neutralised paths reaches either. A second leg would "cost a job to
+        # prove a combination with no mechanism behind it", which is `ci.yml`'s own sentence
+        # refusing a `3.13 x [claude]` cross-product for the identical reason. An earlier version of
+        # this file kept the matrix as insurance; that inverted the repo's settled idiom and turned
+        # a measured-inert axis into a standing cost nobody would re-examine.
+        #
+        # The floor is the one to run: 3.14 only duplicates the runner default, while 3.13 is what
+        # `pyproject.toml` promises and what went unexecuted until 20260903. The other interpreter
+        # stays **a question you can ask** — `workflow_dispatch` takes one — rather than a cost paid
+        # on every run. If a verdict ever does split across the two, this comment is wrong and the
+        # matrix is the fix.
+        run: uv sync --frozen --python ${{ inputs.python || '3.13' }} --extra light
 
       - name: Cache model weights
         uses: actions/cache@v4
@@ -78,21 +96,22 @@ jobs:
           key: hf-${{ hashFiles('tests/demo-kb/pinakes.toml') }}
           restore-keys: hf-
 
-      - name: Confirm the interpreter is the one this leg claims
-        # `minimum-python`'s guard, for its reason: `uv sync --python X` is a *request*. A leg that
-        # silently ran the other version would be a matrix reporting two results from one
-        # interpreter — the exact shape this job's own matrix comment exists to rule out.
+      - name: Confirm the interpreter is the one this run asked for
+        # `minimum-python`'s guard, for its reason: `uv sync --python X` is a *request*, and a run
+        # that silently used another version would be this job reporting a verdict about an
+        # interpreter it never used.
         run: |
           set -e
-          uv run --frozen python -c "import sys; assert '.'.join(map(str, sys.version_info[:2])) == '${{ matrix.python }}', sys.version; print(sys.version)"
+          uv run --frozen python -c "import sys; want='${{ inputs.python || '3.13' }}'; got='.'.join(map(str, sys.version_info[:2])); assert got == want, (got, want, sys.version); print(sys.version)"
 
       - name: Audit every injection site
-        # **Exit status is the *unruled* set, never the vacuous one.** A `VACUOUS` row is a finding
-        # for a person to split three ways and the tool exits 0 on it, for the same reason
-        # `mutate.py` exits 0 on a survivor. `UNSTABLE`, `INCONCLUSIVE` or a site with no caller
-        # found means the instrument did not rule, and an audit that cannot rule a site while
-        # exiting 0 is a harness reporting success for a measurement that did not happen.
+        # **No wrapper gate, deliberately.** The tool's exit status *is* the assertion: non-zero on
+        # the unruled set (`UNSTABLE`, `INCONCLUSIVE`, no caller found), non-zero on a collapsed
+        # site list (`--min-sites`, default 10), non-zero when the environment moved mid-run, and
+        # **zero on a `VACUOUS` row** — a finding for a person to read, for the same reason
+        # `mutate.py` exits 0 on a survivor. Grepping its stdout here would be a second copy of a
+        # contract the tool already owns, free to drift out of step with it.
         #
-        # Run bare. `… | tee log` would make this step read `tee`'s exit status, which is the
-        # failure `CLAUDE.md` names and that landed two red commits on 20260904.
+        # Run bare. `… | tee log` would make this step read `tee`'s status, which is the failure
+        # `CLAUDE.md` names and which landed two red commits on 20260904.
         run: python3 tools/vacuous_injection_audit.py --runs 2

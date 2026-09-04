@@ -1,6 +1,7 @@
 - **The vacuous-injection audit now runs on Linux, and says which environment it ran in.**
   `.github/workflows/injection-audit.yml` runs `tools/vacuous_injection_audit.py --runs 2` on
-  `ubuntu-latest` under both 3.13 and 3.14, each leg asserting the interpreter it actually got.
+  `ubuntu-latest` under the declared floor, 3.13, asserting the interpreter it actually got and
+  taking another as a `workflow_dispatch` input.
   It exists for one question a macOS checkout cannot answer about itself: an injected
   `ENAMETOOLONG` is redundant where a real 300-character filename raises it and load-bearing where
   it does not, and that is a property of the filesystem, not of the code. The report now names the
