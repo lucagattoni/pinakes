@@ -129,7 +129,15 @@ Never batch increments; each is a separate, bisectable landing:
    thing in the file that the code does not already contain. Write it down beside the mutant.
 
    The harness rules, each earned at least twice ([RETROSPECTIVES.md](RETROSPECTIVES.md) §
-   *Start here* → "run a mutation pass") and each a refusal in `tools/mutate.py`:
+   *Start here* → "run a mutation pass") and each a refusal in `tools/mutate.py`. **They apply to
+   any edit-run-restore loop, not only to a thing called a battery** — a one-off audit script that
+   writes a file, runs the suite and puts it back is this machine under a different noun, and on
+   20260904 09:08 one was built that skipped the `__pycache__` rule for exactly that reason, taking three
+   instruments and a count that walked 5 → 3 → 2 before the rule was applied and the verdicts went
+   stable. **A rule keyed to what a thing is called is broken by the next thing that is not called
+   that** — the same session had a planner's trigger fail the same way, by naming *"more than one
+   vacuous test"* and never naming the one-plus-one-unknown case that actually turned up. When you
+   write a rule here, key it to the *shape* of the work:
    - **Commit before mutating** — `git checkout <file>` restores to the last commit, not to the
      pre-mutation state, and has silently reverted uncommitted fixes six times here. After any
      restore, grep for the thing that was supposed to survive it.

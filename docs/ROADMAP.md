@@ -17,17 +17,27 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260903 16:55 UTC
+## Where things stand right now — 20260904 09:10 UTC
 
-- **63 releases in 40 days** — **counted from `CHANGELOG.md`, not incremented from this
+- **64 releases in 41 days** — **counted from `CHANGELOG.md`, not incremented from this
   sentence's own previous value**, which is exactly how it drifted: it read **58** while the file
   held **59**. Across the **109** commits that have carried this sentence it agreed with the
   CHANGELOG in **70** and was wrong in **39** — all but two of them low, because a release added one
-  to the printed number instead of counting the entries. The three registers now reconcile: **64**
-  entries = **63** git tags + `0.30.3`, prepared and never tagged — **counted from
+  to the printed number instead of counting the entries. The three registers now reconcile: **65**
+  entries = **64** git tags + `0.30.3`, prepared and never tagged — **counted from
   `git ls-remote --tags`, the CHANGELOG's headings and this file's table, never incremented**, which is
   the discipline this row exists to keep and the one it previously failed.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725.
+  [`0.32.5`](#0325--a-permission-problem-reported-as-three-other-things--20260904-0849) is **on
+  PyPI as of 20260904 09:01** — landed 08:55:41, on the index 5 minutes 17 seconds later, the tag
+  held for `minimum-python` at this commit **and** for the whole run rather than that one job.
+  **Its control is a message, not a crash**: on a source under an unreadable directory the
+  published 0.32.4 says *“is not a document in this KB”* and the published 0.32.5 says *“cannot be
+  read: Permission denied”*, both at exit 1 — which is what made the change safe in a PATCH, and
+  is why a grep for `error|cannot` reported nothing for 0.32.5 and the output had to be read whole.
+  **The planner's first ruling for this release was wrong and the implementer refused to build
+  it** — it named a predicate that answers `False` for the very shape behind 0.32.3's ULID defect,
+  so it would have left 3.14 unfixed and regressed 3.13.
   [`0.32.4`](#0324--a-directory-the-walk-could-not-enter-deleted-what-was-under-it--20260903-1638)
   is **on PyPI as of 20260903 16:53** — landed 16:49:07 and on the index 4 minutes 5 seconds later,
   the tag held until `minimum-python` had completed at *this* commit and been read in its log.
@@ -101,7 +111,7 @@ precision nobody measured.
   rather than folded away, because the record was written honestly and deleting it would erase the
   gap instead of correcting it. The **seven** tags below `v0.2.2` are not a second exception: they
   predate publishing altogether, since `PUBLISH_TO_PYPI` became `true` on 20260728 17:15.
-- **Latest on PyPI: `0.32.4`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.32.5`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
