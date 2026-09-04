@@ -92,6 +92,34 @@ pyright was clean; pyright rejected untyped lambda parameters where `ty` was cle
 not, and chasing its complaint is what surfaced the `subprocess` leak above. That does not make it
 a gate; it makes the pairing load-bearing.
 
-**What is not established, stated so nobody infers it.** Whether any of this transfers to the Linux
-legs: they had not run when this was written. The prediction is in the row and in
-`.github/workflows/injection-audit.yml`; what would settle it is one run.
+**The prediction, written down before the run, because a run nobody could predict is a run nobody
+can interpret.** Fifteen sites were predicted independently — one reader per site, each reading the
+owning test and the production code it drives — and the set is unanimous: **fourteen `sound`, one
+`VACUOUS` (`tests/test_cli_link.py:617`), every one at high confidence, and not one judged
+platform- or interpreter-dependent.** So the expected Linux result is **identical to the macOS
+one**, and *any* difference is a finding.
+
+The mechanism offered for `:617`, which is the site row 42 exists for: `add()` -> `source_sidecar()`
+-> `_document_in()`, whose `joined.parent.resolve()` resolves only the *parent*, so the 300-character
+component reaches `_is_file()` intact; that calls `paths.unreachable_through_links()`, whose body is
+a bare `os.stat()` — the **real** syscall once the injection is neutralised. `ENAMETOOLONG` is
+deliberately absent from `_NOT_THERE`, so the refusal is `True`, `_is_file` re-`stat`s to fetch
+`strerror`, and both assertions still hold. **Verified here, on macOS:** `errno.ENAMETOOLONG` is 63,
+`os.strerror(63)` is exactly `"File name too long"`, `_NOT_THERE` is
+`{ENOENT, EBADF, ENOTDIR, ELOOP}` with `ENAMETOOLONG` absent, and both `pinakes.paths` and
+`pinakes.link` bind the `os` *module*, so the injection really does intercept both call sites when
+armed. **Not verified here, and this is the half the Linux run is for:** that Linux's errno 36 maps
+to the same `strerror` string, and that the VFS rejects an over-long component by length before any
+existence check.
+
+**Why the test's comment would then be stale rather than wrong.** It records that on CI *"the long
+name simply was not a document"* — and that describes the **pre-refactor** path, built on
+`Path.is_file()`, whose 3.14 error-swallowing could make `ENAMETOOLONG` vanish silently. The current
+code bypasses `pathlib` entirely and calls `os.stat` directly, twice. So if the site does come back
+`VACUOUS` on Linux, the comment is not to be deleted: what changed is that
+`paths.unreachable_through_links` did not exist when it was written.
+
+**What is not established, stated so nobody infers it.** The Linux legs had not run when this was
+written — `push` is restricted to `main`, so no branch push fires them and the merge commit is what
+does. Everything above is a prediction plus a macOS measurement. **One run settles it**, and the
+row carries what would falsify it.
