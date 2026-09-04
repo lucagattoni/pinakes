@@ -153,6 +153,28 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
 **What is live right now** — the full routing table, with what each closed plan still binds, is
 [`docs/README.md`](docs/README.md):
 
+- **⏸ DEVELOPMENT IS PAUSED. Do not pick up a row. Resume only on the user's word.** Paused by the
+  user 20260904 10:21 so they can review **the development process itself** — and this repository — against
+  an analysis they commissioned, *Framing, Not Roles* (Claude artifact `2c7961ec`, written against
+  `d474ffa`). Both live sessions shut down cleanly at that point.
+  **State at the pause, so nobody reconstructs it:** `main` green, in sync, no worktrees; **six
+  fragments wait in `changelog.d/` and `retro.d/`** — a release is due and was **deliberately not
+  cut**, because a tag publishes to PyPI and that is starting work rather than stopping it; rows
+  **9, 23, 25, 29** and row 36's remainder are open; row 42 was the last increment in flight.
+  **What the analysis concludes, in one line each, so a resuming session does not re-derive it:**
+  specialise by **framing, not job title** — a lens transfers almost no context, a role transfers
+  all of it; the binding constraints are **fan-outs that die silently and report clean** and
+  **undecided questions only the user can answer**, neither fixed by adding an agent; and the
+  substrate is wrong rather than the instinct — roles run as sessions instead of `.claude/agents/`
+  definitions, rules as prose instead of hooks, and the review instrument has never been calibrated.
+  **Its explicit *do not* list**: do not add a reviewer session, do not loosen the ownership table,
+  do not scale fan-outs before the review instrument is calibrated, do not use agent teams for the
+  planner→coder flow. **Its first three steps are cheap and reversible** — coverage in every
+  fan-out's return value with nulls counted *before* filtering; `review_pass_gate.py` run at
+  fan-out completion (**not** in `check.sh`, which has no journal and would pass vacuously); and
+  slow lenses scheduled first, because truncation is value-biased against the runtime lens.
+  **Read the artifact before acting on this bullet** — it states its populations and lists in its
+  § 6 the nine claims that did *not* survive checking, several of which this file has repeated.
 - **🧭 The live build order is
   [`plans/20260901_1148-clear-the-user-facing-list.md`](plans/20260901_1148-clear-the-user-facing-list.md)** —
   its § 3 is the queue. **§ 4 was ANSWERED by the user 20260902 — option E**, no freeze plus a
