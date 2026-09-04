@@ -278,8 +278,14 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   `main`, so no earlier green transfers ([`docs/RELEASING.md`](docs/RELEASING.md) step 6).
   **`./check.sh` runs AFTER your last commit, not before it** — `land.py` refuses a merged tree
   no gate certified, and a fragment committed after the gate changes the tree and fires the refusal.
-  **What is still owed is the post-publish sweep** — STATUS's hold marker, its two published-version
-  registers and ROADMAP's two prose blocks, none writable before the index has been read.
+  **PUBLISHED and swept, 20260904 15:11** — on the index 6 minutes 55 seconds after landing, verified
+  by installing from it and by reading **both** wheels: published 0.32.5 carries `usd_per_eur =
+  "1.1615"` and published 0.32.6 carries `"1.1622"`, 78 entries each and **no `tools/` entry** in
+  either, so the gate and the audit were verified *absent* from what shipped. `minimum-python` read
+  in its log: CPython 3.13.15, **2510 passed, 126 skipped**. **Nothing is owed.**
+  **One gate earned its place during this cut**: the 0.32.6 section was filed under Part 5 with
+  every row correct, every link resolving and the sequence ascending — `release_order_gate.py`'s
+  placement leg is the only thing in the repo that can see that, and it went red on five tests.
 - **🛑 The most severe thing now open is row 31, and it is NOT fixed by 0.32.3.** A `[sources]` root
   the process cannot read enumerates nothing, so `pair()` reasons from absence and **every document
   under it is removed from the index at exit 0** — `2 removed`, `0 active documents`, `pnk doctor`

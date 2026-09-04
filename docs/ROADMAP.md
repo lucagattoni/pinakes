@@ -17,17 +17,30 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260904 09:10 UTC
+## Where things stand right now — 20260904 15:13 UTC
 
-- **64 releases in 41 days** — **counted from `CHANGELOG.md`, not incremented from this
+- **65 releases in 41 days** — **counted from `CHANGELOG.md`, not incremented from this
   sentence's own previous value**, which is exactly how it drifted: it read **58** while the file
   held **59**. Across the **109** commits that have carried this sentence it agreed with the
   CHANGELOG in **70** and was wrong in **39** — all but two of them low, because a release added one
-  to the printed number instead of counting the entries. The three registers now reconcile: **65**
-  entries = **64** git tags + `0.30.3`, prepared and never tagged — **counted from
+  to the printed number instead of counting the entries. The three registers still reconcile: **66**
+  entries = **65** git tags + `0.30.3`, prepared and never tagged — **counted from
   `git ls-remote --tags`, the CHANGELOG's headings and this file's table, never incremented**, which is
-  the discipline this row exists to keep and the one it previously failed.
+  the discipline this row exists to keep and the one it previously failed. **The index is a fourth
+  register and is deliberately lower — 58** — because seven tags predate publishing and `0.30.3`
+  reached no index.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725.
+  [`0.32.6`](#0326--instruments-that-could-report-success-while-measuring-nothing--20260904-1455)
+  is **on PyPI as of 20260904 15:11** — landed 15:04:43, on the index 6 minutes 55 seconds later,
+  the tag held until `minimum-python` had completed at this commit and been read in its log
+  (CPython 3.13.15, 2510 passed, 126 skipped). **Its control is two published wheels read side by
+  side**: 0.32.5's `prices.toml` carries `1.1615` and 0.32.6's carries `1.1622`, both read out of
+  the artifacts. Both hold 78 entries and **no `tools/` entry**, so the register gate and the
+  injection audit were verified *absent* from what shipped — the release's subject is developer
+  tooling, which makes this the rare release whose artifact check is mostly an absence check.
+  **A gate caught a real defect during the cut**: the Part 4 section was filed under Part 5, every
+  row correct, every link resolving and the sequence ascending — `release_order_gate.py`'s
+  placement leg is the only thing that can see that, and it went red on five tests.
   [`0.32.5`](#0325--a-permission-problem-reported-as-three-other-things--20260904-0849) is **on
   PyPI as of 20260904 09:01** — landed 08:55:41, on the index 5 minutes 17 seconds later, the tag
   held for `minimum-python` at this commit **and** for the whole run rather than that one job.
@@ -111,7 +124,7 @@ precision nobody measured.
   rather than folded away, because the record was written honestly and deleting it would erase the
   gap instead of correcting it. The **seven** tags below `v0.2.2` are not a second exception: they
   predate publishing altogether, since `PUBLISH_TO_PYPI` became `true` on 20260728 17:15.
-- **Latest on PyPI: `0.32.5`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.32.6`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
