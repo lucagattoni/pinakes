@@ -1,0 +1,65 @@
+iso	tag	subject
+2026-07-27T14:39:42+02:00	v0.1.0	pinakes 0.1.0 — the thin vertical slice, end to end
+2026-07-27T14:44:19+02:00	v0.1.1	pinakes 0.1.1 — graph research, tooling, release plumbing
+2026-07-27T14:47:47+02:00	v0.1.2	pinakes 0.1.2 — documentation accuracy
+2026-07-27T14:52:01+02:00	v0.1.3	pinakes 0.1.3 — retrospective and promoted rules
+2026-07-27T21:21:45+02:00	v0.1.4	Release 0.1.4: the reviewed v0.2 build order
+2026-07-28T14:08:34+02:00	v0.2.0	v0.2.0 — PDF ingest: extraction, quality metrics, caching, page-aware chunking, backend-aware sync
+2026-07-28T16:55:13+02:00	v0.2.1	0.2.1 — docs restructure: one fact one home, a verified guide, three stale-claim fixes
+2026-07-28T18:51:06+02:00	v0.2.2	0.2.2 — files skipped for want of an include glob are now named
+2026-07-29T04:22:39+02:00	v0.3.0	0.3.0 — the paid extraction release
+2026-07-29T05:36:53+02:00	v0.4.0	0.4.0 — page-citable PDFs on both surfaces, and a verification table with a gate
+2026-07-29T07:51:40+02:00	v0.4.1	0.4.1 — a sidecar that will not parse is no longer destroyed
+2026-07-31T11:33:43+02:00	v0.5.0	0.5.0 — the links release, interim cut
+2026-08-01T11:03:46+02:00	v0.6.0	0.6.0 — the links release, final cut
+2026-08-01T12:42:43+02:00	v0.7.0	0.7.0 — the evaluation grew, and the graph release's gate did not open
+2026-08-01T13:45:45+02:00	v0.7.1	0.7.1 — the source walk stays inside the KB
+2026-08-04T08:42:45+02:00	v0.8.0	0.8.0 — the paid key must be aimed at pinakes
+2026-08-04T14:32:54+02:00	v0.9.0	0.9.0 — the docs become a site, and the project gets its capital P
+2026-08-04T15:38:58+02:00	v0.10.0	0.10.0 — an interrupted first sync no longer reads as a model mismatch
+2026-08-05T09:18:08+02:00	v0.11.0	0.11.0 — the graph release
+2026-08-05T20:09:05+02:00	v0.12.0	0.12.0 — The check that would have caught it
+2026-08-05T23:04:39+02:00	v0.13.0	0.13.0 — Plain text can carry a heading path
+2026-08-06T00:24:21+02:00	v0.14.0	0.14.0 — The tool stops crying wolf
+2026-08-06T00:50:36+02:00	v0.15.0	0.15.0 — A document says what it is called
+2026-08-06T02:56:41+02:00	v0.15.1	0.15.1 — One clock
+2026-08-07T13:52:08+02:00	v0.16.0	0.16.0 — metadata injection, measured and answered
+2026-08-07T23:20:14+02:00	v0.17.0	0.17.0 — a template version that means something
+2026-08-08T00:42:46+02:00	v0.18.0	0.18.0 — the drift warning says something you can act on
+2026-08-08T06:22:40+02:00	v0.19.0	0.19.0 — what the template changed, in your own file
+2026-08-08T07:47:39+02:00	v0.20.0	0.20.0 — Adopting the change, after you have seen it
+2026-08-08T08:49:42+02:00	v0.20.1	0.20.1 — a tier that is not built stops being accepted
+2026-08-08T12:23:29+02:00	v0.21.0	0.21.0 — A template says what it installs
+2026-08-10T03:56:17+02:00	v0.21.1	0.21.1 — a damaged template says so, and the gate reads what it was chunked under
+2026-08-11T10:31:07+02:00	v0.22.0	0.22.0 — eight decisions, and two of them were never decisions
+2026-08-11T14:31:56+02:00	v0.22.1	0.22.1 — a release sweep is table-shaped
+2026-08-11T15:53:00+02:00	v0.22.2	0.22.2 — the release history reads in order, and a gate keeps it that way
+2026-08-11T17:35:21+02:00	v0.23.0	0.23.0 — pnk ask exists, and it will not pretend to answer you
+2026-08-12T00:34:01+02:00	v0.24.0	0.24.0 — `pnk ask --deep` answers
+2026-08-12T07:36:02+02:00	v0.25.0	0.25.0 — a paid run leaves a record of what it was asked
+2026-08-21T08:24:30+01:00	v0.25.1	pnk ask --deep works against the live API
+2026-08-21T23:28:25+01:00	v0.25.2	0.25.2 — the guidance carries its own lessons (docs only)
+2026-08-21T23:44:07+01:00	v0.25.3	v0.25.3 — the deep loop is measured
+2026-08-21T23:53:57+01:00	v0.25.4	0.25.4 — what the mutation battery cannot reach (docs only)
+2026-08-22T02:38:43+01:00	v0.26.0	0.26.0 — a paid run tells you what it learned about your KB
+2026-08-22T07:30:05+01:00	v0.27.0	0.27.0 — the mutation step gets its guard
+2026-08-22T08:10:01+01:00	v0.27.1	0.27.1 — the gates read what they were cited for
+2026-08-22T11:06:29+01:00	v0.27.2	0.27.2 — the install is a region no test reached
+2026-08-23T02:43:29+01:00	v0.28.0	0.28.0 — the port was four lines, the gate was not
+2026-08-23T03:12:06+01:00	v0.28.1	0.28.1 — a gate audited against itself
+2026-08-23T03:53:31+01:00	v0.28.2	0.28.2 — the Guide's commands were re-run against the build that ships them
+2026-08-23T04:14:06+01:00	v0.28.3	0.28.3 — a gate that could not see the list next door
+2026-08-23T13:55:19+01:00	v0.29.0	0.29.0 — the batteries were kept, and one caught what four green gates missed
+2026-08-23T15:03:50+01:00	v0.29.1	0.29.1 — the instruction file, extracted to its own guideline
+2026-08-23T15:53:38+01:00	v0.29.2	0.29.2 — the links no gate reads
+2026-08-23T16:15:14+01:00	v0.30.0	0.30.0 — the Markdown the docs site never sees, now gated
+2026-08-25T01:05:41+01:00	v0.30.1	0.30.1 — the assembled document nobody read
+2026-08-25T02:03:56+01:00	v0.30.2	0.30.2 — the check that was not git
+2026-08-30T15:54:04+01:00	v0.31.0	0.31.0 — the gates that could not fail
+2026-09-01T00:09:50+01:00	v0.31.1	Pinakes 0.31.1
+2026-09-02T11:06:20+01:00	v0.32.0	0.32.0 — one unreadable file no longer takes the KB with it
+2026-09-03T11:07:51+01:00	v0.32.1	v0.32.1 — a KB name no longer bricks the KB at creation
+2026-09-03T14:08:09+01:00	v0.32.2	0.32.2 — four reports that were not true
+2026-09-03T16:09:38+01:00	v0.32.3	0.32.3 — the tool offered to delete a permanent id
+2026-09-03T17:49:09+01:00	v0.32.4	0.32.4 — a directory the walk could not enter deleted what was under it
+2026-09-04T10:00:30+01:00	v0.32.5	0.32.5 — a permission problem reported as three other things
