@@ -114,9 +114,30 @@ Done is any of ✅ ⛔ BUILT DONE LANDED SETTLED DEAD appearing in the row's lin
 have never been marked done.** Only the live plan's build-order table; other plans are not covered.
 
 **`sessions.tsv`** — one main-loop session, **regenerated 20260904 11:47** with three additions:
-`role`, `session_id`, and an active/idle split. Columns: `transcript` `session_id` `agent_name`
-`role` `start` `end` `span_s` `requests` `user_turns` `active_s` `idle_gt120_s` `median_gap_s`
-`cross_session_msgs_in` `peers` `compaction_events` and the token columns.
+`role`, `session_id`, and an active/idle split, and **again 20260904 15:42** to add
+`dominant_model`, `models` and `project_dir`. Columns: `transcript` `session_id` `agent_name`
+`role` `start` `end` `span_s` `dominant_model` `models` `requests` `user_turns` `active_s`
+`idle_gt120_s` `median_gap_s` `cross_session_msgs_in` `peers` `compaction_events`, the token
+columns, and `project_dir`.
+**`dominant_model` / `models`** use the same accounting as `agent_tokens.tsv`: dedupe on
+`requestId` (falling back to `uuid`), model from `message.model`. `models` is pipe-separated and
+sorted, so a session that changed model mid-flight is visible rather than collapsed.
+**Resolved for 88 of 88 — no nulls.** The rule was chosen by reproducing the existing `requests`
+column: `requestId`-or-`uuid` reproduces it **exactly in 84 of 88** and is never below it, where
+`requestId` alone matches only 67. **The four that differ are sessions still running** — the model
+columns were computed at 15:42 and the token columns at 11:47, so for `00069859`, `14cb7fa7`,
+`9fccc3d0` and `b1c4caa7` the model counts cover slightly more requests than the token counts do.
+**⚠️ `project_dir` exists because 11 of these 88 rows are not development sessions.** They are
+scratchpad fixtures — *“reply with just: PING”*, context-window and chain experiments — swept in
+because their temp paths contain this repository's path. `project_dir` is `pinakes` for the 77 real
+sessions and the scratchpad directory's name for the other 11. **Filter on it before computing
+anything**, because the contamination is not evenly distributed: **all 7 Sonnet-dominant sessions
+are fixtures**, so an unfiltered model breakdown reports Sonnet main-loop usage that never happened.
+**The 77 real sessions are 76 `claude-opus-5`-dominant and 1 `claude-fable-5`-dominant** — and four
+sessions touched a Fable model at all (`cdcc3c5f`, `81188c27`, `9fccc3d0`, `f51dcbfe`).
+**`<synthetic>` is not a model.** It marks records the client generated rather than the API, and it
+appears in `models` for 36 of the 88 — which is why `models` is worth reading beside
+`dominant_model` rather than instead of it.
 **`role`** is taken from the transcript's `agent-name` line or from a literal *“you are the
 planner/coder”* in a user turn — **11 planner, 14 coder, 63 unlabelled.** The unlabelled are not
 roleless; the label simply is not in the transcript.
