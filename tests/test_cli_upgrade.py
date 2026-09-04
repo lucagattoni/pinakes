@@ -14,6 +14,7 @@ in rendering settings cannot open a gap between the fixture and the thing under 
 """
 
 import json
+import os
 import re
 from collections.abc import Callable
 from pathlib import Path
@@ -23,7 +24,7 @@ import pytest
 from pinakes import template
 from pinakes.cli import main
 from pinakes.ids import mint_kb_id
-from pinakes.upgrade import Outcome, Placement
+from pinakes.upgrade import Outcome, Placement, through_symlink
 
 # The four-line comment block M3 records as the template's real drift: a **pure addition**, no key
 # and no value. Its shape is the point — a pure-addition hunk is what makes the order of the
@@ -2328,3 +2329,38 @@ def test_the_backup_is_named_by_its_full_path_when_it_leaves_the_kb(
     assert str(elsewhere.parent.resolve() / "pinakes.toml.orig") in out
     assert (elsewhere.parent / "pinakes.toml.orig").exists()
     assert not _backup(root).exists()
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o400 directory, so the state cannot be built"
+)
+def test_through_symlink_answers_rather_than_raising_under_an_untraversable_parent(
+    tmp_path: Path,
+) -> None:
+    """A unit test, because no production path reaches this with such a path — measured.
+
+    `apply` calls `through_symlink(manifest.path)` only after `manifest.load`, and `load` cannot
+    read a `pinakes.toml` under a `0o400` root: it raises `ManifestError` first, identically on
+    both interpreters. So this pins the primitive rather than a user-visible outcome, and it is
+    defence in depth against a future caller that reaches here without loading a manifest.
+
+    **Discriminates only on 3.13**, stated rather than hidden: `Path.is_symlink()` raises there and
+    already returned `False` on 3.14, so the unfixed spelling cannot fail this on the newer one.
+    """
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    manifest = locked / "pinakes.toml"
+    manifest.write_text("[kb]\n", encoding="utf-8")
+    os.chmod(locked, 0o400)
+    try:
+        assert through_symlink(manifest) == manifest
+    finally:
+        os.chmod(locked, 0o755)
+
+    # Control: a real symlink is still followed, so the assertion above is not satisfied by a
+    # function that has stopped resolving anything.
+    real = tmp_path / "real.toml"
+    real.write_text("[kb]\n", encoding="utf-8")
+    link = tmp_path / "link.toml"
+    link.symlink_to(real)
+    assert through_symlink(link) == real.resolve()
