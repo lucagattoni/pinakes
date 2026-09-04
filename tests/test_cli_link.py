@@ -608,6 +608,12 @@ def test_an_unreadable_directory_is_refused_rather_than_crashing(
             raise OSError(63, "File name too long")
         return real_stat(target, *args, **kwargs)
 
+    # **Redundant on this machine and load-bearing on CI, which is why it stays.** The row-41 audit
+    # neutralises each injection and re-runs its test; this one still passed, because a real
+    # 300-character name already raises `ENAMETOOLONG` here — measured, `NAME_MAX` is 255. It is
+    # kept because the comment above records the opposite result on CI, where the long name "simply
+    # was not a document": a fake that is redundant on one platform and necessary on another cannot
+    # be ruled from either one alone, and dropping it would restore the fixture bug.
     monkeypatch.setattr(os, "stat", name_too_long)
     with pytest.raises(PinakesError) as caught:
         add(load(local.root), source=f"docs/{'n' * 300}", target="docs/beta.md", rel="cites")
