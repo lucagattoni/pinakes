@@ -467,3 +467,99 @@ belonged.
 | Whether the other's failures happened | ⟦observed⟧ mine, self-reported | **declines to confirm what it did not witness** |
 
 **Neither account is the whole, and the reason is 6.2: the seat determines the sample.**
+
+---
+
+## 9. Which rules are actually followed — and which cannot be checked at all
+
+**⟦measured, coder — 17 written rules audited. Six lenses, one died (coverage reported as 5/6 rather
+than hidden), then a judge: 9 SOUND, 6 OVERSTATED, 2 UNSOUND. Landed nowhere; contributed as
+analysis. Three claims re-verified by the planner and marked.⟧**
+
+### 9.1 The headline, and it is not "prose versus guards"
+
+**Every rule that came back with a clean population *and* a clean answer has an executable guard or a
+machine-generated register behind it** — the fragment heading gate, tag/CHANGELOG parity, the Release
+workflow's own record, the delegation model column. **The prose-only rules split into exactly two
+failure modes: unfalsifiable, or falsifiable and quietly false.**
+
+### 9.2 The third list is the finding
+
+**9 rules measurably followed. 5 measurably broken. 12 NOT AUDITABLE.**
+
+**A rule nobody can check is not a rule being followed, and this project currently reports the two as
+the same thing.** Each unauditable rule names the artifact that would fix it:
+
+| rule | why it cannot be checked | what would fix it |
+|---|---|---|
+| every change in a worktree | first-parent-ness cannot see *where work was authored*; `land.py` enforces where the **merge** runs, never where the work happened | a commit trailer stamping the toplevel |
+| documentation ownership | checkable for **1.3%** of the commits it governs, because `/clear` reuses one lineage token across transcripts | a per-transcript identity in the trailer |
+| `make release-check` before a tag | **56 of 64 releases had nothing to be green or red** — it was three `echo`s until `224cac3` | nothing; that history is simply empty |
+| one Sonnet refuter per finding | **no artifact links a refuter to its finding** | a finding id in the refuter's record |
+
+### 9.3 Measurably broken
+
+- **`CLAUDE.md`'s ~150-line guideline.** The rule landed **2026-07-08, 17 days before the first
+  commit**, so it bound from day one. **134 of 150 measurements exceed it.** Last compliant reading:
+  **146 lines, 2026-07-28.** ⟦planner-verified: **459 lines now, 3.06x**⟧ — and **it grew four lines
+  during the audit**, which was my editing. **Three slimming passes (-82, -54, -35) each regrew past
+  150 within days.**
+- **`v0.1.0` has no Release run**, confirmed against the live API rather than merely absent from the
+  harvest. Independent corroboration of `ci-runs.tsv`'s disclosure bullet — **still with no mechanism
+  established.**
+- **Docs-in-sync:** one clean miss in the auditable slice — `242fc1f` added `--offline` and
+  `-q/--quiet` to `pnk sync` with no doc anywhere; `docs/CLI.md` followed **3 days and 59 commits
+  later.** Four more landed 1-8 commits late. **The slice is 25 of 1,110 commits, so this is a floor,
+  not a rate.**
+- **"Complete work never lingers in `[Unreleased]`"** is self-reported by `CLAUDE.md`, and the
+  fragment-lifetime instrument scores today's **deliberate** hold as COMPLIANT because the fragments
+  are hours old. **The proxy cannot see the thing it stands for.**
+
+### 9.4 The counter-example that stops "add a guard" being the answer
+
+⟦planner-verified⟧ **Branch naming `YYYYMMDD_HHMM-` is 394 of 394 merge commits — 100% — with no gate
+anywhere.** I checked: the only timestamp patterns in `check.sh` are plan filenames inside comments,
+and the one place a branch name is read (`check.sh:308`) prints it and never validates it.
+
+**Set that beside `CLAUDE.md`'s 89% violation rate, also with no gate. "Add a guard" is not the
+discriminator.** What differs:
+
+> **A branch name is a discrete act whose value git displays back to you in every subsequent command.
+> A line count is an accumulating property nobody sees unless they stop and measure. A rule over a
+> discrete, continuously-visible act survives as habit; a rule over an accumulated property does
+> not** — and `CLAUDE.md`'s own size rule is exactly the second kind.
+
+### 9.5 Two findings about instruments rather than behaviour
+
+1. **A guard changes what is *knowable*, not only what is done.** ⟦planner-verified:
+   `git merge --no-ff -q` on an already-merged branch **prints nothing and exits 0**⟧ — and `-q` is
+   the flag used in nearly every hand-merge in the corpus. **So the exact incident `land.py` was
+   built to prevent leaves no string to search for.** Writing the guard made that class **auditable forward
+   and permanently unauditable backward**: two pieces of in-session testimony assert it happened, and
+   no artifact can confirm it.
+2. **Why the stamp gate works and *"read the clock, never compose it"* cannot.** Every instrument for
+   the latter measures whether a timestamp was **accurate**, and a composed but plausible time passes
+   identically. The heading-versus-filename check is auditable precisely because it **compares two
+   copies of one act** instead of guessing at provenance.
+   > **Design principle, and the most transferable thing in this section: make a rule compare two
+   > artifacts of the same act, not the act to an intention.**
+
+### 9.6 What held, and one correction the coder made to their own judge
+
+**The subagent-model rule held under re-derivation, with better numbers than the first pass:**
+workflow scope **774 of 852 non-synthetic agents top-tier before the rule (90.8%)**, **20 of 482
+after (4.1%)**, and **all 20 carry judge-identifying prompts.** **0 of 1,631 rows used Haiku.** The
+subagent scope has an **empty post-rule population** and contributes nothing — **the rule is
+evidenced on one channel only.**
+
+**The coder overruled their own judge on `0.30.3`.** It was listed as a register-parity failure —
+heading written, `__version__` bumped, tag never created, PyPI skipping 0.30.2 to 0.31.0, all
+verified. **But the CHANGELOG heading itself reads `PREPARED, NEVER PUBLISHED`.** It was **recorded,
+not escaped.** *"The parity count stands; the story does not."*
+
+### 9.7 The most common defect across six lenses
+
+**Not a wrong number — nearly every number reproduced to the digit — but a number reported without
+the denominator the rule names.** 212 landings against a real 355; 8 gated releases presented as
+100%. **This is section 3.1's failure class arriving one level up: in the instruments built to audit
+the rules, rather than in the work the rules govern.**
