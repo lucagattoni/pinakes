@@ -133,7 +133,12 @@ Seven instances in two days, ⟦observed⟧ unless marked:
    count was every project on the machine: **131, not 261** — inside the evidence file for this
    review.
 4. **20260904** — the repeat column above, wrong twice.
-5. **20260904** — the coder's predecessor handed over **791** CI runs; re-measuring found **793**.
+5. ⟦**corrected 20260904 12:10**, at the coder's insistence and rightly⟧ — **the 791 handed over was NOT an
+   error.** It was correctly measured when taken and **went stale**: two runs landed between the two
+   extractions. **A stale-but-correct measurement and a composed number are different failures with
+   different fixes**, and listing them together blurs the distinction this taxonomy depends on. The
+   predecessor's two real errors were a local timestamp labelled UTC and a wrong claim about re-run
+   deduplication.
 6. **20260904** — the coder reported both checkouts resolving to 3.14.7. That was **a broken venv**,
    not the machine, and it reached `CLAUDE.md` on my paraphrase before either of us re-measured.
 7. ⟦read⟧ **20260831** — six wrong claims in one day, each a valid inference over a population
@@ -159,8 +164,12 @@ re-reading.**
 
 - ⟦observed⟧ **Two sessions landed over a red gate in one day, hours apart, both quoting the rule at
   each other.** Mine used `;` where `&&` belonged, so the failure was *printed* and ignored.
-- ⟦observed⟧ **The guard built for it caught its own author immediately** — `land.py` now refuses a
-  merged tree no gate certified, and the first branch it refused was the one introducing it.
+- ⟦**corrected 20260904 12:10** — this said the guard *"caught its own author immediately"*. **It did not, and
+  I inferred a refusal from the word "policed".** ⟦measured, coder⟧ across 14 coder sessions:
+  **`land.py` was invoked 43 times and succeeded 43 times — zero refusals in the population.** What
+  actually happened is that both sessions **re-gated before landing in order to satisfy it**. Its
+  effect is **deterrence, not interception**, and a framework crediting it with catches would be
+  crediting the wrong mechanism.⟧
 
 ### 3.4 Registers drift from the tree, and the drift is invisible to every gate
 
@@ -201,7 +210,7 @@ what exposed that an argument had never been load-bearing.
 | Is review worth its cost? | **No.** Nobody has seeded known defects, so there is a false-positive shape and **no kill rate** |
 | Did the ownership split cost throughput? | **No.** Two data points, opposite in kind, neither a population |
 | Is truncation value-biased against slow lenses? | **No.** The one run that could have tested it did not schedule lenses slow-first |
-| Would hooks have prevented the prose-rule failures? | **Not from data.** One counter-example exists: the guard caught its own author |
+| Would hooks have prevented the prose-rule failures? | **Not from data**, and the counter-example I offered was wrong — see §3.3. `land.py` has **never refused**; its measured effect is deterrence |
 
 **One number is worth stating because it is the only end-to-end review measurement that exists.**
 ⟦observed⟧ + ⟦measured⟧ A floor audit raised **18** findings; 8 were refuted with all eight refuters
@@ -260,11 +269,37 @@ and it generalises past this project.
 1. **Review fan-out** — 2 real gaps, 1 false cause killed, at near-zero attention cost.
 2. **`land.py`'s marker** — refused nothing and forced two correct re-gates. **The refusal is the
    yield.**
-3. **`check.sh`** — caught nothing, and **could not have**, since the change was a `.tsv`.
+3. **`check.sh`** — caught nothing *on that one change*, and could not have, since it was a `.tsv`.
+   **⟦measured, coder, 20260904 12:10⟧ Across 14 sessions this generalisation is false: 157 invocations, 31 of
+   139 resolved outcomes were RED — 22.3%, in 14 of 14 sessions, with real defects behind them.**
+   The coder retracted their own line unprompted. **`check.sh` is not a near-always-green
+   precondition**, and the n=1 reading is the exact shape their own warning names.
 
 **Their warning, which I am recording verbatim in substance:** *ranking gates by yield on one change
 is how a project deletes the gate that saves it next week.* They **declined to rank** the mutation
 batteries and the injection audit because this session ran neither.
+
+### 6.3b Instrument catch rates across 14 coder sessions ⟦measured, coder — **judge has not ruled**⟧
+
+**Unadjudicated lens output plus the coder's direct measurements. Weight accordingly.**
+
+| instrument | invocations | caught something |
+|---|---:|---|
+| `check.sh` | 157 | **31 of 139 resolved RED (22.3%)**, all 14 sessions |
+| `mutate.py` | 150 | `--check-anchors` **18%**; battery runs **16.7%** found a SURVIVED mutant |
+| `fragments.py` | 84 | **7 of 76 resolved (9.2%)** caught a real malformed fragment |
+| `shared_file_overlap.py` | 39 | **2 of 38 resolved (5.3%)** — the one genuinely almost-always-null instrument |
+| `land.py` | 43 | **0 refusals.** Deterrence, not interception |
+| workflow fan-outs | 34+ runs, 360+ child agents | in one increment a **pass-4 judge ruled DOES NOT LAND after three prior passes had cleared it** |
+
+### 6.3c My hypothesis has a number, and it is not a landslide ⟦measured, coder — unadjudicated⟧
+
+Of **45 correction events read in full context: ~29 (64%) were truth-cost** — population, staleness,
+an unmeasured claim. **The other ~16 were faulty logic or wrong scope, and 11–12 of those were caught
+only by *running* something** — a mutation, a real interpreter, a real OS.
+
+**That is sharper than either of our positions.** Truth-cost dominates, **but a third of corrections
+are not truth-cost at all, and that third is invisible to reading.** It needs execution.
 
 ### 6.4 Review is worth it, and its target should be prose
 

@@ -101,6 +101,11 @@ are the same call made five or more times in one transcript.**
 > measured the working directory. Corrected 20260904 11:30; `target` is now the command's first two words
 > for Bash and the full argument for every other tool, and is a *label*, not the identity.
 
+**⚠️ Do not count instrument use from this file.** `target` is a label, and a Bash invocation
+inside an `&&` chain is one call here but several invocations in the transcript. ⟦coder,
+measured⟧ counting `check.sh` from `tool_calls.tsv` gives **64** where the transcripts hold
+**157–229** depending on how strictly an invocation is defined — an undercount of ~3.6×.
+
 **Reading it for repetition:** `SendMessage` and `TaskUpdate` repeats are coordination volume, not
 loops — the "same call" is the same recipient. Filter by `tool` before counting.
 
@@ -134,6 +139,10 @@ some transcript**; 56 transcripts carry at least one token and **37 carry exactl
 the unambiguous ones. **A transcript can carry several tokens** — its own attribution plus any it
 quotes from a peer message — so **`is_most_frequent` is a hint, not an identity**, and the
 attribution is left to the analyst rather than guessed here.
+**⟦coder, measured 20260904 12:10⟧ The analyst's rule can now be stated: a trailer id names a LINEAGE,
+never a session.** `/clear` destroys the context and **preserves the session id**, so three
+transcripts — two context deaths — carry one token and stamp 35 commits between them. One of
+the three carries exactly one distinct token, so it cannot be quotation from a peer.
 
 **`cross_session_messages.tsv`** — `timestamp` `to_transcript` `from_name` `chars`. **293 messages.**
 Received only — a send is not recorded in the sender's own transcript, so this counts one side.
