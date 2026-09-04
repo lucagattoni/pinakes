@@ -10,6 +10,56 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.32.5] — 20260904 08:49
+
+### Added
+
+- **`tools/land.py` now refuses to land a tree no `./check.sh` run has certified.** `check.sh`
+  records each tree it passes on, and a landing looks up the tree the merge will actually
+  produce — not the branch's, which differs whenever `main` has moved. There is no override flag:
+  a gate nobody read is the thing the refusal exists for, and a way to skip it would be the same
+  hole with a name. `--cleanup-only` is exempt, since it lands nothing. The refusal names the tree
+  it wanted, and says what it cannot catch: a tree that was gated, edited, and edited back to the
+  same hash is indistinguishable from one never touched.
+
+### Changed
+
+- **`tools/mutate.py` now names the interpreter its counts came from.** A battery's verdict can
+  depend on the Python it runs under — a mutant can be *equivalent* on one interpreter and killable
+  on another — so `67 killed` and `66 killed` could both be true of the same tree with nothing in
+  the report to tell them apart. The summary line beside the counts now reads
+  `tests ran under Python 3.13.15 at …`. It asks the battery's own `pytest` command rather than
+  reporting the interpreter `mutate.py` itself is running on, because the documented invocation is
+  `python3 tools/mutate.py` and the tests run under the project venv — those differ, and the
+  launcher's version would name a Python no test had touched. A `pytest` command it cannot probe is
+  reported as *could not identify*, never guessed at.
+
+### Fixed
+
+- **`pnk doctor` no longer reports `none` about a paid document it could not read.** On Python
+  3.14, a paid-extracted document that had become unreachable — moved behind a directory the
+  process may not traverse, or reached through a symlink into one — was silently dropped from
+  *both* `paid extraction stale` and `paid extraction unreadable`, so the health check answered
+  `none` for a document whose staleness nothing could decide. It is now named under `paid
+  extraction unreadable`, with the `chmod +r` remedy, which is what Python 3.13 already did.
+
+- **`pnk link` no longer blames your path for a permission problem.** A document this process
+  cannot reach — one inside a directory it may not traverse, or a symlink pointing into one — was
+  reported as `'docs/x.md' is not a document in this KB`, whose remedy sends you to re-check a path
+  that is spelled correctly; a sidecar in the same state was reported as `has no sidecar`, whose
+  remedy sends you to run `pnk sync`, which cannot help either. Both now say `cannot be read:
+  Permission denied` and point at the directory's permissions. Only the message moves — both paths
+  already exited non-zero. The refusal was reported correctly on Python 3.13 and wrongly on 3.14,
+  so which answer you got depended on your interpreter.
+
+- **A partner KB you cannot read is no longer reported as one that does not exist.** `pnk doctor`,
+  `pnk link` and `pnk sync`'s link scan all described a linked KB sitting behind a directory this
+  process may not traverse as `no such directory` — the identical wording they use for a partner
+  that is genuinely gone, and the one answer a user can check and find false. All three now name
+  the permission (`cannot be read: Permission denied`), and a partner that really is absent still
+  says so. On Python 3.13 the message was already correct, so this is 3.14 catching up rather than
+  a change of behaviour.
+
 ## [0.32.4] — 20260903 16:38
 
 ### Fixed
@@ -4810,7 +4860,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.4...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.5...HEAD
+[0.32.5]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.5
 [0.32.4]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.4
 [0.32.3]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.3
 [0.32.2]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.2
