@@ -69,7 +69,7 @@ from pinakes.linkscan import (
 )
 from pinakes.lock import LOCK_NAME, read_holder
 from pinakes.manifest import Manifest
-from pinakes.paths import is_directory
+from pinakes.paths import is_directory, is_regular_file, unreachable_through_links
 from pinakes.search import check_coherence
 from pinakes.sidecar import (
     SIDECAR_SUFFIX,
@@ -640,19 +640,36 @@ def _extraction_backend_drift(
 
         if recorded_is_paid:
             source = manifest.root / path
-            try:
-                if source.is_file() and hash_file(source) != str(row["content_hash"]):
-                    paid_stale.append(path)
-            except OSError:
-                # The same condition `pnk sync` stopped dying on (S1), one command over. `doctor`
-                # is what you reach for *when the KB is already broken*, so a traceback here puts
-                # the crash back exactly where the remedy is supposed to be — and this is the only
-                # read in the drift pass, reached only for a paid-recorded row.
-                #
-                # **Recorded, not skipped.** Dropping the path would leave `paid extraction stale`
-                # reporting `none` — a claim about a document nothing could read, which is the
-                # adjacent-question shape this repository ranks worst.
+            # **Two layers, because a document can be undecidable in two different ways** and
+            # neither one catches the other.
+            #
+            # `unreachable_through_links` is the filesystem refusing to say anything about the
+            # path at all. It is asked first and it is asked with a `stat`, so it sees a refusal
+            # one hop out — a symlinked document under a directory this process may not traverse,
+            # which is the shape that reached a user. `source.is_file()` stood here and made this
+            # branch **interpreter-dependent in the worst direction**: it raises on 3.13, so the
+            # document landed in `paid_unreadable`, and on 3.14 it returns `False`, so the `and`
+            # short-circuited past the `except` below and the document landed in *neither* list —
+            # this check reporting `none` about a document nothing could read.
+            #
+            # The `except OSError` is the other layer and it is not redundant: a file whose parent
+            # is readable and whose own mode is `0o000` answers `stat` perfectly well and then
+            # refuses the `read` inside `hash_file`. Reachable, and still undecidable.
+            #
+            # **Recorded, not skipped**, in both layers. Dropping the path would leave `paid
+            # extraction stale` reporting `none` — a claim about a document nothing could read,
+            # which is the adjacent-question shape this repository ranks worst.
+            if unreachable_through_links(source):
                 paid_unreadable.append(path)
+            else:
+                try:
+                    if is_regular_file(source) and hash_file(source) != str(row["content_hash"]):
+                        paid_stale.append(path)
+                except OSError:
+                    # The same condition `pnk sync` stopped dying on (S1), one command over.
+                    # `doctor` is what you reach for *when the KB is already broken*, so a
+                    # traceback here puts the crash back exactly where the remedy should be.
+                    paid_unreadable.append(path)
 
     yield _drift_check(
         "awaiting paid extraction",

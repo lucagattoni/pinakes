@@ -16,10 +16,12 @@ as it is, for the same reason.
 already on disk. `sidecar.write()` matches entries on the *resolved* URI. Only the first is here.
 """
 
+import os
 import tomllib
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from pinakes import paths
 from pinakes import sidecar as sidecar_module
 from pinakes import uri as uri_module
 from pinakes.errors import (
@@ -335,19 +337,50 @@ def _document_in(root: Path, raw: str, *, kb: str) -> Path:
 
 
 def _is_file(path: Path, raw: str) -> bool:
-    """`path.is_file()`, with the errors it does *not* swallow turned into a `PinakesError`.
+    """Is `path` a readable regular file — with *"I was not allowed to look"* raised, not returned.
 
-    `pathlib` ignores `ENOENT`, `ENOTDIR`, `EBADF` and `ELOOP` — a missing file is `False`, not an
-    exception — but nothing else. An unreadable parent directory (`EACCES`) and an over-long name
-    (`ENAMETOOLONG`) both raise, and `OSError` is not a `PinakesError`, so both reached `cli.main`
-    as a traceback: the same class of escape that `expanduser()` was dropped for two commits ago,
-    left in place because only the one instance was looked at. `sync.py` catches `OSError` beside
-    `PinakesError` at its own document loop for exactly this reason.
+    **Asked of `paths`, not of `pathlib`, and the version story is why.** This used to be
+    `path.is_file()` inside `except OSError`, on the reasoning that pathlib "ignores `ENOENT`,
+    `ENOTDIR`, `EBADF` and `ELOOP` … but nothing else". That was a measurement of **3.13**
+    presented as a fact about pathlib. On 3.14 `Path.is_file()` swallows `EACCES` and
+    `ENAMETOOLONG` too, so the `except` clause was **dead on the newer interpreter** and every
+    refusal fell through as a plain `False` — which the two callers below turn into two different
+    wrong answers: *"is not a document in <kb>"*, whose remedy sends the user to re-check a path
+    that is spelled correctly, and *"has no sidecar"*, whose remedy sends them to run `pnk sync`.
+
+    `unreachable_through_links` follows the link, which `unreachable` deliberately does not: the
+    shape that reached a user was a symlinked document under a directory they could not traverse,
+    and `lstat` succeeds on the link itself. Restoring 3.13's answer on 3.14 is all this does —
+    both callers already exit non-zero, so only the message moves.
     """
     try:
-        return path.is_file()
-    except OSError as exc:
+        refused = paths.unreachable_through_links(path)
+    except ValueError as exc:
+        # **An embedded NUL, and `_document_in`'s guard cannot see this one.** That guard resolves
+        # the *parent* only, so a NUL in a directory component raises there and a NUL in the
+        # filename arrives here intact. `Path.is_file()` answered `False` for it, which fell
+        # through to "is not a document in this KB"; `os.stat` raises `ValueError`, which is not an
+        # `OSError` and so escaped as a traceback — the exact class this function was written to
+        # stop, reintroduced one exception type over. Reported as the unusable path it is, in the
+        # same words `_document_in` uses, rather than restoring the vaguer message it had.
         raise PinakesError(
-            f"{raw!r} cannot be read: {exc.strerror}.",
-            remedy="Check the path and its directory's permissions.",
+            f"{raw!r} is not a usable path: {exc}.",
+            remedy="Give a path relative to that KB's root, for example `docs/notes.md`.",
         ) from exc
+    if refused:
+        # A second `stat`, in the error path only, purely to name the errno in the message —
+        # "Permission denied" is worth more to the user than "cannot be read". If the file became
+        # readable in the microseconds between the two calls the race resolves to the generic
+        # wording and nothing else changes, so it is not worth a lock or a private helper.
+        try:
+            os.stat(path)
+        except OSError as exc:
+            raise PinakesError(
+                f"{raw!r} cannot be read: {exc.strerror}.",
+                remedy="Check the path and its directory's permissions.",
+            ) from exc
+        raise PinakesError(
+            f"{raw!r} cannot be read.",
+            remedy="Check the path and its directory's permissions.",
+        )
+    return paths.is_regular_file(path)

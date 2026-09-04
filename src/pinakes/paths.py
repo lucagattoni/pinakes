@@ -15,6 +15,7 @@ adversarial review then found the identical crash in `doctor.py` and `linkscan.p
 not reach them.
 """
 
+import errno
 import os
 from pathlib import Path
 
@@ -110,8 +111,13 @@ def unreachable(path: Path) -> bool:
     there. For most callers that conflation is harmless. For the one that **deletes on absence** it
     is the whole defect, and this is the question it has to ask instead.
 
-    `lstat`, not `stat`: the question is whether this entry can be seen at all, and following a
-    link would answer about its target instead.
+    **`lstat`, not `stat`, and that is a choice with one caller behind it.** The question here is
+    whether this *entry* can be seen at all; following the link would answer about its target
+    instead. `sync.py`'s retirement pass is the caller, and it deletes on absence — so a dangling
+    symlink must read as present, because the entry is right there and only its target is gone.
+    **A caller asking about the target wants `unreachable_through_links`**, and the two are not
+    interchangeable: on a symlink into an unreadable directory this one answers `False` on every
+    interpreter, which is the answer that would silently drop the document.
 
     **Only `FileNotFoundError` and `NotADirectoryError` come back `False`.** They are the two honest
     "not there" answers, and a document that is really gone must stay deletable. Every other
@@ -125,6 +131,60 @@ def unreachable(path: Path) -> bool:
         return False
     except OSError:
         return True
+    return False
+
+
+#: What `Path.is_file()` on **3.13** treats as "not there" rather than raising, so a predicate
+#: built to match it has to treat them the same way. **Measured on both interpreters, all four
+#: members on macOS, rather than read out of CPython** — `tests/test_paths.py` pins `ENOENT`,
+#: `ENOTDIR` and `ELOOP`, and deliberately does not pin `EBADF`: the `/dev/fd/<n>` shape that
+#: produces it here is not portable, so a test would assert the runner. Naming it
+#: after pathlib would be wrong twice over: on 3.14 `Path.is_file()` swallows *everything*,
+#: `EACCES` and `ENAMETOOLONG` included, which is the defect these predicates exist to absorb.
+_NOT_THERE = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP})
+
+
+def unreachable_through_links(path: Path) -> bool:
+    """The filesystem refused to answer about `path` **or about what it points at**.
+
+    `unreachable`'s sibling, and the difference is one syscall: this one `stat`s, so it follows the
+    link. Read that docstring first — everything about *refusal is not absence* is stated there and
+    is not repeated here.
+
+    **`False` covers three things, none of which is a refusal**: the path is absent, a component of
+    it is not a directory, or it is a symlink loop. `EBADF` is in that set too, for the synthetic
+    `/dev/fd/<n>` shape. Everything else — `EACCES`, but equally `EIO` on a failing disk and
+    `ESTALE` on an NFS mount — is the filesystem declining to say, and reading a decline as an
+    absence is how a caller reports "not there" about something the user can see in `ls`.
+
+    **An `OSError` with no errno at all answers `True`.** Unknown is a refusal, never an absence:
+    the two callers here turn `True` into a message about permissions and `False` into a claim that
+    something does not exist, and the second is the one that is unrecoverable if wrong.
+
+    **Why this exists rather than one predicate for both**: `Path.is_file()` raises on 3.13 and
+    returns `False` on 3.14 for a path behind a directory this process may not traverse, so two
+    call sites gave two different wrong answers on the newer interpreter — `pnk link` told the user
+    a document was "not in this KB", and `pnk doctor` dropped a paid document out of *both* its
+    staleness lists and reported `none`. Both are restorations of what 3.13 already does.
+
+    Measured 20260904 on the shapes `tests/test_paths.py` builds, both interpreters:
+
+    | | `unreachable` (`lstat`) | this (`stat`) | 3.13 `Path.is_file()` |
+    |---|---|---|---|
+    | file inside a `0o000` directory | `True` | `True` | raises |
+    | **symlink → file inside one** | **`False`** | **`True`** | **raises** |
+    | absent | `False` | `False` | `False` |
+    | dangling symlink | `False` | `False` | `False` |
+    | symlink loop | `False` | `False` | `False` |
+    | ordinary file | `False` | `False` | `True` |
+
+    The second row is the whole reason for the sibling: `lstat` succeeds on the link itself, so
+    `unreachable` cannot see a refusal that is one component further along.
+    """
+    try:
+        os.stat(path)
+    except OSError as exc:
+        return exc.errno not in _NOT_THERE
     return False
 
 

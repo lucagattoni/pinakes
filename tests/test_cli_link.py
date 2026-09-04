@@ -14,11 +14,13 @@ import contextlib
 import io
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
 from test_sync_links import Kb, links_in, make_kb, run
 
+from pinakes import paths
 from pinakes.cli import EXIT_FAILURE, EXIT_OK, main
 from pinakes.errors import PinakesError
 from pinakes.ids import mint_doc_id, mint_kb_id
@@ -509,40 +511,98 @@ def test_a_symlinked_directory_cannot_carry_a_link_out_of_the_kb(
 def test_an_unreadable_directory_is_refused_rather_than_crashing(
     pair: tuple[Kb, Kb], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`Path.is_file()` swallows `ENOENT`/`ENOTDIR`/`EBADF`/`ELOOP` and nothing else, so `EACCES`
-    and `ENAMETOOLONG` came out of `cli.main` as tracebacks — the same escaping-non-`PinakesError`
-    class that `expanduser()` was dropped for, left behind because only that one was looked at."""
+    """The unit-level pin on the clause: a refusal from the syscall becomes a `PinakesError`.
+
+    **The fake is at `os.stat`, which is the OS boundary, and that placement is the point.** It
+    used to fake `Path.is_file` — the spelling the production code happened to use — and when the
+    fix moved to `paths.unreachable_through_links` the fake stopped intercepting anything and this
+    test went red. That is the good outcome of a bad seam: a fake pinned to an implementation
+    detail either breaks loudly when the detail moves, or, if the detail keeps its name and changes
+    its *behaviour*, goes silently blind. This one did the second thing first. On 3.14
+    `Path.is_file()` swallows `EACCES` and `ENAMETOOLONG`, so the `except OSError` clause under
+    test was dead there — and because the fake raised on command, the clause was entered anyway and
+    this test passed on both interpreters while the production branch was unreachable on one.
+
+    **So it no longer certifies the platform, and it is not asked to.**
+    `test_a_document_the_process_cannot_reach_is_refused_with_the_read_error` is the non-injecting
+    half, built from a real `chmod`, and that is the test that answers "does the real call still
+    refuse?". This one earns its place on the other two: it reaches `ENAMETOOLONG`, which no
+    `chmod` fixture can produce, and it runs as root, where the `chmod` fixture is skipped.
+    """
     local, _partner = pair
-    # Injected for the same reason as the partner case above: `chmod(0o000)` is not portable, and
-    # the guard under test is "`is_file()` raises something that is not `ENOENT`", which is exactly
-    # what this raises.
     locked = local.root / "docs" / "locked"
     locked.mkdir()
-    real_is_file = Path.is_file
+    real_stat = os.stat
 
-    def denied(self: Path) -> bool:
-        if self.is_relative_to(locked):
+    def refuse(target: Any, *args: Any, **kwargs: Any) -> os.stat_result:
+        """Refuse only the paths under test — every other `stat` in the call must still work."""
+        if isinstance(target, str | Path) and str(target).startswith(str(locked)):
             raise PermissionError(13, "Permission denied")
-        return real_is_file(self)
+        return real_stat(target, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "is_file", denied)
+    monkeypatch.setattr(os, "stat", refuse)
     with pytest.raises(PinakesError) as caught:
         add(load(local.root), source="docs/locked/x.md", target="docs/beta.md", rel="cites")
     monkeypatch.undo()
     assert "cannot be read" in caught.value.message
+    assert "Permission denied" in caught.value.message, (
+        "the errno reaches the user: 'cannot be read' alone does not say what to fix"
+    )
 
-    # The other errno in the same class. **Injected, not built from a 300-character name**: the
-    # length at which a filesystem answers `ENAMETOOLONG` is a property of that filesystem, and on
-    # CI the long name simply was not a document — so the test asserted the wrong message rather
-    # than exercising the guard.
-    def too_long(self: Path) -> bool:
-        raise OSError(63, "File name too long")
+    # The other errno in the same class, and the reason this test survives the real-`chmod` one:
+    # `ENAMETOOLONG` is a property of the filesystem, not of a mode bit, so no permission fixture
+    # can produce it. **It was once built from a real 300-character name and converted to injection
+    # after a fixture bug** — on CI the long name simply was not a document, so the test asserted
+    # the wrong message rather than exercising the guard. Injection is right for *this* errno and
+    # was wrong for the permission one; the two were converted together, which is how the
+    # permission half went blind.
+    too_long = local.root / "docs" / ("n" * 300)
 
-    monkeypatch.setattr(Path, "is_file", too_long)
+    def name_too_long(target: Any, *args: Any, **kwargs: Any) -> os.stat_result:
+        if isinstance(target, str | Path) and str(target).startswith(str(too_long)):
+            raise OSError(63, "File name too long")
+        return real_stat(target, *args, **kwargs)
+
+    monkeypatch.setattr(os, "stat", name_too_long)
     with pytest.raises(PinakesError) as caught:
-        add(load(local.root), source="docs/whatever.md", target="docs/beta.md", rel="cites")
+        add(load(local.root), source=f"docs/{'n' * 300}", target="docs/beta.md", rel="cites")
     monkeypatch.undo()
     assert "cannot be read" in caught.value.message
+    assert "File name too long" in caught.value.message
+
+
+def test_a_refusal_that_clears_between_the_two_stats_is_still_refused(
+    pair: tuple[Kb, Kb], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The one branch a real fixture cannot reach: the predicate refuses, the follow-up `stat`
+    succeeds.
+
+    `_is_file` asks `unreachable_through_links` and then `stat`s a second time, purely to put the
+    errno in the message — "Permission denied" is worth more than "cannot be read". Between those
+    two calls the permission can change, and then there is no `OSError` to name. The refusal must
+    stand anyway: the decision was taken on the first answer, and quietly proceeding because the
+    second disagreed would make `pnk link` behave differently depending on how a race landed.
+
+    **Injected deliberately, and this is the case the rule is for** — a race between two syscalls
+    cannot be built from a `chmod` fixture, and what is under test is this function's own control
+    flow rather than what the OS answers. The real-filesystem behaviour is covered by
+    `test_a_document_the_process_cannot_reach_is_refused_with_the_read_error`.
+    """
+    local, _partner = pair
+
+    def always_refused(_path: Path) -> bool:
+        return True
+
+    monkeypatch.setattr(paths, "unreachable_through_links", always_refused)
+    with pytest.raises(PinakesError) as caught:
+        add(load(local.root), source="docs/alpha.md", target="docs/beta.md", rel="cites")
+    monkeypatch.undo()
+
+    assert "cannot be read" in caught.value.message
+    assert caught.value.remedy is not None and "permissions" in caught.value.remedy
+    assert add(load(local.root), source="docs/alpha.md", target="docs/beta.md", rel="cites"), (
+        "control: the same call succeeds once the predicate is telling the truth again"
+    )
 
 
 def test_a_path_with_an_embedded_nul_is_refused_rather_than_crashing(pair: tuple[Kb, Kb]) -> None:
@@ -560,6 +620,14 @@ def test_a_path_with_an_embedded_nul_is_refused_rather_than_crashing(pair: tuple
     for source, target in (
         ("docs/a\x00b/x.md", "docs/beta.md"),
         ("docs/alpha.md", "docs/a\x00b/x.md"),
+        # **The filename case, which the paragraph above says falls through — it no longer does.**
+        # It was a graceful "is not a document in this KB" only because `Path.is_file()` answered
+        # `False` for a NUL. The permission fix replaced that call with `os.stat`, which raises
+        # `ValueError` — not an `OSError`, so it escaped `_is_file`'s guard entirely and reached
+        # `cli.main` as a traceback. Caught by an adversarial pass over that fix, with `main` as
+        # the control; it is here so the fall-through can never silently become a crash again.
+        ("docs/bad\x00name.md", "docs/beta.md"),
+        ("docs/alpha.md", "docs/bad\x00name.md"),
     ):
         with pytest.raises(PinakesError) as caught:
             add(load(local.root), source=source, target=target, rel="cites")
@@ -966,3 +1034,61 @@ def test_resolve_target_is_reachable_without_the_cli(pair: tuple[Kb, Kb]) -> Non
         f"pnk://{partner.kb_id}/{partner.docs['one']}"
     )
     assert str(resolve_target(manifest, "docs/beta.md")) == local.uri("beta")
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_a_document_the_process_cannot_reach_is_refused_with_the_read_error(
+    pair: tuple[Kb, Kb],
+) -> None:
+    """The non-injecting half of `test_an_unreadable_directory_is_refused_rather_than_crashing`.
+
+    That test monkeypatches `Path.is_file` to raise, so the `except OSError` clause is entered on
+    both interpreters and it passes on both — while the *real* `Path.is_file()` on 3.14 raises for
+    neither errno its own comment names, leaving the production branch dead and the test green on
+    top of it. A fake that raises unconditionally cannot tell you whether the real call still
+    raises, so it is kept as the unit-level pin of the clause and this is built from a real
+    `chmod` beside it: the property under test is which syscall raises on which interpreter, which
+    is precisely what injection cannot reach.
+
+    Two shapes, because they are not the same question and only one of them is answered by asking
+    about the entry itself. `blocked/inside.md` is refused at its own parent; `alias.md` is an
+    entry this process can `lstat` perfectly well whose *target* sits behind that parent.
+    """
+    local, _partner = pair
+    blocked = local.root / "docs" / "blocked"
+    blocked.mkdir()
+    (blocked / "inside.md").write_text("# Inside\n\ntext\n", encoding="utf-8")
+    (local.root / "docs" / "alias.md").symlink_to(blocked / "inside.md")
+    os.chmod(blocked, 0o000)
+    try:
+        with pytest.raises(PinakesError) as direct:
+            add(
+                load(local.root),
+                source="docs/blocked/inside.md",
+                target="docs/beta.md",
+                rel="cites",
+            )
+        with pytest.raises(PinakesError) as through_link:
+            add(load(local.root), source="docs/alias.md", target="docs/beta.md", rel="cites")
+    finally:
+        os.chmod(blocked, 0o755)
+
+    assert "cannot be read" in direct.value.message, direct.value.message
+    assert "cannot be read" in through_link.value.message, through_link.value.message
+
+    # Two controls, and the first is the one that makes the assertions above mean anything: with
+    # the permission restored and nothing else changed, the *same* path stops reporting a read
+    # error and moves on to the next check. So "cannot be read" was the block talking, not a
+    # symlink or a fixture that was never usable.
+    with pytest.raises(PinakesError) as restored:
+        add(load(local.root), source="docs/alias.md", target="docs/beta.md", rel="cites")
+    assert "has no sidecar" in restored.value.message, restored.value.message
+
+    with pytest.raises(PinakesError) as absent:
+        add(load(local.root), source="docs/nowhere.md", target="docs/beta.md", rel="cites")
+    assert "is not a document" in absent.value.message, (
+        "control: a path that is genuinely absent keeps the message that says so, which is the "
+        "distinction the fix exists to restore — refused-to-look is not the same as not-there"
+    )
