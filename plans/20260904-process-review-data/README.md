@@ -26,7 +26,7 @@ describes.
 | `ci-runs.tsv` | 793 | one CI run | `gh run list` + one `gh run view --json jobs` per non-success run |
 | `agent_tokens.tsv` | 1,627 | one agent transcript | `tools/agent_spend.py`'s own collector, `--project Pinakes` |
 | `agent_tasks.tsv` | 1,631 | one agent, **with the task it was given** | transcript's first user message + `agent_spend` collector |
-| `tool_calls.tsv` | 64,662 | one tool call, with a **repeat index** | `tool_use` blocks in every transcript |
+| `tool_calls.tsv` | 64,735 | one tool call, with a **repeat index** | `tool_use` blocks in every transcript |
 | `plan_rows.tsv` | 44 | one build-order row, first seen → first marked done | the live plan at each of 60 commits |
 | `sessions.tsv` | 88 | one main-loop session | transcripts, `--project Pinakes` |
 | `cross_session_messages.tsv` | 293 | one message received from a peer session | `<cross-session-message from-name=…>` in user turns |
@@ -228,8 +228,12 @@ happens to live in. `sessions.tsv` does the same for resident main-loop sessions
 turn, and it runs two orders of magnitude above `output_tokens`.
 
 **2. Where an agent looped for little return.**
-`tool_calls.tsv` has `repeat_index` — how many times that **exact tool + target** had already been
-called in the same transcript, 0 on first use. **18,573 of 64,662 calls have `repeat_index >= 1`.**
+`tool_calls.tsv` has `repeat_index` — how many times that **exact tool and whole normalised
+argument** had already been called in the same transcript, 0 on first use. **4,197 of 64,735 calls
+(6.5%) have `repeat_index >= 1`; 1,764 are the same call made five or more times in one
+transcript.** **Read the ⚠️ block above before using this column** — it was wrong twice, and
+**this sentence stated the withdrawn v1 figure (18,573, 4.4x too high) until 20260904 14:38**,
+fourteen lines below the block that withdraws it.
 Join it to `agent_tasks.tsv` on `transcript` to put repetition beside the task and its cost.
 `agent_tasks.tsv` also carries `tool_calls`, `distinct_tools` and `distinct_targets`, so the ratio
 of calls to distinct targets is available without touching the per-call file.
