@@ -1,0 +1,196 @@
+date	time	title	severity	claim	lesson	lines
+20260725	13:40	I1 — Package skeleton, errors, CLI dispatch	MEDIUM	MEDIUM — `PinakesError` could not be pickled, so an error crossing a process boundary raised	an exception class with a non-`(message,)` constructor is	23
+20260725	14:05	I2 — ULID identity and `pnk://` URIs	MEDIUM	MEDIUM — a test that could not fail	a green test asserting a tautology is worse than no test — it buys	27
+20260725	14:25	I3 — Manifest parsing and KB root discovery	MEDIUM	MEDIUM — an explicit empty value silently became the default	`value or default` conflates	24
+20260725	14:45	I4 — SQLite storage, FTS5 triggers, vector loading	MEDIUM	MEDIUM — `load_vectors` peaked at roughly twice the array it returned	"""load it all into one contiguous array"" has two"	28
+20260725	14:55	I5 — Sidecars	HIGH	HIGH — sidecar writes were not atomic	"""the truth is in files"" makes every file write"	24
+20260725	15:10	I6 — Structural chunking	HIGH	HIGH — overlap could push a chunk past `max_tokens`	the earlier test used `overlap=5, maxtokens=15` and passed; one comfortable ratio proves	28
+20260725	15:35	I7 — Embedding backends and reranker	MEDIUM	MEDIUM — a fake that could never disagree	second time in three increments that a stand-in was wrong in exactly the	26
+20260725	15:50	I8a — Sync pairing core	MEDIUM	MEDIUM — a model-test guard checked the wrong half (found in I7, surfaced here)	a skip	20
+20260725	16:20	I8b — `pnk sync`, locking, and the rebuild swap	HIGH	HIGH — the rebuild swap left the old database's `-wal`/`-shm` behind	an atomic rename is atomic	27
+20260725	16:55	I9 — Retrieval pipeline	MEDIUM	MEDIUM — vector search padded its candidate list with zero-similarity passages	"""return the top N by similarity"" is only sane while similarity means something;"	23
+20260725	17:15	I10 — `pnk init`, the `notes` template, `pnk search`	MEDIUM	MEDIUM — warnings were being printed and ignored	a warning nobody has to act on is a warning nobody reads. Making them errors cost	23
+20260725	17:35	I11 — `pnk doctor`	MEDIUM	MEDIUM — ty found a second real defect hiding behind a `pyright: ignore`		19
+20260725	17:50	I12 — `pnk install-hooks`	LOW	Confirmed end to end, with a real commit: the three-hook split does what design pass 6 claimed	if a	25
+20260725	18:15	I13 — `pnk serve` (MCP)	MEDIUM	The boundary is testable, so it is tested		22
+20260725	19:00	I14 — Demo KB, golden set, eval harness, calibration	HIGH	HIGH — the two error rates were a flattering zero, and it took looking at real numbers to see	a perfect score on an error rate is a claim that	31
+20260725	19:30	I15 — CI, packaging, 0.1.0	MEDIUM	MEDIUM — the version lived in two places		21
+20260727	15:35	Post-v0.1 release housekeeping		The 0	a version number is a claim, and a claim in a CHANGELOG is the easiest kind to believe.	45
+20260727	17:00	Planning v0.2		A review pass is a change, and a change needs its own review	never implement from the revision that a review produced. Two passes are the floor for a	32
+20260727	20:23	Planning v0.2, pass 3		Three review passes, and each one's largest source of new HIGHs was the previous pass's fixes	budget for the review of the review. A plan is not ready because the last pass was clean —	40
+20260727	20:57	Planning v0.2, pass 4 — three narrow passes		Splitting one wide review into three narrow ones is what finally found the structural defects	a reviewer reading for coherence finds incoherence. Defects that are internally consistent	36
+20260727	22:28	I1 — extras, the extractor seam		An explicit, textual exit criterion is not met just because the surrounding tests feel thorough	when a plan states a test-coverage exit criterion in so	31
+20260727	23:43	I2 — the synthetic PDF corpus	HIGH	HIGH — a gate rendered at a resolution that made its own threshold unreachable	a tolerance is meaningless without the resolution it	46
+20260728	00:52	I3a — extraction core, pure: chars to ordered, de-furnished text	HIGH	HIGH — column clustering compared each candidate to the wrong reference point, letting drift	"""cluster by gap"""	65
+20260728	03:06	I3b — the pypdfium2 adapter, extraction-quality metrics, and the two fitted floors	HIGH	"HIGH — an empty page list is not an empty request; it is pypdfium2's spelling of ""every page"	"an empty collection is not automatically ""no"	79
+20260728	08:13	Cross-platform scanned-fixture rendering — `main` CI-red since I2, unnoticed for three pushes	HIGH	HIGH — `	"""the local gate is green"" and ""CI is green"" are different claims —"	68
+20260728	10:28	I4 — the extraction cache	MEDIUM	MEDIUM — a filename collision between a real cache entry and its own in-flight write	when several functions all	52
+20260728	13:59	I5 — PDF chunking, page provenance, and a backend-aware sync	CRITICAL	"CRITICAL — decision 9's ""never silently downgraded"" guarantee held for a same-path sync and for"	"a mechanism justified as ""the answer must not depend on the cache"" (the `--rebuild` +"	82
+20260728	17:52	I6a — budget core, pure	HIGH	HIGH — every test of the timezone conversion that is this module's entire reason to exist would	a test whose fixture is built in	55
+20260728	19:25	I7a — the paid-path allowlist gate	HIGH	HIGH — the gate found two live paid-client imports on the free path, in code that had shipped	"""does the free path import a paid client"" is a question about a running process,"	62
+20260728	23:27	I6b — budget I/O: the ledger, `pnk budget`, hooks that cannot spend	HIGH	HIGH — the accountant handed out a `PaidCall` object, undoing the one guarantee the ledger module	an invariant enforced by a control-flow construct	74
+20260729	00:24	I7b — the paid Claude-vision extractor	HIGH	HIGH — the reconciliation recorded the reserved amount, which makes the whole	I6b's tests could only ever check that a	127
+20260729	02:38	I7c — the completeness audit, staging, all-or-nothing	MEDIUM	MEDIUM — three of ten mutations survived, and all three were the same shape: a rule with no test	the tests I wrote were about the rules I was thinking about while writing the code, which	68
+20260729	03:23	The eval harness: three defects under one green suite	HIGH	HIGH — the `multi-hop` class measured nothing about hopping		42
+20260729	04:06	Shared-file contention tooling	HIGH	HIGH — `git status --porcelain`'s leading space is significant, and a helper doing `		61
+20260729	04:55	I8 — Page citations on both surfaces, and `pnk doctor`'s text yield	HIGH	HIGH — `pinakes_get` on a PDF crashed, and no test could have caught it		71
+20260729	05:40	I9 — Auditing the verification table	HIGH	HIGH — the table that verifies everything verified nothing		36
+20260729	07:26	A sidecar that would not parse was replaced by a freshly minted one	HIGH	HIGH — the one failure the design says is unrecoverable, shipped since v0		68
+20260729	08:47	L1 — The partner corpus and the density gate	HIGH	HIGH — the gate did not gate the one shape it was built for		59
+20260730	16:51	L2 — Reverse-scan		One root cause behind all three HIGH findings: I bypassed `manifest		63
+20260730	18:06	L3–L4 — The traversal core and `pnk links`		Four HIGH findings, all in the properties the increment's own prose claimed loudest		76
+20260731	11:29	L5 — `pinakes_links` on the MCP surface		The lesson that generalises: a field with no assertion is a field that can be a constant		106
+20260731	11:29	L5b — `ruamel.yaml` replaces `pyyaml` in the sidecar		The plan predicted three failures precisely, and all three landed as written — which is worth		152
+20260801	06:05	`main` was red for four merges, and local `check.sh` could not have known		Two causes, one shape: a test that cannot build its precondition does not skip — it asserts the		48
+20260801	00:52	G1 — Is the eval reproducible?	HIGH	HIGH — the eval was reproducible by luck, and the luck was invisible		95
+20260801	01:41	L6 — `pnk link`	HIGH	Every review commit on this increment found defects in the one before it, and most of them found		383
+20260801	05:40	L7 — `pnk doctor`'s link checks	HIGH	HIGH		85
+20260801	12:14	G2 — The headroom measurement, and what it found	HIGH	HIGH — the demo corpus has no tags, and one directory		79
+20260801	13:28	Source-walk containment — one rule, three sites, enforced at one	HIGH	The durable lesson: a containment rule argued in prose beside one of its two inputs is a rule for	a containment rule argued in prose beside one of its two inputs is a rule for	114
+20260804	04:21	The reachable-ceiling probe, against a corpus it did not ship with	HIGH	HIGH — a measurement tool that absorbs malformed input reports a number that looks valid	the guard has to be	196
+20260804	11:25	The edge census — a `.get` default that would have hidden its own defect	MEDIUM	MEDIUM — the first draft of the text renderer used `report	a rename's blast radius is every system that identifies this repo by name, and	127
+20260804	12:46	Interrupted sync — a TZ test that used the fixture helper would have proven nothing	HIGH	HIGH — the first draft of the UTC-timestamp regression test called `test_sync		26
+20260804	13:07	The progress printer's closing newline assumed the loop always reaches its own end	MEDIUM	MEDIUM — an independent adversarial review found that `cli		25
+20260804	13:30	A green `./check.sh` only proves the worktree's own venv is green	MEDIUM	MEDIUM — `test_estimate_only_stamps_utc_not_local_under_a_non_utc_timezone` shipped with no		24
+20260804	16:30	G3 — the node model and the edge set	HIGH	HIGH — a hierarchy derivation that was quadratic in a document's chunk count		90
+20260804	21:05	G5 — the `parent-child` ceiling, measured before the gate ran		The measurement the arity decision required, and the corpus that could supply it was neither of		91
+20260804	21:35	G5 — the expansion channel	HIGH	HIGH — a ranking rule that would have made depth 2 unreachable, and it read as the careful		58
+20260804	22:30	G5 — a root spends a fan-out slot it is then discarded from	HIGH	HIGH — the fourth review round, on a rule the third round had already written down		45
+20260804	22:52	G5 — the gate, run: `expand` ships `off`	HIGH	HIGH — the increment's deliverable is a negative measurement, and it is a clean one		121
+20260805	06:20	G6 — Edge-hub reporting	MEDIUM	MEDIUM — the enumeration order this check's own sort relied on was implicit		45
+20260805	07:41	The `[light]` backend error — a fixed test that only looked environment-independent	MEDIUM	MEDIUM — the existing `test_a_missing_extra_names_the_install_command` was silently coupled to		67
+20260805	08:06	Item 5 — doctor never prints the operator's home directory	LOW	LOW — two residual home-directory leaks exist, both correctly out of this increment's scope		29
+20260805	17:37	`measure_sync_cpu.py` measured the launcher, not the work	HIGH	HIGH — the tool answered its one question with a number that was precisely, confidently wrong,		45
+20260805	17:49	Fixture copies carried the developer's own `.pinakes/` into the test workspace	MEDIUM	MEDIUM — three tests failed on `main` immediately after two clean merges, on a machine where		32
+20260805	17:55	An exact assertion between two *different* roundings — green locally, red on one CI leg	MEDIUM	MEDIUM — a coin-flip assertion that passed for the wrong reason, and whose failure was earned by		36
+20260805	19:07	Mutation testing found a guard that could not fire	LOW	LOW as a defect, worth keeping as a method result		26
+20260805	19:15	Running it found what reading it could not	MEDIUM	MEDIUM, and the reason it is recorded beside the note above: the two findings came from opposite		29
+20260805	20:20	A warning that cleared itself without the fix being applied	HIGH	HIGH — the first draft turned a silent defect into a lying one, and every test passed		34
+20260805	21:00	The corpus rejected two of my fixes, and that is the result		The measurement §5		46
+20260805	21:56	The sync-CPU number, and the instrument proving itself in the field		The measurement item 3 demanded since 20260804 was finally run, and it reverses the item's own		43
+20260805	22:11	Removing a blanket guard exposed what it had been incidentally protecting	MEDIUM	MEDIUM — and the finding came from an existing test, not from reading the diff		29
+20260806	00:33	Slimming `CLAUDE.md` — a relocation's real cost is its pointers	HIGH	HIGH — the reference sweep has to run on the source file's name, not on the text that moved		46
+20260806	04:05	A plan's blocking premise was inferred, not measured — and it was wrong for two days	HIGH	HIGH — the reason a plan gives for a blocker is reused long after the blocker is gone		60
+20260806	06:12	2a — Real titles and a measured chunking reserve for the RFC corpus		The plan's worked reserve was wrong by more than twofold, and only measuring found it		46
+20260806	08:24	2b — Refusing a prefix that would not fit		A refusal with no caller is a refusal nobody has watched fire, so this one was written to be		54
+20260806	11:42	2c — A golden set authored by agents that did not know what it was for		The anti-circularity rule was implemented rather than promised		67
+20260807	09:07	2d — The screen said no, and the controls are what make that worth believing		The result: 6 improved, 6 regressed, 84 unchanged, over 96 answerable questions		78
+20260807	09:54	2d review — the grep that was necessary and not sufficient	HIGH	HIGH — a rebuild could leave a half-injected index, and the check that should have caught it was		57
+20260807	10:34	2d review, round two — the argument for the key's placement was false when written	HIGH	HIGH — the option was put in `[chunking]` rather than `[retrieval]` because `[chunking]` is		66
+20260807	19:36	T1 — The version archive, and what mutation testing found in it	HIGH	HIGH — the plan's own baseline undercounted the sites it had just corrected, and the second		107
+20260807	22:28	T2 — Reporting template drift as a line count	HIGH	HIGH — A test that never calls the function under test cannot kill a mutant inside it		45
+20260808	00:02	T3 — `pnk upgrade`, print only	HIGH	HIGH — a same-length mutant is invisible to Python's bytecode cache, so a mutation run can report		217
+20260808	05:14	T4 — `pnk upgrade --apply`	MEDIUM	MEDIUM — a plan can specify a test that cannot discriminate, and the name is what hides it		161
+20260808	06:28	T5 — The plan asked for a decision the file next to the code had already taken	HIGH	HIGH — D-4 was open in the plan and settled in `manifest		35
+20260808	09:54	T7 — `pnk templates`, and a template declares its files	HIGH	HIGH — a test with two cases in one body only holds the case that runs first		76
+20260810	01:29	Open corrections 1 and 3 — a guard can route a failure into a *wrong* message	HIGH	HIGH — turning a traceback into a `PinakesError` moved the failure into a handler that already		77
+20260811	13:27	A row can be complete, correct, and in the wrong place	HIGH	HIGH — five release rows were out of order in three sequences, and nothing could see it		51
+20260811	15:17	E1 — `pnk ask`, and the output nobody could check	MEDIUM	MEDIUM — a doc that pastes command output goes stale silently, and nothing in this repo can see		40
+20260811	16:15	E2 — The deep release's round estimator	HIGH	HIGH — the worst case left out the one input the user controls: the question itself	when a worked example pins an estimate to the cent, it	64
+20260811	17:12	E3 — The deep client, and four rules that were about to be copied	HIGH	"HIGH — a second paid entry point is where a ""one home"" rule quietly becomes two"		170
+20260812	05:11	E5 — The run transcript	MEDIUM	MEDIUM — a mutation restored a file and silently took a real edit with it		52
+20260812	06:41	E6 — A seam the tests never crossed	CRITICAL	CRITICAL — `pnk ask --deep` has never worked against the live API, and 0		40
+20260821	07:53	E6 — The measurement run	HIGH	HIGH — the instrument that publishes the numbers had no tests, and its `--json` had never		72
+20260821	22:48	A prose tool pointed at a comment run containing load-bearing whitespace		Found by the E6-close adversarial pass, after `		34
+20260822	01:24	E7 — Printed suggestions, and the mutant that proved the battery blind	HIGH	The increment that closes the deep release		76
+20260822	06:14	The mutation harness — turning the last unguarded step into a tool	HIGH	HIGH — a skipped test and a passing test are the same exit code, and this repository skips		77
+20260822	06:35	A gate cited by a procedure it cannot read		"The generalisable shape is not ""a missing pattern"""		38
+20260822	07:25	Verify the remedy, not only the finding		The cheap test: state what input would look different if the remedy were absent		49
+20260822	08:20	Capping mcp, and the leg that had to be run against the defect	HIGH	HIGH — a CI leg written to catch a defect is a claim until it is run against the defect, and the		129
+20260822	17:52	A gate must not derive a constant from the document it polices				50
+20260822	18:23	The mcp 2.x port — the port was four lines, the gate was not	HIGH	HIGH — A gate whose passing depends on a dependency's teardown timing is not a gate		109
+20260823		When a constant cannot be declared, constrain it		The third could not be declared, and that is the lesson		45
+20260823	02:05	A correction is a claim like any other		And a second rule fell out of the same exchange, stronger than the one it replaced		126
+20260823	07:34	Committing the mutation batteries — a design statement nobody had measured	HIGH	HIGH — the sentence that decided this was an assumption wearing a docstring		128
+20260823	13:52	Extracting CLAUDE.md — four agents each edited correctly, and the set was wrong	HIGH	HIGH — every defect in this increment was a neighbourhood defect, and none was a content defect		52
+20260823	14:38	The ungated link surface, and three instruments that lied	HIGH	HIGH — a regex cannot gate Markdown links, and both agents on this repo built one first		43
+20260823	14:36	The ungated Markdown surface, and two checkers that were confidently wrong	HIGH	HIGH — a checker with no control leg reports plausible nonsense, and reads as authoritative		57
+20260823	14:57	Landing beside a peer — the overlap tool answers a different question	MEDIUM	MEDIUM — a check named for a problem is not a check for that problem		29
+20260823	15:11	The gate that read everything except its own output		The shape is worth naming, because it is not a missing check — it is a checker pointed one step		121
+20260823	16:18	The assembled document nobody reads, and an extent computed after it was destroyed	HIGH	HIGH — a defect can exist only in the assembled document, where no instrument is pointed		31
+20260824	00:23	A closing note credited a fix that predated the defect, and the defect recurred twice		The closing note named a mechanism that could not have fixed it, and the evidence for that was		69
+20260825	00:11	Two precedents that agree are not a pattern	HIGH	HIGH — a decision arrived pre-framed by two real precedents, and the framing was refuted by the		156
+20260825	00:14	The check that was not git — and the mutant that was not a test	HIGH	HIGH — a substring test stood in for git's ignore semantics, and it was wrong in both		149
+20260825	00:53	The diagnostic that printed nothing, and a review of a moving target	HIGH	"HIGH — the fix for ""a remedy that changes nothing"" was an instruction that shows nothing"		55
+20260825	07:55	Planning the exposure question — a check that cannot see the case it is for	HIGH	HIGH — the 0		96
+20260825	08:16	X1 — building the tracked-KB check, and an instrument that could not fail	HIGH	HIGH — the specification asked for a test that cannot fail, and only writing it revealed that		63
+20260825	18:55	S2 — A census is not a plan	HIGH	HIGH — two mutants survived 267 tests because every assertion counted actions instead of ordering		141
+20260825	18:55	Taking eight decisions into the documents — what the writing found	HIGH	HIGH — a correction about false precision was itself a timezone error, and it nearly propagated		68
+20260826	06:32	Reconciling the queues — two registers of one fact, and an owner with nowhere to queue	HIGH	HIGH — a file that holds two registers of the same facts will diverge, and no gate can see it		71
+20260826	06:38	`make release-check` — a gate that could not fail, and what that says about the others	HIGH	HIGH — the target had a help string, a `docs/RELEASING		58
+20260826	06:50	Measuring the review loop — every arithmetic claim in the report had an error	HIGH	HIGH — a number in a docstring is a claim with no gate on it, and the fix that invalidates it will	prose in a source file is unversioned evidence.	90
+20260826	06:59	D-35 layer 2 — the half a gate cannot see, and a gate I ran wrong	HIGH	HIGH — I ran `uv run ruff check 		47
+20260826	07:02	One code change falsified six documents, and the owner of the code could not fix any of them	MEDIUM	MEDIUM — two rules this repository holds simultaneously cannot both be satisfied, and nobody had		43
+20260826	07:20	S19, measured twice independently — and the row that disagreed is the useful one	MEDIUM	an argument from reading `pairing		27
+20260826	07:27	The marker was 0-for-2 because the procedure never asked for it	MEDIUM	MEDIUM — a convention with a 0-for-2 record was blamed on the people following it, and the		27
+20260826	07:33	The cycle's price, found by building the fix and backing it out	MEDIUM	MEDIUM — the obvious remedy for a defect had a cost nobody had counted, and counting it required		28
+20260826	07:40	Every review pass rebuilds the map, and the expensive ones pay most for it		The cost is re-derivation, and it scales with the pass rather than away from it	the expensive part of a review pass is not the reviewing. It	71
+20260826	11:30	The review step ran before the fragment existed, so the fragment was never reviewed	MEDIUM	207 of 248 files their increment changed — with `src/pinakes/__init__		67
+20260826	11:46	The remedy for a bad survivor had a false-positive mode, and it was in the advice	MEDIUM	MEDIUM — the whole suite includes the test that fails on any edit to a battery target		35
+20260826	11:51	A ratio over a growing denominator, and a stamp that should never have been read twice	MEDIUM	MEDIUM — three figures I put into `docs/BUILDING		38
+20260830	09:29	Red on the clock, and five measurements of one string that all failed	MEDIUM	MEDIUM — a suite went red with no commit, and the design had already decided it should not		47
+20260830	14:31	Unblocking the clock-red suite: the seam was the table, not the clock	MEDIUM	MEDIUM — a true observation pointed at a fix that would have reached none of the failures		46
+20260826	11:47	S16/S19 — A fix that enforces a property globally unpins every test that asserted it locally	HIGH	HIGH — the finding is about the mutation harness, not about renames, and it is the most portable		60
+20260830	15:04	A gate green on `main` and red on the tree `main` is about to become	MEDIUM	MEDIUM — three sessions measured one gate within an hour and got three answers, and every		34
+20260830	15:15	S18 — the obvious fix would have shipped the defect it claimed to fix	HIGH	HIGH — the right answer was written down, one layer down, and taking it would have been wrong		50
+20260831	21:58	"S16's residue — ""containment is one line"", and the line was too wide"		The review was right about the defect and wrong about the fix, and the two are easy to accept		39
+20260831	22:21	S3 — a thread id is a slot the OS reuses, not an identity		The trigger is contention, not idleness		44
+20260831	22:53	The release step written to catch a stale price, skipped by the release that wrote it				56
+20260831	22:59	A population that could not have contained the thing I was looking for		main-loop-only population: subagent transcripts live under `<session>/subagents/` and were	the restricted population is the one that must be asked for by name, because a	98
+20260831	23:26	I corrected a document I had not read		4 with no heading at all, 5 with no stamp, 9 with a stamp that is not the filename's		57
+20260901	06:31	A composed number, again — and a test that was not a pin	HIGH	HIGH — the third block of the guard's own test asserted nothing		69
+20260901	06:33	Re-running a measurement is not enough when there are two artifacts to run it against		"The rule that has caught every one of these is ""re-run the measurement"""		36
+20260901	07:13	The rule I quoted verbatim had been deleted a minute after I started	HIGH	HIGH — the file you are told is authoritative is a copy, and the copy has no clock on it		122
+20260901	07:15	A suspiciously clean result is a reason to check the harness, not to write it down		Sixteen runs agreed to the character, and not one of them had started		129
+20260901	07:36	Build the instrument that can call a fan-out wrong before you read what it found		Both closures landed in the single most-churned file, and every byte-identical file closed		69
+20260901	11:25	When a gate and a convention disagree, the shipped artifact is the tiebreaker — and it costs one grep		Two things to keep		44
+20260901	11:40	A register decays at the speed of its neglect, and the rate is measurable		Same file, same author, same discipline, three and a half times the rot		34
+20260901	11:41	I typed the counterevidence myself, then named the wrong mechanism anyway		The refutation was already in my own message		74
+20260901	11:53	Two of us searched for how a file was deleted; it had never been deleted		The error is not that we missed a directory		31
+20260901	12:00	An options table can be honest, complete, and wrong about the question		All three options shared a premise none of them stated		34
+20260901	12:26	A watcher outlived the session that armed it, and reported green on a red build		It had no owner		54
+20260901	18:26	A section number is only meaningful inside its own document		A cross-document reference lost its document and kept its number		27
+20260901	18:40	A gate spoke correctly about an input nobody had edited	MEDIUM	MEDIUM — `		48
+20260901	20:03	`git merge-base` is not the branch point after a rebase		Four agents in one review pass raised the same false finding, and every command each of them ran		35
+20260901	20:36	I broke the table I was adding a row to, twice in one day		A row appended before the right anchor is not in the table		43
+20260902	00:04	A clean result from an instrument that never ran		deleted it, where `git show <commit>:<path>` yields nothing — so it examined 15 of 127 and		39
+20260902	00:07	I measured the live directory and answered about the corpus		Then the correction repeated the mistake one level down		39
+20260902	02:04	I read an error message as evidence of the arm that raised it		Two refusals confirmed a mechanism that one more row would have falsified, and the missing row		38
+20260902	02:45	A method is not a measurement point, and `--all` is not a corpus		The rule this leaves: a measurement is reproducible when it states an instrument and a point —		30
+20260902	07:34	The one surface a later pass cannot fix is the one nobody reviews	MEDIUM	MEDIUM — three pushed commit messages on this branch carry four false sentences between them, and		89
+20260902	07:41	The census I called correct was the one mixing selectors		Neither census stated its selector, and that is the whole defect — the same one I had landed a		30
+20260902	08:11	I armed a CI watcher on a sha I had composed, not read		I expanded a short sha into a full one by writing plausible hex		139
+20260902	08:30	The config does not name the renderer		The site's slugifier is not in `mkdocs		56
+20260902	08:53	The restore command is the one that eats the work		A second instrument failure the same hour, and it is the sharper one		49
+20260902	09:27	The fix for a loud crash was a silent deletion, and only a probe said so		The rule that generalises: when a fix changes what a downstream consumer is told, ask the consumer		50
+20260902	10:07	A gate against unnoticed drift, and the two shapes it nearly could not see		The audit could not see the second instance, because of the shape of its own selector		49
+20260902	10:26	I published a count I never ran, and a peer nearly stopped a correct release		What it cost		27
+20260902	10:26	The gate I ran was not the gate CI runs, and the gap is where the defect was		The defect it found was real and had been dormant for a month		52
+20260902	10:45	Both hops were green for the value of a constant neither of them mentions		The trigger is scheduled, not hypothetical		37
+20260902	11:59	A mutant killed for the wrong reason is a survivor wearing a green light		That value cannot demonstrate the property		48
+20260902	12:00	An example I reasoned about instead of running		Where it was going to land is the part worth keeping		41
+20260902	21:18	S4's fix reproduced S4, on the one value class the framing excluded		0		109
+20260903	08:30	A commit taken inside a mutation window shipped the mutant		While a battery is running, that worktree has no committable state		49
+20260903	09:03	Three mutants killed for the wrong reason in one increment, and the pattern has three shapes		The check: a mutant is written against a property, so name the assertion it must fail before		83
+20260903	10:23	The summary sentence disagreed with the table one screen above it	MEDIUM	MEDIUM — a plan's prose register and its own table register drifted apart, and the person who		35
+20260903	10:24	A decision that did not foresee its third state	MEDIUM	MEDIUM — an answered decision can still be short a case, and building it is what finds out		28
+20260903	10:24	A fixture named for a scenario it did not build	HIGH	HIGH — a test can be green, correctly named, and modelling a different world		25
+20260903	10:24	The rollback took the fix with it	HIGH	HIGH — a fix that unit-tests green and does nothing, because a transaction boundary ate it		29
+20260903	10:48	A green battery inherits its author's framing	MEDIUM	MEDIUM — the mutants a fix's author can imagine are the failure modes that author already	a battery written by the author of the fix measures the author's imagination, not the	49
+20260903	12:58	A control must be shown able to fail	HIGH	HIGH — and it recurred an hour and a half after the same class was written down, by the same		57
+20260903	12:58	A docstring can claim a surface the code never reached	HIGH	HIGH — written as intent, committed as fact, and it was the only record of the gap		26
+20260903	12:58	A replace-all edits fixtures you never read	MEDIUM	MEDIUM — caught by a printed count, which is the only reason it was caught at all		28
+20260903	12:58	A vague sentence made specific, and false	MEDIUM	MEDIUM — the fix made the message more precise, which is normally the improvement, and that is		24
+20260903	13:18	The tag points at a commit CI never finished	MEDIUM	MEDIUM — a release tag can name a commit whose CI legs were cancelled, and nothing in the release	after pushing a release tag, read the CI run at the tagged commit per job, not per run. If	38
+20260903	13:50	A gate that never ran the version it promised	HIGH	"HIGH — `requires-python = "">=3"		34
+20260903	13:50	A measurement with an unnamed population, copied forward three times	HIGH	HIGH — the sentence said measured, and it was		32
+20260903	13:50	I almost reported an invariant break I had not measured	MEDIUM	MEDIUM, and the outcome was fine — which is the reason to write it down		32
+20260903	14:10	The fix stopped at the boundary I reasoned to, not the one the defect had		What happened		32
+20260903	15:23	A two-way selector that can only fall one way		What happened		51
+20260903	16:10	A fixture that never reached the code under test		What happened		46
+20260903	16:10	A hook that could not fire for half the class		What happened		57
+20260904	02:02	Row 32 — a ruling that was wrong on a premise, and a fake that outlived its branch	HIGH	HIGH — a decision can be wrong because of a fact, and the fix is to measure the decision, not to		42
+20260904	02:12	A gate I read but did not obey	HIGH	HIGH — I landed over a red `	`;` between a gate and a commit is the same defect as piping the gate through `tail`, and	41
+20260904	02:55	"Row 38 — a test that proved nothing, and a contract ""verified"" on one interpreter"	HIGH	HIGH — a test can stop testing anything without ever going red, and the only way to know is to		35
+20260904	03:14	Row 40 — a count whose meaning depended on something nobody recorded	HIGH	HIGH — an equivalent mutant and an unpinned assertion are byte-identical in the report, and I		32
+20260904	08:30	Row 39 — I tested the copy that did not contain the change, and broke `main` doing it	HIGH	HIGH — a smoke test run against the wrong binary reads exactly like a passing one		151
