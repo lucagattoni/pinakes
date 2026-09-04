@@ -211,8 +211,10 @@ percentages, no commentary.
   not a branch. 730 of the 793 rows are `main`.
 
 **`FRAMEWORK.md` sits beside these files** — how development here actually works, what the data
-can and cannot answer, and the two sessions' accounts where they disagree. **It characterises and
-does not prescribe**, at the user's instruction. Read it after the data, not instead of it.
+can and cannot answer, the two sessions' accounts where they disagree, and **§ 9: which of this
+repository's 17 written rules are actually followed (9), measurably broken (5), and cannot be
+checked at all (12)**. **It characterises and does not prescribe**, at the user's instruction. Read
+it after the data, not instead of it.
 
 ## The two questions this harvest was steered to answer
 

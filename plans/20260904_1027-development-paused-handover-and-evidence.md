@@ -21,6 +21,19 @@ time. No ambiguities. So the development can restart anytime from where you both
    thing under review is the process that would tell you which row to pick.
 4. If lifted: § 5 lists what is open, with the one decision each carries.
 
+**The evidence the user asked for is `plans/20260904-process-review-data/` — 16 TSV datasets plus
+three documents.** `README.md` there gives each file's instrument, population and noise filter;
+`METHOD.md` says how the transcript data was extracted and lists the traps; `FRAMEWORK.md` is the
+two sessions' account of how development here actually works, including **§ 9's audit of which
+written rules are actually followed**. **Read `README.md` before any TSV** — several columns mean
+something narrower than their name suggests.
+
+**This pointer was missing until 20260904 14:27**, from this file and from `CLAUDE.md` both, for the
+two hours after the harvest landed. The directory existed, was complete and was reachable from
+neither entry point a resuming session reads — which is this file's own stated purpose failing in
+the specific way `CLAUDE.md` warns about: *the entry points that survive are exactly the ones a
+session's own work tends to falsify.*
+
 **Nothing is half-built and nothing is waiting on a timer.** No background task, no monitor, no
 scheduled job. Both sessions ended by choice, not by limit.
 
@@ -30,16 +43,21 @@ scheduled job. Both sessions ended by choice, not by limit.
 
 | | |
 |---|---|
-| `origin/main` | `7b079e54a26ff432feb3097018a6e41441554a53` — CI green, primary checkout in sync, **no worktrees** except any the coder names in its own fragment |
+| `origin/main` | `e8d91f24922ad400af67afef4ab742f01ea9226d` (20260904 14:27) — primary checkout in sync, **no worktrees**. Was `7b079e5` when this file was written at 10:27; four documentation landings followed, the last being `FRAMEWORK.md` § 9 |
 | Published | **0.32.5** on PyPI, verified from the index with a control that discriminates the fix |
-| Fragments waiting | **6** (`changelog.d/` and `retro.d/`) — **a release is due and was deliberately not cut** |
+| Fragments waiting | **8** — 2 in `changelog.d/`, 6 in `retro.d/` — **a release is due and was deliberately not cut**. **Count this from disk, never from this cell**: it read **6** from 10:27 until 14:27 while two more landed |
 | Increments landed 20260903–04 | rows 7, 8, 30, 31, 32, 38, 39, 40, 41, 43 · releases 0.32.2 → 0.32.5 |
 | In flight at the pause | row 42 (coder) — see its fragment and the row for exact state |
 
 **Why the release was not cut.** A tag publishes to PyPI and PyPI never accepts a version twice.
 Publishing is *starting* work, not stopping it — and the release procedure is itself inside the
-scope of the review. **The six fragments are a normal resting state**, not an omission. Whoever
-resumes cuts 0.32.6 when the process question is settled.
+scope of the review. **The waiting fragments are a normal resting state**, not an omission. Whoever
+resumes cuts 0.32.6 when the process question is settled — and **reads `minimum-python`'s conclusion
+in the CI run for the commit being tagged** first, per `docs/RELEASING.md` step 6.
+
+*(That paragraph said "the six fragments" until 14:27. A count written into prose ages exactly like a
+count written into a table, and prose has no column to check. This is the same defect
+`docs/ROADMAP.md`'s three registers carry, one document over.)*
 
 ---
 
