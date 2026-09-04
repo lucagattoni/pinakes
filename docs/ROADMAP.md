@@ -303,6 +303,7 @@ number belongs to a release only when it is cut
 | **[0.32.3](#0323--the-tool-offered-to-delete-a-permanent-id--20260903-1438)** | 20260903 14:38 | the tool offered to delete a permanent id | • **`pnk doctor`'s orphan check asked whether the document was a *readable* file**, so a document present on disk but unreachable was reported `WARN orphaned sidecars: 1` beneath *“Remove with `pnk doctor --prune`”*<br>• Taking that advice deletes the sidecar and the ULID `INVARIANTS.md` calls **permanent**. **Interpreter-independent, and in every published release**<br>• **`pnk sync` and `pnk doctor` both crashed on Python 3.13** — the floor in `requires-python` — for the same condition: `Path.is_file()`/`exists()` propagate `PermissionError` on 3.13 and swallow it on 3.14<br>• **Nothing in this repository had ever run 3.13 in CI.** No `.python-version`, no `setup-python`, `uv sync --frozen` takes the newest interpreter on the runner, and the `check` matrix varies *extras*<br>• A fresh worktree runs 3.14 and the primary checkout 3.13, so **one commit answered differently in two directories** — a green branch gate over a red merged gate<br>• Nine call sites now go through `src/pinakes/paths.py`, whose `False` means **three states, not one**: absent, not a file, or present and unreachable<br>• `minimum-python` asserts the interpreter it actually got, and **its first run in history is green, read in its log** rather than from a status<br>• **The first fix was incomplete**: two private helpers inside `sync.py` that `doctor` and `linkscan` could not reach. An adversarial review found the other two<br>• **No battery mutant for the spelling, deliberately** — one that dies on 3.13 and lives on 3.14 reads SURVIVED to whoever runs it<br>• Row 8's three low classes ship alongside: a mistyped `--source-type`, an empty KB blaming filters nobody passed, a broken symlink skipped rather than reported<br>• no `schema_version`, no rebuild |
 | **[0.32.4](#0324--a-directory-the-walk-could-not-enter-deleted-what-was-under-it--20260903-1638)** | 20260903 16:38 | a directory the walk could not enter deleted what was under it | • `pnk sync` printed `N removed`, dropped the chunks, and exited **0**; `pnk doctor` reported OK and `pnk search` then answered nothing, with no surface saying why<br>• **Three shapes, not one mechanism** — a symlinked root under a blocked in-KB ancestor (crashes 3.13, silent 3.14); a `0o000` subdirectory (**silent on both**, so not a floor defect); a `0o400` subdirectory, listable but not traversable<br>• **The third defeats an error hook by construction**: `scandir` succeeds so `os.walk`'s `onerror` never fires, the glob yields the entry, and every `stat` on it fails<br>• `paths.py` gains `is_directory`, `is_symlink`, `unreachable`, `unreadable_directories` — and the old note that `is_symlink()` was *“deliberately not wrapped”* was a true measurement over a population with a **readable parent**<br>• **The glob is deliberately not replaced.** Reimplementing `**`, `[seq]`, `..` and pathlib's symlinked-directory rules to gain a hook is a larger risk than the defect; the hooked walk runs beside it and the *parent* of an unreachable candidate is recorded<br>• **`exclude` does not suppress it, ruled deliberately** — the walk is refused before any pattern applies, and `Path("docs/sub").match("docs/sub/**")` is `False`, so suppression would not fire in the spelling users write<br>• Measured on a 30-document KB: `0 removed`, `30 unchanged`, exit 1, and `pnk search` answers from the held document inside the locked directory<br>• Battery **59/59 on 3.13**; on 3.14 one row survives, as its own comment predicted before the run<br>• no `schema_version`, no rebuild |
 | **[0.32.5](#0325--a-permission-problem-reported-as-three-other-things--20260904-0849)** | 20260904 08:49 | a permission problem reported as three other things | • `pnk link` blamed the user's path — *“is not a document in this KB”*, remedy about spelling — for a source under a directory it could not read<br>• `pnk doctor` dropped an unreadable paid document from **both** lists, reporting `stale: none` about a document nothing could read<br>• A linked partner KB that was present but unreadable came back **absent**, indistinguishable from one never created, on `doctor`, `link` and the cross-KB scan<br>• **All three were the same dead `except OSError`** — the probe raises on 3.13 and returns `False` on 3.14, so every guard fired on the floor and nowhere else<br>• `paths.unreachable_through_links` follows the link, unlike `unreachable`, whose `lstat` is load-bearing on the delete-on-absence path and was left alone<br>• **The planner's first ruling here was wrong and would have regressed 3.13** — it named `unreachable`, which answers `False` for the very shape behind the ULID bug<br>• `why_not_a_kb` is total now, so three call-site guards that could not fire were **removed**, not left as comments justifying dead code<br>• `tools/land.py` refuses a **merged** tree no `./check.sh` certified — no override, `--cleanup-only` exempt — after two sessions landed over red gates in one day<br>• `tools/mutate.py` names the interpreter its counts came from; neither tool ships in the wheel<br>• no `schema_version`, no rebuild |
+| **[0.32.6](#0326--instruments-that-could-report-success-while-measuring-nothing--20260904-1455)** | 20260904 14:55 | instruments that could report success while measuring nothing | • The vacuous-injection audit refuses an empty site list rather than printing `0 sites · 0 vacuous · 0 not ruled` (`--min-sites`, default 10)<br>• A probe run in which nothing passed is `INCONCLUSIVE`, not a verdict — an all-skipped selector is no longer reported as a vacuous fake<br>• A run whose environment changed between first and last probe is `UNATTRIBUTABLE` and exits non-zero; a `VACUOUS` row still exits 0, being a finding for a person rather than a build to fail<br>• The audit runs on **Linux** under the declared floor, naming interpreter, platform and `NAME_MAX` — whether an injected `ENAMETOOLONG` is redundant is a property of the filesystem<br>• A `pnk doctor` test asserted only that the diagnosis *finished*, and **passed with its own injection disabled**<br>• `tools/register_gate.py` compares documented row counts to the files they name — the harvest `README.md` held **three counts for one dataset**, the steered one withdrawn twice and 4.4x high<br>• `prices.toml` carries the 2026-09-04 fixing, `1.1615` → `1.1622`; **this is the one thing here a user can observe**<br>• Two `pathlib` holdouts converted in `sync.py` and `upgrade.py` — **hygiene, not a fix**: no production call reaches them, measured before the change<br>• no `schema_version`, no rebuild |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -2879,7 +2880,64 @@ than a gap, because both spellings of that predicate return `False` there.
 
 **Neither tool ships in the wheel.** **No `schema_version` bump and no rebuild.**
 
+## 0.32.6 — instruments that could report success while measuring nothing · 20260904 14:55
 
+**Three instruments could report success while measuring nothing, and a fourth register had never
+been compared to the thing it described.** None of it reaches a user, which is the honest headline:
+this release is almost entirely about the machinery that decides whether the other releases were
+telling the truth.
+
+**The vacuous-injection audit gained three refusals.** An empty site list is refused rather than
+printed as `0 sites · 0 vacuous · 0 not ruled` — a line that reads as a clean bill and is actually
+the absence of a measurement (`--min-sites`, default 10). A probe run in which nothing passed is
+`INCONCLUSIVE` rather than a verdict, so an all-skipped selector stops being reported as a vacuous
+fake. And a run whose environment changed between its first and last probe is `UNATTRIBUTABLE` and
+exits non-zero. **A `VACUOUS` row still exits 0** — deliberately: it is a finding for a person to
+read, not a build to fail.
+
+**It also runs on Linux now**, under the declared floor, asserting the interpreter it actually got.
+It exists for one question a macOS checkout cannot answer about itself: an injected `ENAMETOOLONG`
+is redundant where a real 300-character filename raises it and load-bearing where it does not, and
+**that is a property of the filesystem, not of the code**. The report names the interpreter, the
+platform and `NAME_MAX` beside its counts, because a verdict of that kind is a claim about an
+environment.
+
+**A `pnk doctor` test asserted only that the diagnosis finished.**
+`test_an_unreadable_paid_document_does_not_crash_the_whole_diagnosis` injected a read failure and
+then checked only that two check names appeared in the report — true whether or not anything was
+ever denied. **It passed with its own injection disabled**, so it would have gone on passing the day
+the production code stopped calling `Path.read_bytes`. No behaviour changed; the test now fails if
+the denial never reaches the code under test.
+
+**`tools/register_gate.py` compares a register to what it describes.** This repository's own
+process-review `README.md` stated **three different row counts for one dataset**, and the one under
+its own *“the two questions this harvest was steered to answer”* heading was a figure **withdrawn
+twice** — 4.4x too high — sitting fourteen lines below the block that withdrew it. Nothing was wrong
+with the data; the register had simply never been compared to it. The gate is wired into
+`./check.sh` and prints how many rows it compared, so a vacuous pass is visible as one. **It ships
+in no wheel.**
+
+**What a user can actually observe is two things.** `prices.toml` carries the **2026-09-04** ECB
+fixing, `1.1615` → `1.1622` — re-verified at the cut against a named source and re-stamped, with
+`claude-opus-5` re-checked the same minute and unchanged at `5.00`/`25.00` per Mtok. EUR figures
+move **0.06%** for the same USD cost, and ledger lines already written keep the rate they were
+written with. **0.32.5 and 0.32.6 fall on the same calendar day either side of 16:00 CET**, which is
+the cleanest illustration this project has of why that window is read rather than assumed.
+
+**And two `pathlib` holdouts became version-independent spellings** in `sync.py` and `upgrade.py` —
+**hygiene, not a fix, and labelled that way in its own commit**. No production call can currently
+deliver a path in the state where they diverge: the walk guard added at 0.32.4 refuses such a
+directory one level up, and `manifest.load` raises first on the other path. **That was measured
+before the change rather than assumed**, and it is why the release carries **no changelog entry for
+the only commit that altered the wheel's code** — a user can observe nothing, and an entry claiming
+otherwise would have been the first false thing in it.
+
+**The process-review evidence set landed alongside**, under `plans/20260904-process-review-data/` —
+16 datasets and three documents, including an audit of which of this repository's written rules are
+actually followed: **9 followed, 5 measurably broken, and 12 that cannot be checked at all**. It is
+not part of the shipped package and is named here because a release is the only thing that dates it.
+
+---
 
 # Part 5 · What is not built
 

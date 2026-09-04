@@ -10,6 +10,51 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.32.6] — 20260904 14:55
+
+### Added
+
+- **The vacuous-injection audit now runs on Linux, and says which environment it ran in.**
+  `.github/workflows/injection-audit.yml` runs `tools/vacuous_injection_audit.py --runs 2` on
+  `ubuntu-latest` under the declared floor, 3.13, asserting the interpreter it actually got and
+  taking another as a `workflow_dispatch` input.
+  It exists for one question a macOS checkout cannot answer about itself: an injected
+  `ENAMETOOLONG` is redundant where a real 300-character filename raises it and load-bearing where
+  it does not, and that is a property of the filesystem, not of the code. The report now names the
+  interpreter, the platform and `NAME_MAX` beside its counts, because a verdict of that kind is a
+  claim about an environment.
+- **Three ways the audit could report success while measuring nothing are now refusals.** An empty
+  site list is refused rather than printed as `0 sites · 0 vacuous · 0 not ruled` (`--min-sites`,
+  default 10); a probe run in which nothing passed is `INCONCLUSIVE` rather than a verdict, so an
+  all-skipped selector is no longer reported as a vacuous fake; and a run whose environment changed
+  between its first and last probe is `UNATTRIBUTABLE` and exits non-zero. The exit status now
+  carries the *unruled* set and still exits 0 on a `VACUOUS` row, which is a finding for a person
+  to read rather than a build to fail.
+
+- **`tools/register_gate.py` — a register's documented row counts, checked against the files it
+  names.** The process-review harvest's `README.md` stated three different row counts for one
+  dataset, and the one under its own *"the two questions this harvest was steered to answer"*
+  heading was a figure withdrawn twice, 4.4x too high, fourteen lines below the block withdrawing
+  it. Nothing was wrong with the file; the register describing it had never been compared to it.
+  Wired into `./check.sh`, which prints how many rows it compared so a vacuous pass is visible as
+  one. Developer tooling — it ships in no wheel.
+
+### Fixed
+
+- **`prices.toml` carries the 2026-09-04 ECB fixing, `1.1615` -> `1.1622`.** Re-verified at the cut
+  against `api.frankfurter.dev` and re-stamped, per `docs/RELEASING.md` *Before you start* step 3;
+  `claude-opus-5` re-checked against published pricing the same minute and unchanged at
+  `5.00`/`25.00` per Mtok. **This ships in the wheel** — EUR figures move 0.06% for the same USD
+  cost, on `pnk ask --deep` estimates, ledger reservations and `pnk budget` alike. Ledger lines
+  already written keep the rate they were written with. **0.32.5 and 0.32.6 are the same calendar
+  day either side of 16:00 CET**, which is why they carry different fixings.
+- **A `pnk doctor` test that asserted only that the diagnosis finished now asserts what it found.**
+  `test_an_unreadable_paid_document_does_not_crash_the_whole_diagnosis` injected a read failure and
+  then checked only that two check names appeared in the report — true whether or not anything was
+  denied. It passed with its own injection disabled, so it would have gone on passing the day the
+  production code stopped calling `Path.read_bytes`. No behaviour change; the test now fails if the
+  denial never reaches the code under test.
+
 ## [0.32.5] — 20260904 08:49
 
 ### Added
@@ -4860,7 +4905,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.5...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.6...HEAD
+[0.32.6]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.6
 [0.32.5]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.5
 [0.32.4]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.4
 [0.32.3]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.3

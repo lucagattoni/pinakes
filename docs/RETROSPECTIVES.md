@@ -11915,6 +11915,606 @@ that the same night, correctly. The first person to meet that at 3am will want `
 test now fails if one appears. The reason it does not exist is that the rule being skippable is
 what put the guard here in the first place.
 
+## Row 41 — four instruments for one audit, and the fix was already written down (20260904 08:54)
+
+**The audit itself was one afternoon's work. Getting an instrument that could be trusted took four
+attempts, and every failure was the audit's own subject turned on itself: a measuring device that
+did not contain what it claimed to measure.**
+
+**HIGH — the decisive bug was a rule this repository already states, in a context I did not
+recognise as the same machine.** `CLAUDE.md` tells a mutation harness to *clear the module's
+`__pycache__` after writing and after restoring*, because CPython invalidates bytecode on
+(mtime-to-the-second, size). This audit edits a test file, runs pytest, restores, and repeats —
+many times a second — which is precisely that shape. I did not apply the rule, because I was
+building "an audit" rather than "a mutation battery". **Two of fifteen sites then returned a
+different verdict on repeat**, and one site was reported vacuous by a batch run while three
+separate single-site runs called it sound. Clearing `__pycache__` took the instability to **zero of
+fifteen**. A rule filed under the wrong noun is a rule you will break.
+
+**HIGH — "still passes with its instrument disabled" is three findings wearing one label, and only
+one of them is a defect.** The probe cannot, by itself, tell apart: *(a)* a test whose assertions
+do not depend on the injected condition at all; *(b)* a test where the real environment produces
+that condition anyway, so the fake is redundant; *(c)* a mis-attributed site, where the probe
+disabled an injection and then ran a test that never used it. All three print the same word. Case
+*(c)* was my first instrument attributing injections inside **helpers** to whatever test happened to
+sit above them. Case *(b)* is real and stayed: a 300-character filename raises `ENAMETOOLONG` on
+this machine for real — `NAME_MAX` is 255, measured — so that injection decides nothing *here*,
+while the test's own comment records the opposite on CI. **That site cannot be ruled from this
+machine at all**, and saying so is the result; picking either answer would have been an invention.
+
+**MEDIUM — the count moved 5 → 3 → 2 across instruments, and only the last one is reportable.**
+Every intermediate number was a true statement about a broken measurement. The discipline that
+saved it was cheap and mechanical: probe every site **twice** and report only verdicts that agree,
+then cross-check the flagged ones by hand. The one genuine finding survived all four instruments.
+
+**MEDIUM — what the audit found, stated against its own trigger rather than against a preference.**
+Fifteen injection sites on `pathlib`/`os`/`paths` predicates; **one genuinely vacuous test**, now
+fixed. The trigger for writing a general rule was *more than one further vacuous test*. **One is not
+more than one, so no rule was written** — deliberately, because a rule invented from a single
+instance is the ceremony this repository keeps warning about, and because the honest reading of a
+boundary result is to report the boundary rather than round toward the outcome that produces a
+deliverable.
+
+## Row 43 — I measured the function and made a claim about the command (20260904 09:38)
+
+**HIGH — an isolated measurement is evidence about what you called, never about what the user
+runs, and the gap between those two is where I put a false finding.** Row 36 sent me to probe the
+`pathlib` predicate sites nobody had looked at. I called two of them directly, watched
+`PermissionError` on 3.13 and silence on 3.14, and reported **two live defects on the declared
+floor** — including *"ends `pnk sync` in a raw traceback"*. The divergence was real and
+reproducible. **The consequence was invented.** Measured afterwards, against the real command:
+`pnk sync` on that state produces **byte-identical reports on both interpreters**, both call sites
+of the first function sit inside `except (PinakesError, OSError)`, and the second is unreachable
+because `manifest.load` refuses an untraversable root before `apply` ever runs. **Reachable count:
+zero.** The planner filed a row and ranked it above a gate design on that report.
+
+**HIGH — the thing that caught it was the test failing to fail.** I wrote the end-to-end test
+first. It passed. Then I reverted the one-word fix and ran it again — **it passed again**. A test
+green with and without the change under test pins nothing, and that is what sent me looking for the
+call path instead of banking the finding. **That is row 41's own method, turned on row 41's author
+about an hour after it was written up**, and it is the second time in one day the same check has
+caught something: once in the audit, once in the auditor.
+
+**MEDIUM — the strongest argument for closing a class rather than fixing instances came from
+being wrong.** The reason my `sync.py` finding is unreachable is **row 31's own guard**:
+`unreadable_directories` refuses the directory at the walk, so the per-file path is never entered.
+A fix that landed the same morning, one level above the site, had already closed the class the site
+belongs to. Nobody planned that overlap and it is the clearest evidence for the ordering the queue
+keeps arguing about.
+
+**MEDIUM — what a hygiene change has to say about itself to survive.** Both lines still changed —
+one word each — because the codebase has decided `paths.py` owns this question and these were the
+last holdouts on user paths. But each docstring now states plainly that **no production path
+reaches it today**, how that was measured, and **what would change it**: the walk guard narrowing,
+or a caller dropping its `except`. Without that last clause the next reader deletes the change as
+pointless, and without the first two they inherit my false claim in a comment.
+
+**MEDIUM — a test that discriminates on one interpreter should say so in its own docstring.** Both
+new tests are red on 3.13 without their fix and green on 3.14 either way, because the unfixed
+spelling already returned `False` there. Stated in the tests rather than left for someone to
+discover when a 3.14-only run reports them as covering something.
+
+## Row 42 — six ways an instrument reports success, five of them mine (20260904 10:28)
+
+**Scope, first, because it decides what the rest is worth.** Everything below was measured in this
+session, after a context clear at 09:54 UTC. **I have not re-derived the row 41 audit, the floor
+audit's 18 → 8 → 5 chain, or the six-mutant episode**, all of which happened in this session's
+*previous* context. A successor asked to write those up refused on the same grounds and that
+refusal was recorded as correct; repeating it here rather than reconstructing them from a peer's
+summary. The evidence for those lives in `plans/20260901_1148-clear-the-user-facing-list.md` row 32,
+in the retrospective fragments already spliced into this document, and — measured
+independently by the planner during this session, under its own name rather than on my
+testimony — in
+[`plans/20260904_1027-development-paused-handover-and-evidence.md`](../plans/20260904_1027-development-paused-handover-and-evidence.md),
+which is the document a resuming session should read first.
+
+**HIGH — the instrument added itself to the population it was measuring.** The audit greps every
+`tests/test_*.py` for `monkeypatch.setattr(Path|os|paths, …)` on a line ending in `)`. A test file
+*about* injections writes exactly that as fixture data, so mine joined the set: **15 sites became
+17**, and probing a "site" that was a string literal edited a line inside a string, broke the file
+it lived in, and returned `INCONCLUSIVE` — **the whole run went red over a site that does not
+exist.** `tests/test_mutate.py` already carries a warning about the identical trap against
+`test_verification.py`'s `^def (\w+)` scan. The trap was documented, in this repository, for a
+different gate, and I walked into it anyway. **A rule filed under the name of one instrument is a
+rule you will break with the next one** — which is the same sentence row 41's own retrospective
+wrote about `__pycache__`, one tool over and one day earlier.
+
+**HIGH — my first mutant survived, and it was the mutant that was wrong.** Testing the guard above,
+I wrote a poisoning line that matched the regex but did not end in `)`, which `sites()` also
+requires. It changed nothing, the test stayed green, and *"the guard is pinned"* was one keystroke
+away from being recorded. **A mutant that cannot kill certifies the test, not the code**, and the
+only thing that caught it was noticing that a guard I had just watched fail by hand had not failed
+under its own mutant.
+
+**HIGH — a report that named the environment the run finished in.** `environment()` was called
+after the probe loop. At 10:23 the audit reported *probed under Python 3.13.15*; at 10:24, in the
+same directory with no `uv sync` between them, the next command answered **3.14.7**. It is now read
+before the loop and again after, the report names the *before* value, and a run whose environment
+moved is `UNATTRIBUTABLE`. **The mechanism was not established** — the flip did not reproduce under
+a controlled sequence of `uv sync --python 3.13`, `uv run`, a pytest run and a `clear_pycache` — so
+this is a guard against an observed instability, not a fix for a diagnosed one, and both the code
+comment and this paragraph say so rather than inventing a cause.
+
+**MEDIUM — a comment that stated the intent its code did not implement.** At the classification
+site: *"A skipped test also exits 0, and a skip is not a pass"* — followed by a check for
+`no tests ran` and `0 passed` only. pytest prints `1 skipped`, which matches neither, so an
+all-skipped selector fell through to `VACUOUS` with the exit status agreeing: a **false finding**,
+in the one direction that matters, because a `sound` verdict withholds a finding while a `VACUOUS`
+one is what a person then acts on by deleting a fake. **The honest half of the scope: no owning
+test is `geteuid`-guarded today** — those guards sit on their *non-injecting* neighbours — so this
+was a latent misclassification and **not** a live wrong verdict. It is the same shape as the
+`why_not_a_kb` docstring that asserted the opposite of its code: **prose next to code is not
+evidence about the code**, and it is read as if it were.
+
+**MEDIUM — an empty result set that certified a clean one.** With no sites collected the report
+read `0 sites · 0 vacuous · 0 not ruled` and exited 0. A reformat wrapping one `monkeypatch.setattr`
+across two lines is enough to produce it. Now a refusal, with the floor asserted **by value** —
+`--min-sites 1` restores the hole in full, which is `wheel_import_gate.py`'s own `--min-modules 1`
+lesson arriving one tool later.
+
+**MEDIUM — I left a fake in the process-global `subprocess` module.** `module.subprocess.run = spy`
+does not patch the tool's view of `subprocess`; `module.subprocess` **is** the module, so three
+tests replaced `subprocess.run` for the whole session and never restored it. They passed because
+nothing after them in that file shells out. In a file whose entire subject is instruments that
+quietly stop measuring, this is the joke writing itself.
+
+**MEDIUM — three timestamps I composed instead of reading, in a branch about measurement.** A test
+docstring claimed `20260904 10:57 UTC` while the clock said 10:23 — **a measurement dated in the
+future**. Two commit messages claimed 10:12/10:22 and 10:31 for runs whose own log artefacts say
+10:01, 10:03 and ~10:05. All three were plausible, none was read. The rule *read the clock, never
+compose it* is in `CLAUDE.md` twice; what defeats it is that a wrong time never looks wrong. The
+fix that worked was mechanical: take the time off the artefact the run left behind
+(`TZ=UTC stat` on the log), never off memory of when it happened.
+
+**A note on instruments, since two of mine were wrong today.** Reading the workflow journal I
+looked for a key named `value`; the key is `result`. My reader printed `None` for every agent and I
+briefly believed two design agents had died — they had returned complete answers. **A null result
+carries no information until the reader is shown able to fire**, and I had not shown it. The other:
+`TZ=UTC` does not make `git log --date=format:` render UTC, and `format-local` renders in the
+machine's zone — here IST, two hours off. Every time I quote below came from `TZ=UTC` plus
+`--date=format-local`, verified against `date -u` in the same command.
+
+**What the ownership boundary actually cost, measured rather than recalled.** It bound twice today.
+Once for `docs/VERIFICATION.md`, where the narrow exception applies and I added five rows directly —
+**cost: zero**. Once for row 42's own specification, which contained a self-contradiction
+(*"the stable verdict set is empty"* alongside *"a `VACUOUS` row is a finding to read, not a build
+to fail"*, when `VACUOUS` **is** a stable verdict). I could not fix the row; I stated the reading I
+would build on and did not block. **Cost: one message round-trip, and I never stopped working.**
+The planner corrected the row inside that window. So on today's evidence the boundary cost is
+write-latency on a shared document and not throughput — one data point, on a day with one live
+peer, and it should not be generalised past that.
+
+**`ty` and pyright disagreed in both directions on one file, which is the argument for running
+both.** `ty` rejected `module.attr = …` on a dynamically loaded `ModuleType` (13 diagnostics) where
+pyright was clean; pyright rejected untyped lambda parameters where `ty` was clean. `check.sh` runs
+`ty` first, so the suite never ran at all and the gate was red for a reason no test could show.
+`CLAUDE.md` calls `ty` *"a fast pre-check, never the gate"* — today it caught something pyright did
+not, and chasing its complaint is what surfaced the `subprocess` leak above. That does not make it
+a gate; it makes the pairing load-bearing.
+
+**The prediction, written down before the run, because a run nobody could predict is a run nobody
+can interpret.** Fifteen sites were predicted independently — one reader per site, each reading the
+owning test and the production code it drives — and the set is unanimous: **fourteen `sound`, one
+`VACUOUS` (`tests/test_cli_link.py:617`), every one at high confidence, and not one judged
+platform- or interpreter-dependent.** So the expected Linux result is **identical to the macOS
+one**, and *any* difference is a finding.
+
+The mechanism offered for `:617`, which is the site row 42 exists for: `add()` -> `source_sidecar()`
+-> `_document_in()`, whose `joined.parent.resolve()` resolves only the *parent*, so the 300-character
+component reaches `_is_file()` intact; that calls `paths.unreachable_through_links()`, whose body is
+a bare `os.stat()` — the **real** syscall once the injection is neutralised. `ENAMETOOLONG` is
+deliberately absent from `_NOT_THERE`, so the refusal is `True`, `_is_file` re-`stat`s to fetch
+`strerror`, and both assertions still hold. **Verified here, on macOS:** `errno.ENAMETOOLONG` is 63,
+`os.strerror(63)` is exactly `"File name too long"`, `_NOT_THERE` is
+`{ENOENT, EBADF, ENOTDIR, ELOOP}` with `ENAMETOOLONG` absent, and both `pinakes.paths` and
+`pinakes.link` bind the `os` *module*, so the injection really does intercept both call sites when
+armed. **Not verified here, and this is the half the Linux run is for:** that Linux's errno 36 maps
+to the same `strerror` string, and that the VFS rejects an over-long component by length before any
+existence check.
+
+**Why the test's comment would then be stale rather than wrong.** It records that on CI *"the long
+name simply was not a document"* — and that describes the **pre-refactor** path, built on
+`Path.is_file()`, whose 3.14 error-swallowing could make `ENAMETOOLONG` vanish silently. The current
+code bypasses `pathlib` entirely and calls `os.stat` directly, twice. So if the site does come back
+`VACUOUS` on Linux, the comment is not to be deleted: what changed is that
+`paths.unreachable_through_links` did not exist when it was written.
+
+**A measured data point on review efficacy, which the process analysis lists as *not established*.**
+One fan-out ran against this branch: **19 agents, 0 errors, 0 empty results** — three design readers
+on different framings, fifteen per-site predictors, one judge over their output. What it produced,
+counted rather than characterised:
+
+| | count | what it was |
+|---|---|---|
+| Real defects in *my landed work* | **2** | the path filter silent for the tool's own motivating failure; a 3.13/3.14 matrix inverting the repo's settled idiom |
+| Confirmed by my own independent check before acting | **2 of 2** | grepped each faked name across `src/pinakes/`; read `ci.yml:89-92` verbatim |
+| False or stale raises | **2** | two designers built stdout-grep gates for contracts the tool had *already* grown, and flagged a 16th site that was fixed in the working tree — both were reading a stale checkout |
+| Predictions produced | **15** | unanimous, and that uniformity is itself a weakness the judge named |
+
+**Both real defects were mine, both were in code I had already gated green, and neither was the kind
+of thing a test would catch** — one is a trigger that fires too rarely, the other a comment that
+argues against the repository's own precedent. **The `paths:` one is the sharper of the two: not a
+false green but a *false silence*.** A green run is at least a run; a filter that never fires
+produces nothing to read, and nothing to read looks exactly like nothing to worry about. That is the
+same failure shape as an empty site list reporting `0 not ruled`, one layer out — the third instance
+of it in this one branch.
+
+**And the two stale raises are the honest cost.** Both designers were reading the tree as it stood
+when they were launched, and I had landed three commits while they read. A fan-out over a moving
+tree pays for it in exactly this way, and the fix is not more reviewers: it is launching the readers
+against a **named commit** rather than a working directory. Nothing in the harness made that
+mistake visible — I found it only because the judge, launched later, contradicted them.
+
+**What is not established, stated so nobody infers it.** The Linux legs had not run when this was
+written — `push` is restricted to `main`, so no branch push fires them and the merge commit is what
+does. Everything above is a prediction plus a macOS measurement. **One run settles it**, and the
+row carries what would falsify it.
+
+## Row 42 — the Linux run, and the prediction it confirmed (20260904 10:41)
+
+**The run happened, and it matched the prediction exactly.** `injection-audit` run `33864216950`,
+on `main` at `e3d82dd`, `ubuntu-latest`:
+
+    15 sites · 1 vacuous · 0 not ruled
+    probed under Python 3.13.15 on Linux 6.17.0-1022-azure (x86_64), NAME_MAX=255.
+      VACUOUS   test_cli_link.py:617  monkeypatch.setattr(os, "stat", name_too_long)
+
+**Byte-identical to both macOS runs** — same count, same single site, same unruled total. Fifteen
+predictions were written down before it fired (fourteen `sound`, one `VACUOUS` at `:617`, none
+judged platform-dependent) and **fifteen of fifteen held**. That is worth stating plainly because
+the alternative outcome was equally prepared for: the prediction named what would falsify it, and
+nothing did.
+
+**What it settles.** The `ENAMETOOLONG` injection is redundant on **both** platforms, so the test's
+own comment — *"Redundant on this machine and load-bearing on CI, which is why it stays"* — is
+**superseded rather than wrong**, and it is corrected in place rather than deleted. What changed is
+that it describes the **pre-refactor** code path, which reached the filesystem through
+`Path.is_file()`, where 3.14 swallows `ENAMETOOLONG` so the guard never fired.
+`paths.unreachable_through_links` did not exist when that comment was written; production now calls
+`os.stat` directly, twice, so the errno survives to the message on both platforms. **Deleting the
+sentence would have deleted the reason** — the same failure mode as every other silently-corrected
+claim recorded this week.
+
+**A second thing the run made visible, which no macOS run could have.** The fake raised
+`OSError(63, "File name too long")` — **63 is macOS's `ENAMETOOLONG`; on Linux it is a different
+errno entirely.** The assertions never caught it because the message is supplied explicitly, so the
+fake simulated the wrong condition while saying the right words. It is now
+`errno.ENAMETOOLONG`. **A fake is a claim about a system, and a hard-coded errno is that claim
+written in one platform's dialect** — invisible until the test runs somewhere else, which is the
+same shape as the verdict this row went to Linux to obtain.
+
+**What is deliberately NOT done, and why.** The fake now decides nothing on either platform that has
+been measured, so whether it should exist at all is a live question. **It is not taken here:**
+development is paused, and removing an injection changes what the test *exercises*, not merely what
+it *says*. The evidence for taking it is in the comment at the site and in run `33864216950`; the
+evidence against is that neither platform has been shown to be the only two that matter.
+
+**On the instrument, since this is the run that used it.** The environment line did its job on its
+first real outing: `NAME_MAX=255` appears beside the counts, and it is the exact quantity that
+decides the one verdict in the report. A reader a year from now does not have to know what
+`NAME_MAX` was on an Azure runner in September 2026 — the report says so.
+
+## The implementer's seat — one session, measured (20260904 11:28)
+
+**Written at the planner's request, for the user's framework on how development here actually
+works. The witness is bounded and the bound matters**: this session was cleared at 10:51 UTC, told
+"you are the coder", and did one thing — harvest `ci-runs.tsv` and land it at `a52ea93`. Everything
+below is from that session. **Three of the six questions asked reference measurements a *previous*
+session took; those are marked skipped rather than answered.** Answering them from a predecessor's
+handoff is precisely the failure this session spent its morning correcting.
+
+### Where the time went
+
+| activity | wall clock | what it was |
+|---|---:|---|
+| the extraction itself | **56 s** | `gh run list` + 113 × `gh run view`, eight-way parallel |
+| gates | **7 min 14 s** | three `./check.sh` runs, 2502 tests each |
+| the audit fan-out | **17 min 4 s** | 5 agents, 451k tokens, 130 tool calls — none of it my attention |
+| peer coordination | 4 messages out, 4 in | **zero blocking waits**; work always ran in parallel |
+
+**The headline is the ratio: 56 seconds to extract, roughly 24 minutes to establish that the
+extraction could be trusted.** The harvest was the cheapest thing that happened. Everything
+expensive was verification — and the verification is what made the file usable, because it found
+the two things that would have misled a reader.
+
+**Two of the three gate runs — 4 min 40 s of the 7 min 14 s — were caused by `main` moving, not by
+anything I changed.** The tree I was gating changed underneath a green result twice.
+
+### What the two-session split cost, and bought
+
+**Bought:** the planner reserved the row, decided the path, and named the instrument *before this
+session existed*. I never had to ask where the output belonged or escalate a structural question.
+That is the whole case for the split and it is a strong one — the decision was waiting for me.
+
+**Cost:** two landings mid-flight, each forcing a full re-gate and a patch regeneration. The second
+one invalidated a patch I had **already verified applied**. About five minutes, and it was
+structural rather than careless.
+
+**Skipped:** whether the boundary cost "zero and one round-trip" is representative. That
+measurement was a predecessor's, not mine, and I have one session's n.
+
+### Instruments, ranked by defects caught per unit of my attention
+
+Only the ones this session actually ran. **Skipped: the mutation batteries and the injection audit
+— this session ran neither, and ranking an instrument I did not use is how a framework acquires a
+confident wrong row.**
+
+| instrument | my attention | caught | verdict |
+|---|---|---|---|
+| the audit fan-out | ~0 (backgrounded) | **2 real disclosure gaps, plus 1 false cause killed** | earned it, decisively |
+| `land.py`'s gate marker | seconds | refused nothing — **forced two correct re-gates** | earned it; the refusal *is* the yield |
+| CI on `main` | ~0 (backgrounded) | 0 | the only instrument running the floor interpreter |
+| `check.sh` | **7 min 14 s** | 0 | correct precondition, zero detection *for this change* |
+| `shared_file_overlap.py` | seconds, twice | 0 (reported none, twice) | two nulls rank nothing |
+
+**One caveat I want on the record, because the table invites the wrong reading.** `check.sh` caught
+nothing for me and *could not have* — I added a `.tsv`. Its cost was real and its yield was zero,
+and that is a correct outcome for this change rather than an indictment. **Ranking gates by their
+yield on a single change is how a project deletes the gate that saves it next week.**
+
+### The review fan-out, at n=1
+
+It cost 451k tokens and 17 minutes I did not attend to. It returned **zero defects across 793 × 15
+cells** and **two in the prose around them**. Worth it — because the failure mode of a dataset is
+not a wrong cell. It is a true sentence that licenses a wrong reading.
+
+**The value was concentrated in one lens of four.** Three lenses re-checked things already true by
+construction: row fidelity re-verified fields copied verbatim from a payload, and the build script
+had already asserted field counts. The fourth attacked **a claim I had made in prose**, and that is
+where everything was. **What I would change first: point the lenses at the claims, not at the data.
+A build script can assert its data; it cannot assert its author's sentences.**
+
+**The judge earned its separate, more expensive call.** My own auditor proposed a *cause* for the
+missing release — that a tag made through the Releases API does not fire the push event. It was
+plausible, and I had no reason to distrust my own agent. The judge refuted it with the auditor's own
+comparison set. **Left alone, I would have published it.**
+
+**Truncation is value-biased, and it hit the lens that mattered.** The returned result truncated
+mid-run and I had to read `journal.jsonl` to recover the completeness lens's findings — the only
+lens with findings. A fan-out that reports by summary loses its most valuable output first, because
+the lens with the most to say is the longest.
+
+### Which written lines actually changed my behaviour
+
+The operative ones, all of which I can point at an action for:
+
+- **The `land.py` rule with its executable guard** — I did not hand-merge, and the marker refusal is
+  why I re-gated instead of assuming a green result still applied.
+- **The ownership table** — I did not touch `README.md`, and I went *looking* for a delegation,
+  which is the only reason I recognised one sitting in a commit message.
+- **"Read the clock, never compose it"** — produced a correction directly: the handoff's "UTC" stamp
+  was local time.
+- **"A null result carries no information"** — made me confirm my `failed_steps` selector had fired
+  23 times before trusting its zeros.
+- **"A clean auto-merge is not a correct merge"** — made me re-read the merged README, which is how
+  I found my verified patch had gone stale.
+
+**What I read past:** the naming and versioning tables, the release procedure, and most of the long
+incident narratives. Correctly — I was not releasing. But **I had to read all 455 lines to learn
+that**, and extracted perhaps six operative ones.
+
+**The operative lines share a shape: a rule with a mechanism attached.** The narratives — which
+release was red, which claim was wrong on which day — I could not act on and did not retain. That is
+the concrete answer to "which lines did work": **the ones stating an invariant and the failure it
+prevents.** The ones recounting an incident changed nothing I did.
+
+### What would have made today faster without making it worse
+
+Not "land less". The fix is smaller and it is mine: **a verification should carry the base it was
+taken against.** I verified a patch applied, reported that it applied, and twenty minutes later it
+did not. Nothing was false when I said it — it had a shelf life I failed to state. Writing *"applies
+to `db65f5f`"* costs nothing and converts a surprise into a visible expiry.
+
+### On the planner's hypothesis — agree on corrections, disagree on the clock
+
+The planner proposes that the day's bottleneck was **the cost of establishing what was true**, not
+review capacity or ownership. From this seat that is **half right, and the half it misses changes
+the prescription.**
+
+**Every correction was truth-cost shaped** — 791→793, the mislabelled UTC stamp, the re-run claim,
+the `v0.1.0` gap, the refuted cause. Five for five.
+
+**The clock went somewhere else.** Twenty-four minutes verifying against fifty-six seconds
+extracting, and five of seven gate minutes to a base that moved. **Truth-establishment dominated the
+corrections; contention with a moving base dominated the wall clock.** Those have different fixes,
+and a framework that merges them will prescribe the wrong one. The planner sees corrections because
+corrections are what reach them; I see wall clock because waiting is what reaches me. **Both
+denominators are real and neither is the whole** — which is itself the argument for asking the other
+seat rather than reasoning about it.
+
+### On the planner, since asked directly
+
+**I did not witness four of the five failures listed** — the discriminator that would have regressed
+3.13, the row ranked on an untested premise, the four landed rows reading open, the landing over a
+red gate. They are not in my session, and **I will not confirm them from a message.** Confirming a
+peer's account of an event I did not see is the exact move this fragment argues against, and it
+would be worse here because the account is self-critical and therefore easy to accept. What I
+witnessed cost about five minutes and was structural. Against that, the reserved README row saved
+this session from having to ask where its own output belonged.
+
+### What I got wrong
+
+1. **Guessed the gate-marker directory before reading `land.py`.** Cost seconds; same class as
+   everything else here — asserting a location instead of reading one.
+2. **Reported a patch as applying cleanly without naming the base.** See above.
+3. **I wrote "every ref, every workflow, whole history."** True about runs, and it would have let a
+   reader take the 63 `Release` rows as the release history with the repository's **first release
+   silently missing and no failure row to flag it**. I wrote that sentence, I re-read it, and I did
+   not catch it. A fan-out did. **The strongest argument for review in this fragment is that its
+   target was my own prose, not my code.**
+
+## The same day, measured across fourteen sessions instead of one (20260904 12:23)
+
+**The user read the fragment written from a single seat and said the bound was the problem** — *"it
+is very limiting to stick to your current one only."* So the same questions were put to all **14
+coder sessions** in the transcript store and answered from the JSONL rather than from anybody's
+recollection: five independent lenses, then one judge that re-ran selectors instead of trusting
+either side. **41 findings — 30 supported, 11 overstated, none unsupported.** What follows is what
+widening changed, including where it falsified
+([*the fragment written from one seat*](#the-implementers-seat--one-session-measured-20260904-1128)).
+
+### The retraction that matters
+
+That fragment says `check.sh` caught nothing and could not have. **True at n=1, false as a general
+claim.** Across the 14: **157 invocations, 31 red of 139 resolved — 22.3% — with at least one red in
+9 of the 14 sessions.** The reds are real defects, not process noise (`EXIT=1 … 1 failed, 2130
+passed`).
+
+**Why I got it wrong is worth more than the number.** I looked for each gate's outcome in its own
+tool result, found 136 of 159 unreadable, and reported the red rate as unrecoverable. It is not:
+coders background the gate to a log, so the outcome arrives in a **later** call that reads that log.
+**I pointed the instrument one hop short and reported the gap as a property of the data.** From the
+inside, a null caused by a mis-aimed selector is indistinguishable from a null that is real.
+
+### Four inversions
+
+| written from one session | measured across fourteen |
+|---|---|
+| `check.sh` catches nothing | **31 red of 139 resolved (22.3%)**, in 9 of 14 sessions |
+| `land.py`'s refusal is the guard that earns its keep | **43 invocations, 0 refusals** — and that refusal only shipped 20260904 08:25 UTC, so at most ~8 of the 43 could ever have exercised it |
+| coders are context-heavy | coders are the **leanest**: median context/output **189.5** (n=14) against planner 243.3 (n=10) and unnamed 285.1 (n=44) |
+| the three handoff claims were three failures | two were; **one was correct and went stale**, which is not the same thing |
+
+**Postscript, seven minutes later: it refused this landing.** `main` moved while this fragment was
+being gated, so the merge produced a tree no `check.sh` run had certified and `land.py` declined to
+merge it — *"no ./check.sh run has certified the tree this would land"*, naming all three trees and
+offering the remedy. The count in the table is a historical population and stands. But **the guard
+is younger than its first refusal by about four hours, and its first refusal caught the session
+writing the sentence that it had never fired.** Deterrence and interception are both real; the
+sentence needed the second half.
+
+**Neither gate generalises to "the gates".** 22.3% red says a gate is not a rubber stamp. Zero
+refusals in 43 says a guard can be correct and still never fire — its measured effect is deterrence,
+and it is too young for a catch rate to mean anything. Different instruments, different ages.
+
+### Three claims, three failure modes — the distinction the taxonomy rests on
+
+- **`791` was measured, and correct when taken.** A tool result at 10:43:38 UTC reads literally
+  `791`, 21 seconds before the harvest launched. It went stale because that session's **own**
+  `land.py` push created two further runs at 10:46:32, both success: 678 + 2 = 680. **The
+  measurement was invalidated by the measurer's own landing.**
+- **The timestamp is two defects in one field.** `11:44` is a real file mtime read in local time and
+  labelled UTC. `11:55` corresponds to **no event in either zone** — that session's last record is
+  10:49:48 UTC. A unit error, plus a composed number, and the composed half is the worse one.
+- **The de-duplication claim was never true.** `cut -f2 | sort -u` over the finished file is 793 of
+  793. One line falsifies it.
+
+**Only the third is the kind of error reading catches.** Stale-but-correct, composed-from-nothing
+and never-true need three different fixes, and a failure list that merges them teaches the wrong
+lesson to whoever reads it next.
+
+### What widening did not overturn — and where it sharpened the edge
+
+The claim that the binding cost is **establishing what is true** survives, with both a number and a
+limit. Of 45 coded correction events, roughly **64% were fact-establishing**. The remaining third
+were real defects in code, tests or verification logic — and **11 to 12 of those were caught only by
+running something**: a mutation, a real interpreter, a real operating system. **That third is
+invisible to reading**, so more review does not reach it. The judge also cut the 64/36 back from a
+population statistic to what it is: a hand-coded sample drawn by a keyword selector.
+
+### A rule whose compliance turned out to be auditable
+
+Of 360 fan-out child agents across 10 of the 14 sessions, the five sessions predating the 20260831
+model rule ran **96 of 103** non-synthetic agents on the top tier; sessions after it ran **15 of 237
+— 6.3%** — and those fifteen are approximately one per fan-out, which is the judge the rule permits.
+**The instrument already existed**, in the harvest's own `dominant_model` column, and had never been
+pointed at the question. **A rule that can be audited after the fact out of data already collected
+is worth more than one that can only be remembered.**
+
+### What the judge cut from my own work
+
+Eleven of the forty-one findings were overstated, and three of those are mine to answer for.
+`fragments.py` catches **3 of 72 resolved (4.2%)**, not the 9.2% I relayed to a peer before
+adjudication. *"Fan-outs are the richest source of caught coder errors"* is not established against
+gates that went red 31 times in the same population. And a lens reporting one session as *"35%
+active"* was **25.8%** by the repository's own stated threshold — it correctly identified an
+elapsed-versus-active category error and then committed a milder version of the same error by
+choosing a flattering cut. **State the threshold with the number, or the number means nothing.**
+
+### The half the first fragment missed
+
+All three handoff claims were defective. **All three were caught and corrected by the receiving
+session inside about 65 minutes**, and the corrected values are on `main`. The channel failed and the
+repair loop worked. **A retrospective that stops at the error has described half a system**, and the
+half it drops is the half worth keeping.
+
+**One correction reframes who does what here.** Across roughly 42 real human turns in all 14
+transcripts — after excluding tool results, compaction summaries, task notifications, peer messages
+and command wrappers — **zero correct a specific coder claim.** Catching errors is a peer, self and
+gate function. What the user supplies is **scope** — and this fragment exists because of one
+sentence of it.
+
+## Seven selectors that could not fire, in one afternoon (20260904 14:45)
+
+**The rule is written down, both live sessions quote it, and both broke it seven times in six
+hours.** *A null result carries no information until the selector is shown able to fire.* Every
+instance below is from 20260904, from the coder seat or the planner's, and **not one was caught by
+the rule itself**.
+
+| # | selector | it reported | why it could not have been right | what caught it |
+|---|---|---|---|---|
+| 1 | `git log -S 'one reading of the clock, written twice'` | no such commit | the phrase spans a line break in the file, so `-S` can never match it | grepping the file for the phrase *before* trusting the null |
+| 2 | `grep 'Attribution for git commits'` over 14 transcripts | none found, in any | that system reminder is not persisted; the only hits anywhere were my own command echoed back | checking a single transcript by hand |
+| 3 | backtick parity over four documents | `EVEN — balanced` | substitution removes a code span **and both its backticks**, so losses come in pairs and parity never moves | the planner's own damaged file: 52 backticks to 18, even throughout |
+| 4 | a double-space detector for that same defect | 318 raw hits, 19.0% after refining | ignoring code spans in order to find the gap **performs the same deletion** | measuring the false-positive rate before shipping the gate |
+| 5 | `git commit` over `tool_calls.tsv`'s `target` | 5 of 14 sessions ever committed | the column holds a Bash command's first two words; `&& git commit` is invisible | the number being obviously implausible |
+| 6 | gate outcome read from each `check.sh` tool result | 136 of 159 unrecoverable, so "the red rate cannot be known" | the gate is backgrounded to a log; its outcome arrives in a **later** call | an independent lens, which resolved 139 and found 31 red |
+| 7 | `[a-z_]+\.tsv` over a register table | clean, 15 of 15 | cannot match `ci-runs.tsv` — the hyphen | re-running with `[a-z_-]+`, which found the sixteenth row |
+
+**Five of the seven are mine.**
+
+### What they have in common, and it is not carelessness
+
+Each selector was correct for a population *slightly* different from the one it was pointed at. And
+in every case **the output was well-formed**: a count, a clean table, an `EVEN — balanced`. Nothing
+errored, nothing looked wrong, and no gate had anything to say.
+
+**A selector that cannot fire does not fail. It succeeds against the wrong population and reports
+the success.** That is why it is not caught by reading the output, which is the only thing anyone
+does.
+
+### Why the written rule did not stop any of them
+
+The rule is not obscure here. It is in the project's culture, in my own memory index, and it was
+quoted in this session's own messages **while these seven were happening**. It failed not because it
+is unknown but because of *when* it asks to be paid: you have a number, the number is plausible, and
+the rule asks you to stop and prove the instrument could have produced a different one. **Its cost
+falls exactly at the moment its benefit is least visible.**
+
+Three of the seven were caught only because the number was *implausible* — 5 of 14 sessions
+committing, 136 of 159 unreadable — and not because anyone applied the rule. **That is luck standing
+in for procedure**, and luck does not scale with the size of the population being measured.
+
+### The distinction the seven make visible, which is worth more than the count
+
+Two of them are not fixable by discipline at all. **Parity cannot detect a paired loss, and a
+code-span-ignoring detector performs the deletion it hunts.** Those are *impossible* selectors, not
+lazy ones. The other five were *possible* and merely unproven.
+
+So the useful question is not "did I verify the selector" but **"can this check be made to fail on a
+known-bad input?"**
+
+- **If yes** — construct that input and watch it fail. That is the entire remedy, it costs one
+  command, and it converts an unfalsifiable null into evidence.
+- **If no** — the check is theatre. Stop writing it and reach for prevention, or for a second
+  artifact to compare against.
+
+### What it actually cost
+
+**Nothing shipped wrong.** All seven were caught inside the session that made them, and none reached
+`main` as a false claim. The cost was rework, not defect, and saying otherwise would overstate it.
+
+But it is the sharpest evidence available for the day's larger finding: a rule that lives only as
+prose is followed when it is cheap and skipped when it is not — **by the two agents most steeped in
+it, on the afternoon they were auditing precisely that.** Seven times. Nobody was being sloppy;
+everybody was being finished.
+
+**One of the seven was gateable, and it is gated now.** `tools/register_gate.py` compares a
+register's documented row counts against the files it names, which is possible exactly because it
+compares two artifacts of one act rather than interrogating one artifact about its own provenance.
+**Its test asserts that it FAILS on a mismatched register before asserting that it passes on the
+real one** — the discipline this fragment is about, applied to the instrument the fragment produced.
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings
