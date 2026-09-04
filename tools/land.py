@@ -87,9 +87,88 @@ def ensure_landable(root: Path, branch: str) -> None:
         )
 
 
+MARKER_DIRECTORY = "pinakes-gate-markers"
+
+
+def gate_markers(root: Path) -> Path:
+    """Where `check.sh` records the trees it certified.
+
+    Under `--git-common-dir`, which every linked worktree shares with the primary checkout — the
+    gate runs in the branch's worktree and this refusal runs here, so a per-worktree location would
+    never be found.
+    """
+    common = Path(git("rev-parse", "--git-common-dir", cwd=root))
+    return (common if common.is_absolute() else root / common) / MARKER_DIRECTORY
+
+
+def merged_tree(root: Path, branch: str) -> str | None:
+    """The tree the merge *will* produce, computed without performing it.
+
+    **Not the branch's tree, and that distinction is the whole guard.** `git merge --no-ff` combines
+    the branch with a `main` that may have moved, and the result is then neither side's tree.
+    Measured over the four merges before this one: **two of the four differ from their branch tip**
+    — so keying the marker to the branch would have let a tree nobody gated reach `origin/main`, in
+    exactly the "a clean auto-merge is not a correct merge" case this repository already records.
+
+    `merge-tree --write-tree` writes the result to the object store and prints its hash without
+    touching the working tree, the index, or `HEAD`. Checked against those same four merges: it
+    predicts the tree the real merge produced in every one.
+
+    `None` when the merge would conflict — there is nothing to certify, and the merge below will
+    fail on its own terms with a better message than this function could invent.
+    """
+    result = git(
+        "merge-tree", "--write-tree", DEFAULT_BRANCH, branch, cwd=root, check=False
+    ).splitlines()
+    return result[0].strip() if result and len(result[0].strip()) == 40 else None
+
+
+def ensure_gated(root: Path, branch: str) -> None:
+    """Refuse to land a tree no `./check.sh` run has certified.
+
+    **Two sessions landed over a red gate on 20260904, hours apart, both quoting the rule at each
+    other the same day** — one committed after printing a failing exit status, the other put a gate
+    in a pipeline and read `tail`'s status. Neither was ignorance. A convention two informed
+    sessions break in a day is one this project replaces with a gate.
+
+    **What this cannot catch, stated here because an unstated hole in a guard is worse than no
+    guard**: a tree that was gated, edited, and edited *back* hashes the same and passes; and it
+    says nothing about *why* a gate was green, only that one was.
+
+    **There is deliberately no override flag.** A flaky or environmental red now blocks a landing —
+    tonight's own suite was killed by contention and would have blocked one, correctly. The first
+    person to meet that at 3am will want `--no-gate`, and the reason it does not exist is that the
+    rule being skippable is what put this guard here.
+    """
+    tree = merged_tree(root, branch)
+    if tree is None:
+        return
+    if (gate_markers(root) / tree).is_file():
+        return
+    branch_tree = git("rev-parse", f"{branch}^{{tree}}", cwd=root)
+    moved = (
+        ""
+        if tree == branch_tree
+        else (
+            f"\n\n{DEFAULT_BRANCH} has moved, so the merge produces tree {tree[:12]}, which is "
+            f"neither {branch}'s tree ({branch_tree[:12]}) nor {DEFAULT_BRANCH}'s. Gating the "
+            f"branch alone would certify a tree that never lands. Merge {DEFAULT_BRANCH} into "
+            f"{branch} first — then the two coincide and one run covers both."
+        )
+    )
+    raise LandingError(
+        f"no ./check.sh run has certified the tree this would land ({tree[:12]}).{moved}\n\n"
+        f"Run `./check.sh` in {branch}'s worktree with everything committed, then land again. "
+        f"It records each tree it certifies under {gate_markers(root)}.\n\n"
+        "There is no override. A gate nobody read is what this refusal exists for, and a flag to "
+        "skip it would be the same hole with a name. `--cleanup-only` does not come through here."
+    )
+
+
 def land(branch: str, *, cleanup: bool) -> None:
     root = primary_checkout()
     ensure_landable(root, branch)
+    ensure_gated(root, branch)
     print(f"landing {branch} → {DEFAULT_BRANCH} in {root}")
 
     git("fetch", "--quiet", "origin", cwd=root)

@@ -48,6 +48,23 @@ def repo(tmp_path: Path) -> Path:
     return root
 
 
+def certify(root: Path, branch: str) -> str:
+    """Write the marker `./check.sh` writes when it passes, for the tree landing `branch` produces.
+
+    **The merged tree, not the branch's**, because that is what the guard checks and the two differ
+    whenever `main` has moved — measured at two of the four merges before this guard existed.
+    Every landing test calls this, because a landing without it is now correctly refused: the
+    fixture builds the state a real branch is in after a green gate, rather than working around the
+    guard it is supposed to be exercising.
+    """
+    tree = git("merge-tree", "--write-tree", "main", branch, cwd=root).splitlines()[0].strip()
+    common = Path(git("rev-parse", "--git-common-dir", cwd=root))
+    markers = (common if common.is_absolute() else root / common) / "pinakes-gate-markers"
+    markers.mkdir(parents=True, exist_ok=True)
+    (markers / tree).write_text("certified by the test suite\n", encoding="utf-8")
+    return tree
+
+
 def make_branch(root: Path, name: str) -> Path:
     """A feature branch with one commit, in its own linked worktree — the real shape."""
     worktree = root.parent / name
@@ -55,6 +72,7 @@ def make_branch(root: Path, name: str) -> Path:
     (worktree / f"{name}.md").write_text("work\n", encoding="utf-8")
     git("add", "-A", cwd=worktree)
     git("commit", "-m", f"add {name}", cwd=worktree)
+    certify(root, name)
     return worktree
 
 
@@ -184,3 +202,98 @@ def test_cleanup_only_and_cleanup_are_alternatives(repo: Path) -> None:
     result = land("feature", "--cleanup", "--cleanup-only", cwd=repo)
     assert result.returncode == 1
     assert "alternatives" in result.stderr, result.stderr
+
+
+def uncertify(root: Path) -> None:
+    """Remove every marker, putting the repo in the state a branch is in before `./check.sh`."""
+    common = Path(git("rev-parse", "--git-common-dir", cwd=root))
+    markers = (common if common.is_absolute() else root / common) / "pinakes-gate-markers"
+    for marker in markers.glob("*"):
+        marker.unlink()
+
+
+def test_a_branch_no_gate_has_certified_is_refused_and_nothing_moves(repo: Path) -> None:
+    """The refusal this guard exists for, and it must leave the repository untouched.
+
+    Two sessions landed over a red gate on 20260904, hours apart, both quoting the rule at each
+    other the same day: one committed after *printing* a failing exit status, the other put the
+    gate in a pipeline and read `tail`'s status. Neither was ignorance of the rule, which is this
+    project's threshold for replacing a convention with a gate.
+    """
+    make_branch(repo, "feature")
+    uncertify(repo)
+    before = git("rev-parse", "main", cwd=repo)
+
+    result = land("feature", cwd=repo)
+
+    assert result.returncode != 0
+    assert "no ./check.sh run has certified" in result.stderr, result.stderr
+    assert git("rev-parse", "main", cwd=repo) == before, "the refusal still merged"
+    assert git("rev-parse", "origin/main", cwd=repo) == before, "the refusal still pushed"
+
+
+def test_certifying_the_branch_alone_is_not_enough_when_the_default_branch_moved(
+    repo: Path,
+) -> None:
+    """The hole a marker keyed to the branch would leave, and it is not hypothetical.
+
+    `git merge --no-ff` combines the branch with a `main` that may have moved, and the result is
+    then neither side's tree. Measured over the four merges before this guard existed: **two of the
+    four differed from their branch tip.** So a gate run on the branch alone certifies a tree that
+    never lands, and the guard would pass while something nobody checked reached `origin/main` —
+    the "a clean auto-merge is not a correct merge" case, with the guard asleep in exactly the
+    situation it exists for.
+    """
+    make_branch(repo, "first")
+    make_branch(repo, "second")
+    assert land("first", cwd=repo).returncode == 0
+
+    # `second` was certified against the old `main`. That tree is real and it is stale: landing now
+    # merges `first`'s commit in too, so what lands is a tree nothing has ever run a gate over.
+    uncertify(repo)
+    branch_tree = git("rev-parse", "second^{tree}", cwd=repo)
+    common = Path(git("rev-parse", "--git-common-dir", cwd=repo))
+    markers = (common if common.is_absolute() else repo / common) / "pinakes-gate-markers"
+    markers.mkdir(parents=True, exist_ok=True)
+    (markers / branch_tree).write_text("a gate run on the branch alone\n", encoding="utf-8")
+    before = git("rev-parse", "main", cwd=repo)
+
+    result = land("second", cwd=repo)
+
+    assert result.returncode != 0, "a stale branch-tree marker was accepted"
+    assert "has moved" in result.stderr, result.stderr
+    assert git("rev-parse", "main", cwd=repo) == before
+
+    # ...and certifying the tree the merge actually produces is what lets it through.
+    certify(repo, "second")
+    assert land("second", cwd=repo).returncode == 0
+
+
+def test_cleanup_only_does_not_need_a_gate(repo: Path) -> None:
+    """It lands nothing, so there is no tree to certify — and requiring one would block tidying up
+    a branch whose own landing was gated when it happened."""
+    make_branch(repo, "feature")
+    assert land("feature", cwd=repo).returncode == 0
+    uncertify(repo)
+
+    result = land("feature", "--cleanup-only", cwd=repo)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_there_is_no_flag_that_skips_the_gate(repo: Path) -> None:
+    """The absence is the feature, so it is asserted rather than left to be noticed.
+
+    A flaky or environmental red now blocks a landing — a suite killed by machine contention did
+    exactly that on the night this was written, correctly. The first person to meet that at 3am
+    will want `--no-gate`, and the reason it does not exist is that the rule being skippable is
+    what put this guard here. An override would be the same hole with a name.
+    """
+    make_branch(repo, "feature")
+    uncertify(repo)
+
+    for flag in ("--no-gate", "--skip-gate", "--force"):
+        result = land("feature", flag, cwd=repo)
+        assert result.returncode != 0, f"{flag} was accepted"
+        assert git("rev-parse", "main", cwd=repo) == git("rev-parse", "origin/main", cwd=repo)
+    assert "There is no override" in land("feature", cwd=repo).stderr

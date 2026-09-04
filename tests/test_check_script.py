@@ -856,3 +856,150 @@ def test_ci_runs_the_markdown_link_gate_and_proves_it_can_fail() -> None:
     assert re.search(r"^\s*[^#\s].*grep -q \"no such file or directory\"", body, re.MULTILINE), (
         "the negative check no longer requires the stated reason, so a crash would satisfy it"
     )
+
+
+def _marker_block() -> str:
+    """`check.sh`'s marker-writing block, extracted rather than copied.
+
+    Copying it into the test would make the test pass forever after the real block was gutted —
+    the failure mode `test_check_sh_declares_the_pdf_quality_guard` was rewritten to avoid. This
+    runs the shipped lines.
+    """
+    text = CHECK_SH.read_text(encoding="utf-8")
+    start = text.index('gate_index="$(mktemp -u)"')
+    end = text.index('echo "all gates green"')
+    return text[start:end]
+
+
+def test_check_sh_records_the_tree_it_certified(tmp_path: Path) -> None:
+    """The marker names the working tree's hash, and lands where every worktree can find it.
+
+    Run, not asserted about. The block is lifted out of `check.sh` and executed in a scratch
+    repository, so a marker that stopped being written — or started being written under the wrong
+    name — fails here rather than in the next landing that should have been refused.
+    """
+    root = tmp_path / "repo"
+    root.mkdir()
+    for args in (
+        ("init", "--initial-branch=main"),
+        ("config", "user.email", "test@example.invalid"),
+        ("config", "user.name", "Test"),
+    ):
+        subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)
+    (root / "a.txt").write_text("one\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "base"], cwd=root, check=True, capture_output=True)
+
+    completed = subprocess.run(
+        ["sh", "-e", "-c", _marker_block()], cwd=root, capture_output=True, text=True
+    )
+    assert completed.returncode == 0, completed.stderr
+
+    tree = subprocess.run(
+        ["git", "rev-parse", "HEAD^{tree}"], cwd=root, capture_output=True, text=True, check=True
+    ).stdout.strip()
+    marker = root / ".git" / "pinakes-gate-markers" / tree
+    assert marker.is_file(), sorted((root / ".git" / "pinakes-gate-markers").glob("*"))
+    assert "certified by main" in marker.read_text(encoding="utf-8")
+
+    # An edit changes the tree, so the old marker no longer answers for it — which is the whole
+    # mechanism. `land.py` looks up the tree it is about to land and finds nothing.
+    (root / "a.txt").write_text("two\n", encoding="utf-8")
+    edited = subprocess.run(
+        [
+            "sh",
+            "-e",
+            "-c",
+            'i="$(mktemp -u)"; GIT_INDEX_FILE="$i" git add -A; '
+            'GIT_INDEX_FILE="$i" git write-tree; rm -f "$i"',
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert edited != tree, "an edited working tree must not hash to the certified tree"
+    assert not (root / ".git" / "pinakes-gate-markers" / edited).exists()
+
+
+def test_check_sh_writes_the_marker_last_and_never_as_a_gate() -> None:
+    """Placement is the correctness here, twice over.
+
+    It must come **after** every gate — a marker written earlier would certify a tree whose later
+    gates never ran — and it must not be *in* the gate list, because a guard that runs inside the
+    thing it guards is the shape that had `make release-check` printing three `echo`s for a month.
+    """
+    text = CHECK_SH.read_text(encoding="utf-8")
+    marker_at = text.index('gate_index="$(mktemp -u)"')
+    assert marker_at > text.rindex("uv run --frozen python3 tools/template_drift_gate.py"), (
+        "the marker is written before a gate that could still fail"
+    )
+    assert marker_at < text.index('echo "all gates green"')
+    # **Mentioned, never executed.** The block's own comment names `tools/land.py` to explain what
+    # reads the marker, so a bare substring check would forbid the explanation rather than the
+    # defect. What must not exist is a line that *runs* it.
+    executed = [
+        line
+        for line in text.splitlines()
+        if "land.py" in line and not line.lstrip().startswith("#")
+    ]
+    assert not executed, f"the guard must not run from inside the script it certifies: {executed}"
+
+
+def test_the_marker_is_written_where_every_worktree_can_find_it(tmp_path: Path) -> None:
+    """`--git-common-dir`, not `--git-dir`, and only a linked worktree can tell them apart.
+
+    The gate runs in the branch's worktree; the refusal that reads the marker runs in the primary
+    checkout. In the primary checkout the two spellings are identical (`.git`), so every test that
+    stays there passes under either — which is how this stayed unpinned until a mutant aimed at the
+    wrong file made it visible. In a linked worktree `--git-dir` is `.git/worktrees/<name>`, and a
+    marker written there is one the guard never looks at: every landing then refused with "no gate
+    certified this", which reads as the guard working rather than as the guard broken.
+    """
+    root = tmp_path / "repo"
+    root.mkdir()
+    for args in (
+        ("init", "--initial-branch=main"),
+        ("config", "user.email", "test@example.invalid"),
+        ("config", "user.name", "Test"),
+    ):
+        subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)
+    (root / "a.txt").write_text("one\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "base"], cwd=root, check=True, capture_output=True)
+
+    worktree = tmp_path / "feature"
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "-b", "feature", str(worktree), "main"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
+
+    def rev_parse(flag: str) -> str:
+        return subprocess.run(
+            ["git", "rev-parse", flag], cwd=worktree, capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+    assert rev_parse("--git-dir") != rev_parse("--git-common-dir"), (
+        "the fixture cannot discriminate: the two spellings agree even in the worktree"
+    )
+
+    completed = subprocess.run(
+        ["sh", "-e", "-c", _marker_block()], cwd=worktree, capture_output=True, text=True
+    )
+    assert completed.returncode == 0, completed.stderr
+
+    tree = subprocess.run(
+        ["git", "rev-parse", "HEAD^{tree}"],
+        cwd=worktree,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert (root / ".git" / "pinakes-gate-markers" / tree).is_file(), (
+        "the marker is not where the primary checkout will look for it"
+    )
+    assert not list((root / ".git" / "worktrees").rglob("pinakes-gate-markers")), (
+        "the marker was written into the worktree's own git dir, where nothing reads it"
+    )

@@ -273,4 +273,39 @@ NULSCAN
 # reason; every other checkout in `ci.yml` is shallow and would silently lose the leg.
 uv run --frozen python3 tools/template_drift_gate.py
 
+# --- the gate marker (row 39) -------------------------------------------------------------------
+# Everything above passed, so record *which tree* that was true of. `tools/land.py` refuses to
+# merge a branch with no marker for the tree it is about to land.
+#
+# **Two sessions landed over a red gate on 20260904, hours apart, both quoting this file's own
+# opening comment at each other the same day.** One ran `./check.sh > log 2>&1; echo "CHECK=$?"`
+# and then committed unconditionally; the other ran `pyright ... | tail -3 && git commit`, which is
+# the exact shape the comment at the top of this file describes. Neither was ignorance of the rule.
+# A convention that two informed sessions break in one day is one this project replaces with a
+# gate — the same threshold the template-drift gate above was built on.
+#
+# **The tree, not the branch and not the commit.** The gate runs *before* the commit exists, so
+# there is nothing to key to; and a marker keyed to a branch name survives every later edit, which
+# is the failure one level in. A tree hash changes the moment any file does.
+#
+# **A throwaway index**, so the real one is untouched: `git add -A` against `GIT_INDEX_FILE` builds
+# what the working tree would commit to, honouring `.gitignore`, and `write-tree` names it. On a
+# clean tree this equals `HEAD^{tree}`, which is what `land.py` looks up.
+#
+# **What this cannot catch, said here and in the guard's own message**: a gate that was green on a
+# tree you then edited and edited *back*, restoring the hash, is indistinguishable from one that
+# was never touched. It buys "the tree that passed is the tree that lands", nothing more.
+#
+# It is deliberately **not** in the gate list above. A guard that runs inside the thing it guards is
+# the shape that had `make release-check` printing three `echo`s for a month.
+gate_index="$(mktemp -u)"
+GIT_INDEX_FILE="$gate_index" git add -A
+gate_tree="$(GIT_INDEX_FILE="$gate_index" git write-tree)"
+rm -f "$gate_index"
+gate_markers="$(git rev-parse --git-common-dir)/pinakes-gate-markers"
+mkdir -p "$gate_markers"
+printf '%s certified by %s in %s\n' \
+    "$(date -u '+%Y%m%d %H:%M UTC')" "$(git rev-parse --abbrev-ref HEAD)" "$(pwd)" \
+    > "$gate_markers/$gate_tree"
+
 echo "all gates green"
