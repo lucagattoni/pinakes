@@ -5,8 +5,12 @@ session, after a context clear at 09:54 UTC. **I have not re-derived the row 41 
 audit's 18 → 8 → 5 chain, or the six-mutant episode**, all of which happened in this session's
 *previous* context. A successor asked to write those up refused on the same grounds and that
 refusal was recorded as correct; repeating it here rather than reconstructing them from a peer's
-summary. The evidence for those lives in `plans/20260901_1148-clear-the-user-facing-list.md` row 32
-and in the retrospective fragments already spliced into this document.
+summary. The evidence for those lives in `plans/20260901_1148-clear-the-user-facing-list.md` row 32,
+in the retrospective fragments already spliced into this document, and — measured
+independently by the planner during this session, under its own name rather than on my
+testimony — in
+[`plans/20260904_1027-development-paused-handover-and-evidence.md`](../plans/20260904_1027-development-paused-handover-and-evidence.md),
+which is the document a resuming session should read first.
 
 **HIGH — the instrument added itself to the population it was measuring.** The audit greps every
 `tests/test_*.py` for `monkeypatch.setattr(Path|os|paths, …)` on a line ending in `)`. A test file
@@ -118,6 +122,32 @@ name simply was not a document"* — and that describes the **pre-refactor** pat
 code bypasses `pathlib` entirely and calls `os.stat` directly, twice. So if the site does come back
 `VACUOUS` on Linux, the comment is not to be deleted: what changed is that
 `paths.unreachable_through_links` did not exist when it was written.
+
+**A measured data point on review efficacy, which the process analysis lists as *not established*.**
+One fan-out ran against this branch: **19 agents, 0 errors, 0 empty results** — three design readers
+on different framings, fifteen per-site predictors, one judge over their output. What it produced,
+counted rather than characterised:
+
+| | count | what it was |
+|---|---|---|
+| Real defects in *my landed work* | **2** | the path filter silent for the tool's own motivating failure; a 3.13/3.14 matrix inverting the repo's settled idiom |
+| Confirmed by my own independent check before acting | **2 of 2** | grepped each faked name across `src/pinakes/`; read `ci.yml:89-92` verbatim |
+| False or stale raises | **2** | two designers built stdout-grep gates for contracts the tool had *already* grown, and flagged a 16th site that was fixed in the working tree — both were reading a stale checkout |
+| Predictions produced | **15** | unanimous, and that uniformity is itself a weakness the judge named |
+
+**Both real defects were mine, both were in code I had already gated green, and neither was the kind
+of thing a test would catch** — one is a trigger that fires too rarely, the other a comment that
+argues against the repository's own precedent. **The `paths:` one is the sharper of the two: not a
+false green but a *false silence*.** A green run is at least a run; a filter that never fires
+produces nothing to read, and nothing to read looks exactly like nothing to worry about. That is the
+same failure shape as an empty site list reporting `0 not ruled`, one layer out — the third instance
+of it in this one branch.
+
+**And the two stale raises are the honest cost.** Both designers were reading the tree as it stood
+when they were launched, and I had landed three commits while they read. A fan-out over a moving
+tree pays for it in exactly this way, and the fix is not more reviewers: it is launching the readers
+against a **named commit** rather than a working directory. Nothing in the harness made that
+mistake visible — I found it only because the judge, launched later, contradicted them.
 
 **What is not established, stated so nobody infers it.** The Linux legs had not run when this was
 written — `push` is restricted to `main`, so no branch push fires them and the merge commit is what
