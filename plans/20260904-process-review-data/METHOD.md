@@ -58,22 +58,33 @@ resolved.** Grepping the command string gives mentions, not runs, and no outcome
 ```python
 #!/usr/bin/env python3
 """usage: readsession.py <file.jsonl> [--tools]"""
+
 import json, sys
-show_tools = '--tools' in sys.argv
+
+show_tools = "--tools" in sys.argv
 for line in open(sys.argv[1]):
-    try: d = json.loads(line)
-    except Exception: continue
-    msg = d.get('message') or {}
-    role, ts = msg.get('role') or d.get('type'), (d.get('timestamp') or '')[:19]
-    cont = msg.get('content')
-    if isinstance(cont, str): cont = [{'type': 'text', 'text': cont}]
-    if not isinstance(cont, list): continue
+    try:
+        d = json.loads(line)
+    except Exception:
+        continue
+    msg = d.get("message") or {}
+    role, ts = msg.get("role") or d.get("type"), (d.get("timestamp") or "")[:19]
+    cont = msg.get("content")
+    if isinstance(cont, str):
+        cont = [{"type": "text", "text": cont}]
+    if not isinstance(cont, list):
+        continue
     for b in cont:
-        if not isinstance(b, dict): continue
-        if b.get('type') == 'text' and b.get('text', '').strip():
+        if not isinstance(b, dict):
+            continue
+        if b.get("type") == "text" and b.get("text", "").strip():
             print(f"\n[{ts}] {role.upper()}:\n{b['text'].strip()}")
-        elif show_tools and b.get('type') == 'tool_use':
-            arg = (b.get('input') or {}).get('command') or (b.get('input') or {}).get('file_path') or ''
+        elif show_tools and b.get("type") == "tool_use":
+            arg = (
+                (b.get("input") or {}).get("command")
+                or (b.get("input") or {}).get("file_path")
+                or ""
+            )
             print(f"\n[{ts}]   -> {b.get('name')}: {str(arg)[:200]}")
 ```
 
