@@ -25,6 +25,11 @@ describes.
 | `tree_growth.tsv` | 212 | one **change** in the file counts | `git ls-tree` at every commit; rows emitted only when a count moves |
 | `ci-runs.tsv` | *(coder)* | one CI run | `gh run list` over the whole history, with failing job **and step** |
 | `agent_tokens.tsv` | 1,627 | one agent transcript | `tools/agent_spend.py`'s own collector, `--project Pinakes` |
+| `agent_tasks.tsv` | 1,631 | one agent, **with the task it was given** | transcript's first user message + `agent_spend` collector |
+| `tool_calls.tsv` | 64,662 | one tool call, with a **repeat index** | `tool_use` blocks in every transcript |
+| `plan_rows.tsv` | 44 | one build-order row, first seen → first marked done | the live plan at each of 60 commits |
+| `sessions.tsv` | 88 | one main-loop session | transcripts, `--project Pinakes` |
+| `cross_session_messages.tsv` | 293 | one message received from a peer session | `<cross-session-message from-name=…>` in user turns |
 
 ## Noise filtering — what was removed, and why
 
@@ -77,8 +82,47 @@ the machine and are roughly 2× the main-loop count — an error made and correc
 **Transcripts with zero parsed requests are omitted**, which is why this file has 1,627 rows
 where `agent_spend.py` reports 1,677 transcripts.
 
+**`agent_tasks.tsv`** — as `agent_tokens.tsv` plus `task_prompt` (first user message, 300 chars),
+`duration_s`, `start`, `end`, `tool_calls`, `distinct_tools`, `distinct_targets`.
+
+**`tool_calls.tsv`** — `scope` `transcript` `seq` `timestamp` `tool` `target` `repeat_index`.
+`target` is the first present of `file_path`, `path`, `pattern`, `url`, `command`, `query`,
+`prompt`, truncated to 120 chars; **1,982 calls have no target** and carry an empty string.
+
+**`plan_rows.tsv`** — `row` `title` `first_seen` `first_marked_done` `plan_commits_touching_file`.
+Done is any of ✅ ⛔ BUILT DONE LANDED SETTLED DEAD appearing in the row's line. **17 of 44 rows
+have never been marked done.** Only the live plan's build-order table; other plans are not covered.
+
+**`sessions.tsv`** — one main-loop session: `agent_name` where the transcript records one,
+`user_turns`, `cross_session_msgs_in`, `distinct_peers`, `peers`, `compaction_events`, tokens.
+**39 of 88 sessions received at least one peer message; 11 recorded a compaction.**
+
+**`cross_session_messages.tsv`** — `timestamp` `to_transcript` `from_name` `chars`. **293 messages.**
+Received only — a send is not recorded in the sender's own transcript, so this counts one side.
+
 **`ci-runs.tsv`** — harvested by the coder session; see the header block below, written by them
 and pasted here unchanged when it lands.
+
+## The two questions this harvest was steered to answer
+
+**Added 20260904 11:10 at the user's direction.** These are *pointers to columns*, not findings.
+
+**1. Where tokens and time went, per task and subtask.**
+`agent_tasks.tsv` carries one row per agent with **the prompt it was given** (`task_prompt`),
+its `duration_s`, and its token columns — so spend groups by the task rather than by the file it
+happens to live in. `sessions.tsv` does the same for resident main-loop sessions.
+**`context_tokens` is the column to watch**: it is what the model was *sent*, re-transmitted every
+turn, and it runs two orders of magnitude above `output_tokens`.
+
+**2. Where an agent looped for little return.**
+`tool_calls.tsv` has `repeat_index` — how many times that **exact tool + target** had already been
+called in the same transcript, 0 on first use. **18,573 of 64,662 calls have `repeat_index >= 1`.**
+Join it to `agent_tasks.tsv` on `transcript` to put repetition beside the task and its cost.
+`agent_tasks.tsv` also carries `tool_calls`, `distinct_tools` and `distinct_targets`, so the ratio
+of calls to distinct targets is available without touching the per-call file.
+
+**What is deliberately not computed here:** no rates, no thresholds, no "wasteful" flag. Whether a
+repeat is waste depends on what the agent was doing between the calls, and that is a reading.
 
 ## Reproducing
 

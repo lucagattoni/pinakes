@@ -1,0 +1,45 @@
+row	title	first_seen	first_marked_done	plan_commits_touching_file
+1	Row 14 — teach `markdown_link_gate` the splice destination, both arms; restore the two code-spanned links | 14	2026-09-01T13:11:01+01:00	2026-09-02T10:14:11+01:00	60
+2	Row 12 — the retro heading + stamp gate | 12 | nothing | Finished and pushed on its branch; landing it is chea	2026-09-01T13:11:01+01:00	2026-09-02T10:14:11+01:00	60
+3	Cut the release — ASK FIRST | — | rows 1–2, and an explicit user go-ahead | 11 fragments pending (M5) and `[Un	2026-09-01T13:11:01+01:00	2026-09-02T12:16:47+01:00	60
+4	S1 — `PermissionError` aborts the whole walk | 4 | nothing | The worst failure mode in the list: one unreadabl	2026-09-01T13:11:01+01:00	2026-09-02T12:44:02+01:00	60
+5	S4 — escape at render in `template.py` | 5 | nothing | Silent, permanent, and `init` refuses to repair it. Exi	2026-09-01T13:11:01+01:00	2026-09-03T10:31:57+01:00	60
+6	D-37's build — gate the move hint on the orphaned sidecar | 9 | nothing | Fires on every ordinary deletion, on	2026-09-01T13:11:01+01:00	2026-09-02T12:44:02+01:00	60
+7	S5–S9 — the accept-then-mishandle batch | 6 | nothing | Five inputs accepted and then mishandled. Whoever buil	2026-09-01T13:11:01+01:00	2026-09-03T13:22:45+01:00	60
+8	The four Low classes | 10 | rows 4–7 | `-k 0` becoming the default page size, mistyped `--source-type` returni	2026-09-01T13:11:01+01:00	2026-09-03T13:30:30+01:00	60
+9	The `.pinakes/` questions in `doctor` (D-31/D-32/D-33, option C, unconditional) | exposure 5–6 | nothing | Ran	2026-09-01T13:11:01+01:00		60
+10	ENG-1 · `paid_path_gate` battery first, then the remaining six | — new | nothing | § 2. Split per gate; each i	2026-09-01T13:11:01+01:00		60
+11	Row 11 — the FX guard, two parts | 11 | nothing | Already scoped, including the sentence the commit must carry	2026-09-01T13:11:01+01:00		60
+12	Row 13 — the vacuous verifier | 13 | nothing | Small; pin the empty-input case as non-zero. |	2026-09-01T13:11:01+01:00		60
+13	The BOM arm covers only one stream — widen it to `changelog.d/`, and nothing else | — new | row 12 | Raised by	2026-09-01T19:30:12+01:00		57
+14	A retro fragment's second `## ` heading is spliced unvalidated — require the form, not the value | — new | row	2026-09-01T21:37:39+01:00		56
+15	`tools/batteries/tools-markdown_link_gate.toml:26` — a bare date where the format reserves a version | — new |	2026-09-01T21:37:39+01:00	2026-09-02T12:02:32+01:00	56
+16	`tools/markdown_link_gate.py` and the renderer disagree about what a heading is — four shapes of five | — new 	2026-09-02T01:08:28+01:00		55
+17	One character in a filename silently exempts a fragment from the stamp gate — narrow the exemption | — new | r	2026-09-02T02:54:04+01:00		54
+18	No fragment gate validates that a filename's date is a date — DEFERRED behind § 4, measured not guessed | — ne	2026-09-02T03:00:14+01:00		53
+19	An unclosed raw-HTML block in a fragment absorbs every heading after it — widen the checker beyond headings | 	2026-09-02T08:44:55+01:00		50
+20	`tools/batteries/src-pinakes-pairing.toml:369` — a header conforming to neither form, on ASCII rules | — new |	2026-09-02T08:44:55+01:00	2026-09-02T12:26:55+01:00	50
+21	Build the dogfooding on-ramp — a checklist and a one-command start | — new | nothing | Instructed by the user 	2026-09-02T12:23:58+01:00		41
+22	Regenerate `CLAUDE.md` fresh | — new | nothing | Authorised by the user 20260902: Drop, and regenerate fresh —	2026-09-02T12:23:58+01:00		41
+23	A check that does not go through the escaper — a post-render `tomllib.loads` in `template.py` `_render` | — ne	2026-09-02T12:52:42+01:00		38
+24	Anchor a status claim so a gate can falsify it — `tools/`, one new checker | — new | nothing | Raised by the p	2026-09-02T12:52:42+01:00		38
+25	`pnk budget` prints a KB name raw — an ANSI escape reaches the terminal, a newline breaks the line contract | 	2026-09-03T09:37:24+01:00		35
+26	Write the other half of commit before mutating — `tools/batteries/README.md`, prose only | — new | row 5 landi	2026-09-03T09:37:24+01:00	2026-09-03T10:31:57+01:00	35
+27	Cut 0.32.2 — 🧭 owner: planner — ✅ DONE 20260903 12:59 | — | nothing | The second release row in this queue, an	2026-09-03T14:07:31+01:00	2026-09-03T14:07:31+01:00	29
+28	When does `pnk doctor` walk? — an unresolvable symlink is invisible to it while `pnk sync` reports it — 🧭 owne	2026-09-03T14:17:13+01:00		28
+29	A gate that refuses the `pathlib` spelling on a corpus path — `tools/`, one checker, plus the `minimum-python`	2026-09-03T15:27:08+01:00	2026-09-04T10:10:36+01:00	27
+30	`pnk sync` and `pnk doctor` crashed on Python 3.13, and `doctor` offered `--prune` a present document's id — ✅	2026-09-03T16:04:37+01:00	2026-09-03T16:04:37+01:00	26
+31	An unreadable source root silently deletes every document under it from search, at exit 0 — 🧭 owner: coder, an	2026-09-03T16:04:37+01:00	2026-09-03T16:22:34+01:00	26
+32	The floor audit's four other confirmed findings, none of them verified by me — 🧭 owner: coder, read the caveat	2026-09-03T16:04:37+01:00	2026-09-03T16:42:16+01:00	26
+33	Cut 0.32.3 — 🧭 owner: planner — ✅ DONE 20260903 15:14, published 15:10 | — | nothing | The release carrying th	2026-09-03T16:16:59+01:00	2026-09-03T16:16:59+01:00	25
+34	`src/pinakes/paths.py` has no directory predicate — add `is_directory()` and route the three raw callers | — n	2026-09-03T16:42:16+01:00	2026-09-03T17:48:55+01:00	23
+35	Make `minimum-python` able to fail for the five survivors — `tests/test_sync.py`, `tests/test_doctor.py`, `tes	2026-09-03T16:42:16+01:00	2026-09-03T18:11:12+01:00	23
+36	Probe the ~41 `pathlib` predicate sites nobody has ever looked at — `extract/cache.py` (7), `template.py` (5),	2026-09-03T16:42:16+01:00	2026-09-04T10:21:01+01:00	23
+37	Cut 0.32.4 — 🧭 owner: planner — ✅ DONE 20260903 16:58, published 16:53 | — | nothing | The day's fourth releas	2026-09-03T18:01:33+01:00	2026-09-03T18:01:33+01:00	19
+38	`why_not_a_kb` reports a present-but-unreadable partner KB as absent, on all three callers — 🧭 owner: coder, i	2026-09-04T03:02:50+01:00	2026-09-04T10:57:10+01:00	17
+39	Make a commit impossible over a gate nobody read — `tools/`, one guard | — new | nothing | 🧭 owner: coder. Two	2026-09-04T03:40:30+01:00	2026-09-04T09:35:25+01:00	15
+40	A battery row that is killable only on the floor, and an instrument that will not tell you which run you are r	2026-09-04T03:48:26+01:00	2026-09-04T04:40:02+01:00	14
+41	A fake must be shown to matter — neutralise the injection and watch the test fail | — new | nothing | 🧭 owner:	2026-09-04T03:59:27+01:00	2026-09-04T04:40:02+01:00	13
+42	Settle the one audit site that this machine cannot rule — run the vacuous-injection audit on Linux | — new | n	2026-09-04T10:10:36+01:00	2026-09-04T11:31:41+01:00	10
+43	Two live `Path.is_symlink()` sites that raise on the declared floor — `sync.py:1836`, `upgrade.py:1078` | — ne	2026-09-04T10:21:01+01:00	2026-09-04T10:57:10+01:00	8
+44	Should the now-redundant `ENAMETOOLONG` fake exist at all? — `tests/test_cli_link.py:617` | — new | nothing | 	2026-09-04T11:51:11+01:00		1
