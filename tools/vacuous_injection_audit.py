@@ -3,6 +3,9 @@
     python3 tools/vacuous_injection_audit.py            # every pathlib/os/paths injection
     python3 tools/vacuous_injection_audit.py --runs 3   # more repeats per site
 
+`.github/workflows/injection-audit.yml` runs it on Linux, which is the one thing a macOS
+checkout cannot do for itself — see *not rulable from one platform* below.
+
 **The method, in one sentence: disable a test's `monkeypatch.setattr` line, re-run the test that
 owns it, and see whether it still passes.** A test that passes with its own instrument neutralised
 cannot tell you the instrument still works — so the day the production code stops calling the
@@ -24,13 +27,22 @@ least twice and only agreeing verdicts are reported.
 * **asserts-nothing** — the assertions do not depend on the injected condition. The real thing.
 * **the real environment does it anyway** — a 300-character filename raises `ENAMETOOLONG` for real
   where `NAME_MAX` is 255, so the fake is redundant *on that machine* and may be load-bearing on
-  another. Not a defect, and **not rulable from one platform**.
+  another. Not a defect, and **not rulable from one platform**. This is why the report names
+  the interpreter, the platform and `NAME_MAX` beside its counts: a verdict of this kind is a
+  claim about an environment, and a report that cannot name its environment cannot state its
+  own limit.
 * **mis-attributed** — the probe disabled a fake and ran a test that never used it. An injection
   inside a *helper* belongs to every test that calls the helper, which is why the enclosing
   definition is found by column-0 `def` and helpers are expanded to their callers.
 
 Report the split, never the bare count: the count moved 5 → 3 → 2 across three broken instruments,
 and every intermediate number was a true statement about a broken measurement.
+
+**Exit status: the *unruled* set, never the vacuous one.** `UNSTABLE`, `INCONCLUSIVE` and a
+site with no caller found mean the **instrument** failed to rule, and an audit that cannot
+rule a site while exiting 0 reports success for a measurement that did not happen. A
+`VACUOUS` row is the opposite — a finding for a person to read and split three ways — so it
+prints and exits 0, for the same reason `mutate.py` exits 0 on a survivor.
 """
 
 from __future__ import annotations
@@ -44,6 +56,28 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 TARGET = re.compile(r"monkeypatch\.setattr\(\s*(Path|os|paths)\s*,")
+
+#: The launcher every probe runs its tests through, named once. `environment` rewrites *this*
+#: tuple rather than repeating the words, so the line the report prints can never describe a
+#: command the probes did not use.
+PYTEST = ("uv", "run", "--frozen", "pytest")
+
+#: What `environment` asks the launcher to run. **`NAME_MAX` is in here for a reason specific to
+#: this tool**: `mutate.py` needs only the interpreter, while a verdict here can turn on the
+#: filesystem — a 300-character filename raises `ENAMETOOLONG` where `NAME_MAX` is 255 and merely
+#: fails to be a document where it is not, which is the difference between a redundant fake and a
+#: load-bearing one. Printing the number removes the step where a reader has to know it.
+_ENVIRONMENT_PROBE = """\
+import os, platform, sys
+try:
+    name_max = os.pathconf(".", "PC_NAME_MAX")
+except (OSError, ValueError, AttributeError):  # not every platform answers; say so rather than 0
+    name_max = "unknown"
+print(
+    f"Python {sys.version.split()[0]} on {platform.system()} {platform.release()} "
+    f"({platform.machine()}), NAME_MAX={name_max}"
+)
+"""
 
 
 def clear_pycache(root: Path) -> None:
@@ -109,10 +143,7 @@ def probe(root: Path, path: Path, index: int, targets: list[str]) -> str:
     try:
         run = subprocess.run(
             [
-                "uv",
-                "run",
-                "--frozen",
-                "pytest",
+                *PYTEST,
                 *(f"tests/{path.name}::{t}" for t in targets),
                 "-q",
                 "-p",
@@ -130,6 +161,38 @@ def probe(root: Path, path: Path, index: int, targets: list[str]) -> str:
     if "no tests ran" in run.stdout or re.search(r"\b0 passed\b", run.stdout):
         return "INCONCLUSIVE"
     return "VACUOUS" if run.returncode == 0 else "sound"
+
+
+def environment(root: Path) -> str | None:
+    """The interpreter and filesystem the *probes* ran on, or `None` if this run could not say.
+
+    **The launcher is asked, never this process** — the same reason `tools/mutate.py` states for
+    the same question. The documented invocation is `python3 tools/vacuous_injection_audit.py`,
+    which is whatever system Python is on `PATH`, while every probe runs under
+    `uv run --frozen pytest` in the project venv. On this machine those are 3.14.7 and 3.13.15 at
+    the same moment, so printing the launcher's own `sys.version` would name a Python that decided
+    nothing here — worse than saying nothing, because it reads as measured.
+
+    **Why this tool needs the platform and `mutate.py` does not.** This module's own docstring says
+    a `VACUOUS` verdict can mean *the real environment does it anyway*, and that such a site is
+    **not rulable from one platform**. A report that cannot name the platform it ran on therefore
+    cannot state its own most important limit. One extra subprocess for the whole run.
+
+    `None` is returned rather than a guess, and the caller prints that it could not tell.
+    """
+    try:
+        completed = subprocess.run(
+            [*PYTEST[:-1], "python", "-c", _ENVIRONMENT_PROBE],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=300,
+        )
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return None
+    answer = completed.stdout.strip().splitlines()
+    return answer[-1] if completed.returncode == 0 and answer else None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -157,6 +220,14 @@ def main(argv: list[str] | None = None) -> int:
             unstable.append(f"{path.name}:{index + 1}  {text}  -> {verdict}")
 
     print(f"\n{len(collected)} sites · {len(vacuous)} vacuous · {len(unstable)} not ruled")
+    where = environment(ROOT)
+    print(
+        f"probed under {where}."
+        if where is not None
+        else "probed under an environment this run could not identify — these verdicts do not "
+        "say which interpreter or filesystem produced them, and a VACUOUS row cannot be read "
+        "without both."
+    )
     for row in vacuous:
         print(f"  VACUOUS   {row}")
     for row in unstable:
@@ -165,7 +236,13 @@ def main(argv: list[str] | None = None) -> int:
         "\nRead the module docstring before acting on a VACUOUS row: it is three findings wearing "
         "one label, and only asserts-nothing is a defect."
     )
-    return 0
+    # **The unruled set is the failure; a `VACUOUS` row is a finding to read.** An `UNSTABLE`,
+    # `INCONCLUSIVE` or caller-less site means the *instrument* did not rule, and an audit that
+    # cannot rule a site while exiting 0 is the "review harness reported success because every
+    # agent died" shape this repository has already been caught by. A `VACUOUS` row, by
+    # contrast, is three findings wearing one label and only one of them is a defect — so it
+    # is printed and judged by a person, for the same reason `mutate.py` exits 0 on a survivor.
+    return 1 if unstable else 0
 
 
 if __name__ == "__main__":
