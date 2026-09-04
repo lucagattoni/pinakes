@@ -23,7 +23,7 @@ from conftest import pdf_extraction_runnable
 from pinakes import search, store
 from pinakes.chunk import PREFIX_SEPARATOR
 from pinakes.embed import EmbeddingBackend, ModelInfo, Vectors
-from pinakes.errors import DuplicateIdsError, ManifestError, SyncError
+from pinakes.errors import DuplicateIdsError, ManifestError, PinakesError, SyncError
 from pinakes.extract import (
     ExtractedText,
     ExtractionContext,
@@ -31,7 +31,7 @@ from pinakes.extract import (
     register_extractor,
     unregister_extractor,
 )
-from pinakes.ids import mint_doc_id
+from pinakes.ids import mint_doc_id, mint_kb_id
 from pinakes.manifest import Manifest, load
 from pinakes.sidecar import SIDECAR_SUFFIX, Sidecar
 from pinakes.sync import (
@@ -40,6 +40,7 @@ from pinakes.sync import (
     SyncOptions,
     SyncReport,
     _is_path_still_held,  # pyright: ignore[reportPrivateUsage]
+    _refuse_naming_the_reason,  # pyright: ignore[reportPrivateUsage]
     sync,
     walk_document_paths,
 )
@@ -3938,3 +3939,46 @@ def test_a_symlink_to_a_real_document_is_indexed_not_reported(kb: Path) -> None:
 
     assert report.unresolvable_symlinks == ()
     assert report.embedded == 1
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o400 directory, so the state cannot be built"
+)
+def test_refuse_naming_the_reason_answers_rather_than_raising_under_an_untraversable_parent(
+    tmp_path: Path,
+) -> None:
+    """A unit test on purpose, and the reason is the whole point of the row.
+
+    **No production path reaches this function with an unstattable target**, and that was measured
+    before this test was written: `unreadable_directories` refuses the directory at the walk, so
+    `pnk sync` reports `directory could not be entered` and never enters the per-file path —
+    byte-identically on both interpreters. Both callers also sit inside
+    `except (PinakesError, OSError)`. So an end-to-end test here pins nothing, and the first draft
+    of this test proved it: written against the real command, it passed with the fix **and with the
+    fix reverted**.
+
+    What is real is the primitive. `lstat` needs `+x` on the *parent*, so under `0o400` — listable,
+    hence reachable by a glob, but not traversable — `Path.is_symlink()` raises on 3.13 and returns
+    `False` on 3.14, while `paths.is_symlink` answers `False` on both.
+
+    **This test discriminates only on 3.13**, stated rather than hidden: on 3.14 the unfixed
+    spelling already returned `False`, so it cannot fail there. It exists so that the day a caller
+    drops its `except OSError`, or the walk guard above it changes, this line is not the one that
+    has to be rediscovered.
+    """
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    target = locked / "b.md.pnk.yaml"
+    target.write_text("id: 01KYCJ8ZVMBJDB4FKRJRNYS5DT\n", encoding="utf-8")
+    os.chmod(locked, 0o400)
+    try:
+        _refuse_naming_the_reason(target, owner=mint_kb_id())
+    finally:
+        os.chmod(locked, 0o755)
+
+    # Control: the same call on a readable sidecar still refuses it, so the assertion above is not
+    # satisfied by a function that returns early for everything.
+    readable = tmp_path / "b.md.pnk.yaml"
+    readable.write_text("id: 01KYCJ8ZVMBJDB4FKRJRNYS5DT\n", encoding="utf-8")
+    with pytest.raises(PinakesError):
+        _refuse_naming_the_reason(readable, owner=mint_kb_id())

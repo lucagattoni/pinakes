@@ -1827,13 +1827,27 @@ def _refuse_naming_the_reason(target: Path, *, owner: KbId) -> None:
     or was repaired between the walk and now, and re-running is the honest answer rather than
     minting over something readable.
     """
-    # `resolves`, not `exists()`: on 3.13 the `pathlib` spelling raises `PermissionError` for a
-    # sidecar under a directory without `+x`, so **this function — whose whole job is to name the
-    # reason — never ran**, and the reason reaching the user was a raw errno. On 3.14 it returned
-    # False, `is_symlink()` was True, and `read_sidecar` below produced the `SidecarError` with a
-    # remedy that was always intended. Same tree, same filesystem, two different messages; this
-    # line is what makes them one. `is_regular_file`'s docstring carries the measurement.
-    if not (resolves(target) or target.is_symlink()):
+    # `resolves` and `is_symlink`, not the `pathlib` spellings: on 3.13 those raise
+    # `PermissionError` for a sidecar under a directory without `+x`, so **this function — whose
+    # whole job is to name the reason — never ran**, and the reason reaching the user was a raw
+    # errno. On 3.14 they answered `False`/`True` and `read_sidecar` below produced the
+    # `SidecarError` with a remedy that was always intended. Same tree, same filesystem, two
+    # different messages; this line is what makes them one.
+    #
+    # **Only the first half was converted when that was written, and the sentence above still
+    # claimed the whole line.** `target.is_symlink()` stayed, so under a parent at `0o400` —
+    # listable, so a glob still yields the entry, but not traversable — it raised on 3.13 and
+    # returned `False` on 3.14: the identical divergence, in the line whose comment said it was
+    # closed.
+    #
+    # **No production path reaches it in that state today, and that was measured before this was
+    # changed** — so this is defence in depth, not a fix. `walk_sources`' `unreadable_directories`
+    # guard refuses such a directory at the walk, so `pnk sync` reports *"directory could not be
+    # entered"* and never enters the per-file path; the reports are byte-identical on both
+    # interpreters. Both callers also sit inside `except (PinakesError, OSError)`.
+    # **Two things would make it matter again**: that walk guard narrowing, or either caller
+    # dropping its `except`. Neither is far-fetched, and one word is a cheap standing answer.
+    if not (resolves(target) or is_symlink(target)):
         return
     try:
         read_sidecar(target, owner=owner)

@@ -48,6 +48,7 @@ from pinakes.errors import (
 )
 from pinakes.lock import LOCK_NAME, read_holder
 from pinakes.manifest import MANIFEST_NAME, Manifest
+from pinakes.paths import is_symlink
 
 CONTEXT_LINES = 3
 """Unchanged lines each hunk carries — `diff -U3`, and the reason uniqueness is checkable at all.
@@ -1074,8 +1075,18 @@ def through_symlink(path: Path) -> Path:
     dismantled silently. `sidecar.write` learned this first and resolves the same way; a KB whose
     `pinakes.toml` is a link into a shared config directory is exactly the arrangement a portable
     tool should not break.
+
+    **`paths.is_symlink`, not `Path.is_symlink()`.** `lstat` needs `+x` on the *parent*, not on
+    the link, so under a parent at `0o400` the `pathlib` spelling raises `PermissionError` on 3.13
+    and returns `False` on 3.14 — measured on both.
+
+    **Nothing reaches this function with such a path today, and that was measured rather than
+    assumed**: `apply` runs only after `manifest.load`, which cannot read a `pinakes.toml` under an
+    untraversable root and raises `ManifestError` first, identically on both interpreters. So the
+    change is defence in depth, not a fix. **What would make it matter**: a caller that reaches
+    `through_symlink` with a path it did not load a manifest from.
     """
-    return path.resolve() if path.is_symlink() else path
+    return path.resolve() if is_symlink(path) else path
 
 
 def _write_atomic(path: Path, payload: bytes) -> None:
