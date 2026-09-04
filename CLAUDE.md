@@ -173,7 +173,13 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   fan-out's return value with nulls counted *before* filtering; `review_pass_gate.py` run at
   fan-out completion (**not** in `check.sh`, which has no journal and would pass vacuously); and
   slow lenses scheduled first, because truncation is value-biased against the runtime lens.
-  **Read the artifact before acting on this bullet** — it states its populations and lists in its
+  **The entry point for resuming is
+  [`plans/20260904_1027-development-paused-handover-and-evidence.md`](plans/20260904_1027-development-paused-handover-and-evidence.md)** —
+  exact state, how to resume, the open rows with the decision each carries, and **measured
+  evidence for the analysis's proposed steps**, including the one measurement that moved
+  *against* us: this file was 302 lines when the analysis called it too long and is **427**
+  now. Read it before this bullet's summary, and
+  **read the artifact before acting on either** — it states its populations and lists in its
   § 6 the nine claims that did *not* survive checking, several of which this file has repeated.
 - **🧭 The live build order is
   [`plans/20260901_1148-clear-the-user-facing-list.md`](plans/20260901_1148-clear-the-user-facing-list.md)** —
