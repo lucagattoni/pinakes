@@ -24,6 +24,7 @@ from pinakes.paths import (
     is_symlink,
     lands_inside,
     unreachable,
+    unreachable_through_links,
     unreadable_directories,
 )
 
@@ -276,5 +277,69 @@ def test_unreadable_directories_cannot_see_a_directory_that_lists_but_cannot_be_
     try:
         assert unreadable_directories(tmp_path / "docs") == frozenset()
         assert unreachable(locked / "note.md")
+    finally:
+        os.chmod(locked, 0o755)
+
+
+# --- `unreachable_through_links`: the same question, asked of the target ---------------------
+
+
+def test_through_links_is_false_for_the_three_shapes_that_are_not_refusals(tmp_path: Path) -> None:
+    """Absent, not-a-directory and a loop all answer `False`, and none of them is a refusal.
+
+    These are three of the four errnos 3.13's `Path.is_file()` swallows, and the predicate has to
+    swallow the same ones or it reports "unreadable" about paths that are merely not there. The
+    fourth, `EBADF`, is measured but not pinned here: the `/dev/fd/<n>` shape that produces it on
+    macOS is not portable, and asserting it would be a claim about the runner rather than about the
+    predicate. `docs`-side note in `paths._NOT_THERE` says which members are measured how.
+    """
+    (tmp_path / "afile").write_text("x\n", encoding="utf-8")
+    (tmp_path / "loop").symlink_to(tmp_path / "loop")
+    (tmp_path / "dangling").symlink_to(tmp_path / "nowhere")
+
+    assert not unreachable_through_links(tmp_path / "absent")  # ENOENT
+    assert not unreachable_through_links(tmp_path / "afile" / "under")  # ENOTDIR
+    assert not unreachable_through_links(tmp_path / "loop")  # ELOOP
+    assert not unreachable_through_links(tmp_path / "dangling")  # ENOENT, one hop out
+    assert not unreachable_through_links(tmp_path / "afile"), "control: an ordinary file"
+
+
+@needs_a_non_root_user
+def test_through_links_is_true_for_an_entry_under_an_untraversable_parent(tmp_path: Path) -> None:
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    (locked / "note.md").write_text("x\n", encoding="utf-8")
+    os.chmod(locked, 0o000)
+    try:
+        assert unreachable_through_links(locked / "note.md")
+    finally:
+        os.chmod(locked, 0o755)
+
+
+@needs_a_non_root_user
+def test_through_links_sees_a_refusal_one_hop_out_that_unreachable_cannot(tmp_path: Path) -> None:
+    """The whole reason the sibling exists, asserted as the pair rather than as two facts.
+
+    `lstat` succeeds on a symlink sitting in a readable directory, so `unreachable` answers `False`
+    however unreadable the target is — the same `False` it gives for a path that is simply absent.
+    A caller that must not confuse *refused* with *absent* therefore cannot use it here, and both
+    callers of this predicate turn that confusion into a wrong message: `pnk link` says a document
+    is not in the KB, and `pnk doctor` drops a paid document out of both of its staleness lists.
+
+    This is the row-30 shape — a symlinked document under a directory the process may not traverse
+    — which is how a permanent ULID came to be offered to `--prune`.
+    """
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    (locked / "real.md").write_text("x\n", encoding="utf-8")
+    (tmp_path / "alias.md").symlink_to(locked / "real.md")
+    os.chmod(locked, 0o000)
+    try:
+        assert unreachable_through_links(tmp_path / "alias.md")
+        assert not unreachable(tmp_path / "alias.md"), (
+            "the sibling's `lstat` sees the link itself and cannot see past it — if this ever "
+            "becomes True the two predicates have collapsed into one and `sync`'s retirement pass "
+            "needs re-reading before either is used there"
+        )
     finally:
         os.chmod(locked, 0o755)

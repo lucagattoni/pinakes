@@ -14,6 +14,7 @@ import contextlib
 import io
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -509,40 +510,64 @@ def test_a_symlinked_directory_cannot_carry_a_link_out_of_the_kb(
 def test_an_unreadable_directory_is_refused_rather_than_crashing(
     pair: tuple[Kb, Kb], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`Path.is_file()` swallows `ENOENT`/`ENOTDIR`/`EBADF`/`ELOOP` and nothing else, so `EACCES`
-    and `ENAMETOOLONG` came out of `cli.main` as tracebacks — the same escaping-non-`PinakesError`
-    class that `expanduser()` was dropped for, left behind because only that one was looked at."""
+    """The unit-level pin on the clause: a refusal from the syscall becomes a `PinakesError`.
+
+    **The fake is at `os.stat`, which is the OS boundary, and that placement is the point.** It
+    used to fake `Path.is_file` — the spelling the production code happened to use — and when the
+    fix moved to `paths.unreachable_through_links` the fake stopped intercepting anything and this
+    test went red. That is the good outcome of a bad seam: a fake pinned to an implementation
+    detail either breaks loudly when the detail moves, or, if the detail keeps its name and changes
+    its *behaviour*, goes silently blind. This one did the second thing first. On 3.14
+    `Path.is_file()` swallows `EACCES` and `ENAMETOOLONG`, so the `except OSError` clause under
+    test was dead there — and because the fake raised on command, the clause was entered anyway and
+    this test passed on both interpreters while the production branch was unreachable on one.
+
+    **So it no longer certifies the platform, and it is not asked to.**
+    `test_a_document_the_process_cannot_reach_is_refused_with_the_read_error` is the non-injecting
+    half, built from a real `chmod`, and that is the test that answers "does the real call still
+    refuse?". This one earns its place on the other two: it reaches `ENAMETOOLONG`, which no
+    `chmod` fixture can produce, and it runs as root, where the `chmod` fixture is skipped.
+    """
     local, _partner = pair
-    # Injected for the same reason as the partner case above: `chmod(0o000)` is not portable, and
-    # the guard under test is "`is_file()` raises something that is not `ENOENT`", which is exactly
-    # what this raises.
     locked = local.root / "docs" / "locked"
     locked.mkdir()
-    real_is_file = Path.is_file
+    real_stat = os.stat
 
-    def denied(self: Path) -> bool:
-        if self.is_relative_to(locked):
+    def refuse(target: Any, *args: Any, **kwargs: Any) -> os.stat_result:
+        """Refuse only the paths under test — every other `stat` in the call must still work."""
+        if isinstance(target, str | Path) and str(target).startswith(str(locked)):
             raise PermissionError(13, "Permission denied")
-        return real_is_file(self)
+        return real_stat(target, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "is_file", denied)
+    monkeypatch.setattr(os, "stat", refuse)
     with pytest.raises(PinakesError) as caught:
         add(load(local.root), source="docs/locked/x.md", target="docs/beta.md", rel="cites")
     monkeypatch.undo()
     assert "cannot be read" in caught.value.message
+    assert "Permission denied" in caught.value.message, (
+        "the errno reaches the user: 'cannot be read' alone does not say what to fix"
+    )
 
-    # The other errno in the same class. **Injected, not built from a 300-character name**: the
-    # length at which a filesystem answers `ENAMETOOLONG` is a property of that filesystem, and on
-    # CI the long name simply was not a document — so the test asserted the wrong message rather
-    # than exercising the guard.
-    def too_long(self: Path) -> bool:
-        raise OSError(63, "File name too long")
+    # The other errno in the same class, and the reason this test survives the real-`chmod` one:
+    # `ENAMETOOLONG` is a property of the filesystem, not of a mode bit, so no permission fixture
+    # can produce it. **It was once built from a real 300-character name and converted to injection
+    # after a fixture bug** — on CI the long name simply was not a document, so the test asserted
+    # the wrong message rather than exercising the guard. Injection is right for *this* errno and
+    # was wrong for the permission one; the two were converted together, which is how the
+    # permission half went blind.
+    too_long = local.root / "docs" / ("n" * 300)
 
-    monkeypatch.setattr(Path, "is_file", too_long)
+    def name_too_long(target: Any, *args: Any, **kwargs: Any) -> os.stat_result:
+        if isinstance(target, str | Path) and str(target).startswith(str(too_long)):
+            raise OSError(63, "File name too long")
+        return real_stat(target, *args, **kwargs)
+
+    monkeypatch.setattr(os, "stat", name_too_long)
     with pytest.raises(PinakesError) as caught:
-        add(load(local.root), source="docs/whatever.md", target="docs/beta.md", rel="cites")
+        add(load(local.root), source=f"docs/{'n' * 300}", target="docs/beta.md", rel="cites")
     monkeypatch.undo()
     assert "cannot be read" in caught.value.message
+    assert "File name too long" in caught.value.message
 
 
 def test_a_path_with_an_embedded_nul_is_refused_rather_than_crashing(pair: tuple[Kb, Kb]) -> None:
@@ -996,7 +1021,12 @@ def test_a_document_the_process_cannot_reach_is_refused_with_the_read_error(
     os.chmod(blocked, 0o000)
     try:
         with pytest.raises(PinakesError) as direct:
-            add(load(local.root), source="docs/blocked/inside.md", target="docs/beta.md", rel="cites")
+            add(
+                load(local.root),
+                source="docs/blocked/inside.md",
+                target="docs/beta.md",
+                rel="cites",
+            )
         with pytest.raises(PinakesError) as through_link:
             add(load(local.root), source="docs/alias.md", target="docs/beta.md", rel="cites")
     finally:

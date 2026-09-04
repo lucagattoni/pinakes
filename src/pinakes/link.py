@@ -16,10 +16,12 @@ as it is, for the same reason.
 already on disk. `sidecar.write()` matches entries on the *resolved* URI. Only the first is here.
 """
 
+import os
 import tomllib
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from pinakes import paths
 from pinakes import sidecar as sidecar_module
 from pinakes import uri as uri_module
 from pinakes.errors import (
@@ -335,19 +337,36 @@ def _document_in(root: Path, raw: str, *, kb: str) -> Path:
 
 
 def _is_file(path: Path, raw: str) -> bool:
-    """`path.is_file()`, with the errors it does *not* swallow turned into a `PinakesError`.
+    """Is `path` a readable regular file — with *"I was not allowed to look"* raised, not returned.
 
-    `pathlib` ignores `ENOENT`, `ENOTDIR`, `EBADF` and `ELOOP` — a missing file is `False`, not an
-    exception — but nothing else. An unreadable parent directory (`EACCES`) and an over-long name
-    (`ENAMETOOLONG`) both raise, and `OSError` is not a `PinakesError`, so both reached `cli.main`
-    as a traceback: the same class of escape that `expanduser()` was dropped for two commits ago,
-    left in place because only the one instance was looked at. `sync.py` catches `OSError` beside
-    `PinakesError` at its own document loop for exactly this reason.
+    **Asked of `paths`, not of `pathlib`, and the version story is why.** This used to be
+    `path.is_file()` inside `except OSError`, on the reasoning that pathlib "ignores `ENOENT`,
+    `ENOTDIR`, `EBADF` and `ELOOP` … but nothing else". That was a measurement of **3.13**
+    presented as a fact about pathlib. On 3.14 `Path.is_file()` swallows `EACCES` and
+    `ENAMETOOLONG` too, so the `except` clause was **dead on the newer interpreter** and every
+    refusal fell through as a plain `False` — which the two callers below turn into two different
+    wrong answers: *"is not a document in <kb>"*, whose remedy sends the user to re-check a path
+    that is spelled correctly, and *"has no sidecar"*, whose remedy sends them to run `pnk sync`.
+
+    `unreachable_through_links` follows the link, which `unreachable` deliberately does not: the
+    shape that reached a user was a symlinked document under a directory they could not traverse,
+    and `lstat` succeeds on the link itself. Restoring 3.13's answer on 3.14 is all this does —
+    both callers already exit non-zero, so only the message moves.
     """
-    try:
-        return path.is_file()
-    except OSError as exc:
+    if paths.unreachable_through_links(path):
+        # A second `stat`, in the error path only, purely to name the errno in the message —
+        # "Permission denied" is worth more to the user than "cannot be read". If the file became
+        # readable in the microseconds between the two calls the race resolves to the generic
+        # wording and nothing else changes, so it is not worth a lock or a private helper.
+        try:
+            os.stat(path)
+        except OSError as exc:
+            raise PinakesError(
+                f"{raw!r} cannot be read: {exc.strerror}.",
+                remedy="Check the path and its directory's permissions.",
+            ) from exc
         raise PinakesError(
-            f"{raw!r} cannot be read: {exc.strerror}.",
+            f"{raw!r} cannot be read.",
             remedy="Check the path and its directory's permissions.",
-        ) from exc
+        )
+    return paths.is_regular_file(path)
