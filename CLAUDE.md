@@ -190,13 +190,22 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   **Why nothing caught any of it: no `.python-version`, no `setup-python`, and `uv sync --frozen`
   takes the newest interpreter available — 3.14 on the runner.** The `check` matrix varies
   *extras*, never interpreters, so the floor in `pyproject.toml` had never been executed by CI. **A
-  fresh worktree ran 3.14 and the primary checkout ran 3.13**, so one commit answered differently
+  fresh worktree runs 3.14 and the primary checkout runs 3.13**, so one commit answers differently
   in two directories on this machine — a branch gate green and the merged gate red on the same
-  tree. **That is history, not the machine you are on: as of 20260904 01:52 both resolve to 3.14.7**, so any
-  claim of the form *“measured on 3.13 because I ran it in the primary checkout”* is now
-  **unsupported**. Pass `--python 3.13` explicitly and print `sys.version` in the run that produces
-  the number; which directory you stood in never was the evidence, and now it is not even a
-  correlate. `.github/workflows/ci.yml` now carries a `minimum-python` leg that asserts the interpreter
+  tree. **The mechanism, measured 20260904 08:40 and worth more than the two version numbers: a `.venv`
+  pins its interpreter once created, and a fresh worktree creates a new one, which takes the newest
+  installed.** `pyvenv.cfg` says `3.13` in the primary checkout and `3.14` in a worktree made
+  minutes ago. **That one rule explains every reading taken on 20260903–04, including two that
+  reached this file and were wrong**: when the primary venv's interpreter symlink dangled, `uv`
+  resolved the newest instead and both directories reported 3.14.7; when 3.14.7 was absent from the
+  machine, both reported 3.13.15; with the venv repaired and 3.14.7 restored, the split is back.
+  **A reading can be accurate and still be about the wrong thing** — a broken environment, or a
+  transient one. **So do not trust a version number written here, including these: verify.**
+  `uv run --frozen python -c "import sys; print(sys.version)"` in the directory you are about to
+  gate in. **The durable half is that the directory was never the evidence**: pass `--python`
+  explicitly and print `sys.version` **in the run that produces the number**. Every finding pinned
+  that way survived all four revisions of this paragraph; the one claim made from an unpinned
+  `uv run --frozen` is the one that was wrong. `.github/workflows/ci.yml` now carries a `minimum-python` leg that asserts the interpreter
   it actually got. **Its first run in this repository's history is green, and it was read in its
   log rather than from its status**: run `33765944569` for `934190c`, where `uv` downloaded
   `cpython-3.13.15-linux-x86_64-gnu`, the assertion step ran, and pytest reported **2425 passed,
