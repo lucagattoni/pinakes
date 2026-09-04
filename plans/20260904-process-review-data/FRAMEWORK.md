@@ -21,6 +21,14 @@ true statements over the wrong population.
 
 **The bulk of the project's life is ⟦read⟧.** Six weeks exist; I was present for two days.
 
+**How this document was maintained, stated because it is the defect it also records.** It was
+written once and then **corrected nine times in four hours** as the coder's forensics landed. Each
+correction was *appended in place* with a ⟦corrected⟧ tag rather than rewritten — which is the
+**layered-correction** failure this project's own conventions forbid, and which I caught and fixed in
+a build-order row this morning before committing it here. **Corrections carry a forward pointer to
+the section that supersedes them**; a claim without one is current as far as anyone knows. Audited
+20260904 13:30, which is how the two pointers above got added.
+
 ---
 
 ## 1. The mechanism, as it actually runs
@@ -134,8 +142,10 @@ Seven instances in two days, ⟦observed⟧ unless marked:
    review.
 4. **20260904** — the repeat column above, wrong twice.
 5. ⟦**corrected 20260904 12:10**, at the coder's insistence and rightly⟧ — **the 791 handed over was NOT an
-   error.** It was correctly measured when taken and **went stale**: two runs landed between the two
-   extractions. **A stale-but-correct measurement and a composed number are different failures with
+   error.** It was correctly measured when taken and **went stale**. **⚠️ The mechanism is sharper
+   than this line first said and is in § 6.3d: the number came out of a command 21 seconds before
+   the harvest launched, and the two runs that invalidated it were created by that session's own
+   `land.py` push — it was invalidated by its own landing.** **A stale-but-correct measurement and a composed number are different failures with
    different fixes**, and listing them together blurs the distinction this taxonomy depends on. The
    predecessor's two real errors were a local timestamp labelled UTC and a wrong claim about re-run
    deduplication.
@@ -168,8 +178,10 @@ re-reading.**
   I inferred a refusal from the word "policed".** ⟦measured, coder⟧ across 14 coder sessions:
   **`land.py` was invoked 43 times and succeeded 43 times — zero refusals in the population.** What
   actually happened is that both sessions **re-gated before landing in order to satisfy it**. Its
-  effect is **deterrence, not interception**, and a framework crediting it with catches would be
-  crediting the wrong mechanism.⟧
+  effect **over that population** is **deterrence, not interception**, and a framework crediting it
+  with catches would be crediting the wrong mechanism. **⚠️ Superseded in part 20260904 13:30: the guard has
+  since refused a landing — see § 6.3f. The zero held over a population that mostly predates the
+  refusal existing; interception is now also on record.**⟧
 
 ### 3.4 Registers drift from the tree, and the drift is invisible to every gate
 
