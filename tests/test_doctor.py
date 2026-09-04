@@ -2781,3 +2781,55 @@ def test_a_half_finished_id_change_is_reported_even_though_the_ids_differ(kb: Pa
     status, detail = checks(kb)["retired documents"]
     assert status is Status.FAIL
     assert "docs/a.md" in detail
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_a_paid_document_the_process_cannot_reach_is_named_rather_than_dropped(kb: Path) -> None:
+    """`source.is_file() and hash_file(source) != ...` short-circuits past its own `except OSError`.
+
+    `test_paid_extraction_unreadable_names_the_document_whose_staleness_is_undecided` is the
+    injected version of this and it passes on both interpreters, because monkeypatching
+    `Path.read_bytes` leaves `is_file()` `True` — so the short-circuit never runs and the branch
+    under test here is structurally invisible to it. It is kept as the pin on the `hash_file` half;
+    this is the half a fake cannot reach, and it needs a real `chmod`.
+
+    Both shapes are here because they fail differently and only one of them is a question about
+    the entry itself. `docs/vault/b.pdf` is refused at its own parent. `docs/a.pdf` is an entry
+    this process can `lstat` perfectly well — a symlink in a readable directory — whose *target*
+    sits behind that parent, which is the shape that deleted a permanent ULID in row 30.
+
+    The requirement is parity with 3.13, not new behaviour: `Path.is_file()` raises there, so both
+    already land in `paid extraction unreadable`, and on 3.14 they land in neither list — a check
+    reporting `none` about documents nothing could read.
+    """
+    _add_pdf(kb)
+    vault = kb / "docs" / "vault"
+    vault.mkdir()
+    (vault / "b.pdf").write_bytes(b"placeholder b")
+    (vault / "a-real.data").write_bytes(b"placeholder a")
+    (kb / "docs" / "a.pdf").symlink_to(vault / "a-real.data")
+    (kb / "docs" / "c.pdf").write_bytes(b"placeholder c")
+    sync(load(kb), options=SyncOptions(), now="20260725 17:31")
+    _mark_paid(kb, "a.pdf")
+    _mark_paid(kb, "vault/b.pdf")
+    _mark_paid(kb, "c.pdf")
+
+    os.chmod(vault, 0o000)
+    try:
+        found = {c.name: c for c in diagnose(load(kb)).checks}
+    finally:
+        os.chmod(vault, 0o755)
+
+    unreadable = found["paid extraction unreadable"]
+    assert unreadable.status is Status.WARN, unreadable.detail
+    assert "docs/vault/b.pdf" in unreadable.detail, unreadable.detail
+    assert "docs/a.pdf" in unreadable.detail, unreadable.detail
+    assert unreadable.remedy is not None and "chmod +r" in unreadable.remedy
+
+    # The readable paid document is the control, and it is the one that stops this being satisfied
+    # by reporting everything: `docs/c.pdf` was hashed successfully and is unchanged, so it belongs
+    # to neither list. A fix that routed every paid row to `unreadable` would fail here.
+    assert "docs/c.pdf" not in unreadable.detail, unreadable.detail
+    assert found["paid extraction stale"].status is Status.OK, found["paid extraction stale"].detail

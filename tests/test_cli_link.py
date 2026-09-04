@@ -966,3 +966,56 @@ def test_resolve_target_is_reachable_without_the_cli(pair: tuple[Kb, Kb]) -> Non
         f"pnk://{partner.kb_id}/{partner.docs['one']}"
     )
     assert str(resolve_target(manifest, "docs/beta.md")) == local.uri("beta")
+
+
+@pytest.mark.skipif(
+    os.geteuid() == 0, reason="root traverses a 0o000 directory, so the state cannot be built"
+)
+def test_a_document_the_process_cannot_reach_is_refused_with_the_read_error(
+    pair: tuple[Kb, Kb],
+) -> None:
+    """The non-injecting half of `test_an_unreadable_directory_is_refused_rather_than_crashing`.
+
+    That test monkeypatches `Path.is_file` to raise, so the `except OSError` clause is entered on
+    both interpreters and it passes on both — while the *real* `Path.is_file()` on 3.14 raises for
+    neither errno its own comment names, leaving the production branch dead and the test green on
+    top of it. A fake that raises unconditionally cannot tell you whether the real call still
+    raises, so it is kept as the unit-level pin of the clause and this is built from a real
+    `chmod` beside it: the property under test is which syscall raises on which interpreter, which
+    is precisely what injection cannot reach.
+
+    Two shapes, because they are not the same question and only one of them is answered by asking
+    about the entry itself. `blocked/inside.md` is refused at its own parent; `alias.md` is an
+    entry this process can `lstat` perfectly well whose *target* sits behind that parent.
+    """
+    local, _partner = pair
+    blocked = local.root / "docs" / "blocked"
+    blocked.mkdir()
+    (blocked / "inside.md").write_text("# Inside\n\ntext\n", encoding="utf-8")
+    (local.root / "docs" / "alias.md").symlink_to(blocked / "inside.md")
+    os.chmod(blocked, 0o000)
+    try:
+        with pytest.raises(PinakesError) as direct:
+            add(load(local.root), source="docs/blocked/inside.md", target="docs/beta.md", rel="cites")
+        with pytest.raises(PinakesError) as through_link:
+            add(load(local.root), source="docs/alias.md", target="docs/beta.md", rel="cites")
+    finally:
+        os.chmod(blocked, 0o755)
+
+    assert "cannot be read" in direct.value.message, direct.value.message
+    assert "cannot be read" in through_link.value.message, through_link.value.message
+
+    # Two controls, and the first is the one that makes the assertions above mean anything: with
+    # the permission restored and nothing else changed, the *same* path stops reporting a read
+    # error and moves on to the next check. So "cannot be read" was the block talking, not a
+    # symlink or a fixture that was never usable.
+    with pytest.raises(PinakesError) as restored:
+        add(load(local.root), source="docs/alias.md", target="docs/beta.md", rel="cites")
+    assert "has no sidecar" in restored.value.message, restored.value.message
+
+    with pytest.raises(PinakesError) as absent:
+        add(load(local.root), source="docs/nowhere.md", target="docs/beta.md", rel="cites")
+    assert "is not a document" in absent.value.message, (
+        "control: a path that is genuinely absent keeps the message that says so, which is the "
+        "distinction the fix exists to restore — refused-to-look is not the same as not-there"
+    )
