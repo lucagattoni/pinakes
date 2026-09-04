@@ -30,6 +30,14 @@ inside, a null caused by a mis-aimed selector is indistinguishable from a null t
 | coders are context-heavy | coders are the **leanest**: median context/output **189.5** (n=14) against planner 243.3 (n=10) and unnamed 285.1 (n=44) |
 | the three handoff claims were three failures | two were; **one was correct and went stale**, which is not the same thing |
 
+**Postscript, seven minutes later: it refused this landing.** `main` moved while this fragment was
+being gated, so the merge produced a tree no `check.sh` run had certified and `land.py` declined to
+merge it — *"no ./check.sh run has certified the tree this would land"*, naming all three trees and
+offering the remedy. The count in the table is a historical population and stands. But **the guard
+is younger than its first refusal by about four hours, and its first refusal caught the session
+writing the sentence that it had never fired.** Deterrence and interception are both real; the
+sentence needed the second half.
+
 **Neither gate generalises to "the gates".** 22.3% red says a gate is not a rubber stamp. Zero
 refusals in 43 says a guard can be correct and still never fire — its measured effect is deterrence,
 and it is too young for a catch rate to mean anything. Different instruments, different ages.
