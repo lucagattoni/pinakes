@@ -21,6 +21,9 @@ describes.
 | `fragments.tsv` | 346 | one `changelog.d/`/`retro.d/` fragment | add→delete pairing by path over all history |
 | `releases.tsv` | 64 | one release tag | `git tag` with creator date and subject |
 | `claudemd_size.tsv` | 150 | one commit that touched `CLAUDE.md` | line count of the file at that commit |
+| `daily_tree.tsv` | 29 | one **day** | the tree at the last commit of each day |
+| `tree_growth.tsv` | 212 | one **change** in the file counts | `git ls-tree` at every commit; rows emitted only when a count moves |
+| `ci-runs.tsv` | *(coder)* | one CI run | `gh run list` over the whole history, with failing job **and step** |
 
 ## Noise filtering — what was removed, and why
 
@@ -52,6 +55,17 @@ by path string, plus those still on disk.
 **`releases.tsv`** — `iso` `tag` `subject`.
 
 **`claudemd_size.tsv`** — `iso` `sha` `lines`, oldest first.
+
+**`daily_tree.tsv`** — `date` `sha` `test_functions` `test_files` `src_lines` `docs_lines`
+`battery_files`. A snapshot of the tree at the **last commit of each day**, 29 days. `test_functions` counts `def test_` across `tests/**.py`; `src_lines` and `docs_lines` are raw
+line counts of `src/**.py` and `docs/**.md`. **Days with no commit are absent, not zero.**
+
+**`tree_growth.tsv`** — `iso` `sha` `test_files` `battery_files` `tools_py`. One row per **change**
+in those three counts rather than per commit, so the file is a step function and consecutive rows
+are never equal.
+
+**`ci-runs.tsv`** — harvested by the coder session; see the header block below, written by them
+and pasted here unchanged when it lands.
 
 ## Reproducing
 
