@@ -1,0 +1,67 @@
+# Mutation battery — `tools/land.py`.
+#
+#     python3 tools/mutate.py tools/batteries/tools-land.toml
+#
+# **One subject: the refusal to land a tree no gate certified.** Nothing here mutates the merge,
+# the push or the cleanup — those were covered by tests before this battery existed and their
+# assertions are unchanged. A reader who finds every anchor resolving has learned about the gate
+# guard and nothing else about this script.
+#
+# The guard exists because two sessions landed over a red gate on 20260904, hours apart, both
+# quoting the rule at each other the same day. A convention two informed sessions break in one day
+# is one this project replaces with a gate.
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 3
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260904 · row 39 — a tree nobody read
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+
+[[mutant]]
+name = "the guard checks the branch's tree instead of the tree the merge produces"
+file = "tools/land.py"
+# **The hole the first draft of this guard had, and it is not hypothetical.** `git merge --no-ff`
+# combines the branch with a `main` that may have moved, so the result is neither side's tree.
+# Measured over the four merges before the guard existed: two of the four differed from their
+# branch tip. Keyed to the branch, the guard passes while a tree nobody gated reaches `origin/main`
+# — asleep in exactly the case it exists for. Caught in review by the planner, before it shipped.
+old = '''    result = git(
+        "merge-tree", "--write-tree", DEFAULT_BRANCH, branch, cwd=root, check=False
+    ).splitlines()'''
+new = '''    result = git("rev-parse", f"{branch}^{{tree}}", cwd=root, check=False).splitlines()'''
+kills = "tests/test_land.py::test_certifying_the_branch_alone_is_not_enough_when_the_default_branch_moved"
+
+[[mutant]]
+name = "an unreadable merge result is treated as certified rather than left to the merge"
+file = "tools/land.py"
+# `None` means "the merge would conflict, so there is nothing to certify" — and the merge below
+# then fails on its own terms. Returning early on *any* falsy tree turns a lookup failure into a
+# pass, which is the difference between "the merge will explain this" and "the guard waved it
+# through". The refusal test builds no conflict, so this mutant makes the guard silent for it.
+old = '''    tree = merged_tree(root, branch)
+    if tree is None:
+        return'''
+new = '''    tree = merged_tree(root, branch)
+    if tree is None or tree:
+        return'''
+kills = "tests/test_land.py::test_a_branch_no_gate_has_certified_is_refused_and_nothing_moves"
+
+[[mutant]]
+name = "the guard looks for markers under a different name than the gate writes"
+file = "tools/land.py"
+# **This row replaced one that could not discriminate, and the replacement is the finding.** The
+# first attempt mutated `--git-common-dir` to `--git-dir` here, reasoning that the gate runs in a
+# linked worktree and this refusal in the primary checkout. Measured: in the primary checkout the
+# two spellings are *identical* (`.git`), and `land.py` always runs with `cwd=root`, so no test
+# could ever tell them apart — an equivalent mutant, SURVIVED, and correctly so. The spelling that
+# is load-bearing is `check.sh`'s, where a linked worktree really does differ, and it is pinned by
+# `test_the_marker_is_written_where_every_worktree_can_find_it` rather than from here.
+#
+# What this mutant does catch is the pair going out of step: the gate writes one directory name and
+# the guard reads another, so every landing is refused with "no gate certified this" — which reads
+# as the guard working rather than as the guard broken.
+old = '''MARKER_DIRECTORY = "pinakes-gate-markers"'''
+new = '''MARKER_DIRECTORY = "pinakes-gate-marks"'''
+kills = "tests/test_land.py::test_landing_moves_the_default_branch_and_pushes"
