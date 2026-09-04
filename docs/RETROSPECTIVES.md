@@ -11722,6 +11722,199 @@ is the only reason the survivor is readable as a prediction rather than as a hol
 afterwards it would be indistinguishable from an excuse. An instrument that cannot see a case has
 to say so in advance — which is exactly what the `0o400` row above is about, one layer down.
 
+## Row 32 — a ruling that was wrong on a premise, and a fake that outlived its branch (20260904 02:02)
+
+**HIGH — a decision can be wrong because of a fact, and the fix is to measure the decision, not to
+re-argue it.** The plan ruled `paths.unreachable` as the discriminator for both of this
+increment's fixes, and stated that it would "restore 3.14 to what 3.13 already does". It would not.
+`unreachable` is `lstat`-based, so on a symlink pointing into an unreadable directory it answers
+`False` on **both** interpreters. Building the ruling as written would have left 3.14 broken *and
+regressed 3.13*, moving that document from `paid extraction unreadable` into neither list —
+silently dropping a row 3.13 reports today, on the very shape that produced the ULID-deletion bug.
+The obvious repair over-fires in the other direction: a naive `os.stat` sibling answers `True` for
+a symlink loop, where 3.13 answers `False`. Neither candidate alone is parity. What settled it was
+a table of seven shapes on two pinned interpreters, with the controls — absent, dangling, loop,
+ordinary file — in the same run as the cases. **The ruling was re-ruled within the hour on that
+evidence.** The cost of measuring first was about twenty minutes; the cost of not doing it was a
+regression on the interpreter this project declares as its floor.
+
+**HIGH — a fake pinned to an implementation detail fails loudly when the detail moves, and goes
+silent when the detail's *behaviour* moves.** `test_an_unreadable_directory_is_refused_rather_than_
+crashing` monkeypatched `Path.is_file` to raise, and passed on both interpreters — while on 3.14
+the real `Path.is_file()` raises for **neither** errno the test's own comment names, so the
+production branch it certified was dead. The test was measuring its own fixture. When the fix moved
+the call to `paths.unreachable_through_links`, the same test went red immediately, because the fake
+no longer intercepted anything. **Both failures are the same seam; only the noise differs**, and
+the quiet one had been shipping. The repair was to move the fake down to `os.stat`, the OS
+boundary, and to add a real `chmod` test beside it — the injected one now earns its place on the
+errno no permission fixture can produce and on running as root, where the `chmod` fixture skips.
+
+**MEDIUM — "the library does X" is often a measurement of one interpreter, written up as a fact
+about the library.** The docstring being fixed here claimed `pathlib` "ignores `ENOENT`, `ENOTDIR`,
+`EBADF` and `ELOOP` … but nothing else". True on 3.13, and on 3.14 `Path.is_file()` swallows
+everything, `EACCES` and `ENAMETOOLONG` included. That single sentence is why an `except OSError`
+clause sat dead in production and why a test sat green on top of it. The replacement constant is
+named for **what 3.13 does**, not for what pathlib is believed to do, and its four members were
+measured on both interpreters rather than read out of CPython — with the one member whose fixture
+is not portable marked as measured-but-not-pinned instead of quietly asserted.
+
+**MEDIUM — an audit's list decays, and one of these had already been fixed by a neighbouring
+branch.** Of the survivors this row carried, `doctor.py:411` was cured in `514fe46` — row 31's own
+commit, in passing — while the row still described it as live and named the release that had walked
+past it. Checking `git log -S` on the exact line took a minute and removed an item from the queue.
+An unverified finding ages in both directions: it can be worse than raised, as the `link` one was,
+or already gone.
+
+## A gate I read but did not obey (20260904 02:12)
+
+**HIGH — I landed over a red `./check.sh`, and the commit message says it was green.**
+
+The chain was `./check.sh > log 2>&1; echo "CHECK=$?"` … `git add -A && git commit`. A `;` where an
+`&&` belonged. The exit status was captured, printed as `CHECK=1`, and then ignored by every
+command after it. `f857e39` reached `origin/main` carrying the sentence *"check.sh green, make docs
+green"*, which was false when it was written.
+
+**This repository already has the rule, in `CLAUDE.md`, and I have been quoting it at other
+sessions all day**: *a gate is only a gate when its exit status is what the next command reads*. The
+canonical failure it names is `check | tail && git commit`, where `tail`'s success masks the
+checker's failure. Mine is one step cruder — I did not mask the status, I **printed** it and carried
+on. Having the number on screen is not the same as branching on it, and a chain that reports a
+failure it does not act on reads exactly like one that passed.
+
+**The failure itself was environmental, and that is the part that makes this worth writing.**
+`test_a_target_outside_the_repository_is_refused` returned **-15** — SIGTERM — where it asserts `1`.
+The subprocess was killed, not wrong. Another session was running a full suite and a mutation
+battery on the same machine at the same time. Re-run on `main`: that test passes, its whole file
+passes 70/70, and `./check.sh` is green at 2452 passed. **So the tree was never broken** — which is
+precisely why the process failure is worth recording rather than quietly fixed. A red gate that
+turns out to be noise is the cheapest possible lesson; the same `;` on a real failure lands the
+defect.
+
+**Two things to carry.**
+
+**A signal-killed test is not a failing test, and the report cannot tell you which.** `assert -15 ==
+1` reads as an assertion failure. Only the *value* says otherwise, and only if you know that a
+negative return code is a signal. Under concurrent load on a shared machine this will recur, so
+read the number before diagnosing the code.
+
+**Verify before excusing.** The environmental explanation is the convenient one, and this project's
+own record is full of convenient explanations that were wrong. It was checked three ways — the
+single test, its whole file, and a full `./check.sh` on `main` — before being written down as noise.
+The order matters: if any of those had been red, this fragment would have been a defect report
+instead.
+
+*Lesson: `;` between a gate and a commit is the same defect as piping the gate through `tail`, and
+it is harder to see because the failure is printed rather than hidden. Chain with `&&`, or read the
+log before the commit — never both a printed status and an unconditional next step.*
+
+## Row 38 — a test that proved nothing, and a contract "verified" on one interpreter (20260904 02:55)
+
+**HIGH — a test can stop testing anything without ever going red, and the only way to know is to
+disable its instrument and watch it still pass.** `test_an_unreadable_linked_kb_path_is_a_warning_not_a_traceback`
+monkeypatched `Path.is_file` to raise, and asserted that `pnk doctor` reported a WARN. Its fixture
+built the partner directory **without a `pinakes.toml`** — so the WARN it asserted came from the
+partner genuinely not being a KB, and the injected `PermissionError` decided nothing at all. I did
+not infer this: I disabled the `monkeypatch` line and re-ran, and the test passed unchanged. It had
+been green for the wrong reason, and no gate anywhere can see that, because a vacuous test and a
+sound one are the same colour. The replacement uses a real, synced partner KB behind a real
+`chmod`, so the permission is the only thing that can make it fail.
+
+**HIGH — "verified" in a docstring is a claim about the machine it was run on.**
+`why_not_a_kb`'s docstring argued that it *may* raise and that its callers guard it, naming
+`exists()`, `is_symlink()` and `is_dir()` as raising on an unreadable parent, and marked that
+**verified**. It was verified on one interpreter. On 3.14 those calls return `False`, so nothing
+raised, no `except OSError` fired, and three commands printed *"no such directory"* about a
+partner on disk. The docstring did not merely go stale — it was **load-bearing**, because three
+call sites carried comments justifying their guards by pointing at it. One sentence measured once
+propagated into three modules.
+
+**MEDIUM — the argument against a total contract was the thing worth re-reading, not the code.**
+That docstring gave an explicit reason it could not be total: there is no answer it could return
+for *"I could not tell"* that a caller would not have to branch on anyway. That was false the whole
+time, and its own callers proved it — every one of them was already printing `exc.strerror`, which
+is exactly the answer. The same module argues the general case twelve hundred lines up, in
+`resolve_path`: a function three call sites each had to remember to guard is a function with the
+wrong contract. **The counter-argument to a rule was sitting in the same file as the rule.**
+
+**MEDIUM — the same seam failed for the fifth time in one increment.** Five tests faked
+`Path.is_file` because that was the spelling the production code happened to use. Each went red the
+moment the call moved to a version-independent one — which is the *loud* failure. The quiet one had
+already happened: on 3.14 the real call raises for neither errno these tests name, so the branch
+each certified was dead while the fake entered it and they passed on both interpreters. **Fake the
+OS boundary, not the caller's spelling of it.**
+
+## Row 40 — a count whose meaning depended on something nobody recorded (20260904 03:14)
+
+**HIGH — an equivalent mutant and an unpinned assertion are byte-identical in the report, and I
+read one as the other.** A committed row came back SURVIVED and I reported it as an unkilled mutant
+*and* as a coverage gap. Both halves were wrong. On the newer interpreter the mutated and unmutated
+programs behave identically — both spellings of the predicate answer `False` — so nothing could
+kill it, and the silence I called a gap is produced by the **fixed** code too, which makes it a
+different open question rather than a hole in this battery. What I actually had was narrower and
+still worth the row: **the same battery gives two different counts on two interpreters, and the
+report never said which one you were reading.**
+
+**HIGH — the fix asked for was the wrong fix, and building it literally would have been worse than
+building nothing.** The row said to print `sys.version`. `mutate.py`'s own `sys.version` is the
+*launcher's*, and the documented invocation is `python3 tools/mutate.py` — the system interpreter —
+while the tests run under `uv run --frozen pytest`, the project venv. Measured by making them
+differ on purpose: launcher 3.14.7, venv 3.13.15. The literal implementation would have printed
+**3.14.7** beside counts produced entirely by **3.13.15** — an answer that reads as measured and
+names a Python no test touched. **A wrong number in a sentence that looks like evidence is worse
+than an absent one**, which is why the unprobeable case says *could not identify* instead of
+falling back.
+
+**MEDIUM — placement is delivery.** The `pytest = …` command has been printed in this tool's
+header the whole time and never answered this question, because the header is what gets left in the
+terminal and the counts are what gets pasted into a commit message. The new line goes beside the
+counts, and a mutant pins that ordering — a correct sentence in the wrong place is indistinguishable
+from an absent one at the moment somebody needs it.
+
+**MEDIUM — the honest way to report an instrument you cannot read.** Two command shapes are probed
+because two are documented; anything else returns nothing rather than a guess. That is the stance
+this tool already takes towards a JUnit report it cannot parse — *the outcome is unknown rather
+than SURVIVED* — and applying it to the interpreter as well cost one `if` and removed a whole class
+of confidently wrong report.
+
+## Row 39 — I tested the copy that did not contain the change, and broke `main` doing it (20260904 08:30)
+
+**HIGH — a smoke test run against the wrong binary reads exactly like a passing one.** I had just
+written the guard that refuses to land an ungated tree, and I wanted to watch it refuse. So I
+committed it as WIP and ran `python3 tools/land.py <my branch>` from the primary checkout,
+expecting a refusal. **It landed, and pushed** — because `land.py` executes from the *primary
+checkout*, which still held `main`'s ungated copy. I had written the sentence *"the gate runs in
+the branch's worktree and this refusal runs here"* into that same file minutes earlier. **The
+instrument did not contain the thing under test**, which is the identical shape as the vacuous test
+found hours before: an injection that no longer intercepted anything, and a result that read as
+informative because nothing about the output says which code produced it.
+
+**HIGH — the change broke `main`, and the way it broke is the argument for the change.** Six
+`tests/test_land.py` tests went red immediately: their scratch repositories never run `./check.sh`,
+so the new guard correctly refused every landing they assert. The tests were right, the guard was
+right, and they had never been introduced to each other. **What actually put a red tree on
+`origin/main` was not the guard — it was landing without running `./check.sh` at all**, which is
+precisely what the guard makes impossible. It could not stop me because it was not yet on `main`:
+**this guard's own landing is the one landing it cannot police.** That bootstrapping hole is worth
+stating rather than smiling at, because it is the general case — a gate can never cover the commit
+that introduces it, so that commit needs the discipline the gate is replacing.
+
+**HIGH — the planner caught a hole that would have made the guard blind exactly where it matters,
+and the measurement was worse than the report.** The first design keyed the marker to the branch's
+tree. But `git merge --no-ff` combines the branch with a `main` that may have moved, and the result
+is then neither side's tree. Reported as one merge in three; **measured across all four merges
+available, it was two of four** — and both were mine. So the guard would have passed while a tree
+nobody had gated reached `origin/main`: the *a clean auto-merge is not a correct merge* case, with
+the guard asleep in the one situation it exists for. `git merge-tree --write-tree` computes the
+merge result without performing it, touching neither the working tree nor `HEAD`, and predicted the
+real tree in all four — so the check happens *before* the merge rather than after it with a reset
+to undo.
+
+**MEDIUM — the absence of an escape hatch is a feature, so it is asserted rather than assumed.** A
+flaky or environmental red now blocks a landing; a suite killed by machine contention did exactly
+that the same night, correctly. The first person to meet that at 3am will want `--no-gate`, and a
+test now fails if one appears. The reason it does not exist is that the rule being skippable is
+what put the guard here in the first place.
+
 ## Design review passes 1–7 (pre-implementation)
 
 Seven adversarial passes over [`DESIGN.md`](DESIGN.md) **before any code was written** — 58 findings
