@@ -940,6 +940,9 @@ with itself — it is a model, not the database.
 | the demo KB's eval numbers do not move | I3b | `make eval` against `tests/demo-kb/eval/baseline.json` (the committed file is the assertion) |
 | the free-vs-paid delta is present and dated in DESIGN §9 | I9 | `tests/test_verification.py::test_the_measured_paid_delta_is_present_and_dated` |
 | a fragment cannot be malformed or miscategorised | — | `tests/test_fragments.py::test_an_unknown_category_is_refused_by_name`, `check.sh` gate |
+| a register's documented row counts cannot silently disagree with the files it names | — | `tests/test_register_gate.py::test_it_fails_on_a_miscounted_register`, `check.sh` gate |
+| the register gate reports how many rows it compared, so a vacuous pass is visible as one | — | `tests/test_register_gate.py::test_a_hyphenated_name_is_seen` |
+| the register gate exits non-zero rather than clean when it cannot find its register | — | `tests/test_register_gate.py::test_a_missing_register_is_an_error_not_a_pass` |
 | two agents editing shared documents are told before they merge | — | `tests/test_shared_file_overlap.py::test_uncommitted_work_counts`, `check.sh` gate |
 | a core-only wheel still installs and runs | I9 | CI `build` job smoke step |
 | the shipped wheel carries `prices.toml` and `floors.toml` | I9 | CI `build` job smoke step |
