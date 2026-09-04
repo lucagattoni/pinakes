@@ -33,7 +33,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 59
+mutants = 64
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -1041,3 +1041,99 @@ new = '''        for refused in unreadable_directories(root):
             ):
                 unreadable_dirs.add(relative_directory)'''
 kills = "tests/test_sync.py::test_an_exclude_pattern_does_not_suppress_an_unreadable_directory"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20260904 · row 32 — a refusal one hop out, which `lstat` cannot see
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# The five below are all about one distinction: *refused to look* versus *not there*. `paths.py`
+# already held that distinction for a single entry (`unreachable`); what this row added is the same
+# question asked about a symlink's **target**, because the two callers here are reached through a
+# symlinked document and `lstat` stops at the link.
+#
+# **The first mutant is a ruling that was actually made and withdrawn**, not an invented breakage.
+# The plan specified `unreachable` as the discriminator; measurement showed it answers `False` on
+# both interpreters for the shape that matters, so building it as written would have left 3.14
+# broken *and regressed 3.13*. Writing it as a mutant is the only way that near-miss stays visible
+# once the correct code is the only thing on disk.
+
+[[mutant]]
+name = "THE RULING THAT WAS WITHDRAWN — `stat` becomes `lstat`, so a refusal one hop out is invisible"
+file = "src/pinakes/paths.py"
+# The whole reason the sibling exists. `lstat` succeeds on a symlink sitting in a readable
+# directory however unreadable its target is, so this mutant makes `unreachable_through_links`
+# answer exactly what `unreachable` already answers — and the two callers then report *absent* for
+# a document the user can see in `ls`. This is the shape that offered a permanent ULID to
+# `--prune`, which is why it leads the section.
+old = '''    try:
+        os.stat(path)
+    except OSError as exc:
+        return exc.errno not in _NOT_THERE
+    return False'''
+new = '''    try:
+        os.lstat(path)
+    except OSError as exc:
+        return exc.errno not in _NOT_THERE
+    return False'''
+kills = "tests/test_paths.py::test_through_links_sees_a_refusal_one_hop_out_that_unreachable_cannot"
+
+[[mutant]]
+name = "`unreachable` is taught to follow links, collapsing the pair and reopening the deletion class"
+file = "src/pinakes/paths.py"
+# **The mirror, and the one nobody would write on purpose** — it is what a tidying pass does after
+# reading two near-identical predicates and deciding one is redundant. `sync`'s retirement pass
+# deletes on absence, so following the link there answers about the target: a dangling symlink
+# becomes "absent" and the document is retired although its entry is right where it always was.
+# The pairing assertion exists to make this specific cleanup fail.
+old = '''    try:
+        os.lstat(path)
+    except (FileNotFoundError, NotADirectoryError):
+        return False
+    except OSError:
+        return True
+    return False'''
+new = '''    try:
+        os.stat(path)
+    except (FileNotFoundError, NotADirectoryError):
+        return False
+    except OSError:
+        return True
+    return False'''
+kills = "tests/test_paths.py::test_through_links_sees_a_refusal_one_hop_out_that_unreachable_cannot"
+
+[[mutant]]
+name = "`ELOOP` leaves the not-there set, so a symlink loop is reported as a permission problem"
+file = "src/pinakes/paths.py"
+# The over-fire the naive repair produces, and it was measured before the code was written: a
+# `stat`-based predicate with no errno filter answers `True` for a loop, where 3.13's
+# `Path.is_file()` answers `False`. Parity is the requirement in both directions — reporting
+# "unreadable" about a loop is as wrong as reporting "absent" about a refusal.
+old = '''_NOT_THERE = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP})'''
+new = '''_NOT_THERE = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF})'''
+kills = "tests/test_paths.py::test_through_links_is_false_for_the_three_shapes_that_are_not_refusals"
+
+[[mutant]]
+name = "`pnk link` stops asking, so a refusal is reported as a path that is not in the KB"
+file = "src/pinakes/link.py"
+# The shipped defect exactly as it was on 3.14, restored in one line. It matters that the mutant is
+# a *deletion of the question* rather than a changed message: the wrong message was never typed by
+# anyone, it fell out of a `False` that meant three things at once.
+old = '''    if paths.unreachable_through_links(path):'''
+new = '''    if False:'''
+kills = "tests/test_cli_link.py::test_a_document_the_process_cannot_reach_is_refused_with_the_read_error"
+
+[[mutant]]
+name = "`doctor` stops asking, so an unreachable paid document falls out of both staleness lists"
+file = "src/pinakes/doctor.py"
+# The other half of the same `False`, and the more dangerous of the two because it is silent: the
+# check does not report the document wrongly, it stops reporting it at all and prints `none`. The
+# `except OSError` below survives this mutant and does **not** catch the case, which is the point
+# of keeping both layers — if a future cleanup deletes one on the grounds that the other covers it,
+# this row is what says otherwise.
+old = '''            if unreachable_through_links(source):
+                paid_unreadable.append(path)
+            else:'''
+new = '''            if False:
+                paid_unreadable.append(path)
+            else:'''
+kills = "tests/test_doctor.py::test_a_paid_document_the_process_cannot_reach_is_named_rather_than_dropped"
