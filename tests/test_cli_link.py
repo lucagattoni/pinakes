@@ -589,7 +589,11 @@ def test_a_refusal_that_clears_between_the_two_stats_is_still_refused(
     `test_a_document_the_process_cannot_reach_is_refused_with_the_read_error`.
     """
     local, _partner = pair
-    monkeypatch.setattr(paths, "unreachable_through_links", lambda _path: True)
+
+    def always_refused(_path: Path) -> bool:
+        return True
+
+    monkeypatch.setattr(paths, "unreachable_through_links", always_refused)
     with pytest.raises(PinakesError) as caught:
         add(load(local.root), source="docs/alpha.md", target="docs/beta.md", rel="cites")
     monkeypatch.undo()
