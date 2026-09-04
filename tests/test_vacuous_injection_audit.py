@@ -23,6 +23,7 @@ from __future__ import annotations
 import importlib.util
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -42,11 +43,42 @@ def tool_module() -> ModuleType:
     return module
 
 
-def fake_sites(module: ModuleType, rows: list[tuple[str, int, list[str], str]]) -> None:
-    """Replace site discovery with a fixed list, so `main` reports on exactly these."""
-    module.sites = lambda _root: [  # type: ignore[attr-defined]
-        (Path("tests") / name, index, targets, text) for name, index, targets, text in rows
-    ]
+def ruling(verdict: str) -> Callable[..., str]:
+    """A `probe` that always returns `verdict`, typed so pyright strict can see through it."""
+
+    def probe(*_args: Any, **_kwargs: Any) -> str:
+        return verdict
+
+    return probe
+
+
+def naming(where: str | None) -> Callable[[Path], str | None]:
+    """An `environment` that always answers `where` — `None` being the "could not tell" case."""
+
+    def environment(_root: Path) -> str | None:
+        return where
+
+    return environment
+
+
+def fake_sites(
+    monkeypatch: pytest.MonkeyPatch,
+    module: ModuleType,
+    rows: list[tuple[str, int, list[str], str]],
+) -> None:
+    """Replace site discovery with a fixed list, so `main` reports on exactly these.
+
+    **Through `monkeypatch`, never by assignment.** A bare `module.attr = …` on a module object is
+    process-global and is never undone — the first draft of this file set `subprocess.run` that
+    way and would have handed every later test in the session a fake. The audit this file tests
+    exists to catch instruments that quietly stop measuring; leaving one behind here would have
+    been the joke writing itself.
+    """
+
+    def sites(_root: Path) -> list[tuple[Path, int, list[str], str]]:
+        return [(Path("tests") / name, index, targets, text) for name, index, targets, text in rows]
+
+    monkeypatch.setattr(module, "sites", sites)
 
 
 # --- the environment line ---------------------------------------------------------------------
@@ -76,7 +108,7 @@ def test_the_environment_is_asked_of_the_launcher_not_of_this_process() -> None:
     assert sys.platform.startswith(("darwin", "linux", "win")), sys.platform
 
 
-def test_the_probe_runs_the_same_launcher_the_probes_do() -> None:
+def test_the_probe_runs_the_same_launcher_the_probes_do(monkeypatch: pytest.MonkeyPatch) -> None:
     """One tuple, rewritten — never a second spelling of `uv run --frozen` that can drift.
 
     A probe command and a report line that disagree about which launcher was used is the failure
@@ -92,7 +124,7 @@ def test_the_probe_runs_the_same_launcher_the_probes_do() -> None:
             command, 0, "Python 9.9.9 on Linux 1 (x86_64), NAME_MAX=255\n", ""
         )
 
-    module.subprocess.run = spy  # type: ignore[attr-defined]
+    monkeypatch.setattr(module.subprocess, "run", spy)
     answer = module.environment(module.ROOT)
 
     assert answer == "Python 9.9.9 on Linux 1 (x86_64), NAME_MAX=255"
@@ -104,7 +136,9 @@ def test_the_probe_runs_the_same_launcher_the_probes_do() -> None:
     assert "pytest" not in seen[0], "the probe prints an interpreter; it must not run the suite"
 
 
-def test_an_environment_the_run_cannot_establish_is_said_so_never_guessed() -> None:
+def test_an_environment_the_run_cannot_establish_is_said_so_never_guessed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """`None` rather than this process's own version — the same stance `mutate.py` takes.
 
     A failed probe that silently fell back to the launcher would produce the one output that is
@@ -115,11 +149,13 @@ def test_an_environment_the_run_cannot_establish_is_said_so_never_guessed() -> N
     def refuse(*_args: Any, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
         raise OSError("uv is not installed")
 
-    module.subprocess.run = refuse  # type: ignore[attr-defined]
+    monkeypatch.setattr(module.subprocess, "run", refuse)
     assert module.environment(module.ROOT) is None
 
 
-def test_a_probe_that_exits_non_zero_is_unknown_not_its_stdout() -> None:
+def test_a_probe_that_exits_non_zero_is_unknown_not_its_stdout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Exit status is checked, not merely that something was printed on stdout."""
     module = tool_module()
 
@@ -128,12 +164,12 @@ def test_a_probe_that_exits_non_zero_is_unknown_not_its_stdout() -> None:
             command, 1, "Python 9.9.9 on Linux 1 (x86_64), NAME_MAX=255\n", "boom"
         )
 
-    module.subprocess.run = exited_one  # type: ignore[attr-defined]
+    monkeypatch.setattr(module.subprocess, "run", exited_one)
     assert module.environment(module.ROOT) is None
 
 
 def test_the_environment_line_sits_beside_the_counts_not_above_the_table(
-    capsys: pytest.CaptureFixture[str],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`mutate.py`'s stated reason, and it holds here for the same one.
 
@@ -141,9 +177,13 @@ def test_the_environment_line_sits_beside_the_counts_not_above_the_table(
     the table is the half that gets left behind in the terminal.
     """
     module = tool_module()
-    fake_sites(module, [("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)')])
-    module.probe = lambda *_args, **_kwargs: "sound"  # type: ignore[attr-defined]
-    module.environment = lambda _root: "Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255"  # type: ignore[attr-defined]
+    fake_sites(
+        monkeypatch, module, [("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)')]
+    )
+    monkeypatch.setattr(module, "probe", ruling("sound"))
+    monkeypatch.setattr(
+        module, "environment", naming("Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255")
+    )
 
     assert module.main([]) == 0
     out = capsys.readouterr().out
@@ -155,13 +195,15 @@ def test_the_environment_line_sits_beside_the_counts_not_above_the_table(
 
 
 def test_an_unidentifiable_environment_says_the_verdicts_cannot_be_read_without_it(
-    capsys: pytest.CaptureFixture[str],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The admission has to name the consequence, or it reads as a cosmetic omission."""
     module = tool_module()
-    fake_sites(module, [("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)')])
-    module.probe = lambda *_args, **_kwargs: "sound"  # type: ignore[attr-defined]
-    module.environment = lambda _root: None  # type: ignore[attr-defined]
+    fake_sites(
+        monkeypatch, module, [("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)')]
+    )
+    monkeypatch.setattr(module, "probe", ruling("sound"))
+    monkeypatch.setattr(module, "environment", naming(None))
 
     assert module.main([]) == 0
     out = capsys.readouterr().out
@@ -174,7 +216,7 @@ def test_an_unidentifiable_environment_says_the_verdicts_cannot_be_read_without_
 
 
 def test_a_vacuous_row_is_reported_and_exits_zero(
-    capsys: pytest.CaptureFixture[str],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A `VACUOUS` row is three findings wearing one label and only one is a defect.
 
@@ -183,9 +225,13 @@ def test_a_vacuous_row_is_reported_and_exits_zero(
     survivor.
     """
     module = tool_module()
-    fake_sites(module, [("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)')])
-    module.probe = lambda *_args, **_kwargs: "VACUOUS"  # type: ignore[attr-defined]
-    module.environment = lambda _root: "Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255"  # type: ignore[attr-defined]
+    fake_sites(
+        monkeypatch, module, [("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)')]
+    )
+    monkeypatch.setattr(module, "probe", ruling("VACUOUS"))
+    monkeypatch.setattr(
+        module, "environment", naming("Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255")
+    )
 
     assert module.main([]) == 0
     assert "VACUOUS   test_x.py:1" in capsys.readouterr().out
@@ -193,7 +239,7 @@ def test_a_vacuous_row_is_reported_and_exits_zero(
 
 @pytest.mark.parametrize("verdict", ["UNSTABLE", "INCONCLUSIVE"])
 def test_a_site_the_instrument_could_not_rule_exits_non_zero(
-    verdict: str, capsys: pytest.CaptureFixture[str]
+    verdict: str, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The instrument failing to rule is the failure; the finding it might have made is not.
 
@@ -201,16 +247,20 @@ def test_a_site_the_instrument_could_not_rule_exits_non_zero(
     happen — the "review harness reported success because every agent died" shape.
     """
     module = tool_module()
-    fake_sites(module, [("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)')])
-    module.probe = lambda *_args, **_kwargs: verdict  # type: ignore[attr-defined]
-    module.environment = lambda _root: "Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255"  # type: ignore[attr-defined]
+    fake_sites(
+        monkeypatch, module, [("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)')]
+    )
+    monkeypatch.setattr(module, "probe", ruling(verdict))
+    monkeypatch.setattr(
+        module, "environment", naming("Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255")
+    )
 
     assert module.main([]) == 1
     assert "NOT RULED test_x.py:1" in capsys.readouterr().out
 
 
 def test_a_site_with_no_caller_found_exits_non_zero_too(
-    capsys: pytest.CaptureFixture[str],
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The third unruled shape, and it never reaches `probe` at all.
 
@@ -219,30 +269,37 @@ def test_a_site_with_no_caller_found_exits_non_zero_too(
     would otherwise imply it did.
     """
     module = tool_module()
-    fake_sites(module, [("test_x.py", 0, [], 'monkeypatch.setattr(os, "stat", f)')])
+    fake_sites(monkeypatch, module, [("test_x.py", 0, [], 'monkeypatch.setattr(os, "stat", f)')])
 
     def never(*_args: Any, **_kwargs: Any) -> str:
         raise AssertionError("a site with no target must not be probed")
 
-    module.probe = never  # type: ignore[attr-defined]
-    module.environment = lambda _root: "Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255"  # type: ignore[attr-defined]
+    monkeypatch.setattr(module, "probe", never)
+    monkeypatch.setattr(
+        module, "environment", naming("Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255")
+    )
 
     assert module.main([]) == 1
     assert "no caller found" in capsys.readouterr().out
 
 
-def test_an_all_sound_run_exits_zero(capsys: pytest.CaptureFixture[str]) -> None:
+def test_an_all_sound_run_exits_zero(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The control. Without it the two tests above are satisfied by a tool that always exits 1."""
     module = tool_module()
     fake_sites(
+        monkeypatch,
         module,
         [
             ("test_x.py", 0, ["test_a"], 'monkeypatch.setattr(os, "stat", f)'),
             ("test_y.py", 4, ["test_b"], 'monkeypatch.setattr(Path, "read_bytes", g)'),
         ],
     )
-    module.probe = lambda *_args, **_kwargs: "sound"  # type: ignore[attr-defined]
-    module.environment = lambda _root: "Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255"  # type: ignore[attr-defined]
+    monkeypatch.setattr(module, "probe", ruling("sound"))
+    monkeypatch.setattr(
+        module, "environment", naming("Python 3.13.15 on Linux 6.8 (x86_64), NAME_MAX=255")
+    )
 
     assert module.main([]) == 0
     out = capsys.readouterr().out
