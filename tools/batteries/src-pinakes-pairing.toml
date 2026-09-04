@@ -842,7 +842,12 @@ file = "src/pinakes/sync.py"
 # mutant a later site raises `SidecarError` regardless, and only the remedy line goes missing. It
 # SURVIVED on its first run against an assertion that checked the class, which is the row earning
 # its place — the test was passing on a build that had stopped telling the user what to do.
-old = '''    if not (resolves(target) or target.is_symlink()):'''
+#
+# **The anchor moved once, and the move is the point.** It read `target.is_symlink()` until row 43
+# converted that half to `paths.is_symlink` — the `pathlib` spelling raises on 3.13 under a `0o400`
+# parent, which is the divergence this file exists to keep out. Re-anchored on the property rather
+# than deleted: the mutant still breaks exactly what it always broke, at the new spelling.
+old = '''    if not (resolves(target) or is_symlink(target)):'''
 new = '''    if not resolves(target):'''
 kills = "tests/test_sync.py::test_a_sidecar_symlinked_into_an_unreadable_directory_does_not_stop_the_walk"
 
