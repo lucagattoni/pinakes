@@ -37,7 +37,7 @@ Landing a branch](docs/RELEASING.md#landing-a-branch).
 
 ## Working mode — autonomous by default
 
-Set by the user 20260808 04:39. It **overrides the global default of stopping to check in.**
+Set by the user 20260808 04:39. The global file now defaults to acting as well; what this adds is that **increment boundaries are not a stop.**
 
 - **Run to completion.** Pick the next increment from `plans/`, build it, land it, write the
   fragments, pick the next. Stop when the user takes control back — not at increment boundaries.
@@ -52,8 +52,7 @@ Set by the user 20260808 04:39. It **overrides the global default of stopping to
 - **Never assume what the plans have not decided.** An undecided question is a stop, not a guess.
   Choosing *how* to build what a plan specifies is yours; choosing *what* it should have specified
   is not.
-- **Iterate: build → adversarially review → fix → re-review, until a pass finds nothing**, with a
-  commit per pass. The default shape of an increment, not a debugging-only move.
+- **Iterate: build → adversarially review → fix → re-review, until a pass finds nothing**, with a commit per pass. The default shape of an increment here, not a debugging-only move — deliberately broader than the global rule's correctness-only, three-round loop for debug/investigate work.
 - **At each increment boundary, judge whether the context should be cleared. If it should be:
   finish the handoff, say so, and stop there.** Strengthened by the user 20260811 15:37 from *offer
   and carry on* to *stop* — clearing is the user's command, so stopping is what makes the offer real.
@@ -407,8 +406,7 @@ left local is invisible to every other agent, machine and scheduled run. **The p
 - **Push every landing** to `origin/main`, then fast-forward the primary checkout
   (`git pull --ff-only`). Never leave merged work sitting locally.
 - **Before merging, run `python3 tools/shared_file_overlap.py --fetch --strict`** — then go and
-  *read* the merged state of the files it names. **A clean auto-merge is not a correct merge:** git
-  merges edits that do not overlap textually, never edits that *agree* (20260729). For the two
+  *read* the merged state of the files it names. **A clean auto-merge is not a correct merge** (`~/.claude/CLAUDE.md` → *Assume other agents run concurrently*) — it bit here on 20260729. For the two
   documents every change writes to, the cause is removed rather than reported —
   [`changelog.d/`](changelog.d/README.md), [`retro.d/`](retro.d/README.md).
 - **That tool cannot see a peer.** It compares you to `origin/main`, never to another branch — so
@@ -416,8 +414,7 @@ left local is invisible to every other agent, machine and scheduled run. **The p
   which may be forced rather than agreed: a peer's new gate can be red on `main` until your fix
   lands, and **running their gate is what finds that; asking them is not** (20260823).
   [`docs/RELEASING.md` § Landing beside a peer](docs/RELEASING.md#landing-beside-a-peer).
-- **Cut the release** as soon as the work passes the SemVer table (feature = MINOR, fix/docs/deps =
-  PATCH, breaking = MAJOR). Complete work never lingers in `[Unreleased]`.
+- **Cut the release** per `~/.claude/CLAUDE.md` → *Release versioning rule* (feature = MINOR, fix/docs/deps = PATCH, breaking = MAJOR). Who may cut it is settled above by the ownership rule, not here. Complete work never lingers in `[Unreleased]`.
 - **A tag publishes to PyPI** and PyPI never accepts a version twice: `make release-check` runs
   **before the push**, never after — create the tag, gate it, then push
   ([`docs/RELEASING.md`](docs/RELEASING.md) steps 6–7). It is a real gate as of 20260826 and
@@ -469,11 +466,5 @@ rename a heading to fix a site anchor. `docs/` is **published** to
 [lucagattoni.github.io/pinakes](https://lucagattoni.github.io/pinakes/) on every push to `main`, so
 run `make docs` (`mkdocs build --strict`, which a PR also gates) before landing a docs change.
 
-- **Every date carries a time, in UTC** — `YYYYMMDD HH:MM`, in the CHANGELOG, `docs/STATUS.md`,
-  `docs/RETROSPECTIVES.md` and any "verified on" claim. **Read the clock, never compose it**:
-  `date -u "+%Y%m%d %H:%M"`, or derive a past stamp from `git log`. **Timestamps written before
-  20260804 11:32 are local and stay local** — converting one invents precision nobody measured.
-- **Every new file in `plans/`, `changelog.d/` and `retro.d/` is named `YYYYMMDD_HHMM-<rest>.md`**
-  (UTC, underscore not colon — the branch-name format), so `ls` reads chronologically.
-  `tools/fragments.py` strips the prefix before reading a fragment's category. Batteries are named
-  for their target instead, never dated.
+- **Every date carries a time, in UTC** — `YYYYMMDD HH:MM` in the CHANGELOG, `docs/STATUS.md`, `docs/RETROSPECTIVES.md` and any "verified on" claim; **read the clock, never compose it** (`date -u "+%Y%m%d %H:%M"`, or derive a past stamp from `git log`). **Timestamps written before 20260804 11:32 are local and stay local** — converting one invents precision nobody measured. Cross-project rule: `~/.claude/CLAUDE.md` → *Timestamps and naming*.
+- **Every new file in `plans/`, `changelog.d/` and `retro.d/` is named `YYYYMMDD_HHMM-<rest>.md`** (UTC, underscore not colon — the branch-name format), so `ls` reads chronologically. `tools/fragments.py` strips the prefix before reading a fragment's category. Batteries are named for their target instead, never dated.
