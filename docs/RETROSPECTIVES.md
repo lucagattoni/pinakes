@@ -12005,7 +12005,7 @@ summary. The evidence for those lives in `plans/20260901_1148-clear-the-user-fac
 in the retrospective fragments already spliced into this document, and — measured
 independently by the planner during this session, under its own name rather than on my
 testimony — in
-[`plans/20260904_1027-development-paused-handover-and-evidence.md`](../plans/20260904_1027-development-paused-handover-and-evidence.md),
+[`plans/20260904_1027-development-paused-handover-and-evidence.md`](https://github.com/lucagattoni/pinakes/blob/main/plans/20260904_1027-development-paused-handover-and-evidence.md),
 which is the document a resuming session should read first.
 
 **HIGH — the instrument added itself to the population it was measuring.** The audit greps every
