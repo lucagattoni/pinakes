@@ -9,6 +9,22 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# The interpreter every `uv` call in this file runs on, except `minimum-python`'s, which sets its own.
+#
+# Until 20261015 nothing pinned one — no `.python-version`, no `setup-python` — so `uv` took the
+# newest CPython it could find: 3.14.7 on every job of the last green run (20260917). CPython 3.15.0
+# was released on 2026-10-09, and the first push after it (`ddb8af9`, a one-line docs change)
+# downloaded it and five jobs died in `uv sync --frozen`: `onnxruntime`, a hard dependency of
+# `fastembed` and so of every `[light]` leg, ships `cp311`-`cp314` wheels and no `cp315`. The tree
+# was the one that had passed; the interpreter was not.
+#
+# `UV_PYTHON` is the one spelling that reaches every `uv` invocation, including the fresh resolves
+# (`uv run --isolated --no-project --with ...`) that `--frozen` does not protect. Move it on
+# purpose — to 3.15 once `onnxruntime` ships `cp315` — rather than by a release on someone else's
+# calendar.
+env:
+  UV_PYTHON: "3.14"
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -76,9 +92,10 @@ jobs:
 
   minimum-python:
     # `pyproject.toml` says `requires-python = ">=3.13"`, and until 20260903 nothing ran 3.13.
-    # No version is pinned anywhere in this repo — no `.python-version`, no `setup-python` — so
-    # `uv` resolved to the newest interpreter it could find, which is 3.14 on the runner and in a
-    # fresh worktree. The floor was declared and never exercised.
+    # Nothing pinned a version then — no `.python-version`, no `setup-python` — so `uv` resolved to
+    # the newest interpreter it could find, which was 3.14 on the runner and in a fresh worktree.
+    # The floor was declared and never exercised. (Since 20261015 the other jobs pin 3.14 through
+    # the workflow-level `UV_PYTHON`; this one overrides it below, so the floor stays the floor.)
     #
     # What that cost: `Path.is_file()` and `Path.exists()` raise `PermissionError` on 3.13 and
     # return False on 3.14 for a symlink into a directory without `+x`. `pnk sync` ended in a raw
@@ -91,6 +108,12 @@ jobs:
     # 3.13 x [claude] would cost a third job to prove a combination with no mechanism behind it.
     # If a defect ever does turn on that pair, this comment is wrong and the matrix is the fix.
     runs-on: ubuntu-latest
+    env:
+      # Overrides the workflow-level 3.14. It has to be the environment and not only `--python 3.13`
+      # on the `uv sync` below: every later `uv run --frozen` reads `UV_PYTHON`, finds a 3.13 venv
+      # that does not match 3.14, and would rebuild it as 3.14 — the floor leg quietly running the
+      # ceiling. The assertion step is what proves it did not.
+      UV_PYTHON: "3.13"
     steps:
       - uses: actions/checkout@v4
 
