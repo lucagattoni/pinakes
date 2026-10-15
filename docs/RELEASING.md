@@ -87,7 +87,9 @@ extended on 20260823 when it crossed it again. Nothing was dropped in either mov
 6. **First read `minimum-python`'s own conclusion in the CI run for the commit you are about to
    tag** — in the job, not in the run's top line, and never from a local 3.13 run. That leg is the
    only thing in CI that executes the interpreter `pyproject.toml` declares as the floor; the
-   `check` matrix varies extras and has always resolved to the newest interpreter available. It
+   `check` matrix varies extras and runs the 3.14 that `ci.yml`'s workflow-level `UV_PYTHON` pins
+   (until 20261015 it resolved to the newest interpreter available, which is how CPython 3.15.0
+   turned `main` red with no change to the tree). It
    runs **only on a push to `main`**, so every release commit gets its own first execution and no
    earlier green transfers to it. **A green top-line is not this job, and a green job that skipped
    is indistinguishable from one that worked** — read the interpreter it downloaded and the test
