@@ -224,7 +224,8 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   the walk looks safe and the `stat` inside it is not. **Do not accept a null result here without
   the sidecar present.**
   **Why nothing caught any of it: no `.python-version`, no `setup-python`, and `uv sync --frozen`
-  takes the newest interpreter available — 3.14 on the runner.** The `check` matrix varies
+  took the newest interpreter available — 3.14 on the runner, until `ci.yml` pinned it with
+  `UV_PYTHON` on 20261015, after CPython 3.15.0 turned `main` red.** The `check` matrix varies
   *extras*, never interpreters, so the floor in `pyproject.toml` had never been executed by CI. **A
   fresh worktree runs 3.14 and the primary checkout runs 3.13**, so one commit answers differently
   in two directories on this machine — a branch gate green and the merged gate red on the same
