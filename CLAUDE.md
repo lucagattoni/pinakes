@@ -227,11 +227,13 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
   took the newest interpreter available — 3.14 on the runner, until `ci.yml` pinned it with
   `UV_PYTHON` on 20261015, after CPython 3.15.0 turned `main` red.** The `check` matrix varies
   *extras*, never interpreters, so the floor in `pyproject.toml` had never been executed by CI. **A
-  fresh worktree runs 3.14 and the primary checkout runs 3.13**, so one commit answers differently
+  fresh worktree ran 3.14 while the primary checkout ran 3.13**, so one commit answered differently
   in two directories on this machine — a branch gate green and the merged gate red on the same
-  tree. **The mechanism, measured 20260904 08:40 and worth more than the two version numbers: a `.venv`
-  pins its interpreter once created, and a fresh worktree creates a new one, which takes the newest
-  installed.** `pyvenv.cfg` says `3.13` in the primary checkout and `3.14` in a worktree made
+  tree. **Since 20261015 `.python-version` pins local development to 3.13**, so the two agree;
+  `UV_PYTHON` and `--python` outrank it, which is how CI keeps its 3.14 legs. **The mechanism,
+  measured 20260904 08:40 and worth more than the two version numbers: a `.venv` pins its
+  interpreter once created, and a fresh worktree created a new one, which took the newest
+  installed.** `pyvenv.cfg` said `3.13` in the primary checkout and `3.14` in a worktree made
   minutes ago. **That one rule explains every reading taken on 20260903–04, including two that
   reached this file and were wrong**: when the primary venv's interpreter symlink dangled, `uv`
   resolved the newest instead and both directories reported 3.14.7; when 3.14.7 was absent from the

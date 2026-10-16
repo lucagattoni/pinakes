@@ -22,6 +22,9 @@ concurrency:
 # (`uv run --isolated --no-project --with ...`) that `--frozen` does not protect. Move it on
 # purpose — to 3.15 once `onnxruntime` ships `cp315` — rather than by a release on someone else's
 # calendar.
+#
+# The repository's `.python-version` (3.13, added 20261015) pins local development only. `UV_PYTHON`
+# outranks it — measured, not assumed — so it does not move these jobs.
 env:
   UV_PYTHON: "3.14"
 
