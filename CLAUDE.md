@@ -152,7 +152,7 @@ an anchor rots, and `tests/test_batteries.py` fails if you get it wrong.
 **What is live right now** — the full routing table, with what each closed plan still binds, is
 [`docs/README.md`](docs/README.md):
 
-- **⏸ DEVELOPMENT IS PAUSED. Do not pick up a row. Resume only on the user's word.** Paused by the
+- **⏸ DEVELOPMENT IS PAUSED, except option A — [`plans/20261018_2354-option-a-review-coverage-and-claude-md.md`](plans/20261018_2354-option-a-review-coverage-and-claude-md.md), resumed by the user 20261018. Do not pick up any other row; resume the rest only on the user's word.** Paused by the
   user 20260904 10:21 so they can review **the development process itself** — and this repository — against
   an analysis they commissioned, *Framing, Not Roles* (Claude artifact `2c7961ec`, written against
   `d474ffa`). Both live sessions shut down cleanly at that point.
