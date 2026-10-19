@@ -123,6 +123,7 @@ on, so it does not go stale.
 | What does this flag do? | [CLI](CLI.md); `--help` is authoritative, CLI adds when and why |
 | What goes in `pinakes.toml`? | [Manifest and sidecar](MANIFEST.md) |
 | How do I accomplish a task? | [Guide](GUIDE.md) |
+| How do I start a KB I will actually use? | [Starting a KB you will use](DOGFOODING.md) — measured against the published release |
 | Why is it built this way? | [Design](DESIGN.md) |
 | What holds this promise? | [Verification](VERIFICATION.md) — and a test asserts each named test exists |
 | What must never break? | [Invariants](INVARIANTS.md) — the contracts that fail silently |

@@ -36,7 +36,7 @@ fan-outs before step 4, no agent teams for the planner→coder flow.
 | **A1** | **Steps 1 and 3**: one committed review workflow. Contract in § 3. | `.claude/workflows/`, `.gitignore`, tests | builder | ✅ **landed `bba0746`, 20261019; CI green on all 16 jobs, `docs` and `injection-audit` too.** Reviewed in three passes (two adversarial, one cold read for the first live run), with fixes after each. **The real fan-out ran 20261019, on A2's diff** (D3; outcomes in § 6.1) |
 | **A2** | **Step 2**: a Stop hook that runs `tools/review_pass_gate.py` on the workflow runs of the session that is ending. Contract in § 4. | `tools/hooks/`, `.claude/settings.json` (diff shown first), tests | builder | ✅ **built 20261019 in branch `20261019_0732-a2-stop-hook`**; its merge commit is the one `git log --first-parent --grep a2-stop-hook main` finds. The user approved the exact `settings.json`. The D3 smoke run reviewed it and confirmed 15 findings, all fixed or recorded in § 8. **The hook fired live once, 20261019 09:24 UTC** (the A2 session's report; § 8 open item 1 says what was and was not observed) |
 | **A3** | **Row 22**: regenerate `CLAUDE.md`. Method in § 5; outcome in § 5.1. | `CLAUDE.md`, and the docs that receive moved text | planner | ✅ **built 20261019 in branch `20261019_0913-a3-claude-md`**; its merge commit is the one `git log --first-parent --grep a3-claude-md main` finds. The map and the diff were put to the user, who said yes (read 20261019 11:27 UTC); it landed after that as merge commit `e47854c` (§ 5.1). **CI green on all 16 CI jobs and both docs jobs**, each read from its run; `minimum-python` read in its log: CPython 3.13.16, 2794 passed, 126 skipped |
-| **A4** | Cut the release that carries A. | `CHANGELOG.md`, version | planner | not started |
+| **A4** | Cut the release that carries A. | `CHANGELOG.md`, version | planner | ✅ **cut 20261019 as 0.32.7**: release commit `d9638c0`, tag `v0.32.7`, on the index 11:44 UTC. `minimum-python` was read in its log before the tag (CPython 3.13.16, 2794 passed, 126 skipped) and the published wheel was read against 0.32.6's: 78 entries, no `tools/` entry, only `__init__.py` and `prices.toml` differ. The sweep landed in its own commit. `CLAUDE.md` and the routing rows were closed after the user said yes to the diff (§ 11) |
 
 **Order, and why `CLAUDE.md` is last:** A3 describes a finished state; written first it would
 describe the plan, which is how that file has been wrong four ways in three days. A2 follows A1
@@ -450,3 +450,23 @@ stays paused except for this plan; option B is designed and its build is not res
    increment did not take.
 4. **The aim of about 100 lines was not reached** (§ 5.1). It needs a kept section moved out, which
    is the user's decision.
+
+## 11. Handover — option A is complete, 20261019
+
+**Written in the branch that records it** ([`docs/BUILDING.md` § Hand over before you
+stop](../docs/BUILDING.md#hand-over-before-you-stop)). **State.** A0 to A4 are landed and 0.32.7 is
+published; verify with `git ls-remote --tags origin v0.32.7` and `git log --first-parent main`, not from
+here. **Development is paused again with no exception**: option A was the pause's one. The cut
+emptied `changelog.d/` and `retro.d/`.
+
+**What the cut found, for whoever cuts the next one.** (1) `uvx --from "pinakes[light]"` did not
+resolve on a machine whose newest interpreter is CPython 3.15, because `onnxruntime` has no `cp315`
+wheel; it worked with `--python 3.13`. (2) The price table was 44 days old when the cut began, so a
+fresh install of 0.32.6 showed `WARN price table`; the cut re-stamped it, and it will go stale again
+30 days after any release. (3) A `gh run watch` that exits 1 with *can't assign requested address* is a
+local network error, not a CI failure: ask `gh run view <id> --json status,conclusion,jobs`.
+
+**What is open, and whose it is.** The user's three option B decisions, in
+[`plans/20261019_0817-option-b-dogfooding-on-ramp.md`](20261019_0817-option-b-dogfooding-on-ramp.md) § 9;
+the open items of § 8 and § 10 above, none of which blocked the release; and every other row of the
+live plan, which resumes only on the user's word. **This plan has no increment left.**
