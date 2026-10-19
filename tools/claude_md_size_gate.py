@@ -1,23 +1,26 @@
 """`CLAUDE.md` stays inside the size it says it stays inside — a gate, not an intention.
 
-**Why a gate.** Three slimming passes each grew the file back within days
+**Why a gate.** Three earlier slimming passes each grew the file back within days
 (`plans/20261018_2354-option-a-review-coverage-and-claude-md.md` § 5.1), and A3's regenerated file
-states a ceiling of 150 lines and 2,700 words that nothing enforced. A rule that only the file
-repeats is a rule the next session reads and then adds a paragraph beside.
+states a ceiling of 150 lines and 2,700 words (decision D4) that nothing enforced. A rule that only
+the file repeats is a rule the next session reads and then adds a paragraph beside.
 
-**The instrument is `wc`, so this counts the way `wc -l -w` counts** — decision D4 of that plan
-names `wc -l -w CLAUDE.md` as the measure, and the file's own intro line repeats it. That has one
+**The instrument is `wc`, so this counts the way `wc -l -w` counts** — the file's own intro names
+`wc -l -w CLAUDE.md` as the measure, and that plan's § 5.1 calls it D4's instrument. That has one
 consequence worth stating: **own-line HTML comments are counted.** They never reach a session's
-context, and a different hygiene rule excludes them, but the number a person types to check this
-file is `wc`'s, and a guard that counts differently would be red where `wc` says green (or the other
-way round) with nobody able to say why. Provenance comments cost budget here, on purpose.
+context, and the same section's recommendation for this guard was to exclude them "as the hygiene
+rule does" — this gate follows `wc` instead, because the number a person types to check the file is
+`wc`'s, and a guard that counts differently would be red where `wc` says green (or the other way
+round) with nobody able to say why. Provenance comments cost budget here, on purpose; reversing
+that is one change to `measure()` and to `test_own_line_html_comments_are_counted`.
 
 * **Lines** are newline bytes, as `wc -l` reports them: a last line with no trailing newline is not
   counted, and `str.splitlines()` would count it.
 * **Words** are runs of non-whitespace bytes, split on ASCII whitespace. That is `wc -w` in the C
-  locale, and in a UTF-8 locale for any file that holds no exotic Unicode space (U+00A0, U+2003 and
-  the like). `CLAUDE.md` holds none, and `tests/test_claude_md_size.py` compares this count with
-  the real `wc` on the real file, so a future exotic space shows up as a disagreement, not a drift.
+  locale. In a UTF-8 locale some `wc` implementations also split on certain Unicode spaces (U+00A0
+  differs on macOS; which others differ depends on the `wc`), and this gate does not. `CLAUDE.md`
+  holds none, and `tests/test_claude_md_size.py` compares this count with the real `wc` on the real
+  file, so a future Unicode space shows up as a disagreement rather than as a quiet drift.
 
 **A red here is fixed by moving a rule, never by deleting one.** The message says where: to the
 document that already owns the fact (`docs/README.md` routes each fact to its one home) with a
