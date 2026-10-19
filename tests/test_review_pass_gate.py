@@ -179,21 +179,20 @@ def test_a_result_quoting_a_unicode_line_separator_is_not_a_death(tmp_path: Path
 def test_an_agent_transcript_quoting_a_unicode_line_separator_is_still_read(
     tmp_path: Path,
 ) -> None:
-    """`enrich` reads a dead agent's own transcript for what it spent and left behind; the same
-    split applies, so a tool call after a quoted separator must not be lost."""
+    """`enrich` reads a dead agent's own transcript for what it left behind; the same split
+    applies. The separator sits in the very entry that holds the tool call, because a tool call on
+    a line of its own would be read either way and the test would pin nothing."""
     path = journal(tmp_path, started("k1", "dead1"))
-    lines = [
-        {"message": {"content": [{"type": "text", "text": "saw a\u2028break"}]}},
-        {
-            "message": {
-                "content": [
-                    {"type": "tool_use", "name": "Write", "input": {"file_path": "/tmp/probe.py"}}
-                ]
-            }
-        },
-    ]
+    entry = {
+        "message": {
+            "content": [
+                {"type": "text", "text": "saw a\u2028break"},
+                {"type": "tool_use", "name": "Write", "input": {"file_path": "/tmp/probe.py"}},
+            ]
+        }
+    }
     (tmp_path / "agent-dead1.jsonl").write_text(
-        "\n".join(json.dumps(line, ensure_ascii=False) for line in lines) + "\n", encoding="utf-8"
+        json.dumps(entry, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     out = run("--journal", str(path), "--assume-finished")
     assert out.returncode == 1
