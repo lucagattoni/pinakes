@@ -230,7 +230,7 @@ question, listed here and **not** taken: the pause forbids it.
 | **D-B4** | Acceptance corpus | planner | A throwaway **copy** of this repository's `docs/`, `plans/`, `CLAUDE.md` | An in-place KB mints ~65 sidecars into a public repository (§ 2). The copy costs a re-copy before each run; `pnk sync` is incremental, so that is cheap |
 | **D-B5** | **Which material starts the private KB** | **the user** | **Not decided by anyone** | An agent cannot choose it and must not read candidates to choose. *Needed:* **one folder of your own Markdown or text, ten documents or more, that you would search again within a week.** B3 waits on it |
 | **D-B6** | How `pinakes-kb` is brought up to date | **the user** | **Recommend keeping its id and history, and bringing it up by hand** | The KB id is permanent by rule, the KB has one commit and no content, and `pnk upgrade` **cannot** compare `notes@1.0` (§ 2), so the route is the Guide's: hand-diff its `pinakes.toml` against a fresh `pnk init`, then bump the lock. *Cost, stated:* that is the whole of it — an empty KB exercises the hand-diff and a lock bump and **nothing else**, so it is not a test of `pnk upgrade` or of an upgrade over an index and sidecars; the Guide already records the `notes@1.0` message re-run against 0.28.1. *The alternative is a re-stamp,* equally cheap and fresher, at the price of the id: with no links and no documents it loses nothing real, and it is the user's call whether the rule is worth keeping in letter for an empty KB |
-| **D-B7** | Lift the pause | **the user** | **Taken 20261019, before 12:11 UTC: yes for B0 and B1 only.** B2, B3 and B4 are asked again now that B0 has read (§ 5.2) | B0 and B1 are a measurement and a document; B2 is code whose size B0 decided, and B3 and B4 depend on the user's material and time, not on the planner |
+| **D-B7** | Lift the pause | **the user** | **Taken 20261019, before 12:11 UTC: yes for B0 and B1 only.** **B2 deferred by the user, 20261019, before 13:01 UTC (§ 5.2); B3 and B4 stay paused** | B0 and B1 are a measurement and a document; B2 is code whose size B0 decided, and B3 and B4 depend on the user's material and time, not on the planner |
 | **D-B8** | Which `pnk` the command runs | planner | The KB's own executable, run directly (`<kb>/.venv/bin/pnk` or `--pnk`), with the checkout's version as the floor | § 3.3. Running this checkout's `pnk` against a KB whose environment is 0.7.1 would print INDEXED for an environment that cannot serve the index; and `uv run` was measured to sync, to fall through to another `pnk`, and to share exit codes 1 and 2 with `pnk` |
 
 ## 5. Increments
@@ -239,7 +239,7 @@ question, listed here and **not** taken: the pause forbids it.
 |---|---|---|---|---|
 | **B0** | ✅ **Ran 20261019 from about 12:13 UTC against the published 0.32.7; results in § 5.1.** *As specified:* **verify the ten recorded closures where a closure can fail, each on a small corpus:** the first sync on a **terminal** (progress line); a **killed** first sync, then `pnk doctor` (`sync completeness`, no FAIL, no `--rebuild`); a plain-text sample with `headings = "numbered"`, and its titles; the one-time weight fetch on an empty cache (**which command**); the `.mcp.json` entry in a `uv` project (bare `pnk`); the README's `uv add` line; and `uvx --from "pinakes[light]"` with and without `--python 3.13` on a machine whose newest interpreter is 3.15 (seen once, 20261019, unresolvable without the pin). Output: a table in this file, `HOLDS` / `FAILS` / `CHANGED` / `NOT TESTABLE`, each with the output quoted. The 300-document runs are **not** repeated. B0 verifies the closures; it does not rediscover them | planner | D-B7 (yes) | Every row carries a quoted output. Its size is not estimated here: each item is stated on ten documents on purpose |
 | **B1** | ✅ **Written 20261019 12:43 UTC**: [`docs/DOGFOODING.md`](../docs/DOGFOODING.md) and its routing rows and nav entry, from B0's table. Includes the expected-WARN list | planner | B0 | The document's every claim carries a measured output, or says it was *not run* or is *from the source* |
-| **B2** | `tools/dogfood_start.py`, tests with the fixture helper and the injectable stub (§ 3.3), a mutation battery, a `changelog.d/` fragment, a `docs/VERIFICATION.md` row. Scope after B0 (§ 3.3) | builder | B0, a second yes | § 6 passes, **including the probe's measured pass rate and its negative control** |
+| **B2** | ⏸ **Deferred by the user, 20261019, before 13:01 UTC — option (c) of § 5.2 — until a real run of the checklist says what hurt.** *As specified:* `tools/dogfood_start.py`, tests with the fixture helper and the injectable stub (§ 3.3), a mutation battery, a `changelog.d/` fragment, a `docs/VERIFICATION.md` row. Scope after B0 (§ 3.3) | builder | B0, and the user's word after a real run of the checklist | § 6 passes, **including the probe's measured pass rate and its negative control** |
 | **B3** | First run on `pinakes-kb`: bring its environment up (D-B6), point it at the user's folder, first sync, five real questions into `eval/questions.yaml` | **the user**; a builder for the environment only | D-B5, D-B6, B1 — and B2 if § 5.2 builds it | The user's documents are indexed and the checklist's probe (`docs/DOGFOODING.md` § 5) passed for three of them — **INDEXED**, if B2 exists |
 | **B4** | Friction entries, **written by the user** and sanitised before they reach `retro.d/` (§ 3.2 part 5), as findings arise; **and the stop-loss in § 7 evaluated** | the user; planner for the fragment | B3 | A dated entry or a dated *not used* line per week |
 
@@ -294,11 +294,15 @@ question is whether to build even that yet.
 | **(b) Smaller** | The verdict ladder, the probe and the offline enforcement — no `--create`, no `--sync` | Keeps the one thing nothing else gives: a "started" that cannot be green on nothing | Still a tool, a battery, an outsider's mutants and a review for something done once per KB, which the user can approximate by hand with `pnk doctor` and one `pnk search`; same NOT READY-until-the-weights-are-fetched cost as (a) |
 | **(c) Defer** | Ship B1 now; do the probe by hand as the checklist says; build B2 only after the first real B3 run says what a person got wrong or skipped | Nothing built for friction that has not happened; the environment problems B0 found are documentation problems the checklist already carries; it is the shape § 7's stop-loss rewards | Does not satisfy *a one-command start* literally; "started" is judged by a person, and the by-hand probe ships before its pass rate is measured — a reviewer's offline check passed 34 of 34 on two scratch KBs (the reviewer's report, not logged), a small sample without a negative control, so § 3.1's "measure before shipping the rule" is not met by (c) |
 
-**Recommended: (c), with (b) as the next step if B3 shows a step was skipped or misread.** The
+**Recommended, and taken: (c), with (b) as the next step if a real run shows a step was skipped or misread.** The
 evidence is § 5.1: the failures a first user meets are in the README, the `.mcp.json` snippet and the
 interpreter pin — words — plus `doctor`'s fetching and crashing, which is product code and not a job for this tool, and § 7's whole argument is that the bottleneck was never the tooling.
 (c) costs the user's own instruction, which named a one-command start, and that is said here rather
 than hidden.
+
+**Decided by the user, 20261019, before 13:01 UTC: (c).** *"Defer B2, option (c). Keep B2, B3 and B4 paused until a real
+run of the checklist says what hurt."* B2 is not built; what the first real run of
+[`docs/DOGFOODING.md`](../docs/DOGFOODING.md) says is what decides whether (b) follows.
 
 ## 6. Acceptance for B2 — what has to be shown, not asserted
 
@@ -337,7 +341,8 @@ on-ramp read as finished dogfooding.
 
 **Two stop-losses, because the stall that is on record happened before any first run.**
 
-- **Before B3.** If **four weeks after the user lifts the pause for B0–B1** D-B5 is still unanswered,
+- **Before B3.** If **four weeks after the user lifts the pause for B0–B1** — the lift was 20261019, so
+  by 20261116 — D-B5 is still unanswered,
   record *no material chosen* and stop. The clock starts at an event the user controls and the
   planner can date; it does not start at B3, which waits on the very answer being measured.
 - **After B3.** If **four weeks after its first sync** the KB shows fewer than ten indexed documents
@@ -370,8 +375,8 @@ on-ramp.
 
 ## 9. What the user is asked
 
-1. **B0 and B1 are done** (D-B7, taken 20261019 before 12:11 UTC). **B2: which of (a), (b) or (c) in § 5.2** —
-   recommended (c). B3 and B4 stay paused with it.
+1. **B0 and B1 are done** (D-B7, taken 20261019 before 12:11 UTC). **B2 is deferred** — the user chose (c) of
+   § 5.2, 20261019, before 13:01 UTC — and B3 and B4 stay paused with it until a real run of the checklist says what hurt.
 2. **Rule on the six findings in § 5.1** (F1–F6): which become work, in what order, and when the
    pause lifts for them. Recommended first: F1, F3 and F2, because a first user hits the README
    before anything else and `doctor` downloading 1.1 GB is the only one that costs something.
