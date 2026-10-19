@@ -50,8 +50,19 @@
 # calendar day, one release either side of 16:00 CET, two different fixings. Model prices re-checked
 # the same minute against claude.com/pricing: claude-opus-5 unchanged at 5.00 / 25.00 per Mtok,
 # which is the normal outcome and is recorded because "unchanged" is a measurement too.
-as_of = "20260904 14:55"
-usd_per_eur = "1.1622"
+#
+# 0.32.7, at 20261019 11:33, is a Monday morning six weeks after 0.32.6 and the first release since this
+# table crossed its own 30-day window: a fresh `pnk init` and `pnk doctor` run on 0.32.6 that morning
+# printed `WARN price table: ... 44 days old`. The ECB had not yet published 2026-10-19 -- it posts
+# around 16:00 CET -- so the newest fixing is Friday 2026-10-16, read from api.frankfurter.dev twice
+# in the same session with identical results: 1.1253. The rate moves 1.1622 -> 1.1253, so EUR figures
+# for the same USD cost are 3.3% higher. Model prices re-checked in the same session against
+# platform.claude.com/docs/en/models/opus-5/overview, which states the API id and the price together:
+# claude-opus-5 unchanged at 5.00 / 25.00 per Mtok. That model is a legacy one now (Claude Opus 5.5,
+# id claude-opus-5-5, is the current Opus, at 4.00 / 20.00); this table prices only claude-opus-5, and
+# whether it should price the current model is a question this release records and does not take.
+as_of = "20261019 11:33"
+usd_per_eur = "1.1253"
 
 # Measured against the live API on 20260729 03:17 with claude-opus-5, over the synthetic corpus
 # (docs/MEASUREMENT-RUN.md). Recorded here rather than only in a retrospective because the next
