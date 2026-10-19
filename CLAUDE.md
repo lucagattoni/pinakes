@@ -47,7 +47,7 @@ with an executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#land
   row; resume the rest only on the user's word. Releases are not held (lifted 20260904). The way
   back in: [the pause handover](plans/20260904_1027-development-paused-handover-and-evidence.md).
 - **Option A** ([its plan](plans/20261018_2354-option-a-review-coverage-and-claude-md.md)): A0–A3
-  landed; **A4, the PATCH release carrying A, is the planner's and remains** (§ 2 status, § 8 handover).
+  landed; **A4, the PATCH release carrying A, is the planner's and remains** (§ 2 status, §§ 8 and 10 handover).
 - **Option B** ([plan](plans/20261019_0817-option-b-dogfooding-on-ramp.md)): designed, not built; build paused.
 - **The live build order**: [§ 3 of this plan](plans/20260901_1148-clear-the-user-facing-list.md).
   Read a row's **body**, not its cells; **a plan's `## Build order` beats any snapshot of it.**
@@ -80,7 +80,7 @@ that must land in *your* commit is dictated by the planner and pasted unchanged 
 draft** ([§ Content mine](docs/BUILDING.md#content-mine-keystrokes-yours)).
 
 **README and DESIGN.md are version-free** — no version number or "as of vX" claim in their prose.
-**Read the seven rules in [docs/README § Conventions](docs/README.md#conventions) before any docs
+**Read the rules in [docs/README § Conventions](docs/README.md#conventions) before any docs
 change.** `docs/` is published on every push to `main`: run `make docs` before landing one.
 **Every date carries a time, in UTC** (`YYYYMMDD HH:MM`); new files in `plans/`, `changelog.d/` and
 `retro.d/` are named `YYYYMMDD_HHMM-<rest>.md`. **Read the clock, never compose it**; stamps before 20260804 11:32 stay local.
@@ -111,12 +111,12 @@ release's **final** cut.
 ## Building an increment
 
 **The procedure is [`docs/BUILDING.md`](docs/BUILDING.md)** — own worktree, tests in the same
-increment, `./check.sh` run bare with its own exit status read, **after your last commit**
-(`land.py` refuses a tree no gate certified), mutate the assertions, adversarial review, fragments,
+increment, `./check.sh` run bare, its own exit status read, green before every commit and **again
+after the last** (`land.py` refuses a tree no gate certified), mutate the assertions, adversarial review, fragments,
 then `tools/land.py`; never batch increments; read the build order out of `plans/`, never "the
 newest file". **Read [`docs/INVARIANTS.md`](docs/INVARIANTS.md) before touching a sidecar, the
 ledger, the index schema or a paid client** — ULID permanence, sidecar byte-identity, `docs/` is the
-user's, `.pinakes/` disposable, append-only ledger, `Decimal` money, `schema_version` — each fails silently.
+user's, `.pinakes/` disposable, append-only ledger, paid-path allowlist, `Decimal` money, `schema_version` — each fails silently.
 
 **Tooling:** uv only (never pip, poetry or a hand-managed venv); Python 3.13+; `ty` is a pre-check,
 never the gate. **Core dependencies stay light**: nothing pulling torch enters `[project.dependencies]`.

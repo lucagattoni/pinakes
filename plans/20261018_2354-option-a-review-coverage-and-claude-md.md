@@ -132,7 +132,7 @@ the rebuilt version is checked by reading it as a cleared session would.
 ### 5.1 Outcome — A3, 20261019
 
 **Measured** (`wc -l -w CLAUDE.md`, the instrument of D4): **473 lines / 6,033 words** at `f1804ea` →
-**147 lines / 1,471 words** at the A3 merge. Ceiling 150 and 2,700: met. **The aim of about 100 was
+**147 lines / 1,478 words** at the A3 merge. Ceiling 150 and 2,700: met. **The aim of about 100 was
 not reached**, and the reason is structural, not slack: the file is link-dense — every pointer is at
 least one line that wrapping cannot shorten — and what remains is the set the brief names as *keep*.
 Getting to about 100 means moving a whole kept section out (candidates, cheapest first: *Changing
@@ -147,7 +147,7 @@ wrapped across two lines is invisible to a plain `grep`).
 | Intro | **Kept**, plus a size line naming `wc -l -w` | — |
 | 🧭 Role first | **Kept**; the 20260823 failure record deleted | `docs/BUILDING.md` § *Settle your role before anything else* already held it |
 | 🛑 Land with `land.py` | **Kept**; the three-successful-commands narrative deleted | `docs/RELEASING.md` § *Landing a branch* |
-| Working mode (7 bullets) | **Kept** (six after merging two); dates to a provenance comment | handover rule: `docs/BUILDING.md` § *Hand over before you stop* |
+| Working mode (7 bullets) | **Kept** (five after merging two pairs); dates to a provenance comment | handover rule: `docs/BUILDING.md` § *Hand over before you stop* |
 | What is live right now (about 265 lines, 9 bullets) | **Rebuilt from the tree** as four pointers | table below |
 | This repository is PUBLIC | **Kept** | `docs/INVARIANTS.md` § *The paid path's key is its own* |
 | Documentation has one owner | **Kept** (table and propose rule); the *Docs* section folded in as a paragraph | `docs/BUILDING.md` §§ *Proposing…*, *Content mine…* |
@@ -156,7 +156,7 @@ wrapped across two lines is invisible to a plain `grep`).
 | Invariants | **Folded** into *Building an increment* as one sentence | `docs/INVARIANTS.md` |
 | Building an increment | **Kept**; the mutation paragraph moved | `docs/BUILDING.md` step 4; `tools/batteries/README.md` |
 | Landing work (6 bullets) | **Kept** as a lead and two bullets; the bump rule and *never lingers in Unreleased* moved | `docs/RELEASING.md` (new paragraph at its head), §§ *Landing beside a peer*, steps 6–7 |
-| Tooling | **Folded** into *Building an increment* | `docs/RETROSPECTIVES.md` (the `ty` measurement) |
+| Tooling | **Folded** into *Building an increment*; *ruff, pyright and pytest before any commit* dropped because `./check.sh` runs them | `docs/BUILDING.md` step 3; `docs/RETROSPECTIVES.md` (the `ty` measurement) |
 | Changing retrieval | **Kept** | `docs/DESIGN.md` § 7.3 |
 | Docs | **Folded** into *Documentation has one owner* | `docs/README.md` § *Conventions* |
 
@@ -211,7 +211,17 @@ handover-versus-ownership contradiction, which the old file resolved in six word
 — restored. Also restored: the bump rule (now in `docs/RELEASING.md`, whose header claimed
 `CLAUDE.md` held it), *needing an answer to proceed is the bar for asking*, the invariants list,
 and the right link for *ask, do not draft*. Not acted on: *A0–A3 landed* and the user's yes, true
-only at landing. @ROUND2@
+only at landing. Round 2 — a second read-only Sonnet reviewer, on the questions *does every moved fact exist at its
+destination* and *what pointer now dangles* (24 of 24 map rows, 17 file links, 10 anchors and every
+non-record hit of the file's name): no row not found, and both *false* bullets confirmed false from
+the tagged sources (`934190c` is an ancestor of `v0.32.3` and not of `v0.32.2`). Eight findings, all
+acted on or recorded: open live-plan row 24 and built rows 26 and 38–41 and 43 cited `CLAUDE.md` for
+text that had moved (now one dated note at the head of that plan's § 3); *ruff, pyright and pytest
+before any commit* had no map row (`./check.sh` runs them); *seven rules* had become unverifiable
+(the count is gone); the *§ 8 handover* pointer led to A2's (now §§ 8 and 10); `docs/BUILDING.md`
+said *two rules* over three bullets and `docs/RELEASING.md` named `CLAUDE.md` as the home of a rule
+it had just stated; this map said *six* bullets for five; and the interpreter-pinning instruction
+had no procedure home (now `docs/BUILDING.md` step 3).
 
 **Not done, and recommended.** (a) **A size guard.** Three passes grew back; the new file says it
 stays under 150 lines and 2,700 words and nothing enforces it. A test that counts both, excluding

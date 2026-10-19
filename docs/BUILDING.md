@@ -70,7 +70,7 @@ standalone increments, re-entry checklists and decision records;
 [`docs/README.md`](https://github.com/lucagattoni/pinakes/blob/main/docs/README.md) has the table
 that tells them apart, and `CLAUDE.md` names the one that is live.
 
-Two rules about reading a plan, each learned more than once:
+Three rules about reading a plan, each learned more than once:
 
 - **A plan's open decision is what the *plan* has not settled — not what the *repository* has not
   settled.** T5's D-4 sat open in the plan while `manifest.py` had already answered it one line
@@ -118,7 +118,9 @@ Never batch increments; each is a separate, bisectable landing:
    with the extra absent (`uv sync --frozen --extra light`, run it, then
    `uv sync --frozen --extra light --extra pdf --extra claude` to restore — never `--all-extras`,
    which pulls the ~2 GB `[st]` extra the matrix deliberately omits) — `uv run --extra X` does **not** prune extras a
-   previous sync installed.
+   previous sync installed. **A version number is a claim about one run**: a `.venv` pins its
+   interpreter once created and a fresh worktree takes the newest installed, so pass `--python`
+   explicitly and print `sys.version` in the run that produces the number.
 4. **Break the code on purpose — after committing.** Mutate the 3–5 most safety-critical
    assertions, confirm the *right* test fails for the *right reason*, restore.
 
