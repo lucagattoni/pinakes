@@ -57,11 +57,11 @@ must not document a command that does not exist yet.
 is not a correct merge — git merges edits that do not overlap textually, never edits that *agree*
 (20260729). The cost is accepted: a correction waits for the planner.
 
-**The one narrow exception is [`VERIFICATION.md`](VERIFICATION.md)** — add **only** the row a test
-you wrote requires, and nothing else in that file.
+**The one narrow exception is [`VERIFICATION.md`](VERIFICATION.md)** — touch **only** the row a test
+you wrote, renamed or removed requires, and nothing else in that file.
 [`tests/test_verification.py`](https://github.com/lucagattoni/pinakes/blob/main/tests/test_verification.py)
-hard-fails on an unresolvable name, so a renamed or new test with no row makes *your own* branch red
-**and you could not self-certify**.
+hard-fails on a row that names a test which no longer exists, so a renamed test whose row still
+carries the old name makes *your own* branch red **and you could not self-certify**.
 
 ## Read the build order out of `plans/`
 
@@ -70,7 +70,7 @@ standalone increments, re-entry checklists and decision records;
 [`docs/README.md`](https://github.com/lucagattoni/pinakes/blob/main/docs/README.md) has the table
 that tells them apart, and `CLAUDE.md` names the one that is live.
 
-Two rules about reading a plan, each learned more than once:
+Three rules about reading a plan, each learned more than once:
 
 - **A plan's open decision is what the *plan* has not settled — not what the *repository* has not
   settled.** T5's D-4 sat open in the plan while `manifest.py` had already answered it one line
@@ -80,6 +80,16 @@ Two rules about reading a plan, each learned more than once:
   (T7's containment rule named one of its two real layers). But a named test can also be a
   prediction that cannot discriminate — T4's conflicting-hunk test asserted an observable both
   implementations produce — so re-derive the scenario before writing it.
+- **A status claim is never gated — not a `##` heading, not a table cell — so read the body.** An
+  item's closure can sit in its body: `grep '^## '` on `plans/20260731_1202-open-corrections.md`
+  returns *Live* and stops, which put two freshly-cleared coder sessions within one message of
+  rebuilding a landed increment (20260824, and again 20260825); both times a peer caught it and no
+  gate did. **Where a dated snapshot and a `## Build order` disagree, the build order wins.** An
+  item that reads as a decision may only be an unchecked assumption, and one that reads as live may
+  already be closed; an empty-looking list means *the next thing has not been planned yet*, never
+  *nothing to do*. *(Moved here from `CLAUDE.md`'s status block at A3, 20261019; the same drift
+  one level in — two registers of one set of facts — is in
+  [RETROSPECTIVES.md](RETROSPECTIVES.md), "twelve of its 27 rows".)*
 
 ## One increment at a time
 
@@ -108,7 +118,10 @@ Never batch increments; each is a separate, bisectable landing:
    with the extra absent (`uv sync --frozen --extra light`, run it, then
    `uv sync --frozen --extra light --extra pdf --extra claude` to restore — never `--all-extras`,
    which pulls the ~2 GB `[st]` extra the matrix deliberately omits) — `uv run --extra X` does **not** prune extras a
-   previous sync installed.
+   previous sync installed. **A version number is a claim about one run**: a `.venv` pins its
+   interpreter once created, and `.python-version` (3.13) is outranked by
+   `UV_PYTHON` and `--python`, so pass `--python` explicitly and print `sys.version` in the run that
+   produces the number.
 4. **Break the code on purpose — after committing.** Mutate the 3–5 most safety-critical
    assertions, confirm the *right* test fails for the *right reason*, restore.
 

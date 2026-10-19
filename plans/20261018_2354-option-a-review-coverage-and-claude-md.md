@@ -34,8 +34,8 @@ fan-outs before step 4, no agent teams for the planner→coder flow.
 |---|---|---|---|---|
 | **A0** | Record the decision: this file, a routing row, one line in the pause bullet. | `plans/` (this), `docs/README.md`, `CLAUDE.md` (one line, diff shown first) | planner | ✅ landed `668f92f`, 20261018; CI green |
 | **A1** | **Steps 1 and 3**: one committed review workflow. Contract in § 3. | `.claude/workflows/`, `.gitignore`, tests | builder | ✅ **landed `bba0746`, 20261019; CI green on all 16 jobs, `docs` and `injection-audit` too.** Reviewed in three passes (two adversarial, one cold read for the first live run), with fixes after each. **The real fan-out ran 20261019, on A2's diff** (D3; outcomes in § 6.1) |
-| **A2** | **Step 2**: a Stop hook that runs `tools/review_pass_gate.py` on the workflow runs of the session that is ending. Contract in § 4. | `tools/hooks/`, `.claude/settings.json` (diff shown first), tests | builder | ✅ **built 20261019 in branch `20261019_0732-a2-stop-hook`**; its merge commit is the one `git log --first-parent --grep a2-stop-hook main` finds. The user approved the exact `settings.json`. The D3 smoke run reviewed it and confirmed 15 findings, all fixed or recorded in § 8. **The hook has not fired live**: the session that created `settings.json` did not pick it up |
-| **A3** | **Row 22**: regenerate `CLAUDE.md`. Method in § 5. | `CLAUDE.md`, and the docs that receive moved text | planner | not started — diff shown first |
+| **A2** | **Step 2**: a Stop hook that runs `tools/review_pass_gate.py` on the workflow runs of the session that is ending. Contract in § 4. | `tools/hooks/`, `.claude/settings.json` (diff shown first), tests | builder | ✅ **built 20261019 in branch `20261019_0732-a2-stop-hook`**; its merge commit is the one `git log --first-parent --grep a2-stop-hook main` finds. The user approved the exact `settings.json`. The D3 smoke run reviewed it and confirmed 15 findings, all fixed or recorded in § 8. **The hook fired live once, 20261019 09:24 UTC** (the A2 session's report; § 8 open item 1 says what was and was not observed) |
+| **A3** | **Row 22**: regenerate `CLAUDE.md`. Method in § 5; outcome in § 5.1. | `CLAUDE.md`, and the docs that receive moved text | planner | ✅ **built 20261019 in branch `20261019_0913-a3-claude-md`**; its merge commit is the one `git log --first-parent --grep a3-claude-md main` finds. The map and the diff were put to the user, who said yes (read 20261019 11:27 UTC); it landed after that (§ 5.1) |
 | **A4** | Cut the release that carries A. | `CHANGELOG.md`, version | planner | not started |
 
 **Order, and why `CLAUDE.md` is last:** A3 describes a finished state; written first it would
@@ -129,6 +129,116 @@ Provenance (who asked, when, which incident) goes in own-line HTML comments, whi
 session's context. **A cleared session's only pointer to the live build order is that block**, so
 the rebuilt version is checked by reading it as a cleared session would.
 
+### 5.1 Outcome — A3, 20261019
+
+**Measured** (`wc -l -w CLAUDE.md`, the instrument of D4): **473 lines / 6,033 words** at `f1804ea` →
+**148 lines / 1,497 words** at the A3 merge. Ceiling 150 and 2,700: met. **The aim of about 100 was
+not reached**, and the reason is structural, not slack: the file is link-dense — every pointer is at
+least one line that wrapping cannot shorten — and what remains is the set the brief names as *keep*.
+Getting to about 100 means moving a whole kept section out (candidates, cheapest first: *Changing
+retrieval*, *Unbuilt work*'s table, *Tooling*), which is a decision for the user, not a trim.
+
+**The user's yes.** The map above and the diff (`CLAUDE.md` and every other file the change touches)
+were put to the user as files, with the measurement and the review summary below; their answer, *yes
+to the CLAUDE.md map and diff — land and push A3*, was read at 20261019 11:27 UTC, and nothing landed
+before it. The size was put as it stands: 148 lines, not the aim of about 100.
+
+**The map** — every section of the file at `f1804ea`, its outcome, and where its text went. *Moved*
+means found at the destination by a whitespace-normalised `grep` (38 checks, all OK; the list is in the message of the commit found by `git log --grep
+'every moved fact found at its destination'`; a phrase wrapped across two lines is invisible to a
+plain `grep`).
+
+| Section at `f1804ea` | Outcome | Destination |
+|---|---|---|
+| Intro | **Kept**, plus a size line naming `wc -l -w` | — |
+| 🧭 Role first | **Kept**; the 20260823 failure record deleted | `docs/BUILDING.md` § *Settle your role before anything else* already held it |
+| 🛑 Land with `land.py` | **Kept**; the three-successful-commands narrative deleted | `docs/RELEASING.md` § *Landing a branch* |
+| Working mode (7 bullets) | **Kept** (five after merging two pairs); dates to a provenance comment | handover rule: `docs/BUILDING.md` § *Hand over before you stop* |
+| What is live right now (about 250 lines, 9 bullets) | **Rebuilt from the tree** as four pointers | table below |
+| This repository is PUBLIC | **Kept** | `docs/INVARIANTS.md` § *The paid path's key is its own* |
+| Documentation has one owner | **Kept** (table and propose rule); the *Docs* section folded in as a paragraph | `docs/BUILDING.md` §§ *Proposing…*, *Content mine…* |
+| 🚫 Unbuilt work is named | **Kept** (rule and table); the *final cut* clause moved | `docs/README.md` § *Conventions* |
+| Naming | **Kept**; the capital-P paragraph folded into its table row | — |
+| Invariants | **Folded** into *Building an increment* as one sentence | `docs/INVARIANTS.md` |
+| Building an increment | **Kept**; the mutation paragraph moved | `docs/BUILDING.md` step 4; `tools/batteries/README.md` |
+| Landing work (6 bullets) | **Kept** as a lead and two bullets; the bump rule and *never lingers in Unreleased* moved | `docs/RELEASING.md` (new paragraph at its head), §§ *Landing beside a peer*, steps 6–7 |
+| Tooling | **Folded** into *Building an increment*; *ruff, pyright and pytest before any commit* dropped because `./check.sh` runs them | `docs/BUILDING.md` step 3; `docs/RETROSPECTIVES.md` (the `ty` measurement) |
+| Changing retrieval | **Kept** | `docs/DESIGN.md` § 7.3 |
+| Docs | **Folded** into *Documentation has one owner* | `docs/README.md` § *Conventions* |
+
+| Old status bullet | Outcome | Destination |
+|---|---|---|
+| ⏸ Development is paused (analysis, *do not* list, evidence, the lifting of the release hold) | Rebuilt as one pointer | `plans/20260904_1027-…`, **in a note at its top written at A3** — those lines had no other home; the *do not* list is also in this plan's § 1 |
+| 🧭 The live build order | Rebuilt as one pointer; the *build order wins* rule kept | `plans/20260901_1148-…` §§ 3–4; the rule is now also `docs/BUILDING.md`'s |
+| 🛑 Every release offers to delete a ULID | **Deleted — false**: fixed and published in 0.32.3 | `docs/ROADMAP.md`, `docs/STATUS.md`, `CHANGELOG.md`, live plan row 30; its three lessons in `retro.d/20261019_0934-…` |
+| 🚦 0.32.6 is cut | **Deleted — superseded** | `CHANGELOG.md`, `docs/ROADMAP.md`, `docs/STATUS.md`; the *read `minimum-python`* rule is kept in *Landing work* |
+| 🛑 Row 31 is not fixed | **Deleted — false**: closed by 0.32.4 (row 37) | live plan rows 31 and 37 |
+| 📌 The release timing rule | **Moved** | `docs/RELEASING.md` § *Sweep the three documents* |
+| ✅ 0.32.0 | **Moved** | `CHANGELOG.md`; `plans/20260830_0927-…`; `docs/RELEASING.md` § *Before you start* step 3 |
+| 🛑 Two plans have scheduled work | **Deleted — superseded**; its owners are in `docs/README.md`'s rows | `plans/20260825_1803-open-decisions.md`, `plans/20260825_1240-run-pinakes-sweep.md`, live plan |
+| A status claim is never gated | **Moved** | `docs/BUILDING.md` § *Read the build order out of `plans/`*, third bullet |
+
+**The sweep on the file's own name** (`ROADMAP.md` 0.15.1 records an earlier relocation, 20260806, leaving 21
+references to moved text, 13 of them in `src/` and `tests/`, none findable by the moved wording).
+`git grep -n "CLAUDE.md"` over the tree, 20261019: **closed plans, `CHANGELOG.md`, `ROADMAP.md`,
+`STATUS.md` and `RETROSPECTIVES.md` are dated records and keep the file they described — not
+edited.** Live documents, `src/`, `tests/`, `tools/`, CI, `Makefile` and the dotfiles were read
+reference by reference against the new text.
+- **Caused by A3, fixed:** `docs/README.md` (a routing row said a 🛑 in `CLAUDE.md` held row 30; one row
+  needed the A3 status), `docs/RELEASING.md` (one phrase about `CLAUDE.md`'s live rows), the option B
+  plan (three citations, one of them a figure — the 126 skipped now cited at `docs/ROADMAP.md`), live
+  plan row 22. No `src/` or `tests/` reference now dangles because of A3: the sections they cite
+  (*Changing retrieval*, *This repository is PUBLIC*, the key rule's wording, the UTC rule,
+  *Documentation has one owner*, *Landing work*) kept their names and text.
+- **Already dangling before A3 — found, not caused, not touched** (code comments are the
+  implementer's, and the user confirmed this session as planner only). Proposed as a diff against
+  `f1804ea` for whichever implementer next holds these files: `tools/review_pass_gate.py:68` and
+  `tools/review_ledger.py:65` cite a `CLAUDE.md` § on exit status that was extracted to
+  `docs/BUILDING.md` step 3 (the new *Building an increment* paragraph restores the rule in
+  `CLAUDE.md` itself); `.github/workflows/injection-audit.yml:116` the same; `tools/land.py:215`,
+  `tools/mutate.py:560` cite rules that live in `~/.claude/CLAUDE.md`; `tools/batteries/README.md:253`
+  cites *commit before mutating*, which is `docs/BUILDING.md` step 4; `src/pinakes/paid.py:41` cites
+  *a deliberate act*, which is `docs/INVARIANTS.md`; `.paid-path-allowlist:17` cites a
+  `CLAUDE.md` allowlist that is `docs/INVARIANTS.md`'s; `.gitignore:31` cites a "primary check" that is
+  `~/.claude/CLAUDE.md`'s; and `Makefile:105`, `tests/test_release_tag_gate.py:159` and
+  `tools/batteries/tools-release_tag_gate.toml:116` quote *before the tag, never after* where the file
+  says *before the push*.
+- **Pointers to `~/.claude/CLAUDE.md` (five at `f1804ea`, added 20260915) were dropped.** That file is
+  machine-local, so a public file naming it helped no cloud run or other clone; the regenerated file
+  keeps only this repository's rules. `tools/land.py:215` and `tools/mutate.py:560` cite rules that
+  live there (listed above); the pending 20260915 changelog fragment says `CLAUDE.md` names it, and
+  A3's own fragment now says the pointers are gone.
+- **No test reads `CLAUDE.md`'s sentences.** The gates that read the file: `tools/markdown_link_gate.py`
+  (links and anchors; every one resolves), `tools/shared_file_overlap.py` (the filename in a hotspot
+  list), `tests/test_markdown_link_gate.py` (the slugifier over every heading in the repository).
+  `tests/test_docs_quote_the_shipped_sentences.py` searches `docs/`, `README.md` and `src/`, not this file.
+
+**Review.** Round 1 — a read-only Sonnet reviewer, question *what does a cleared session do wrong with
+the new file* (it read the file cold first, then the old one, then followed every pointer): ten
+findings, nine acted on in `d026fa4`. The two that mattered: **the lifting of the release hold had
+no source outside the file being deleted**, so the pause handover said a release was due while
+`CLAUDE.md` said releases were free — it is now a note at the top of the pause handover; and **the
+handover-versus-ownership contradiction, which the old file resolved in six words, had lost them**
+— restored. Also restored: the bump rule (now in `docs/RELEASING.md`, whose header claimed
+`CLAUDE.md` held it), *needing an answer to proceed is the bar for asking*, the invariants list,
+and the right link for *ask, do not draft*. Not acted on: *A0–A3 landed* and the user's yes, true
+only at landing. Round 2 — a second read-only Sonnet reviewer, on the questions *does every moved fact exist at its
+destination* and *what pointer now dangles* (24 of 24 map rows, every link and anchor, and every
+non-record hit of the file's name): no row not found, and both *false* bullets confirmed false from
+the tagged sources (`934190c` is an ancestor of `v0.32.3` and not of `v0.32.2`). Eight findings, all
+acted on or recorded: open live-plan row 24 and built rows 26 and 38–41 and 43 cited `CLAUDE.md` for
+text that had moved (now one dated note at the head of that plan's § 3); *ruff, pyright and pytest
+before any commit* had no map row (`./check.sh` runs them); *seven rules* had become unverifiable
+(the count is gone); the *§ 8 handover* pointer led to A2's (now §§ 8 and 10); `docs/BUILDING.md`
+said *two rules* over three bullets and `docs/RELEASING.md` named `CLAUDE.md` as the home of a rule
+it had just stated; this map said *six* bullets for five; and the interpreter-pinning instruction
+had no procedure home (now `docs/BUILDING.md` step 3).
+
+**Not done, and recommended.** (a) **A size guard.** Three passes grew back; the new file says it
+stays under 150 lines and 2,700 words and nothing enforces it. A test that counts both, excluding
+own-line comments as the hygiene rule does, is a small implementer increment — and a new row, so it
+waits for the pause. (b) The leftovers above.
+
 ## 6. Decisions — taken by the user 20261018, with the recommendations
 
 | # | Question | Taken |
@@ -209,8 +319,8 @@ one A2 falsifies: `CLAUDE.md`'s pointer and the routing row name this plan and n
 and `STATUS.md` tracks product surface, which developer tooling does not add. `docs/BUILDING.md`
 step 5 now describes the hook.
 
-**State.** A0, A1 and A2 are built; **A3 (regenerating `CLAUDE.md`) and A4 (the release) are not
-started.** Verify what is on `main` with `git ls-remote origin refs/heads/main` and `git log
+**State.** A0, A1 and A2 were built; **A3 (regenerating `CLAUDE.md`) has since landed (§ 5.1) and A4
+(the release) is not started (§ 10).** Verify what is on `main` with `git ls-remote origin refs/heads/main` and `git log
 --first-parent --grep a2-stop-hook main`, not from here. Fragments wait in `changelog.d/` (`ls`
 counts them; none is user-visible, there is no release until A4). Development is paused except
 for this plan.
@@ -242,15 +352,13 @@ for this plan.
 
 **Open, in the order they matter.** None blocks A3.
 
-1. **The hook has not fired live.** The session that created `.claude/settings.json` did not pick it
-   up (measured 20261019 08:26 UTC): a dead run planted in that session's directory, with only a shell task in the registry, did
-   not block its turn end, while the hook blocks on the same input fed by hand. The hooks reference
-   says direct edits to settings files are picked up by a file watcher, so the likely cause is that
-   the file did not exist at startup; that was not tested. **The first real firing is the first turn
-   end of a session started after this lands, and nobody has seen the real Stop payload.** Whoever
-   starts that session should plant a dead run once (`wf_livetest` with two `started` and one
-   `result`, an old mtime) and see it block, then remove it. Workspace trust for a committed hook
-   is also not established.
+1. **The hook fired live once, on a planted run.** *Reported by the A2 session, which started a
+   fresh session for it; A3 did not observe it.* Observed live 20261019 09:24 UTC from a worktree
+   session at `f1804ea`: a planted dead run blocked the turn end and, once acknowledged, the next
+   turn end was silent. Earlier (20261019 08:26 UTC) the session that *created* `.claude/settings.json`
+   did not pick the hook up, probably because the file did not exist at startup; that was not
+   tested. **Not observed:** the real Stop payload, a block while a workflow is in
+   `background_tasks`, the 8-block cap, and workspace trust for a committed hook.
 2. **The hook counts agents, not coverage.** `coverage: PARTIAL` is not in the journal; the run in
    § 6.1 was `PARTIAL` and passed the hook. Putting it in reach needs the workflow to write its
    result somewhere the hook can read; it is a new increment, not a fix.
@@ -261,7 +369,9 @@ for this plan.
 4. **The command in `settings.json` follows the working directory's git top-level**, so a session
    that `cd`s into another checkout runs that checkout's copy at every Stop, with no prompt. The
    alternative, `${CLAUDE_PROJECT_DIR}`, always runs the original checkout's copy, which defeats a
-   worktree. Accepted, and written in the hook's docstring.
+   worktree. Accepted, and written in the hook's docstring. **In the live check (item 1) the hook ran
+   the primary checkout's copy, not the worktree's**: following the git top-level did not follow the
+   worktree there. A throwaway hook that prints `pwd` would settle why. *(The A2 session's report.)*
 5. **Journals the gate cannot read pass silently.** One with no parseable agent line — the first
    `started` line cut by a kill, or nothing written — is a gate exit `2`, and the hook treats `2` as
    "cannot judge yet". A run whose only agent line was lost is invisible. Not fixed: telling it from
@@ -295,3 +405,48 @@ script file.
 **Option B — the dogfooding on-ramp (row 21)** is designed in
 [`plans/20261019_0817-option-b-dogfooding-on-ramp.md`](20261019_0817-option-b-dogfooding-on-ramp.md):
 design only, the build not resumed. Read that file, not this one, for what it does.
+
+## 10. Handover — the state after A3, 20261019
+
+**Written in the branch that records it** ([`docs/BUILDING.md` § Hand over before you
+stop](../docs/BUILDING.md#hand-over-before-you-stop)). Of that rule's five places, A3 changed three:
+`CLAUDE.md`'s pointer block (rebuilt, and the place a cleared session reads *A0–A3 landed, A4
+remains*), this plan's § 2 rows, and `docs/README.md`'s routing rows. `docs/STATUS.md` tracks product
+surface, which a documentation-only increment does not add.
+
+**State.** A0 to A3 are landed. **A4 — cut the PATCH release carrying A (D5) — is the only increment
+left, it is the planner's, and it has not started.** Verify with `git ls-remote origin
+refs/heads/main` and `git log --first-parent --grep a3-claude-md main`, not from here. Development
+stays paused except for this plan; option B is designed and its build is not resumed (§ 9).
+
+**What A4 needs, from A3.**
+
+- **Fragments wait in `changelog.d/` and `retro.d/`** — count them with `ls`. A3 added one of each
+  (`…changed-claude-md-status-block-became-pointers`, `a3-what-the-status-block-held-…`). The
+  retrospective one carries three lessons that had no other home; it is spliced into
+  `docs/RETROSPECTIVES.md` at the cut, so read it there afterwards.
+- **A PATCH, on the 0.32.6 precedent** (developer tooling and instructions, nothing a wheel ships).
+  `docs/RELEASING.md` is the procedure; step 3 refreshes `prices.toml`'s `usd_per_eur` from a named FX
+  source at every release, and step 6 reads `minimum-python` in the CI run for the commit being tagged.
+- **Changes `CLAUDE.md` in two bullets:** the option A bullet says *A0–A3 landed; A4 … remains*, and
+  the pause bullet says *except option A*. When A4 lands the first becomes a statement that option A
+  is complete and the second goes with it — **a planner edit with the diff shown to the user first**,
+  like A3. The file is close to its line ceiling (see § 5.1), so the edit displaces text rather than adds.
+- **`docs/README.md`'s option A row** says A3 is built; A4 turns it to done. The A3 landing did not
+  touch the live plan's other rows.
+
+**Open, none blocking A4.**
+
+1. **The size is unguarded.** § 5.1: nothing enforces 150 lines and 2,700 words, which is how three
+   earlier passes grew back. A test is a small implementer increment and a new row, so it waits for
+   the pause.
+2. **Twelve citations of moved or global text** in `tools/`, `src/`, `tests/`, `.github/`, `Makefile`,
+   `.gitignore` and `.paid-path-allowlist` were dangling before A3 and still are (§ 5.1 lists each). Code comments
+   are the implementer's; they were not touched.
+3. **The template release row.** `CLAUDE.md`'s row now says what is unbuilt — the `sqlite-vec` tier —
+   because the template ecosystem and `pnk upgrade` have shipped (`docs/STATUS.md`, 0.19.0 to 0.21.0). The same
+   table is copied at `docs/STATUS.md:316` and described in `docs/README.md` § *Conventions* the old
+   way, and whether the name should have left the table at 0.22.0 is a planner decision this
+   increment did not take.
+4. **The aim of about 100 lines was not reached** (§ 5.1). It needs a kept section moved out, which
+   is the user's decision.

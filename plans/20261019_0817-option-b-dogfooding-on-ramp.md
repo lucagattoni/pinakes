@@ -153,8 +153,9 @@ the system `python3` is Xcode's 3.9, which already failed `./check.sh` once for 
 
 **What a B2 builder is told, because the review of this file found them missing.** The `pnk` command
 prefix is **injectable**, so the tests substitute a stub that prints canned `doctor`, `search` and
-`sync` output — the repository's suite already skips tests whose prerequisites are absent (`CLAUDE.md`
-records 126 skipped in the 0.32.6 `minimum-python` run, without breaking down why), and a tool whose
+`sync` output — the repository's suite already skips tests whose prerequisites are absent (`docs/ROADMAP.md`'s
+*Where things stand right now* records 126 skipped in the 0.32.6 `minimum-python` run, without
+breaking down why), and a tool whose
 tests all need model weights cannot be tested where it matters; one real-weights test follows that
 skip pattern. **Scenarios that need a real KB environment use a fixture helper** that builds a
 throwaway `uv` project pinned to this checkout (an editable path dependency): `pnk init`, the
@@ -285,12 +286,9 @@ on-ramp.
 - **Ownership.** `docs/DOGFOODING.md`, this file and the routing row are planner-owned; B2's code,
   tests, battery, fragment and `VERIFICATION.md` row are the builder's; the builder **proposes** any
   other document change as a diff against a named commit.
-- **Instruction files.** This file does not edit `CLAUDE.md`. Its pause bullet reads *"paused, except
-  option A"* and gains its pointer to this plan in **A3**, which regenerates that block with the diff
-  shown to the user first. Option A's plan § 9 still says option B is *not designed yet* and
-  written after A lands. It is **not** on the edit list option A's session reported, so it is stale
-  once this lands: the planner corrects it after A2 is on `origin/main` (or option A's session adds
-  it, if it agrees), and until then `docs/README.md`'s rows and that section disagree.
+- **Instruction files.** This file does not edit `CLAUDE.md`. Its pause bullet read *"paused, except
+  option A"*, and **A3 regenerated that block** (20261019) with a pointer to this plan, the diff shown
+  to the user first. Option A's plan § 9 now points here too, and `docs/README.md`'s rows agree.
 - **Unbuilt work is named, never numbered.** Nothing here is assigned a version.
 - **Landing** is `tools/land.py`, with `./check.sh` run the way A0 and A1 ran it
   (`PATH="$PWD/.venv/bin:$PATH" env -u PYTHONDONTWRITEBYTECODE ./check.sh`, status read from a log).

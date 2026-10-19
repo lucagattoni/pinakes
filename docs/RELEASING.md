@@ -6,7 +6,11 @@
 this procedure is unavailable to an implementer by the ownership rule rather than by preference.
 An implementer lands its work, writes its fragments, and stops there.
 
-The *rules* about when to release stay in
+**The bump rule lives here:** a feature is a MINOR, a fix, a documentation update or a dependency
+change is a PATCH, a breaking change to the public API, the install flow or the CLI contract is a
+MAJOR, and the highest wins. Complete, self-contained work is released after the batch that finishes
+it and never lingers in the changelog's unreleased section; partial work and chores wait. What
+must be true *before a tag* is in
 [`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md) — this file is the
 procedure they point at, plus the one trap whose mechanism is too long to keep there
 ([§ Landing a branch](#landing-a-branch)).
@@ -90,7 +94,8 @@ extended on 20260823 when it crossed it again. Nothing was dropped in either mov
    `check` matrix varies extras and runs the 3.14 that `ci.yml`'s workflow-level `UV_PYTHON` pins
    (until 20261015 it resolved to the newest interpreter available, which is how CPython 3.15.0
    turned `main` red with no change to the tree). It
-   runs **only on a push to `main`**, so every release commit gets its own first execution and no
+   runs on a push to `main` (the workflow also lists `pull_request`, but that run is on a merge
+   ref, not on the commit you tag), so every release commit gets its own first execution and no
    earlier green transfers to it. **A green top-line is not this job, and a green job that skipped
    is indistinguishable from one that worked** — read the interpreter it downloaded and the test
    count it reported. Added at 0.32.3, for a defect under which every published release from at
@@ -231,8 +236,8 @@ matching, because an empty sequence is sorted by definition.
 
 **Last, ask what is *missing* rather than what is wrong** — `ls plans/` read against
 [`docs/README.md`](https://github.com/lucagattoni/pinakes/blob/main/docs/README.md)'s plan-routing
-table, and its live rows against `CLAUDE.md`'s. On 20260811 that table had **no row at all** for the
-plan `CLAUDE.md` named as the live build order: the plan was written, its six increments were built
+table, and its live rows against the plans `CLAUDE.md` names under *What is live right now*. On
+20260811 that table had **no row at all** for the plan `CLAUDE.md` named as the live build order: the plan was written, its six increments were built
 and landed, and the index of plans never learned it existed. **A missing row has no wrong text to
 find**, so no diff review and no grep can reach it — only the question does.
 
@@ -270,8 +275,8 @@ Fast-forward the primary checkout: `git pull --ff-only`.
 
 ## Landing beside a peer
 
-**`tools/shared_file_overlap.py` compares your branch to `origin/main`. It never looks at another
-branch, so it cannot see the session working beside you** — it reports *none* while a peer holds a
+**`tools/shared_file_overlap.py` compares your branch to one ref, `origin/main` unless `--ref`
+names another. It does not enumerate peers, so it cannot see the session working beside you** — it reports *none* while a peer holds a
 branch touching the same files. It is a merge-safety check, not a peer check, and reading it as one
 is how two sessions end up racing.
 
@@ -311,6 +316,6 @@ fires — the no-op is silent by design. So `tools/land.py` is the guard, and th
 - **`--cleanup-only` does that for a branch you landed earlier**, after verifying it is an ancestor
   of `origin/main` — because "looks merged" is not "landed".
 
-It is the only rule in [`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md)
-with an executable guard, because it is the only one that fails silently. Everything else there
-fails loudly or is caught by `./check.sh`.
+It is the rule in [`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md)
+whose failure looks like success — a no-op — which is why it has an executable guard. (`land.py`
+also refuses a merged tree no `./check.sh` run certified.)
