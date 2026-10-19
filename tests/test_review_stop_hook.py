@@ -615,7 +615,8 @@ def test_the_last_tool_of_a_dead_agent_is_named(tmp_path: Path) -> None:
     """The hook depends on the gate's `--json` keys as a production interface; a rename of
     `last_tool` would otherwise degrade this to "none" with every other test green."""
     run = write_run(tmp_path, "wf_tool-888", started("k1", "dead1"))
-    entry = {"message": {"content": [{"type": "tool_use", "name": "Bash", "input": {}}]}}
+    tool_call: dict[str, object] = {"type": "tool_use", "name": "Bash", "input": {}}
+    entry: dict[str, object] = {"message": {"content": [tool_call]}}
     (run / "agent-dead1.jsonl").write_text(json.dumps(entry) + "\n")
     old = time.time() - 3600
     os.utime(run / "agent-dead1.jsonl", (old, old))
