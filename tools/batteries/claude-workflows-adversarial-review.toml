@@ -107,11 +107,12 @@ new = '''x.trim().length >= 0) : []'''
 kills = "tests/test_review_workflow.py::test_a_check_that_is_blank_or_not_a_string_does_not_count_as_a_check"
 
 [[mutant]]
-name = "a lens reply with no findings array is read as a lens that found nothing"
+name = "a lens whose findings are not each well formed is still believed"
 file = ".claude/workflows/adversarial-review.js"
+# The other half of this guard, `Array.isArray(out.findings)`, is not a row: it is an equivalent mutant. Without it a non-array reaches `.map`, which throws inside the stage, and pipeline() drops the lens exactly as the guard does - a battery run found it surviving all twelve tests of its selector and a reply with `findings` null, a string or missing does die as a dead lens either way. It stays as a guard because the outcome should not depend on a TypeError.
 old = '''if (!Array.isArray(out.findings) || !out.findings.every(wellFormedFinding)) return null'''
-new = '''if (false) return null'''
-kills = "tests/test_review_workflow.py::test_a_lens_reply_the_schema_forbids_is_a_dead_lens"
+new = '''if (!Array.isArray(out.findings)) return null'''
+kills = "tests/test_review_workflow.py::test_a_malformed_finding_makes_the_whole_lens_unusable"
 
 [[mutant]]
 name = "a finding with a severity outside the three is accepted"
