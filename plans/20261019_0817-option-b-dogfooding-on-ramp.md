@@ -94,7 +94,10 @@ One document, five parts, each a list of things that are true or false rather th
 content is fixed by B0's measurements, not by this file.
 
 1. **The machine.** What is already in the Guide, in order and once: Python 3.13 through `uv`, never
-   the system interpreter; the extra and its disk cost; **the one-time weight fetch — which command,
+   the system interpreter — **and pinned**, because on 20261019 `uvx --from "pinakes[light]==0.32.7"`
+   on a machine whose newest interpreter is CPython 3.15 did not resolve (`onnxruntime` ships no
+   `cp315` wheel) and worked with `--python 3.13`, so the install line the checklist gives carries
+   the pin; the extra and its disk cost; **the one-time weight fetch — which command,
    measured**, because `doctor` runs offline and will FAIL on an empty cache; **the WARNs a KB shows
    before and after its first sync, and which are expected**, so a first user does not read a normal
    report as a broken one; and the price-table WARN with the `max_price_age_days` choice stated.
@@ -221,7 +224,7 @@ question, listed here and **not** taken: the pause forbids it.
 
 | # | What | Owner | Needs | Done when |
 |---|---|---|---|---|
-| **B0** | **Verify the ten recorded closures where a closure can fail, on 0.32.6, each on a small corpus:** the first sync on a **terminal** (progress line); a **killed** first sync, then `pnk doctor` (`sync completeness`, no FAIL, no `--rebuild`); a plain-text sample with `headings = "numbered"`, and its titles; the one-time weight fetch on an empty cache (**which command**); the `.mcp.json` entry in a `uv` project (bare `pnk`); the README's `uv add` line. Output: a table in this file, `HOLDS` / `FAILS` / `CHANGED` / `NOT TESTABLE`, each with the output quoted. The 300-document runs are **not** repeated. B0 verifies the closures; it does not rediscover them | planner | D-B7 (yes) | Every row carries a quoted output. Its size is not estimated here: each item is stated on ten documents on purpose |
+| **B0** | **Verify the ten recorded closures where a closure can fail, on 0.32.6, each on a small corpus:** the first sync on a **terminal** (progress line); a **killed** first sync, then `pnk doctor` (`sync completeness`, no FAIL, no `--rebuild`); a plain-text sample with `headings = "numbered"`, and its titles; the one-time weight fetch on an empty cache (**which command**); the `.mcp.json` entry in a `uv` project (bare `pnk`); the README's `uv add` line; and `uvx --from "pinakes[light]"` with and without `--python 3.13` on a machine whose newest interpreter is 3.15 (seen once, 20261019, unresolvable without the pin). Output: a table in this file, `HOLDS` / `FAILS` / `CHANGED` / `NOT TESTABLE`, each with the output quoted. The 300-document runs are **not** repeated. B0 verifies the closures; it does not rediscover them | planner | D-B7 (yes) | Every row carries a quoted output. Its size is not estimated here: each item is stated on ten documents on purpose |
 | **B1** | `docs/DOGFOODING.md` and a routing row, from B0's table. Includes the expected-WARN list | planner | B0 | The document's every claim carries a measured output, or says *unstated* |
 | **B2** | `tools/dogfood_start.py`, tests with the fixture helper and the injectable stub (§ 3.3), a mutation battery, a `changelog.d/` fragment, a `docs/VERIFICATION.md` row. Scope after B0 (§ 3.3) | builder | B0, a second yes | § 6 passes, **including the probe's measured pass rate and its negative control** |
 | **B3** | First run on `pinakes-kb`: bring its environment up (D-B6), point it at the user's folder, first sync, five real questions into `eval/questions.yaml` | **the user**; a builder for the environment only | D-B5, D-B6, B1, B2 | The verdict is **INDEXED** and the user ran it |
