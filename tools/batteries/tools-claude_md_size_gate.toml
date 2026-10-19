@@ -1,0 +1,163 @@
+# Mutation battery — `tools/claude_md_size_gate.py`.
+#
+#     python3 tools/mutate.py tools/batteries/tools-claude_md_size_gate.toml
+#
+# **One subject: a guard that has to be able to say no.** `CLAUDE.md` stated a ceiling for years of
+# slimming passes and nothing enforced it, so the mutants that matter are not the ones that make the
+# count wrong by a lot; they are the ones that make the guard quietly return to that state — a
+# refusal that exits 0, a boundary one off, a count that is not `wc`'s, a missing file that passes.
+#
+# **Why a module under `tools/` and not the test itself.** A battery mutates a committed target and
+# names the test that must die (`tests/test_batteries.py` refuses a target under `tests/`), so the
+# counting and the thresholds live in the tool and the tests drive it as a subprocess.
+#
+# **What the battery cannot reach.** The test that holds the gate's ceiling to the sentence in
+# `CLAUDE.md`'s intro (`test_the_ceilings_are_the_ones_claude_md_states`) is not mutated from here:
+# its failing input is the planner's file, which a battery must not edit, so it is shown able to fail
+# by `test_the_stated_ceiling_is_read_wrapped_and_absent_when_unstated`, which feeds its reader text
+# that states other numbers and text that states none.
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 13
+
+# ──────────────────────────────────────────────────────────────────
+# unreleased, 20261019 · the CLAUDE.md size guard
+# ──────────────────────────────────────────────────────────────────
+#
+# Mutant 1 is the control: the exact defect the file lived with, a ceiling stated and not enforced.
+# It is also the known-catchable one to run first, since a run with no kills is a broken harness.
+
+[[mutant]]
+name = "CONTROL — the gate prints its refusal and exits 0 anyway, which is the guard this file lacked"
+file = "tools/claude_md_size_gate.py"
+# The refusal text is all still there, so a reader of the output sees a failure; only the status
+# differs. That is the shape this repository keeps finding in its own gates — a message that reads
+# as a verdict and a status that says nothing — and why every failing test asserts both.
+old = '''        print(REMEDY, file=sys.stderr)
+        return 1'''
+new = '''        print(REMEDY, file=sys.stderr)
+        return 0'''
+kills = "tests/test_claude_md_size.py::test_one_over_a_ceiling_fails_naming_it"
+
+[[mutant]]
+name = "the line ceiling is one too generous"
+file = "tools/claude_md_size_gate.py"
+# 150 is a promise the file makes about itself, and the test holds the literal rather than importing
+# this constant — importing it would follow the mutant and report a pass.
+old = '''MAX_LINES = 150'''
+new = '''MAX_LINES = 151'''
+kills = "tests/test_claude_md_size.py::test_one_over_a_ceiling_fails_naming_it"
+
+[[mutant]]
+name = "the word ceiling is one too generous"
+file = "tools/claude_md_size_gate.py"
+old = '''MAX_WORDS = 2700'''
+new = '''MAX_WORDS = 2701'''
+kills = "tests/test_claude_md_size.py::test_one_over_a_ceiling_fails_naming_it"
+
+[[mutant]]
+name = "a file of exactly 150 lines is refused — the ceiling is read as an aim"
+file = "tools/claude_md_size_gate.py"
+# The file says it stays *under* 150 and means that 150 is the last number it may be. `>=` refuses
+# a file that is exactly at the limit, which would send an editor to cut a line that is allowed.
+old = '''    if lines > MAX_LINES:'''
+new = '''    if lines >= MAX_LINES:'''
+kills = "tests/test_claude_md_size.py::test_exactly_at_a_ceiling_passes"
+
+[[mutant]]
+name = "a file of exactly 2,700 words is refused"
+file = "tools/claude_md_size_gate.py"
+old = '''    if words > MAX_WORDS:'''
+new = '''    if words >= MAX_WORDS:'''
+kills = "tests/test_claude_md_size.py::test_exactly_at_a_ceiling_passes"
+
+[[mutant]]
+name = "lines are counted with splitlines, so an unterminated last line is a line `wc -l` does not count"
+file = "tools/claude_md_size_gate.py"
+# **The instrument is `wc`, not the editor's line count.** A file of 150 newlines plus a last line
+# without one is 150 to `wc -l` and 151 to `splitlines`. A file written by a tool that omits the
+# final newline would be refused by the guard and passed by the command the plan tells a person to
+# type — two answers to one question with nobody able to say why.
+old = '''    return data.count(b"\n"), len(data.split())'''
+new = '''    return len(data.splitlines()), len(data.split())'''
+kills = "tests/test_claude_md_size.py::test_a_last_line_with_no_newline_is_not_counted_as_wc_does"
+
+[[mutant]]
+name = "words are split on a single space, so a tab or a doubled space changes the count"
+file = "tools/claude_md_size_gate.py"
+# `bytes.split(b" ")` reads a tab-separated pair as one word and each extra space as an empty word.
+# A Markdown table padded for alignment is exactly that, so the error is largest in the rows of
+# `CLAUDE.md` that are densest in words.
+old = '''    return data.count(b"\n"), len(data.split())'''
+new = '''    return data.count(b"\n"), len(data.split(b" "))'''
+kills = "tests/test_claude_md_size.py::test_words_are_split_on_any_run_of_whitespace"
+
+[[mutant]]
+name = "own-line HTML comments are left out of the count, as the hygiene rule leaves them out"
+file = "tools/claude_md_size_gate.py"
+# **The mutant is the sensible-looking one, which is why it is here.** Comments never reach a
+# session's context, so excluding them is defensible — and the plan's own prose once described the
+# guard that way. Decision D4 names `wc -l -w`, which counts them, so a guard that excludes them
+# reports a number nobody can reproduce with the command it cites.
+old = '''    return data.count(b"\n"), len(data.split())'''
+new = '''    kept = b"".join(
+        row for row in data.splitlines(True) if not row.lstrip().startswith(b"<!--")
+    )
+    return kept.count(b"\n"), len(kept.split())'''
+kills = "tests/test_claude_md_size.py::test_own_line_html_comments_are_counted"
+
+[[mutant]]
+name = "only the first ceiling exceeded is reported"
+file = "tools/claude_md_size_gate.py"
+# An editor told about the lines trims lines, then meets the words on the next push. Both numbers
+# are in the one message so the first trim can be the whole trim.
+old = '''    if words > MAX_WORDS:'''
+new = '''    elif words > MAX_WORDS:'''
+kills = "tests/test_claude_md_size.py::test_both_ceilings_are_reported_when_both_are_over"
+
+[[mutant]]
+name = "the remedy tells the editor to delete a rule rather than move it"
+file = "tools/claude_md_size_gate.py"
+# The file reached 473 lines by accretion and was regenerated at 148 only by moving each fact to the
+# document that owns it and finding it there. A message that says *delete* produces a smaller file
+# and a rule nobody can find, which is the failure the guard exists beside.
+old = '''Do not delete the rule to make room.'''
+new = '''Delete the rule to make room.'''
+kills = "tests/test_claude_md_size.py::test_the_failure_says_to_move_a_rule_not_to_delete_it"
+
+[[mutant]]
+name = "a CLAUDE.md that cannot be read passes"
+file = "tools/claude_md_size_gate.py"
+# A guard that measured nothing and reported success is the vacuous green this repository's gates
+# are repeatedly built to refuse. Reached by a missing file and by a directory of that name.
+old = '''            file=sys.stderr,
+        )
+        return 1
+
+    lines, words = measure(data)'''
+new = '''            file=sys.stderr,
+        )
+        return 0
+
+    lines, words = measure(data)'''
+kills = "tests/test_claude_md_size.py::test_a_missing_claude_md_fails_rather_than_passing"
+
+[[mutant]]
+name = "the success line stops saying what was measured"
+file = "tools/claude_md_size_gate.py"
+# A passing run that prints `ok` and no numbers cannot be told from one that measured nothing, and
+# it is the line `test_the_count_is_the_one_wc_reports_for_the_real_file` compares with `wc`.
+old = '''        f"ok: CLAUDE.md is {lines} lines / {words:,} words "'''
+new = '''        "ok: CLAUDE.md is within its ceiling "'''
+kills = "tests/test_claude_md_size.py::test_the_real_claude_md_is_inside_its_ceiling"
+
+[[mutant]]
+name = "--repo is ignored and the gate always measures its own repository's file"
+file = "tools/claude_md_size_gate.py"
+# Every refusal test points the gate at a `tmp_path` repository. If the argument were dropped the
+# real file would be measured instead and each of them would report a pass for a file nobody wrote —
+# the case that makes a fixture-driven test worth nothing, so it is mutated rather than assumed.
+old = '''    target = args.repo / "CLAUDE.md"'''
+new = '''    target = Path(__file__).resolve().parent.parent / "CLAUDE.md"'''
+kills = "tests/test_claude_md_size.py::test_one_over_a_ceiling_fails_naming_it"
