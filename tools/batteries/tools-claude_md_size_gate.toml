@@ -27,7 +27,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 22
+mutants = 23
 
 # ──────────────────────────────────────────────────────────────────
 # unreleased, 20261019 · the CLAUDE.md size guard
@@ -266,3 +266,13 @@ file = "tools/claude_md_size_gate.py"
 old = '''"and leave a pointer behind. Do not delete the rule to make room. CLAUDE.md is the planner's "'''
 new = '''"and remember it. Do not delete the rule to make room. CLAUDE.md is the planner's "'''
 kills = "tests/test_claude_md_size.py::test_the_failure_says_to_move_a_rule_not_to_delete_it"
+
+[[mutant]]
+name = "a file with many lines is told it is over the word ceiling whatever it holds"
+file = "tools/claude_md_size_gate.py"
+# The reviewer's survivor G20: the word complaint also fires on a very long file. 400 blank lines
+# then print a refusal for a word count of zero, which sends the editor looking for words to cut.
+# The line complaint is asserted present and the word complaint absent in the same test.
+old = '''    if words > MAX_WORDS:'''
+new = '''    if words > MAX_WORDS or lines > 2 * MAX_LINES:'''
+kills = "tests/test_claude_md_size.py::test_a_file_of_nothing_but_newlines_is_over_the_line_ceiling"

@@ -208,6 +208,7 @@ def test_a_file_of_nothing_but_newlines_is_over_the_line_ceiling(tmp_path: Path)
     result = _run(_repo_with(tmp_path, "\n" * 400))
     assert result.returncode == 1
     assert "400 lines, over the ceiling of 150" in result.stderr, result.stderr
+    assert "words, over" not in result.stderr, "there are no words to be over a ceiling"
 
 
 def test_own_line_html_comments_are_counted(tmp_path: Path) -> None:

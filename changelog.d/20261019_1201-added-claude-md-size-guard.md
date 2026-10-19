@@ -7,6 +7,6 @@
   and not to delete it; a file that cannot be read fails rather than passes; and a second test
   holds the gate's two numbers to the ones the intro states, so neither can change alone. Run
   against the file as it was before its regeneration it reports 473 lines and 6,033 words, the
-  figures `wc` prints. A 22-mutant battery, `tools/batteries/tools-claude_md_size_gate.toml`, kills
-  all 22; nine of those came from a fresh reviewer's own mutants, which the first version of the
+  figures `wc` prints. A 23-mutant battery, `tools/batteries/tools-claude_md_size_gate.toml`, kills
+  all 23; ten of those came from a fresh reviewer's own mutants, which the first version of the
   tests did not kill. Developer tooling — it ships in no wheel.
