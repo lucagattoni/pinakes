@@ -3,11 +3,14 @@
   runs at the end of every turn: it reads `transcript_path` from the hook payload, finds the
   workflow runs of that session, runs `tools/review_pass_gate.py` over each journal, and blocks
   while a run has an agent that never returned or returned nothing and no acknowledgement covers it.
-  The reason names the run, the agents and the verdict (`VACUOUS` when nobody returned anything,
-  `PARTIAL` otherwise) and prints the one command that acknowledges it
-  (`--acknowledge <run> --told "<what the user was told>"`), which records what was said and the
-  shape of the run it covers, so a run that is resumed and changes is judged again. It says in the
-  same breath that this is the journal's count and not the workflow's own `coverage`.
+  The reason names the run, each agent by the label the journal gave it, and the verdict
+  (`VACUOUS` when nobody returned anything, `PARTIAL` otherwise), and prints the one command that
+  acknowledges it (`--acknowledge <run> --told "<what the user was told>"`, a sentence and not the
+  placeholder the message prints). That records what was said and the counts plus a digest of the
+  journal, because a resume appends to the same journal in the same run directory, so a run that
+  is resumed and changes is judged again. A run the gate cannot judge is reported on stderr and
+  does not hide a dead run beside it. The message says in the same breath that this is the
+  journal's count and not the workflow's own `coverage`.
   Three things decide a run's fate that the gate alone cannot: nothing is judged while the payload's
   `background_tasks` lists a workflow in flight (a slow agent looks exactly like a dead one); with
   the list present and no workflow in it every run is judged as finished, because a fan-out killed
@@ -21,7 +24,8 @@
   `python3` on a missing script exits `2` and `2` blocks. The script is standard-library only and
   runs on the Xcode `python3` 3.9. This is step 2 of *Framing, Not Roles* § 9. Tested over a
   synthetic session of the true layout, including a run under `/usr/bin/python3` and the settings
-  command itself; `tools/batteries/tools-hooks-review_stop_hook.toml` holds 31 mutants. **The hook
-  has not fired in a live session yet**: Claude Code reads hooks at startup, so the session that
-  added it never runs it, and its payload is built from the hooks reference. Developer tooling — it
-  ships in no wheel.
+  command itself; `tools/batteries/tools-hooks-review_stop_hook.toml` holds 48 mutants. **The hook
+  has not fired in a live session yet**: the session that created `.claude/settings.json` did not
+  pick it up (a planted dead run did not block its turn end, though the hook blocks on the same
+  input fed by hand), so the Stop payload is built from the hooks reference and a later session's
+  first turn end is the first live firing. Developer tooling — it ships in no wheel.

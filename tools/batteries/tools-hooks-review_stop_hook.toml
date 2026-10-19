@@ -6,8 +6,8 @@
 # it should have let go, while every other test stayed green. **A row is a claim about one
 # assertion, never about the script**: the named test is the one that has to die, and nothing here
 # says what a real Stop payload looks like — the hook has not fired live yet (the payload is built
-# from the hooks reference, and a hook added to `settings.json` does not take effect in the session
-# that added it).
+# from the hooks reference; the session that created `settings.json` did not pick it up, so the
+# first live firing is a later session's first turn end).
 #
 # The settings rows share this battery on purpose: `.claude/settings.json` is a file with one
 # consumer, and a second battery for it would make two files for one increment to maintain
