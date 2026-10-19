@@ -12,15 +12,22 @@ context, and the same section's recommendation for this guard was to exclude the
 rule does" — this gate follows `wc` instead, because the number a person types to check the file is
 `wc`'s, and a guard that counts differently would be red where `wc` says green (or the other way
 round) with nobody able to say why. Provenance comments cost budget here, on purpose; reversing
-that is one change to `measure()` and to `test_own_line_html_comments_are_counted`.
+that means changing `measure()` and every test that counts a comment (the own-line, the spanning
+and the two `wc` comparisons).
 
 * **Lines** are newline bytes, as `wc -l` reports them: a last line with no trailing newline is not
   counted, and `str.splitlines()` would count it.
-* **Words** are runs of non-whitespace bytes, split on ASCII whitespace. That is `wc -w` in the C
-  locale. In a UTF-8 locale some `wc` implementations also split on certain Unicode spaces (U+00A0
-  differs on macOS; which others differ depends on the `wc`), and this gate does not. `CLAUDE.md`
-  holds none, and `tests/test_claude_md_size.py` compares this count with the real `wc` on the real
-  file, so a future Unicode space shows up as a disagreement rather than as a quiet drift.
+* **Words** are runs of non-whitespace bytes, split on ASCII whitespace: POSIX's definition, and
+  what `wc -w` reports on macOS and on GNU coreutils 9.7 and later. **GNU `wc` up to at least 9.1
+  also requires a word to hold a printable character**, so in the C locale it does not count a lone
+  NUL, a lone byte above 0x7f or a lone multibyte character such as `—`: measured 20261019,
+  `wc -w CLAUDE.md` prints 1450 words on coreutils 8.32 and 9.1 in the C locale and 1497 in
+  `C.UTF-8`, which is what this gate counts (9.2 to 9.6 were not measured). The file's headroom
+  (about 1,500 words against 2,700) keeps that out of the verdict; it is why
+  `tests/test_claude_md_size.py` pins the count with literals worked out by hand and compares with
+  `wc` only where `wc` agrees. In a UTF-8 locale some `wc` implementations also split on certain
+  Unicode spaces (U+00A0 on macOS) and this gate does not; `CLAUDE.md` holds none, and the
+  comparison on the real file would show one as a disagreement.
 
 **A red here is fixed by moving a rule, never by deleting one.** The message says where: to the
 document that already owns the fact (`docs/README.md` routes each fact to its one home) with a
@@ -33,6 +40,8 @@ pass. It prints the measured numbers on success too, so a gate that measured not
 one. **Deliberately not in `check.sh`:** `pytest` runs `tests/test_claude_md_size.py`, which runs
 this against the real file, and a second invocation would only be a second place to forget.
 """
+
+from __future__ import annotations
 
 import argparse
 import sys

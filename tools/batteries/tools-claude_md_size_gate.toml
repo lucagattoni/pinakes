@@ -8,11 +8,14 @@
 # quietly return to that state — a refusal that exits 0, a boundary one off, a count that is not
 # `wc`'s, a missing file that passes.
 #
-# **13 of 13 killed was not calibration, and the second section is what showed it.** A fresh reviewer
-# wrote 71 mutants of its own against the first version of the tests; 36 survived, 26 of them real
-# gaps. The ones that name a distinct way for the guard to be wrong are the second section below,
-# each now killed; the gaps they point at are closed in the tests. A pass by the author's own
-# mutants alone would have reported a clean 13 of 13.
+# **13 of 13 killed was not calibration, and the later sections are what showed it.** A fresh
+# reviewer wrote 71 mutants of its own against the first version of the tests; 36 survived, 26 of
+# them real gaps. The ones that name a distinct way for the guard to be wrong are the second section
+# below. A second reviewer, on the fixed tests, wrote 37 more; 17 survived, 11 of them real gaps,
+# and its most useful finding was not a mutant at all: the `wc` comparison the first fix leaned on
+# disagrees with the gate on GNU `wc` (see the module docstring of the test file). The real gaps are
+# the third section. Each is now killed; a pass by the author's own mutants alone would have
+# reported a clean 13 of 13.
 #
 # **Why a module under `tools/` and not the test itself.** A battery mutates a committed target and
 # names the test that must die (`tests/test_batteries.py` refuses a target under `tests/`), so the
@@ -27,7 +30,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 23
+mutants = 29
 
 # ──────────────────────────────────────────────────────────────────
 # unreleased, 20261019 · the CLAUDE.md size guard
@@ -174,7 +177,7 @@ kills = "tests/test_claude_md_size.py::test_one_over_a_ceiling_fails_naming_only
 # unreleased, 20261019 · what a fresh reviewer's own mutants found
 # ──────────────────────────────────────────────────────────────────
 #
-# Every row below survived the first version of the tests. Each is here because the reviewer's
+# Every row in this section survived the first version of the tests. Each is here because the reviewer's
 # mutant named a way for the guard to be wrong that the author's thirteen did not, not because it is
 # more likely than they are.
 
@@ -222,13 +225,15 @@ kills = "tests/test_claude_md_size.py::test_the_default_is_this_repository_whate
 [[mutant]]
 name = "words are counted on decoded text, so a byte that is not UTF-8 or a file separator changes the count"
 file = "tools/claude_md_size_gate.py"
-# **The stated reason the count is robust is that it is over bytes, and nothing pinned it.**
+# **The stated reason the count is robust is that it is over bytes, and nothing pinned it** — and
+# the first pin was a comparison with `wc` that GNU `wc` fails, so it is a literal worked out by hand
+# (`test_the_count_is_over_bytes_and_pinned_by_hand`), which also kills this row with `wc` absent.
 # `str.split` splits on U+001C to U+001F, which `wc` does not treat as space, and a strict decode
 # raises on `\xff` — a crash with exit status 1, the same as a refusal. `errors="replace"` hides the
 # second and not the first.
 old = '''    return data.count(b"\n"), len(data.split())'''
 new = '''    return data.count(b"\n"), len(data.decode("utf-8", "replace").split())'''
-kills = "tests/test_claude_md_size.py::test_the_count_matches_wc_on_bytes_that_are_not_text"
+kills = "tests/test_claude_md_size.py::test_the_count_is_over_bytes_and_pinned_by_hand"
 
 [[mutant]]
 name = "a lone carriage return is counted as a line"
@@ -238,7 +243,7 @@ file = "tools/claude_md_size_gate.py"
 # that rewrites it.
 old = '''    return data.count(b"\n"), len(data.split())'''
 new = '''    return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n").count(b"\n"), len(data.split())'''
-kills = "tests/test_claude_md_size.py::test_the_count_matches_wc_on_bytes_that_are_not_text"
+kills = "tests/test_claude_md_size.py::test_the_count_is_over_bytes_and_pinned_by_hand"
 
 [[mutant]]
 name = "a NUL at the end of the file is dropped before the words are counted"
@@ -247,7 +252,7 @@ file = "tools/claude_md_size_gate.py"
 # ends in `last \x00` with no newline because a strip only reaches the ends of the data.
 old = '''    return data.count(b"\n"), len(data.split())'''
 new = '''    return data.count(b"\n"), len(data.strip(b"\x00").split())'''
-kills = "tests/test_claude_md_size.py::test_the_count_matches_wc_on_bytes_that_are_not_text"
+kills = "tests/test_claude_md_size.py::test_the_count_is_over_bytes_and_pinned_by_hand"
 
 [[mutant]]
 name = "a file with no words in it passes however many lines it has"
@@ -276,3 +281,63 @@ file = "tools/claude_md_size_gate.py"
 old = '''    if words > MAX_WORDS:'''
 new = '''    if words > MAX_WORDS or lines > 2 * MAX_LINES:'''
 kills = "tests/test_claude_md_size.py::test_a_file_of_nothing_but_newlines_is_over_the_line_ceiling"
+
+# ──────────────────────────────────────────────────────────────────
+# unreleased, 20261019 · what the second review pass found
+# ──────────────────────────────────────────────────────────────────
+#
+# The second reviewer's survivors that were real gaps, killed by tests added after its report. The
+# ones that were message wording (the joiner, a suffix) and the CR-for-space equivalent are not rows.
+
+[[mutant]]
+name = "the word count is capped, so the status is right and the printed number is not"
+file = "tools/claude_md_size_gate.py"
+# The exit status is unchanged, so a status-only test cannot see it; the editor is told to trim to a
+# number that was never the file's. 6,033 would print as 3,001.
+old = '''    return data.count(b"\n"), len(data.split())'''
+new = '''    return data.count(b"\n"), len(data.split(None, 3000))'''
+kills = "tests/test_claude_md_size.py::test_the_numbers_printed_are_the_real_ones_at_scale"
+
+[[mutant]]
+name = "the file is read only up to 64 KiB"
+file = "tools/claude_md_size_gate.py"
+# A careless `read(65536)` truncates what the gate measures. The fixture past 64 KiB is the only
+# input that separates it, and the pre-A3 file (about 40 KB) is not.
+old = '''        data = target.read_bytes()'''
+new = '''        data = target.read_bytes()[:65536]'''
+kills = "tests/test_claude_md_size.py::test_the_numbers_printed_are_the_real_ones_at_scale"
+
+[[mutant]]
+name = "the gate stops refusing a very large word count"
+file = "tools/claude_md_size_gate.py"
+# No fixture exceeded 2,800 words, so a ceiling that only held in a band passed everything.
+old = '''    if words > MAX_WORDS:'''
+new = '''    if MAX_WORDS < words < 5000:'''
+kills = "tests/test_claude_md_size.py::test_the_numbers_printed_are_the_real_ones_at_scale"
+
+[[mutant]]
+name = "only a missing file, a directory or a path component that is a file counts as unreadable"
+file = "tools/claude_md_size_gate.py"
+# `PermissionError` is the one the VERIFICATION row's "whatever the reason" depends on, and it needs
+# a file the test can make unreadable; root reads anything, so the test skips there.
+old = '''    except OSError as exc:'''
+new = '''    except (FileNotFoundError, IsADirectoryError, NotADirectoryError) as exc:'''
+kills = "tests/test_claude_md_size.py::test_a_claude_md_that_cannot_be_read_fails_rather_than_passing"
+
+[[mutant]]
+name = "a no-break space is treated as a word separator"
+file = "tools/claude_md_size_gate.py"
+# macOS `wc` in a UTF-8 locale does this and the gate documents that it does not. Neither is wrong;
+# the row exists so that the choice is made on purpose — a change here is a decision about what the
+# ceiling counts, not a tidy-up.
+old = '''    return data.count(b"\n"), len(data.split())'''
+new = '''    return data.count(b"\n"), len(data.replace(b"\xc2\xa0", b" ").split())'''
+kills = "tests/test_claude_md_size.py::test_a_unicode_space_is_not_a_separator"
+
+[[mutant]]
+name = "the success line states the ceilings the wrong way round"
+file = "tools/claude_md_size_gate.py"
+# Cosmetic, and the only place a reader of a green run sees which ceilings the gate used.
+old = '''        f"(ceiling {MAX_LINES} / {MAX_WORDS:,}, `wc -l -w`)"'''
+new = '''        f"(ceiling {MAX_WORDS:,} / {MAX_LINES}, `wc -l -w`)"'''
+kills = "tests/test_claude_md_size.py::test_the_real_claude_md_is_inside_its_ceiling"

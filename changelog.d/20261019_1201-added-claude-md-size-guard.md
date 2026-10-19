@@ -7,6 +7,11 @@
   and not to delete it; a file that cannot be read fails rather than passes; and a second test
   holds the gate's two numbers to the ones the intro states, so neither can change alone. Run
   against the file as it was before its regeneration it reports 473 lines and 6,033 words, the
-  figures `wc` prints. A 23-mutant battery, `tools/batteries/tools-claude_md_size_gate.toml`, kills
-  all 23; ten of those came from a fresh reviewer's own mutants, which the first version of the
-  tests did not kill. Developer tooling — it ships in no wheel.
+  figures `wc` prints. **`wc` is not a portable oracle for the word count:** GNU `wc` up to at least
+  9.1 counts a word only if it holds a printable character, so in the C locale `wc -w CLAUDE.md`
+  prints 1450 where macOS and newer GNU print 1497 (measured on coreutils 8.32, 9.1, 9.7 and 9.12).
+  The gate counts by the POSIX definition and the tests pin it with figures worked out by hand,
+  comparing with `wc` only where `wc` agrees. A 29-mutant battery,
+  `tools/batteries/tools-claude_md_size_gate.toml`, kills all 29; sixteen of those came from two
+  fresh reviewers' own mutants, which earlier versions of the tests did not kill. Developer
+  tooling — it ships in no wheel.
