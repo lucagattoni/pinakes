@@ -3,7 +3,7 @@
 **Audience: someone starting a first real knowledge base with Pinakes — in practice its maintainer, the
 first time. Goal: from nothing to a KB that holds your own documents, answers from them, and has told
 you what went wrong on the way.** Every claim below was run against the **published `pinakes` 0.32.7** on
-20261019, from about 12:13 UTC, on CPython 3.13.16 and an Apple-silicon Mac — except the one figure marked
+20261019, from about 12:13 UTC, on CPython 3.13.16 and an Apple-silicon Mac — except the figures marked
 as taken on 0.32.6, and the claims marked *from the source* or *not run*; the evidence, row by row, is
 [§ 5.1 of the option B plan](https://github.com/lucagattoni/pinakes/blob/main/plans/20261019_0817-option-b-dogfooding-on-ramp.md).
 Where something was **not** run, it says so. This is a checklist, not a tutorial: [the Guide](GUIDE.md)
@@ -24,20 +24,24 @@ says how each command works.
     - **Not `uv add`, in a KB directory.** `uv add "pinakes[light]"` exits 2 there (*No `pyproject.toml`
       found*), and the README's Quickstart still opens with it. The Guide's route, `uv init && uv add …`
       ([Guide § Install](GUIDE.md#install)), **failed on that same machine**: `uv init` wrote
-      `requires-python = ">=3.15"`, and `uv add "pinakes[light]"` then did not resolve; `uv init --python
-      3.13` wrote `">=3.13"` and the same `uv add` resolved (61 packages, `--no-sync`, nothing installed).
-      Either route leaves `pnk` in the project's `.venv/bin`, off your `PATH`.
+      `requires-python = ">=3.15"`, and `uv add "pinakes[light]"` then did not resolve. **`uv init --python
+      3.13` is the route that works:** it wrote `requires-python = ">=3.13"` and a `.python-version` of 3.13
+      (and, being plain `uv init`, a git repository, a `README.md` and `src/`), and the same `uv add`
+      resolved — with `--no-sync`, so nothing was installed. The `--bare` variant resolves too but writes
+      no `.python-version`, so a later `uv sync` picks 3.15 and fails. The project's `pnk` would live in
+      `.venv/bin`, off your `PATH` *(from how uv installs; not run)*.
     - **Tell `pnk init` which extra you installed** (`--backend light`). A KB stamped for the default
       backend, with only `[light]` installed, stops on the first sync and names the two-line manifest
       edit that fixes it.
 2. **Weights come down on first use, and you do not choose the moment.** Measured with an empty
-   Hugging Face cache: the first `pnk sync` fetched the embedder (63 MB, 2 s by its progress bar); a later
+   Hugging Face cache: the first `pnk sync` fetched the embedder (67 MB, 2 s by its progress bar); a later
    `pnk doctor` — which is meant to be offline — fetched the **reranker (1.1 GB, 11 s)**. Be online for
    the first `sync` and for the first command that loads the reranker: `doctor` was measured; by the
    source so do `search`, `ask` and an agent's first `serve` tool call (not run). A `doctor` on a cache
    that does not exist yet prints two FAILs ending *“Run once without --offline to populate the cache”*.
    `doctor` is hard-wired offline and has no such flag; `sync`, `search`, `ask`, `links` and `serve` take
-   `--offline`, off by default, so what the line means is *run `pnk sync` once, online*. The cache
+   `--offline`, off by default, so the line means *go online once*: `sync` brings the embedder, and the
+   reranker comes with the first `doctor`, `search` or `ask`. The cache
    lives where `doctor`'s `model cache` line says; budget about **1.2 GB** for the light pair (the
    Guide's ~1.4 GB is the default backend's).
 
@@ -59,7 +63,8 @@ says how each command works.
   path` by default and `1865 of 1955 chunks carry a heading path (95%)` with it, on six public RFCs —
   the only plain text tried. The grammar reads a dotted-decimal outline and, if its walk fails, gives
   that document no headings at all ([MANIFEST](MANIFEST.md)). `doctor` reports the 0% and names the
-  setting; `sync` says nothing; changing it afterwards needs `pnk sync --rebuild`.
+  setting; `sync` says nothing; changing it afterwards needs `pnk sync --rebuild`, per `doctor`'s remedy
+  text (not run).
 - **A `.txt` file's title is its filename** (`title: rfc8089`); edit `title` in the sidecar. Markdown
   takes its heading.
 
@@ -71,12 +76,12 @@ pnk sync --kb my-kb
 
 - **Estimate in chunks, not bytes, and expect a range.** The same machine ran **16 to 21 chunks a
   second**: 7,137 chunks of this repository's Markdown (4.3 MB) took 338 s on 0.32.6 — 21 a second,
-  79 s per MB; 767 chunks of Markdown (360 KB) took 47 s on 0.32.7 — 16 a second, 130 s per MB, startup
-  weighing more on the smaller run; 2,189 chunks of plain text (387 KB) took 120 s — 18 a second,
+  79 s per MB; 767 chunks of Markdown (360 KB) took 47 s on 0.32.7 — 16 a second, 130 s per MB, the gap
+  from 21 not explained; 2,189 chunks of plain text (387 KB) took 120 s — 18 a second,
   310 s per MB. Weights already cached.
 - **On a terminal** you see `syncing: 3/8 documents (7.0/min)`. **In a pipe or an agent session you
   see nothing until the two summary lines.**
-- **An interrupted sync loses nothing.** Killed 12 s into a first sync that takes about 46 s uninterrupted,
+- **An interrupted sync loses nothing.** Killed 12 s into a first sync that takes about 47 s uninterrupted,
   `pnk doctor` exited 0 with
   no FAIL and *WARN sync completeness … Run `pnk sync`. It resumes incrementally and keeps every
   embedding already written*; the next `pnk sync` printed *took over a stale sync lock left by a
@@ -95,7 +100,7 @@ check showed five and six — the extra one is the last row.)
 | `git hooks: not a git repository` | until the KB is one **and** `pnk install-hooks` has run — *from the source:* after `git init` alone it reads `0 of 3 installed` | `doctor` says freshness is git-triggered and a loose folder needs a manual or cron `pnk sync`; `pnk install-hooks` installs the hooks ([Guide](GUIDE.md)) — not run here |
 | `calibration: no fitted thresholds` | after the first sync | honest, not a fault: `confidence` reports `unknown` until you fit thresholds against a golden set |
 | `links: none authored` | after the first sync | `pnk link` when you have links to record |
-| `price table: … N days old` | when the release is more than 30 days old | upgrade `pinakes`; adding `max_price_age_days` to `[budget]` also clears it, as a decision about a safety setting |
+| `price table: … N days old` | when the release is more than 30 days old | upgrade `pinakes`; adding `max_price_age_days` to `[budget]` also clears it (from the manifest reference, not run), as a decision about a safety setting |
 
 **`doctor` prints things that must not be pasted anywhere public**: the model-cache path (your home
 directory), the sync lock's hostname, and — when titles are still filenames — up to three document
@@ -108,7 +113,7 @@ paths. See § 6.
 1. `pnk doctor` reports `index: N active documents` with N equal to the number of files your
    `include` patterns select.
 2. **The probe passes for three documents.** Take a sentence of eight words or more that occurs exactly
-   once in the whole KB (a repeated one gives a false miss), run `pnk search --kb my-kb "<the sentence>"`, and look at the first hit: it should be that
+   once in the whole KB (a repeated one would give a false miss — reasoned, not run), run `pnk search --kb my-kb "<the sentence>"`, and look at the first hit: it should be that
    document. A search over a KB whose whole index is eight chunks or fewer returns every chunk and
    proves nothing. **This probe has not been measured for its pass rate** — treat a miss as a finding
    to record (§ 6), not as proof the KB is broken. `pnk search` prints chunk text, so do not run it
@@ -116,9 +121,12 @@ paths. See § 6.
 3. **A dated line in the friction file** (§ 6) saying one of *friction*, *used, nothing to report* or
    *not used*. A null log must tell *no friction* from *no use*, and only you can say which.
 
+Attaching the KB to an agent (§ 6) belongs to “started” in the option B plan; it was not tested live.
+
 ## 6. Use it, and record what went wrong
 
-- `pnk search` and `pnk ask` work from the KB directory or with `--kb`.
+- `pnk search` takes `--kb`; so does `pnk ask`, which was not run here (per `--help` it is free without
+  `--deep`).
 - **Attach it to an agent** with `.mcp.json`, using the absolute path of `pnk`:
 
     ```json
@@ -132,10 +140,11 @@ paths. See § 6.
     `command -v pnk` prints the path. [The Guide's snippet](GUIDE.md#using-it-from-an-agent) says
     `"command": "pnk"`; before `pnk` was installed with `uv tool`, a bare `pnk` was not found on the
     `PATH` of any shell tried. After `uv tool install` it is on the `PATH` only if uv's tool directory is
-    (uv warns when it is not, and `uv tool update-shell` is its fix — not run). The absolute path is a
+    (`uv tool install` printed a warning that its directory was not on the `PATH` and named `uv tool
+    update-shell` as the fix — the fix itself not run). The absolute path is a
     precaution, not a measured need, and **whether a live agent launches the entry with your `PATH` was
-    not tested.** An agent attached this way sees the chunk text of whatever it searches: attach only
-    a KB you are content to show it.
+    not tested.** An agent attached this way sees chunk text from `pinakes_search` and whole documents from
+    `pinakes_get` (from the source, not run): attach only a KB you are content to show it.
 - **Write five real questions you had this week into `eval/questions.yaml` before measuring anything**,
   because a question set written after the result is not a test.
 - **Keep a `FRICTION.md` in the KB's own repository.** One entry per surprise: the exact command, what
