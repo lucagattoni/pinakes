@@ -32,8 +32,8 @@ fan-outs before step 4, no agent teams for the planner→coder flow.
 
 | # | What | Files | Owner | Status |
 |---|---|---|---|---|
-| **A0** | Record the decision: this file, a routing row, one line in the pause bullet. | `plans/` (this), `docs/README.md`, `CLAUDE.md` (one line, diff shown first) | planner | in progress |
-| **A1** | **Steps 1 and 3**: one committed review workflow. Contract in § 3. | `.claude/workflows/`, `.gitignore`, tests | builder | not started |
+| **A0** | Record the decision: this file, a routing row, one line in the pause bullet. | `plans/` (this), `docs/README.md`, `CLAUDE.md` (one line, diff shown first) | planner | ✅ landed `668f92f`, 20261018; CI green |
+| **A1** | **Steps 1 and 3**: one committed review workflow. Contract in § 3. | `.claude/workflows/`, `.gitignore`, tests | builder | ✅ built on its branch after three independent review passes; **the real fan-out has not been run** (D3, on A2's diff) |
 | **A2** | **Step 2**: a Stop hook that runs `tools/review_pass_gate.py` on a review run from this turn. Contract in § 4. | `tools/hooks/`, `.claude/settings.json` (diff shown first), tests | builder | not started |
 | **A3** | **Row 22**: regenerate `CLAUDE.md`. Method in § 5. | `CLAUDE.md`, and the docs that receive moved text | planner | not started — diff shown first |
 | **A4** | Cut the release that carries A. | `CHANGELOG.md`, version | planner | not started |
@@ -62,8 +62,9 @@ From the artifact § 8.5, limited to steps 1 and 3:
   one id that disagree cancel out. A judge that throws is a dead judge.
 - **Bounded, and said so.** A lens gets at most 20 findings refuted; the rest are listed as
   `unrefuted` with the reason, not dropped.
-- **Count before filtering.** `dead = results.filter(r => r === null).length` runs before any
-  `.filter(Boolean)`; `dead > 0` forces `PARTIAL` at best. `VACUOUS` means *no lens returned*, and it
+- **Count before filtering.** A lens that died is turned into a record of its death before
+  anything is filtered (`runs[i] || deadRecord(...)`, never `.filter(Boolean)`), and a dead lens
+  forces `PARTIAL` at best. `VACUOUS` means *no lens returned*, and it
   is a different outcome from `CLEAN`, not a smaller one.
 - **Slow lenses first**: the runtime lens, then the missing-set lens, then the text lenses, so a
   session limit cuts the cheap end.
@@ -127,8 +128,9 @@ the rebuilt version is checked by reading it as a cleared session would.
   `tests/test_mutate.py` tests, and `check.sh` runs some tools with a bare `python3` that is 3.9 here.
   The invocation that passed: `PATH="$PWD/.venv/bin:$PATH" env -u PYTHONDONTWRITEBYTECODE ./check.sh`,
   with its exit status read from a log you wrote, not from a pipe.
-- **`.gitignore` does not exclude `.claude/worktrees/`**, which exists on disk inside the repository.
-  A1 adds that rule **before** anything under `.claude/` is committed.
+- **`.gitignore` did not exclude `.claude/worktrees/`** when this plan was written (a machine that has
+  run Claude Code excludes it in `.git/info/exclude`, which no other clone has), and A1 added it
+  before anything under `.claude/` was committed.
 - **Delegated builders run on Sonnet** (pass `model` explicitly); only the judge is Opus.
 - **A2's `settings.json` and A3's `CLAUDE.md` are instruction files**: the diff is shown and the user
   says yes before either lands.

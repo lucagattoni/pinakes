@@ -63,7 +63,12 @@ the first one written here was wrong.** `C:\notes\kb` was quoted until the run m
 *rejected*, because `\k` is not an escape at all — so the mutant died on a `TOMLDecodeError` while
 the row's name claimed a round-trip nothing in the file was asserting. It now kills through a
 single-value test over `C:\notes` and dies on an equality. **A mutant killed for the wrong reason
-is a survivor wearing a green light.** **Named for is not covers**: nine files under `src/` are mutated by some
+is a survivor wearing a green light.** **One battery is named for something under neither `tools/`
+nor `src/`**: `claude-workflows-adversarial-review.toml`, over `.claude/workflows/adversarial-review.js`
+(plus two rows on `.gitignore`), added 20261019. Its target is JavaScript, so `tools/mutate.py`'s
+compile check — which covers `.py` targets only — does not protect its rows, and each was chosen to
+stay valid JavaScript. It runs the script against stub hooks under Node, so it proves control flow
+and nothing about what a real review agent finds. **Named for is not covers**: nine files under `src/` are mutated by some
 battery, `src/pinakes/serve.py` among them via `tools-mcp_handshake_gate.toml` — which is why a
 `src-pinakes-serve.toml` proposed on 20260831 was refused by
 `test_no_file_is_claimed_by_two_batteries` and its rows appended to the handshake gate instead.

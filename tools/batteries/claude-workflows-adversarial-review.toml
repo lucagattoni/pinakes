@@ -7,20 +7,28 @@
 # script.** The script's real fan-out cannot run in `./check.sh`; the stub hooks in
 # `tests/review_workflow_harness.mjs` stand in for the runtime, so these rows prove the *control
 # flow* is held - which lens starts first, what is counted before what is filtered, which model
-# each call names, what is read back from a reply before it is believed - and nothing about what a
-# real lens finds.
+# each call names, what is read back from a reply before it is believed, what each role's prompt
+# contains - and nothing about what a real lens finds.
 #
 # The target is JavaScript, so `tools/mutate.py` does not compile the mutant before running it
 # (its `.py`-only check) and an edit that breaks the syntax would read as a kill. Each mutant
 # below was chosen to stay valid JavaScript, and the named test is the one that has to die.
 #
-# The first version of this battery had 22 rows and a review pass found that a mutation gutting
-# every schema, one removing the guard on the judge call, one removing the sha pattern's anchors,
-# and one turning pipeline() into a barrier all survived. They are rows now.
+# **How this battery got its size.** The first version had 22 rows and was fully killed. A review
+# pass then wrote 62 mutants of its own, and 50 survived: the tests held less than the battery
+# implied. A mutant that silently dropped a finding and read CLEAN, one removing the guard on the
+# judge call, one making a high-severity finding's dismissal-on-a-guess invisible, and a dozen that
+# changed what a role's prompt contained all passed. They are rows now, and the fuzz test
+# (`test_no_random_scenario_breaks_an_invariant`) catches the class a hand-written row cannot.
+#
+# **Not rows, on purpose.** Removing `Array.isArray(out.findings)`, or the `not_run` type check,
+# is an equivalent mutant: a non-array reaches a `.map` or `.trim()` inside the stage, which
+# throws, and pipeline() drops the lens exactly as the guard would. The guards stay because the
+# outcome should not depend on a TypeError.
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 40
+mutants = 99
 
 # ────────────────────────────────────────────────────────
 # unreleased, 20261019 · a review that says whether anyone looked
@@ -30,7 +38,7 @@ mutants = 40
 name = "CONTROL — the pipeline's results are collected with .filter(Boolean), so a lens whose stage threw is not counted as dead"
 file = ".claude/workflows/adversarial-review.js"
 # The original idiom, applied to the fan-out's results: a lens that is missing from the list is not in the dead list either. classify() still sees fewer lenses than expected, which is why the verdict stays PARTIAL - and why the test asserts the *list* of dead lenses and not only the verdict. A count that disagrees with its own list is the shape of the original bug.
-old = '''LENSES.map((lens, i) => runs[i] || deadRecord(lens.key))'''
+old = '''LENSES.map((lens, i) => runs[i] || deadRecord(lens.key, 'the stage threw'))'''
 new = '''runs.filter(Boolean)'''
 kills = "tests/test_review_workflow.py::test_a_lens_that_throws_is_a_dead_lens"
 
@@ -43,6 +51,13 @@ new = '''const lensesDied = lensRecords.filter(r => false).map(r => r.lens)'''
 kills = "tests/test_review_workflow.py::test_a_dead_lens_is_partial_not_clean"
 
 [[mutant]]
+name = "a dead lens is listed without the reason it died"
+file = ".claude/workflows/adversarial-review.js"
+old = '''died_why: diedWhy'''
+new = '''died_why: {}'''
+kills = "tests/test_review_workflow.py::test_a_dead_lens_is_partial_not_clean"
+
+[[mutant]]
 name = "a pass in which no lens returned reads CLEAN instead of VACUOUS"
 file = ".claude/workflows/adversarial-review.js"
 # VACUOUS is not a smaller CLEAN: it says nobody looked. Folding it into CLEAN is the clean bill a fan-out returned while its agents were dead (tools/review_pass_gate.py's docstring).
@@ -51,11 +66,39 @@ new = '''if (c.lensesReturned === 0) return 'CLEAN''''
 kills = "tests/test_review_workflow.py::test_every_lens_dead_is_vacuous_and_not_clean"
 
 [[mutant]]
+name = "one or two lenses returning reads VACUOUS instead of PARTIAL"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (c.lensesReturned === 0) return 'VACUOUS''''
+new = '''if (c.lensesReturned <= 2) return 'VACUOUS''''
+kills = "tests/test_review_workflow.py::test_some_lenses_returning_is_partial_not_vacuous"
+
+[[mutant]]
 name = "a probe that could not be run no longer lowers the verdict"
 file = ".claude/workflows/adversarial-review.js"
 old = '''if (c.notRun > 0) return 'PARTIAL''''
 new = '''if (c.notRun > 99) return 'PARTIAL''''
 kills = "tests/test_review_workflow.py::test_an_unrun_probe_is_partial_even_though_every_lens_returned"
+
+[[mutant]]
+name = "a high-severity finding dismissed on a guess no longer lowers the verdict"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (c.unchecked > 0) return 'PARTIAL''''
+new = '''if (false) return 'PARTIAL''''
+kills = "tests/test_review_workflow.py::test_a_high_finding_dismissed_on_a_guess_is_a_gap"
+
+[[mutant]]
+name = "the number of guessed dismissals is never passed to classify()"
+file = ".claude/workflows/adversarial-review.js"
+old = '''unchecked: uncheckedHigh.length,'''
+new = '''unchecked: 0,'''
+kills = "tests/test_review_workflow.py::test_a_high_finding_dismissed_on_a_guess_is_a_gap"
+
+[[mutant]]
+name = "every finding dismissed on a guess is a gap, not only the high ones"
+file = ".claude/workflows/adversarial-review.js"
+old = '''f.basis === 'uncertain' && f.severity === 'high''''
+new = '''f.basis === 'uncertain''''
+kills = "tests/test_review_workflow.py::test_a_lesser_finding_dismissed_on_a_guess_is_listed_but_not_a_gap"
 
 [[mutant]]
 name = "a finding with no refuter no longer lowers the verdict"
@@ -69,6 +112,13 @@ name = "survivors with no ruling no longer lower the verdict"
 file = ".claude/workflows/adversarial-review.js"
 old = '''if (c.judgeNeeded && !c.judgeReturned) return 'PARTIAL''''
 new = '''if (false) return 'PARTIAL''''
+kills = "tests/test_review_workflow.py::test_a_dead_judge_leaves_survivors_unjudged_and_nothing_confirmed"
+
+[[mutant]]
+name = "the judge is reported as having returned whatever it ruled on"
+file = ".claude/workflows/adversarial-review.js"
+old = '''judgeReturned: unjudged.length === 0,'''
+new = '''judgeReturned: true,'''
 kills = "tests/test_review_workflow.py::test_a_dead_judge_leaves_survivors_unjudged_and_nothing_confirmed"
 
 [[mutant]]
@@ -87,6 +137,34 @@ old = '''if (read.diffFiles < 1) notRun.push('''
 new = '''if (read.diffFiles < 0) notRun.push('''
 kills = "tests/test_review_workflow.py::test_a_lens_that_saw_an_empty_diff_reviewed_nothing"
 
+[[mutant]]
+name = "a one-file diff counts as an empty one"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (read.diffFiles < 1) notRun.push('''
+new = '''if (read.diffFiles < 2) notRun.push('''
+kills = "tests/test_review_workflow.py::test_a_one_file_diff_is_a_diff"
+
+[[mutant]]
+name = "the note counts lenses with an unrun probe rather than the probes"
+file = ".claude/workflows/adversarial-review.js"
+old = '''const notRunCount = lensRecords.reduce((n, r) => n + r.notRun.length, 0)'''
+new = '''const notRunCount = lensRecords.reduce((n, r) => n + (r.notRun.length ? 1 : 0), 0)'''
+kills = "tests/test_review_workflow.py::test_the_note_counts_probes_not_lenses"
+
+[[mutant]]
+name = "classify() accepts a count that is a string, a fraction or null"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (!Number.isInteger(c[key]) || c[key] < 0) {'''
+new = '''if (c[key] < 0) {'''
+kills = "tests/test_review_workflow.py::test_classify_refuses_every_count_that_is_not_a_count"
+
+[[mutant]]
+name = "classify() accepts a flag that is not a boolean"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (typeof c.judgeNeeded !== 'boolean' || typeof c.judgeReturned !== 'boolean') {'''
+new = '''if (false) {'''
+kills = "tests/test_review_workflow.py::test_classify_refuses_a_flag_that_is_not_a_boolean"
+
 # ────────────────────────────────────────────────────────
 # unreleased, 20261019 · a reply is evidence only in the shape that was asked for
 # ────────────────────────────────────────────────────────
@@ -95,31 +173,65 @@ kills = "tests/test_review_workflow.py::test_a_lens_that_saw_an_empty_diff_revie
 name = "a lens that ran nothing counts as having looked"
 file = ".claude/workflows/adversarial-review.js"
 # The quiet failure the journal gate also names: an agent that completed and returned an empty result.
-old = '''if (checks.length === 0) return null'''
-new = '''if (false) return null'''
+old = '''if (checks.length === 0) return {'''
+new = '''if (false) return {'''
 kills = "tests/test_review_workflow.py::test_a_lens_that_ran_nothing_is_dead_not_clean"
 
 [[mutant]]
-name = "a blank or two-character check counts as a check"
+name = "a three-character command is refused as too short"
 file = ".claude/workflows/adversarial-review.js"
-old = '''x.trim().length >= 3) : []'''
-new = '''x.trim().length >= 0) : []'''
-kills = "tests/test_review_workflow.py::test_a_check_that_is_blank_or_not_a_string_does_not_count_as_a_check"
+old = '''x.replace(/\s/g, '').length >= 3'''
+new = '''x.replace(/\s/g, '').length >= 4'''
+kills = "tests/test_review_workflow.py::test_a_three_character_command_is_a_check"
 
 [[mutant]]
-name = "a lens whose findings are not each well formed is still believed"
+name = "a blank or two-character command counts as a command"
 file = ".claude/workflows/adversarial-review.js"
-# The other half of this guard, `Array.isArray(out.findings)`, is not a row: it is an equivalent mutant. Without it a non-array reaches `.map`, which throws inside the stage, and pipeline() drops the lens exactly as the guard does - a battery run found it surviving all twelve tests of its selector and a reply with `findings` null, a string or missing does die as a dead lens either way. It stays as a guard because the outcome should not depend on a TypeError.
-old = '''if (!Array.isArray(out.findings) || !out.findings.every(wellFormedFinding)) return null'''
-new = '''if (!Array.isArray(out.findings)) return null'''
-kills = "tests/test_review_workflow.py::test_a_malformed_finding_makes_the_whole_lens_unusable"
+old = '''x.replace(/\s/g, '').length >= 3'''
+new = '''x.replace(/\s/g, '').length >= 0'''
+kills = "tests/test_review_workflow.py::test_a_check_that_is_blank_a_placeholder_or_not_a_string_is_not_a_check"
+
+[[mutant]]
+name = "the placeholder words (none, nil, not run) count as commands"
+file = ".claude/workflows/adversarial-review.js"
+old = '''const PLACEHOLDERS = new Set(['none', 'n/a', 'na', 'nil', 'null', 'nothing', 'skipped', 'unknown', 'no checks', 'not run', 'n.a.'])'''
+new = '''const PLACEHOLDERS = new Set([])'''
+kills = "tests/test_review_workflow.py::test_a_check_that_is_blank_a_placeholder_or_not_a_string_is_not_a_check"
+
+[[mutant]]
+name = "punctuation alone ('n/a', '...', '---') counts as a command"
+file = ".claude/workflows/adversarial-review.js"
+old = '''  && /[A-Za-z0-9]{2}/.test(x) &&'''
+new = '''  &&'''
+kills = "tests/test_review_workflow.py::test_a_check_that_is_blank_a_placeholder_or_not_a_string_is_not_a_check"
+
+[[mutant]]
+name = "a reply whose diff_files is missing, negative or a string is believed"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (!Number.isInteger(out.diff_files) || out.diff_files < 0) return {'''
+new = '''if (false) return {'''
+kills = "tests/test_review_workflow.py::test_a_lens_reply_the_schema_forbids_is_a_dead_lens"
+
+[[mutant]]
+name = "a malformed finding is believed instead of dropped"
+file = ".claude/workflows/adversarial-review.js"
+old = '''const good = out.findings.filter(wellFormedFinding)'''
+new = '''const good = out.findings'''
+kills = "tests/test_review_workflow.py::test_a_malformed_finding_is_dropped_and_recorded_and_the_good_ones_survive"
+
+[[mutant]]
+name = "a dropped malformed finding is not recorded"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (read.malformed) notRun.push('''
+new = '''if (false) notRun.push('''
+kills = "tests/test_review_workflow.py::test_a_malformed_finding_is_dropped_and_recorded_and_the_good_ones_survive"
 
 [[mutant]]
 name = "a finding with a severity outside the three is accepted"
 file = ".claude/workflows/adversarial-review.js"
 old = '''&& SEVERITIES.includes(f.severity) && typeof f.file === 'string''''
 new = '''&& true && typeof f.file === 'string''''
-kills = "tests/test_review_workflow.py::test_a_malformed_finding_makes_the_whole_lens_unusable"
+kills = "tests/test_review_workflow.py::test_a_malformed_finding_is_dropped_and_recorded_and_the_good_ones_survive"
 
 [[mutant]]
 name = "a refutation that ran no command is accepted as a check"
@@ -144,6 +256,14 @@ new = ''''''
 kills = "tests/test_review_workflow.py::test_a_verdict_the_schema_forbids_is_no_verdict"
 
 [[mutant]]
+name = "a verdict whose observed text is null is accepted, and then crashes the whole run"
+file = ".claude/workflows/adversarial-review.js"
+# The read is outside pipeline() and parallel(), so a throw here is not absorbed as a dead agent: it ends the script and takes every lens result with it.
+old = '''&& typeof v.observed === 'string' && v.observed.trim() !== '' ? v : null'''
+new = '''? v : null'''
+kills = "tests/test_review_workflow.py::test_a_verdict_the_schema_forbids_is_no_verdict"
+
+[[mutant]]
 name = "a finding whose refuter died is dropped instead of listed as unrefuted"
 file = ".claude/workflows/adversarial-review.js"
 old = '''if (!v) unrefuted.push({ ...f, reason: 'the refuter died or returned an unusable verdict' })'''
@@ -161,9 +281,31 @@ kills = "tests/test_review_workflow.py::test_a_refuted_finding_is_listed_whole_a
 name = "a refuted finding is listed without its severity, file, evidence or basis"
 file = ".claude/workflows/adversarial-review.js"
 # The refuter defaults to refuted when unsure. Stripped to an id and a claim, a refuted high-severity finding cannot be told from a low one, nor a checked refutation from a guess.
-old = '''refuted.push({ ...f, basis: v.basis, refuter_commands: commands(v.commands_run), observed: v.observed })'''
+old = '''refuted.push({ ...f, basis: v.basis, refuter_commands: commands(v.commands_run), observed: clip(v.observed) })'''
 new = '''refuted.push({ id: f.id, claim: f.claim, observed: v.observed })'''
 kills = "tests/test_review_workflow.py::test_a_refuted_finding_is_listed_whole_and_the_pass_is_clean"
+
+[[mutant]]
+name = "a finding no refuter could kill is dropped unless the refuter checked, and the pass reads CLEAN"
+file = ".claude/workflows/adversarial-review.js"
+# A silent drop that reports CLEAN: found by a reviewer's own mutant, which passed all 123 hand-written tests of the time and fails the conservation invariant in the fuzz too.
+old = '''else survivors.push({ ...f, refuter_observed: clip(v.observed) })'''
+new = '''else if (v.basis === 'checked') survivors.push({ ...f, refuter_observed: clip(v.observed) })'''
+kills = "tests/test_review_workflow.py::test_a_finding_the_refuter_could_not_kill_reaches_the_judge_whatever_its_basis"
+
+[[mutant]]
+name = "keys a lens adds to a finding are copied into the result"
+file = ".claude/workflows/adversarial-review.js"
+old = '''id, lens, severity: f.severity, file: clip(f.file, 300), claim: clip(f.claim), evidence: clip(f.evidence),'''
+new = '''...f, id, lens,'''
+kills = "tests/test_review_workflow.py::test_keys_a_lens_adds_do_not_reach_the_result"
+
+[[mutant]]
+name = "a very long field is passed on whole"
+file = ".claude/workflows/adversarial-review.js"
+old = '''const clip = (text, limit = MAX_FIELD) => text.length > limit ? text.slice(0, limit) + ' ...[truncated by the review script]' : text'''
+new = '''const clip = (text, limit = MAX_FIELD) => text'''
+kills = "tests/test_review_workflow.py::test_a_very_long_field_is_clipped_in_the_prompt_and_in_the_result"
 
 # ────────────────────────────────────────────────────────
 # unreleased, 20261019 · the judge, and what it may and may not decide
@@ -178,25 +320,88 @@ new = '''throw error'''
 kills = "tests/test_review_workflow.py::test_a_judge_that_throws_is_a_dead_judge_and_loses_nothing"
 
 [[mutant]]
+name = "a judge that throws leaves no record of why it is dead"
+file = ".claude/workflows/adversarial-review.js"
+old = '''log('the judge threw: ' + (error && error.message || error))'''
+new = '''void error'''
+kills = "tests/test_review_workflow.py::test_a_judge_that_throws_is_a_dead_judge_and_loses_nothing"
+
+[[mutant]]
+name = "a judge reply whose rulings is not an array crashes the run"
+file = ".claude/workflows/adversarial-review.js"
+old = '''rulings = judged && Array.isArray(judged.rulings) ? judged.rulings : null'''
+new = '''rulings = judged && judged.rulings ? judged.rulings : null'''
+kills = "tests/test_review_workflow.py::test_a_judge_reply_that_would_crash_the_script_is_survived"
+
+[[mutant]]
+name = "a null ruling crashes the run"
+file = ".claude/workflows/adversarial-review.js"
+old = '''const idOf = r => r && typeof r === 'object' && typeof r.id === 'string' ?'''
+new = '''const idOf = r => typeof r.id === 'string' ?'''
+kills = "tests/test_review_workflow.py::test_a_judge_reply_that_would_crash_the_script_is_survived"
+
+[[mutant]]
+name = "a ruling with no rationale is believed"
+file = ".claude/workflows/adversarial-review.js"
+old = '''  && typeof r.rationale === 'string' && r.rationale.trim() !== '''''
+new = ''''''
+kills = "tests/test_review_workflow.py::test_a_ruling_the_schema_forbids_leaves_its_survivor_unjudged"
+
+[[mutant]]
 name = "a ruling is read as real for any real that is not undefined, so \"false\" confirms a finding"
 file = ".claude/workflows/adversarial-review.js"
 old = '''typeof r.real === 'boolean''''
 new = '''r.real !== undefined'''
-kills = "tests/test_review_workflow.py::test_a_ruling_the_schema_forbids_is_no_ruling"
+kills = "tests/test_review_workflow.py::test_a_ruling_the_schema_forbids_leaves_its_survivor_unjudged"
 
 [[mutant]]
-name = "the judge's first ruling on an id wins even when a later one disagrees"
+name = "a ruling with a severity outside the three is believed"
 file = ".claude/workflows/adversarial-review.js"
-old = '''if (ruling.has(id) && ruling.get(id).real !== r.real) conflicting.add(id)'''
-new = '''if (false) conflicting.add(id)'''
+old = '''typeof r.real === 'boolean' && SEVERITIES.includes(r.severity)'''
+new = '''typeof r.real === 'boolean''''
+kills = "tests/test_review_workflow.py::test_a_ruling_the_schema_forbids_leaves_its_survivor_unjudged"
+
+[[mutant]]
+name = "a malformed ruling on a survivor is ignored instead of contesting it"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (usable.length < given.length) {'''
+new = '''if (false) {'''
+kills = "tests/test_review_workflow.py::test_a_malformed_ruling_that_contradicts_a_good_one_is_not_ignored"
+
+[[mutant]]
+name = "two rulings on an id that disagree on real are not contested"
+file = ".claude/workflows/adversarial-review.js"
+old = '''} else if (usable.some(r => r.real !== usable[0].real || r.severity !== usable[0].severity)) {'''
+new = '''} else if (false) {'''
+kills = "tests/test_review_workflow.py::test_two_rulings_on_one_id_that_disagree_leave_it_unjudged"
+
+[[mutant]]
+name = "two rulings that agree on real but differ in severity are not contested"
+file = ".claude/workflows/adversarial-review.js"
+old = '''r.real !== usable[0].real || r.severity !== usable[0].severity'''
+new = '''r.real !== usable[0].real'''
+kills = "tests/test_review_workflow.py::test_two_rulings_that_agree_on_real_but_not_on_severity_are_contested_too"
+
+[[mutant]]
+name = "a contested ruling loses the judge's answers"
+file = ".claude/workflows/adversarial-review.js"
+old = '''reason: 'the rulings on this id disagree', answers: usable.map('''
+new = '''reason: 'the rulings on this id disagree', answers: [].map('''
 kills = "tests/test_review_workflow.py::test_two_rulings_on_one_id_that_disagree_leave_it_unjudged"
 
 [[mutant]]
 name = "a ruling for an id nobody raised is swallowed without a trace"
 file = ".claude/workflows/adversarial-review.js"
-old = '''{ ignoredRulings.push({ reason: 'id matches no survivor', id }); continue }'''
-new = '''{ continue }'''
+old = '''ignoredRulings.push({ reason: id ? 'id matches no survivor' : 'ruling has no usable id', id, ruling: clip(JSON.stringify(r) || String(r), 300) })'''
+new = '''void 0'''
 kills = "tests/test_review_workflow.py::test_a_ruling_for_an_id_nobody_raised_is_reported_not_swallowed"
+
+[[mutant]]
+name = "a ruling on a finding a refuter already killed is taken for a ruling on a survivor"
+file = ".claude/workflows/adversarial-review.js"
+old = '''const survivorIds = new Set(survivors.map(f => f.id))'''
+new = '''const survivorIds = new Set(raised.map(f => f.id))'''
+kills = "tests/test_review_workflow.py::test_a_ruling_on_a_finding_a_refuter_already_killed_is_ignored_and_said_so"
 
 [[mutant]]
 name = "a judge that echoes the brackets around an id leaves every survivor unjudged"
@@ -212,8 +417,22 @@ old = '''const unjudged = survivors.filter(f => !ruling.has(f.id))'''
 new = '''const unjudged = []'''
 kills = "tests/test_review_workflow.py::test_a_judge_that_rules_on_only_some_survivors_leaves_the_rest_unjudged"
 
+[[mutant]]
+name = "a finding ruled not real loses the judge's rationale"
+file = ".claude/workflows/adversarial-review.js"
+old = '''rationale: clip(ruling.get(f.id).rationale) }))'''
+new = '''}))'''
+kills = "tests/test_review_workflow.py::test_a_judge_ruling_a_finding_not_real_is_listed_and_the_pass_is_clean"
+
+[[mutant]]
+name = "a confirmed finding reports the severity it was raised with, not the one the judge ruled"
+file = ".claude/workflows/adversarial-review.js"
+old = '''severity_as_ruled: ruling.get(f.id).severity }))'''
+new = '''severity_as_ruled: f.severity }))'''
+kills = "tests/test_review_workflow.py::test_a_survivor_the_judge_confirms_is_a_finding"
+
 # ────────────────────────────────────────────────────────
-# unreleased, 20261019 · what is launched, in what order, on which model
+# unreleased, 20261019 · what is launched, in what order, on which model, and under which phase
 # ────────────────────────────────────────────────────────
 
 [[mutant]]
@@ -255,12 +474,82 @@ new = '''schema: RULING_SCHEMA, model: 'sonnet' })'''
 kills = "tests/test_review_workflow.py::test_every_call_names_its_model_and_only_the_judge_is_opus"
 
 [[mutant]]
+name = "a lens runs on Opus"
+file = ".claude/workflows/adversarial-review.js"
+old = '''phase: 'Lenses', schema: LENS_SCHEMA, model: 'sonnet' })
+    .then'''
+new = '''phase: 'Lenses', schema: LENS_SCHEMA, model: 'opus' })
+    .then'''
+kills = "tests/test_review_workflow.py::test_every_call_names_its_model_and_only_the_judge_is_opus"
+
+[[mutant]]
 name = "a refuter names no model, so it inherits the session's"
 file = ".claude/workflows/adversarial-review.js"
-# An omitted model: inherits the main loop's model - the measured way delegated work reached the top tier. The test needs a finding in the scenario or no refuter is ever launched.
+# An omitted model: inherits the main loop's model - the measured way delegated work reached the top tier.
 old = '''schema: VERDICT_SCHEMA, model: 'sonnet' })))'''
 new = '''schema: VERDICT_SCHEMA })))'''
 kills = "tests/test_review_workflow.py::test_every_call_names_its_model_and_only_the_judge_is_opus"
+
+[[mutant]]
+name = "a refuter call is filed under the wrong phase"
+file = ".claude/workflows/adversarial-review.js"
+old = '''agent(refutePrompt(f), { label: 'refute:' + f.id, phase: 'Refute','''
+new = '''agent(refutePrompt(f), { label: 'refute:' + f.id, phase: 'Lenses','''
+kills = "tests/test_review_workflow.py::test_every_call_is_in_the_phase_that_names_it"
+
+[[mutant]]
+name = "the Judge phase is never announced"
+file = ".claude/workflows/adversarial-review.js"
+old = '''phase('Judge')
+let rulings = null'''
+new = '''let rulings = null'''
+kills = "tests/test_review_workflow.py::test_every_call_is_in_the_phase_that_names_it"
+
+[[mutant]]
+name = "the coverage is not logged"
+file = ".claude/workflows/adversarial-review.js"
+old = '''log('coverage ' + coverage + ': ''''
+new = '''log('cov ' + coverage + ': ''''
+kills = "tests/test_review_workflow.py::test_the_log_says_the_coverage"
+
+[[mutant]]
+name = "a lens may raise any number of findings"
+file = ".claude/workflows/adversarial-review.js"
+old = '''const MAX_FINDINGS_PER_LENS = 20'''
+new = '''const MAX_FINDINGS_PER_LENS = 1000'''
+kills = "tests/test_review_workflow.py::test_a_lens_that_raises_more_than_the_cap_has_the_rest_listed_not_dropped"
+
+[[mutant]]
+name = "the cap is one short"
+file = ".claude/workflows/adversarial-review.js"
+old = '''ranked.slice(0, MAX_FINDINGS_PER_LENS)'''
+new = '''ranked.slice(0, MAX_FINDINGS_PER_LENS - 1)'''
+kills = "tests/test_review_workflow.py::test_exactly_the_cap_is_not_over_it"
+
+[[mutant]]
+name = "the cap keeps the first findings written rather than the most severe"
+file = ".claude/workflows/adversarial-review.js"
+old = '''.sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])'''
+new = '''.sort(() => 0)'''
+kills = "tests/test_review_workflow.py::test_a_lens_that_raises_more_than_the_cap_has_the_rest_listed_not_dropped"
+
+[[mutant]]
+name = "findings over the cap vanish instead of being listed as unrefuted"
+file = ".claude/workflows/adversarial-review.js"
+old = '''const unrefuted = lensRecords.flatMap(r => r.overflow)'''
+new = '''const unrefuted = []'''
+kills = "tests/test_review_workflow.py::test_a_lens_that_raises_more_than_the_cap_has_the_rest_listed_not_dropped"
+
+[[mutant]]
+name = "the over-the-cap log fires on every lens"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (overflow.length) log('''
+new = '''if (true) log('''
+kills = "tests/test_review_workflow.py::test_exactly_the_cap_is_not_over_it"
+
+# ────────────────────────────────────────────────────────
+# unreleased, 20261019 · what the schemas demand of an agent
+# ────────────────────────────────────────────────────────
 
 [[mutant]]
 name = "the lens schema stops requiring any field"
@@ -271,21 +560,73 @@ new = '''required: [],'''
 kills = "tests/test_review_workflow.py::test_the_schemas_pin_what_the_script_reads_back"
 
 [[mutant]]
-name = "a lens may raise any number of findings"
+name = "a finding no longer has to carry a claim, severity, file and evidence"
 file = ".claude/workflows/adversarial-review.js"
-old = '''const MAX_FINDINGS_PER_LENS = 20'''
-new = '''const MAX_FINDINGS_PER_LENS = 1000'''
-kills = "tests/test_review_workflow.py::test_a_lens_that_raises_more_than_the_cap_has_the_rest_listed_not_dropped"
+old = '''required: ['claim', 'severity', 'file', 'evidence'],'''
+new = '''required: [],'''
+kills = "tests/test_review_workflow.py::test_the_schemas_pin_what_the_script_reads_back"
 
 [[mutant]]
-name = "findings over the cap vanish instead of being listed as unrefuted"
+name = "the verdict schema stops requiring any field"
 file = ".claude/workflows/adversarial-review.js"
-old = '''const unrefuted = lensRecords.flatMap(r => r.overflow)'''
-new = '''const unrefuted = []'''
-kills = "tests/test_review_workflow.py::test_a_lens_that_raises_more_than_the_cap_has_the_rest_listed_not_dropped"
+old = '''required: ['refuted', 'basis', 'commands_run', 'observed'],'''
+new = '''required: [],'''
+kills = "tests/test_review_workflow.py::test_the_schemas_pin_what_the_script_reads_back"
+
+[[mutant]]
+name = "the judge's reply no longer has to contain rulings"
+file = ".claude/workflows/adversarial-review.js"
+old = '''required: ['rulings'],'''
+new = '''required: [],'''
+kills = "tests/test_review_workflow.py::test_the_schemas_pin_what_the_script_reads_back"
+
+[[mutant]]
+name = "a ruling no longer has to carry an id, a real, a severity and a rationale"
+file = ".claude/workflows/adversarial-review.js"
+old = '''required: ['id', 'real', 'severity', 'rationale'],'''
+new = '''required: [],'''
+kills = "tests/test_review_workflow.py::test_the_schemas_pin_what_the_script_reads_back"
+
+[[mutant]]
+name = "a refuter's refuted may be a string"
+file = ".claude/workflows/adversarial-review.js"
+old = '''refuted: { type: 'boolean' },'''
+new = '''refuted: { type: 'string' },'''
+kills = "tests/test_review_workflow.py::test_the_schemas_pin_what_the_script_reads_back"
+
+[[mutant]]
+name = "diff_files may be a string"
+file = ".claude/workflows/adversarial-review.js"
+old = '''diff_files: { type: 'integer', minimum: 0 },'''
+new = '''diff_files: { type: 'string' },'''
+kills = "tests/test_review_workflow.py::test_the_schemas_pin_what_the_script_reads_back"
+
+[[mutant]]
+name = "a refuter's commands need no three non-space characters in the schema"
+file = ".claude/workflows/adversarial-review.js"
+old = '''items: { type: 'string', minLength: 3, pattern: THREE_NON_SPACE } },
+    observed:'''
+new = '''items: { type: 'string', minLength: 3 } },
+    observed:'''
+kills = "tests/test_review_workflow.py::test_the_schemas_pin_what_the_script_reads_back"
+
+[[mutant]]
+name = "a refuter's observed text may be blank in the schema"
+file = ".claude/workflows/adversarial-review.js"
+old = '''observed: { type: 'string', minLength: 1, pattern: '\\S' },'''
+new = '''observed: { type: 'string', minLength: 1 },'''
+kills = "tests/test_review_workflow.py::test_the_schemas_pin_what_the_script_reads_back"
+
+[[mutant]]
+name = "the schema's idea of a command is stricter than the script's"
+file = ".claude/workflows/adversarial-review.js"
+# The runtime accepts what the schema accepts and the script then rejects for good, replayed from cache on a relaunch: `ls ` was accepted by minLength 3 and rejected by a trimming check.
+old = '''const THREE_NON_SPACE = '\\S[\\s\\S]*\\S[\\s\\S]*\\S''''
+new = '''const THREE_NON_SPACE = '\\S[\\s\\S]*\\S''''
+kills = "tests/test_review_workflow.py::test_the_command_pattern_in_the_schema_agrees_with_the_one_in_the_script"
 
 # ────────────────────────────────────────────────────────
-# unreleased, 20261019 · the pin, at both ends of the diff
+# unreleased, 20261019 · the pin, the prompts, and the shape of the result
 # ────────────────────────────────────────────────────────
 
 [[mutant]]
@@ -313,6 +654,85 @@ new = '''read files in the working tree, and run'''
 kills = "tests/test_review_workflow.py::test_every_prompt_pins_the_commit_and_every_investigator_is_told_to_look_at_the_disk"
 
 [[mutant]]
+name = "the shared preamble no longer says to use a detached worktree"
+file = ".claude/workflows/adversarial-review.js"
+old = '''and run anything that needs the tree only in a detached scratch worktree of that commit.''''
+new = '''and run anything that needs the tree.''''
+kills = "tests/test_review_workflow.py::test_each_lens_gets_its_own_frame_and_only_its_own"
+
+[[mutant]]
+name = "every lens is given the runtime lens's frame"
+file = ".claude/workflows/adversarial-review.js"
+old = ''''Your lens: ' + lens.key + '. ' + lens.frame,'''
+new = ''''Your lens: ' + lens.key + '. ' + LENSES[0].frame,'''
+kills = "tests/test_review_workflow.py::test_each_lens_gets_its_own_frame_and_only_its_own"
+
+[[mutant]]
+name = "the refuter is not told that the finding is data"
+file = ".claude/workflows/adversarial-review.js"
+# A finding is text another agent wrote and is interpolated into the prompt of the agent judging it; fencing it as data is the cheap mitigation, and it needs a test or it is a comment.
+old = ''''Another reviewer raised the finding between the markers.\n' + DATA_RULE,'''
+new = ''''Another reviewer raised the finding between the markers.','''
+kills = "tests/test_review_workflow.py::test_each_role_gets_the_content_that_role_needs"
+
+[[mutant]]
+name = "the judge is not told that the findings are data"
+file = ".claude/workflows/adversarial-review.js"
+old = ''''Each finding between the markers below survived a refuter.\n' + DATA_RULE,'''
+new = ''''Each finding between the markers below survived a refuter.','''
+kills = "tests/test_review_workflow.py::test_each_role_gets_the_content_that_role_needs"
+
+[[mutant]]
+name = "the refuter never sees the claim or the evidence it is meant to refute"
+file = ".claude/workflows/adversarial-review.js"
+# A refuter that never sees the claim defaults to refuted=true.
+old = '''+ '\nclaim: ' + finding.claim + '\nevidence: ' + finding.evidence + '\n--- END FINDING ''''
+new = '''+ '\n--- END FINDING ''''
+kills = "tests/test_review_workflow.py::test_each_role_gets_the_content_that_role_needs"
+
+[[mutant]]
+name = "the judge never sees the evidence or what the refuter observed"
+file = ".claude/workflows/adversarial-review.js"
+old = '''+ '\nevidence: ' + f.evidence + '\nA refuter tried to kill it and could not: ' + f.refuter_observed + '\n--- END id=''''
+new = '''+ '\n--- END id=''''
+kills = "tests/test_review_workflow.py::test_each_role_gets_the_content_that_role_needs"
+
+[[mutant]]
+name = "the increment's title is dropped from every prompt"
+file = ".claude/workflows/adversarial-review.js"
+old = '''(typeof args.title === 'string' && args.title ? ' Title: ' + args.title + '.' : '')'''
+new = ''''''''
+kills = "tests/test_review_workflow.py::test_the_increments_title_and_every_claim_reach_every_prompt"
+
+[[mutant]]
+name = "the increment's own claims are dropped from every prompt"
+file = ".claude/workflows/adversarial-review.js"
+old = '''(claims.length ? ' What the increment says it does:\n- ' + claims.join('\n- ') : '')'''
+new = ''''''''
+kills = "tests/test_review_workflow.py::test_the_increments_title_and_every_claim_reach_every_prompt"
+
+[[mutant]]
+name = "the result swaps the pinned sha and base"
+file = ".claude/workflows/adversarial-review.js"
+old = '''pinned: { sha: args.sha, base: args.base },'''
+new = '''pinned: { sha: args.base, base: args.sha },'''
+kills = "tests/test_review_workflow.py::test_a_complete_pass_is_clean"
+
+[[mutant]]
+name = "the result does not list the lenses that were expected"
+file = ".claude/workflows/adversarial-review.js"
+old = '''lenses: { expected: LENSES.map(l => l.key),'''
+new = '''lenses: { expected: [],'''
+kills = "tests/test_review_workflow.py::test_a_complete_pass_is_clean"
+
+[[mutant]]
+name = "the result does not show how many files each lens saw"
+file = ".claude/workflows/adversarial-review.js"
+old = '''diff_files: diffFiles,'''
+new = '''diff_files: {},'''
+kills = "tests/test_review_workflow.py::test_a_complete_pass_is_clean"
+
+[[mutant]]
 name = "a review of a branch name, not a commit, is accepted"
 file = ".claude/workflows/adversarial-review.js"
 old = '''typeof args.sha !== 'string' || !COMMIT.test(args.sha)'''
@@ -327,10 +747,24 @@ new = '''const COMMIT = /[0-9a-f]{7,40}/'''
 kills = "tests/test_review_workflow.py::test_an_unpinned_or_unbased_review_is_refused_before_any_agent_starts"
 
 [[mutant]]
+name = "a six-character sha is accepted"
+file = ".claude/workflows/adversarial-review.js"
+old = '''const COMMIT = /^[0-9a-f]{7,40}$/'''
+new = '''const COMMIT = /^[0-9a-f]{6,40}$/'''
+kills = "tests/test_review_workflow.py::test_an_unpinned_or_unbased_review_is_refused_before_any_agent_starts"
+
+[[mutant]]
 name = "a moving ref is accepted as the base, so the diff goes empty once the increment lands"
 file = ".claude/workflows/adversarial-review.js"
 old = '''typeof args.base !== 'string' || !COMMIT.test(args.base)'''
 new = '''typeof args.base !== 'string''''
+kills = "tests/test_review_workflow.py::test_an_unpinned_or_unbased_review_is_refused_before_any_agent_starts"
+
+[[mutant]]
+name = "a review whose base is its own commit is accepted"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (args.base === args.sha) {'''
+new = '''if (false) {'''
 kills = "tests/test_review_workflow.py::test_an_unpinned_or_unbased_review_is_refused_before_any_agent_starts"
 
 [[mutant]]

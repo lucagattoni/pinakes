@@ -118,8 +118,8 @@ Never batch increments; each is a separate, bisectable landing:
    **The battery is a committed file, one per target, and you append to the one your target
    already has** — never a second file for it, which is how two increments end up maintaining two
    sets of mutants that disagree. `grep -l 'file *= *"src/pinakes/x.py"' tools/batteries/*.toml` says
-   which; no hit means start one, named for the path with `/` → `-` and the extension dropped. The
-   rule, and what to do when an anchor rots, are in
+   which; no hit means start one, named for the path with its leading dots dropped, `/` → `-` and
+   the extension dropped. The rule, and what to do when an anchor rots, are in
    [`tools/batteries/README.md`](https://github.com/lucagattoni/pinakes/blob/main/tools/batteries/README.md);
    `tests/test_batteries.py` fails if an anchor stops resolving, if a `kills` selector names a test
    that no longer exists, or if two batteries claim one file.
@@ -176,12 +176,16 @@ Never batch increments; each is a separate, bisectable landing:
    four lenses, the runtime one launched first, one refuter per finding and one Opus judge, and
    returns `VACUOUS | PARTIAL | CLEAN | FINDINGS`. **Only `CLEAN` and `FINDINGS` mean every lens,
    refuter and judge that was asked for returned.** `PARTIAL` and `VACUOUS` are not a clean pass,
-   and what clears one depends on why: relaunching with `resumeFromRunId` retries **dead** agents,
-   but a lens that completed and reported `not_run`, a finding over the per-lens cap and a
-   contradictory ruling are replayed as they were, so those need their cause fixed or the gap
-   reported to the user. It exists because a fan-out that lost 17 of 19 agents to a session limit
-   once returned `{"raised":0}`, and nothing in that result said nobody had looked. Pin the commit
-   (`sha`), because a review of a moving branch reviews a different tree than the one you named.
+   and what clears one depends on why: relaunching with `resumeFromRunId` may retry an agent that
+   **died**, but a reply that came back unusable (`lenses.died_why` says why), a lens that
+   completed and reported `not_run`, a finding over the per-lens cap, a high-severity finding a
+   refuter dismissed on a guess (`basis: "uncertain"`) and a contradictory ruling are replayed as
+   they were, so those need their cause fixed or the gap reported to the user. Whether a relaunch
+   retries a failed agent, and whether the resume cache is keyed on the prompt or on the order of
+   calls, has not been observed yet; the first live run is where it will be. It exists because a
+   fan-out that lost 17 of 19 agents to a session limit once returned `{"raised":0}`, and nothing
+   in that result said nobody had looked. Pin the commit (`sha`), because a review of a moving
+   branch reviews a different tree than the one you named.
 
    **🛑 The pass opens the increment's own fragments, and every file the increment changed.** Not
    the plan it was working from — the diff. **This step's own position in this list is why it did
