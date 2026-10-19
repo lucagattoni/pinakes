@@ -135,19 +135,20 @@ also the reason not to over-claim what the directory does.
 
 ## How a battery earns its name
 
-**A battery is named for its primary target: the path, `/` → `-`, extension dropped.** Not the
-`YYYYMMDD_HHMM-` prefix `plans/`, `changelog.d/` and `retro.d/` carry — a battery is named for what
-it covers, never for when it was written, because the name is how the next increment finds it.
+**A battery is named for its primary target: the path with its leading dots dropped, `/` → `-`,
+extension dropped.** Not the `YYYYMMDD_HHMM-` prefix `plans/`, `changelog.d/` and `retro.d/` carry —
+a battery is named for what it covers, never for when it was written, because the name is how the
+next increment finds it.
 
     tools/release_order_gate.py   →  tools/batteries/tools-release_order_gate.toml
     src/pinakes/graph/traverse.py →  tools/batteries/src-pinakes-graph-traverse.toml
-    .claude/workflows/adversarial-review.js →  tools/batteries/.claude-workflows-adversarial-review.toml
+    .claude/workflows/adversarial-review.js →  tools/batteries/claude-workflows-adversarial-review.toml
 
-**A path that begins with a dot gives a hidden filename**, and the rule above is followed
-literally for it. `ls` and the shell glob in the commands at the top of this file
-(`tools/batteries/*.toml`) skip a hidden file, so name that battery explicitly when you run it.
-`tests/test_batteries.py` reads the directory with `pathlib`, which includes it, so the anchor and
-selector checks in `./check.sh` do see it.
+**The leading dot goes because the alternative hides the file.** `.claude-workflows-…toml` is
+skipped by `ls` and by the `tools/batteries/*.toml` glob that this file's own lookup commands use,
+so the next increment asks which battery claims `.claude/workflows/adversarial-review.js`, hears
+none, and starts a second one — the outcome the section below forbids. A review pass on the first
+battery with a dotted target found this; `test_no_battery_is_a_hidden_file` holds it.
 
 **Not collision-free** — two real pairs in this repository already flatten to one stem
 (`src/pinakes/extract/floors.py` / `floors.toml`, and `src/pinakes/budget/prices.py` /

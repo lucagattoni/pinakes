@@ -47,9 +47,21 @@ because the hook reads what A1's workflow writes. **A3 can overlap A1–A2 only 
 From the artifact § 8.5, limited to steps 1 and 3:
 
 - **Coverage in the return value.** The result carries
-  `coverage: VACUOUS | PARTIAL | CLEAN | FINDINGS` with `lenses_run`, `lenses_died`, `raised`,
-  `confirmed`, `refuted`, `unrefuted`. **A finding whose refuter died is `unrefuted`, never
-  dropped.**
+  `coverage: VACUOUS | PARTIAL | CLEAN | FINDINGS` with `lenses: {expected, returned, died}`,
+  `checks` (what each lens says it ran), `not_run`, `raised` (a count), `confirmed`, `refuted`,
+  `not_real`, `unrefuted`, `unjudged`, `conflicting_rulings` and `ignored_rulings`. **A finding
+  whose refuter died is `unrefuted`, never dropped.** *(Field names as shipped. This bullet said
+  `lenses_run` and `lenses_died` until the first review pass of A1 found the plan and the script
+  disagreeing; the shape that settled is the script's.)*
+- **Pinned at both ends.** `args.sha` and `args.base` are both commit shas; a branch name is
+  refused, because `origin/main...<sha>` is an empty diff once the increment has landed, and every
+  lens reports `diff_files` so one that saw nothing counts as `not_run`.
+- **A reply is read again before it is believed.** The schemas are enforced by the runtime and not
+  by the script, so an unusable lens counts as dead, an unusable verdict as no verdict (the finding
+  is `unrefuted`), an unusable ruling as no ruling (the survivor is `unjudged`), and two rulings on
+  one id that disagree cancel out. A judge that throws is a dead judge.
+- **Bounded, and said so.** A lens gets at most 20 findings refuted; the rest are listed as
+  `unrefuted` with the reason, not dropped.
 - **Count before filtering.** `dead = results.filter(r => r === null).length` runs before any
   `.filter(Boolean)`; `dead > 0` forces `PARTIAL` at best. `VACUOUS` means *no lens returned*, and it
   is a different outcome from `CLEAN`, not a smaller one.

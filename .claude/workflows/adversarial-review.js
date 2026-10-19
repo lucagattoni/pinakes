@@ -1,7 +1,7 @@
 export const meta = {
   name: 'adversarial-review',
   description: 'Adversarially review one pinned commit: slow lenses first, one refuter per finding, one judge, and a coverage verdict that says whether anyone looked',
-  whenToUse: 'Step 5 of docs/BUILDING.md - a fresh review pass over an increment. Pass {sha, base} as args; read `coverage` before the findings.',
+  whenToUse: 'Step 5 of docs/BUILDING.md - a fresh review pass over an increment. Pass {sha, base} (both commit shas) as args; read `coverage` before the findings.',
   phases: [
     { title: 'Lenses', detail: 'runtime lens first, then missing-set, then the text lenses' },
     { title: 'Refute', detail: 'one refuter per finding, started the moment its lens returns' },
@@ -11,22 +11,39 @@ export const meta = {
 
 // A review pass that returns zero findings is a claim about the pass. The runtime hands back `null`
 // for an agent that died, and the documented idiom for collecting a fan-out is `.filter(Boolean)` -
-// which turns a dead agent into an absent finding. 17 of 19 agents died on a session limit once and
-// the run returned {"raised":0,"confirmed":[],"refuted":[]}. So this script counts before it
-// filters, returns `coverage` beside the findings, and lists what it could not check.
+// which turns a dead agent into an absent finding. A fan-out once lost 17 of its 19 agents to a
+// session limit and returned {"raised":0,"confirmed":[],"refuted":[]} (REVIEW-FINDINGS-RECOVERED.md).
+// So this script counts before it filters, returns `coverage` beside the findings, shows the checks
+// each lens says it ran, and lists everything it could not check or could not use.
+//
+// A reply is only evidence if it is the shape that was asked for. The schemas say what that is, but
+// they are enforced by the runtime and not by this file, so every reply is read again here before
+// it is believed: an unusable lens counts as dead, an unusable verdict as no verdict, an unusable
+// ruling as no ruling. What no script can check is that a command a lens lists was really run.
 //
 // Models are named on every call: Sonnet for lenses and refuters, Opus for the one judge.
 //
-// What cannot be tested by running it - the real fan-out - is exercised once by hand; everything
+// The real fan-out has not been run yet; the first live run is the smoke run planned on the next
+// increment's diff (plans/20261018_2354-option-a-review-coverage-and-claude-md.md). Everything
 // else is tested by tests/test_review_workflow.py, which runs this very file with stub hooks.
+//
+// Not done, on purpose: findings are not deduplicated across lenses, so `raised` counts what each
+// lens raised and two lenses raising one defect count twice.
 
 const DISK_RULE = 'If a claim is about state on disk, look at the disk: ls, wc -c, cat or a command that reads it. A traceback, a commit message or a docstring is not the disk.'
 
 const SCRATCH_RULE = 'Do not edit any file in the repository. Scratch work goes in a directory you create under the system temp directory, and anything you create (a detached worktree, a scratch KB) you remove before you finish.'
 
-// Slow lenses first. The runtime lens builds a KB and runs a command, so it reports last and is the
-// first thing a session limit cuts; started first, it is also the first to finish. The order here
-// is the order of launch, and a test pins it.
+const SEVERITIES = ['high', 'medium', 'low']
+
+// Each lens may raise this many findings and no more get a refuter. The rest are listed as
+// unrefuted with the reason, never dropped: parallel() refuses more than 4,096 thunks, which would
+// take the whole lens down with it, and the run has a ceiling of 1,000 agents.
+const MAX_FINDINGS_PER_LENS = 20
+
+// Slow lenses first. The runtime lens builds a KB and runs a command, so it reports last; launched
+// first, it gets a slot first, and a session limit that cuts the queue cuts the cheap lenses
+// rather than it. The order here is the order of launch, and a test pins it.
 const LENSES = [
   {
     key: 'runtime',
@@ -49,34 +66,36 @@ const LENSES = [
 const LENS_SCHEMA = {
   type: 'object',
   properties: {
-    checks_run: { type: 'array', minItems: 1, items: { type: 'string' } },
-    not_run: { type: 'array', items: { type: 'string' } },
+    diff_files: { type: 'integer', minimum: 0 },
+    checks_run: { type: 'array', minItems: 1, items: { type: 'string', minLength: 3 } },
+    not_run: { type: 'array', items: { type: 'string', minLength: 1 } },
     findings: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
-          claim: { type: 'string', minLength: 1 },
-          severity: { type: 'string', enum: ['high', 'medium', 'low'] },
+          claim: { type: 'string', minLength: 1, pattern: '\\S' },
+          severity: { type: 'string', enum: SEVERITIES },
           file: { type: 'string' },
           line: { type: 'integer' },
-          evidence: { type: 'string', minLength: 1 },
+          evidence: { type: 'string', minLength: 1, pattern: '\\S' },
         },
         required: ['claim', 'severity', 'file', 'evidence'],
       },
     },
   },
-  required: ['checks_run', 'not_run', 'findings'],
+  required: ['diff_files', 'checks_run', 'not_run', 'findings'],
 }
 
 const VERDICT_SCHEMA = {
   type: 'object',
   properties: {
     refuted: { type: 'boolean' },
-    commands_run: { type: 'array', minItems: 1, items: { type: 'string' } },
-    observed: { type: 'string', minLength: 1 },
+    basis: { type: 'string', enum: ['checked', 'uncertain'] },
+    commands_run: { type: 'array', minItems: 1, items: { type: 'string', minLength: 3 } },
+    observed: { type: 'string', minLength: 1, pattern: '\\S' },
   },
-  required: ['refuted', 'commands_run', 'observed'],
+  required: ['refuted', 'basis', 'commands_run', 'observed'],
 }
 
 const RULING_SCHEMA = {
@@ -89,8 +108,8 @@ const RULING_SCHEMA = {
         properties: {
           id: { type: 'string' },
           real: { type: 'boolean' },
-          severity: { type: 'string', enum: ['high', 'medium', 'low'] },
-          rationale: { type: 'string', minLength: 1 },
+          severity: { type: 'string', enum: SEVERITIES },
+          rationale: { type: 'string', minLength: 1, pattern: '\\S' },
           commands_run: { type: 'array', items: { type: 'string' } },
         },
         required: ['id', 'real', 'severity', 'rationale'],
@@ -126,14 +145,18 @@ function classify(c) {
 }
 // </classify>
 
-if (!args || typeof args !== 'object' || typeof args.sha !== 'string' || !/^[0-9a-f]{7,40}$/.test(args.sha)) {
-  throw new Error('adversarial-review: args.sha is required, a commit sha of 7 to 40 hex digits. A review of a moving branch reviews a different tree than the one you named; the sha is what pins it.')
+const COMMIT = /^[0-9a-f]{7,40}$/
+if (!args || typeof args !== 'object' || typeof args.sha !== 'string' || !COMMIT.test(args.sha)) {
+  throw new Error('adversarial-review: args.sha is required, a commit sha of 7 to 40 lowercase hex digits. A review of a moving branch reviews a different tree than the one you named; the sha is what pins it.')
 }
-if (typeof args.base !== 'string' || args.base.length === 0) {
-  throw new Error('adversarial-review: args.base is required, the ref the diff is taken against (usually origin/main).')
+if (typeof args.base !== 'string' || !COMMIT.test(args.base)) {
+  throw new Error('adversarial-review: args.base is required, a commit sha of 7 to 40 lowercase hex digits - `git merge-base origin/main <sha>` resolves it. A branch name is not accepted: origin/main moves, and once the increment lands `origin/main...<sha>` is an empty diff.')
 }
-const claims = Array.isArray(args.claims) ? args.claims.map(String) : []
-const target = 'The increment is the diff `git diff ' + args.base + '...' + args.sha + '`, pinned at commit ' + args.sha + '. Review that commit and nothing else: if the branch has moved, the pinned commit is still the subject.'
+if (args.claims !== undefined && (!Array.isArray(args.claims) || args.claims.some(c => typeof c !== 'string'))) {
+  throw new Error('adversarial-review: args.claims, when given, is an array of strings - what the increment says it does.')
+}
+const claims = args.claims || []
+const target = 'The increment is the diff `git diff ' + args.base + '...' + args.sha + '`, pinned at commit ' + args.sha + '. Review that commit and nothing else. The working directory may be on a different commit: read files as they were at the pin with `git show ' + args.sha + ':<path>`, and run anything that needs the tree only in a detached scratch worktree of that commit.'
   + (typeof args.title === 'string' && args.title ? ' Title: ' + args.title + '.' : '')
   + (claims.length ? ' What the increment says it does:\n- ' + claims.join('\n- ') : '')
 
@@ -143,7 +166,7 @@ function lensPrompt(lens) {
     'Your lens: ' + lens.key + '. ' + lens.frame,
     DISK_RULE,
     SCRATCH_RULE,
-    'Report every check you ran in checks_run. Report what you could NOT run, and why, in not_run - an unrun probe is not a clean probe, and an empty findings list from a lens that ran nothing is not a result. Each finding needs the file, a severity, and evidence: the command and what it printed.',
+    'Report diff_files: how many files the diff above touches, as you saw it - a lens that saw none looked at nothing. Report every check you ran in checks_run. Report what you could NOT run, and why, in not_run - an unrun probe is not a clean probe, and an empty findings list from a lens that ran nothing is not a result. Each finding needs the file, a severity, and evidence: the command and what it printed.',
   ].join('\n\n')
 }
 
@@ -151,22 +174,45 @@ function refutePrompt(finding) {
   return [
     target,
     'Another reviewer raised this finding (' + finding.id + ', ' + finding.severity + ', ' + finding.file + (finding.line ? ':' + finding.line : '') + '):\n' + finding.claim + '\nTheir evidence:\n' + finding.evidence,
-    'Try to REFUTE it. Default to refuted=true if you are uncertain. You must perform a check - run a command that would show the finding wrong - and "I reasoned about it" is not a check. List the commands in commands_run and what they showed in observed.',
+    'Try to REFUTE it. Default to refuted=true if you are uncertain, and say which it was in basis: "checked" when a command you ran showed the finding false, "uncertain" when you could not confirm it and defaulted. You must perform a check - run a command that would show the finding wrong - and "I reasoned about it" is not a check. List the commands in commands_run and what they showed in observed.',
     DISK_RULE,
     SCRATCH_RULE,
   ].join('\n\n')
 }
 
 function judgePrompt(survivors) {
-  const body = survivors.map(f => '[' + f.id + '] (' + f.severity + ') ' + f.file + (f.line ? ':' + f.line : '') + '\n' + f.claim + '\nEvidence: ' + f.evidence + '\nA refuter tried to kill it and could not: ' + f.refuter_observed).join('\n\n')
+  const body = survivors.map(f => 'id=' + f.id + ' (' + f.severity + ') ' + f.file + (f.line ? ':' + f.line : '') + '\n' + f.claim + '\nEvidence: ' + f.evidence + '\nA refuter tried to kill it and could not: ' + f.refuter_observed).join('\n\n')
   return [
     target,
-    'Each finding below survived a refuter. Rule on each by id: real or not real, and its severity as you rule it, not as it was raised. You may run commands, and where a finding is cheap to check you should.',
+    'Each finding below survived a refuter. Rule on each by its id, exactly as written after "id=": real or not real, and its severity as you rule it, not as it was raised. You may run commands, and where a finding is cheap to check you should.',
     DISK_RULE,
     SCRATCH_RULE,
     body,
   ].join('\n\n')
 }
+
+// A reply is read again here because the schema is enforced by the runtime, not by this file.
+const commands = list => Array.isArray(list) ? list.filter(x => typeof x === 'string' && x.trim().length >= 3) : []
+const wellFormedFinding = f => f && typeof f === 'object'
+  && typeof f.claim === 'string' && f.claim.trim() !== ''
+  && SEVERITIES.includes(f.severity) && typeof f.file === 'string'
+  && typeof f.evidence === 'string' && f.evidence.trim() !== ''
+  && (f.line === undefined || Number.isInteger(f.line))
+function readLens(out) {
+  if (!out || typeof out !== 'object') return null
+  const checks = commands(out.checks_run)
+  if (checks.length === 0) return null
+  if (!Array.isArray(out.findings) || !out.findings.every(wellFormedFinding)) return null
+  if (!Array.isArray(out.not_run) || !out.not_run.every(x => typeof x === 'string')) return null
+  if (!Number.isInteger(out.diff_files) || out.diff_files < 0) return null
+  return { checks, notRun: out.not_run.filter(x => x.trim() !== ''), diffFiles: out.diff_files, findings: out.findings }
+}
+const readVerdict = v => v && typeof v === 'object' && typeof v.refuted === 'boolean'
+  && (v.basis === 'checked' || v.basis === 'uncertain')
+  && commands(v.commands_run).length > 0
+  && typeof v.observed === 'string' && v.observed.trim() !== '' ? v : null
+
+const deadRecord = key => ({ lens: key, dead: true, checks: [], notRun: [], raised: [], overflow: [], verdicts: [] })
 
 phase('Lenses')
 
@@ -177,45 +223,70 @@ const runs = await pipeline(
   lens => agent(lensPrompt(lens), { label: 'lens:' + lens.key, phase: 'Lenses', schema: LENS_SCHEMA, model: 'sonnet' })
     .then(out => ({ lens: lens.key, out })),
   async (prev, lens) => {
-    const out = prev && prev.out
-    const ran = out && Array.isArray(out.checks_run) && out.checks_run.length > 0
-    if (!ran) return { lens: lens.key, dead: true, notRun: [], raised: [], verdicts: [] }
-    const raised = (out.findings || []).map((f, i) => ({ ...f, id: lens.key + '-' + (i + 1), lens: lens.key }))
+    const read = readLens(prev && prev.out)
+    if (!read) return deadRecord(lens.key)
+    const notRun = read.notRun.slice()
+    if (read.diffFiles < 1) notRun.push('the lens saw an empty diff (diff_files = 0) for ' + args.base + '...' + args.sha + ', so it reviewed nothing')
+    const all = read.findings.map((f, i) => ({ ...f, id: lens.key + '-' + (i + 1), lens: lens.key }))
+    const raised = all.slice(0, MAX_FINDINGS_PER_LENS)
+    const overflow = all.slice(MAX_FINDINGS_PER_LENS).map(f => ({ ...f, reason: 'over the per-lens cap of ' + MAX_FINDINGS_PER_LENS + ' findings; no refuter was started' }))
+    if (overflow.length) log('lens ' + lens.key + ' raised ' + all.length + ' findings; ' + overflow.length + ' over the cap of ' + MAX_FINDINGS_PER_LENS + ' were not refuted')
     const verdicts = await parallel(raised.map(f => () =>
       agent(refutePrompt(f), { label: 'refute:' + f.id, phase: 'Refute', schema: VERDICT_SCHEMA, model: 'sonnet' })))
-    return { lens: lens.key, dead: false, notRun: out.not_run || [], raised, verdicts }
+    return { lens: lens.key, dead: false, checks: read.checks, notRun, raised, overflow, verdicts }
   },
 )
 
 // Count before filtering. `runs[i]` is null when a stage threw, which is a dead lens like any other.
-const lensRecords = LENSES.map((lens, i) => runs[i] || { lens: lens.key, dead: true, notRun: [], raised: [], verdicts: [] })
+const lensRecords = LENSES.map((lens, i) => runs[i] || deadRecord(lens.key))
 const lensesDied = lensRecords.filter(r => r.dead).map(r => r.lens)
 const lensesReturned = lensRecords.filter(r => !r.dead).map(r => r.lens)
 
-const raised = lensRecords.flatMap(r => r.raised)
+const raised = lensRecords.flatMap(r => r.raised.concat(r.overflow))
 const refuted = []
-const unrefuted = []
+const unrefuted = lensRecords.flatMap(r => r.overflow)
 const survivors = []
 lensRecords.forEach(r => r.raised.forEach((f, i) => {
-  const v = r.verdicts[i]
-  const checked = v && Array.isArray(v.commands_run) && v.commands_run.length > 0
-  if (!checked) unrefuted.push(f)
-  else if (v.refuted) refuted.push({ id: f.id, claim: f.claim, observed: v.observed })
+  const v = readVerdict(r.verdicts[i])
+  if (!v) unrefuted.push({ ...f, reason: 'the refuter died or returned an unusable verdict' })
+  else if (v.refuted) refuted.push({ ...f, basis: v.basis, refuter_commands: commands(v.commands_run), observed: v.observed })
   else survivors.push({ ...f, refuter_observed: v.observed })
 }))
 const notRun = Object.fromEntries(lensRecords.filter(r => r.notRun.length).map(r => [r.lens, r.notRun]))
 const notRunCount = lensRecords.reduce((n, r) => n + r.notRun.length, 0)
+const checks = Object.fromEntries(lensRecords.filter(r => !r.dead).map(r => [r.lens, r.checks]))
 
 phase('Judge')
 let rulings = null
 if (survivors.length) {
-  const judged = await agent(judgePrompt(survivors), { label: 'judge', phase: 'Judge', schema: RULING_SCHEMA, model: 'opus' })
+  let judged = null
+  // Awaited directly, so a judge that throws (a budget ceiling, or six stalled attempts) would end
+  // the run with the error and lose every lens result. It is a dead judge, like any other.
+  try {
+    judged = await agent(judgePrompt(survivors), { label: 'judge', phase: 'Judge', schema: RULING_SCHEMA, model: 'opus' })
+  } catch (error) {
+    log('the judge threw: ' + (error && error.message || error))
+  }
   rulings = judged && Array.isArray(judged.rulings) ? judged.rulings : null
 }
-// One ruling per id: the first the judge gave. A repeated id with a different answer must not put a
-// finding on both the confirmed and the not-real list.
+
+// One ruling per survivor. Rulings that cannot be used are returned in `ignored_rulings`, and two
+// rulings on one id that disagree cancel out: the finding is unjudged, not decided by whichever
+// came first.
+const survivorIds = new Set(survivors.map(f => f.id))
 const ruling = new Map()
-for (const r of rulings || []) if (!ruling.has(r.id)) ruling.set(r.id, r)
+const conflicting = new Set()
+const ignoredRulings = []
+for (const r of rulings || []) {
+  const id = r && typeof r.id === 'string' ? r.id.trim().replace(/^[[(]|[\])]$/g, '') : null
+  const usable = id && typeof r.real === 'boolean' && SEVERITIES.includes(r.severity)
+    && typeof r.rationale === 'string' && r.rationale.trim() !== ''
+  if (!usable) { ignoredRulings.push({ reason: 'malformed ruling', ruling: r }); continue }
+  if (!survivorIds.has(id)) { ignoredRulings.push({ reason: 'id matches no survivor', id }); continue }
+  if (ruling.has(id) && ruling.get(id).real !== r.real) conflicting.add(id)
+  if (!ruling.has(id)) ruling.set(id, { ...r, id })
+}
+conflicting.forEach(id => ruling.delete(id))
 const confirmed = survivors.filter(f => ruling.has(f.id) && ruling.get(f.id).real)
   .map(f => ({ ...f, severity_as_ruled: ruling.get(f.id).severity }))
 const notReal = survivors.filter(f => ruling.has(f.id) && !ruling.get(f.id).real)
@@ -229,19 +300,20 @@ const coverage = classify({
   refutersExpected: raised.length,
   refutersReturned: raised.length - unrefuted.length,
   judgeNeeded: survivors.length > 0,
-  judgeReturned: survivors.length === 0 || unjudged.length === 0,
+  judgeReturned: unjudged.length === 0,
   confirmed: confirmed.length,
 })
 
 const note = (coverage === 'CLEAN' || coverage === 'FINDINGS')
   ? 'Every lens, refuter and judge that was asked for returned.'
-  : 'NOT a clean pass. Do not report this review as clean. ' + lensesDied.length + ' of ' + LENSES.length + ' lenses died, ' + notRunCount + ' probe(s) were not run, ' + unrefuted.length + ' finding(s) have no refuter and ' + unjudged.length + ' survivor(s) have no ruling. Relaunch with resumeFromRunId to retry the dead agents, or tell the user the gap.'
+  : 'NOT a clean pass. Do not report this review as clean. ' + lensesDied.length + ' of ' + LENSES.length + ' lenses died, ' + notRunCount + ' probe(s) were not run, ' + unrefuted.length + ' finding(s) have no refuter and ' + unjudged.length + ' survivor(s) have no ruling. Relaunching with resumeFromRunId retries dead agents only; an unrun probe, an over-cap finding or a contradictory ruling needs its cause fixed or the gap reported to the user.'
 log('coverage ' + coverage + ': ' + lensesReturned.length + '/' + LENSES.length + ' lenses, ' + raised.length + ' raised, ' + refuted.length + ' refuted, ' + unrefuted.length + ' unrefuted, ' + confirmed.length + ' confirmed, ' + unjudged.length + ' unjudged')
 
 return {
   coverage,
   pinned: { sha: args.sha, base: args.base },
   lenses: { expected: LENSES.map(l => l.key), returned: lensesReturned, died: lensesDied },
+  checks,
   not_run: notRun,
   raised: raised.length,
   confirmed,
@@ -249,5 +321,7 @@ return {
   not_real: notReal,
   unrefuted,
   unjudged,
+  conflicting_rulings: [...conflicting],
+  ignored_rulings: ignoredRulings,
   note,
 }

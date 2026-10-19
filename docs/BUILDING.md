@@ -170,14 +170,18 @@ Never batch increments; each is a separate, bisectable landing:
    stays in the commit message.
 
    **The pass has a committed script, and its first output is `coverage`, not the findings.**
-   `/adversarial-review` with `{sha, base}` ([`.claude/workflows/adversarial-review.js`](https://github.com/lucagattoni/pinakes/blob/main/.claude/workflows/adversarial-review.js))
-   runs four lenses, the runtime one launched first, one refuter per finding and one Opus judge,
-   and returns `VACUOUS | PARTIAL | CLEAN | FINDINGS`. **Only `CLEAN` and `FINDINGS` mean every
-   lens, refuter and judge that was asked for returned.** `PARTIAL` and `VACUOUS` are not a clean
-   pass: relaunch with `resumeFromRunId` or tell the user which lens died. It exists because a
-   fan-out that lost 17 of 19 agents to a session limit once returned `{"raised":0}`, and nothing in
-   that result said nobody had looked. Pin the commit (`sha`), because a review of a moving branch
-   reviews a different tree than the one you named.
+   Run the saved workflow `adversarial-review` ([`.claude/workflows/adversarial-review.js`](https://github.com/lucagattoni/pinakes/blob/main/.claude/workflows/adversarial-review.js))
+   and pass it `sha` and `base`, **both commit shas** — `git merge-base origin/main <sha>` gives
+   the base, because `origin/main...<sha>` is an empty diff once the increment has landed. It runs
+   four lenses, the runtime one launched first, one refuter per finding and one Opus judge, and
+   returns `VACUOUS | PARTIAL | CLEAN | FINDINGS`. **Only `CLEAN` and `FINDINGS` mean every lens,
+   refuter and judge that was asked for returned.** `PARTIAL` and `VACUOUS` are not a clean pass,
+   and what clears one depends on why: relaunching with `resumeFromRunId` retries **dead** agents,
+   but a lens that completed and reported `not_run`, a finding over the per-lens cap and a
+   contradictory ruling are replayed as they were, so those need their cause fixed or the gap
+   reported to the user. It exists because a fan-out that lost 17 of 19 agents to a session limit
+   once returned `{"raised":0}`, and nothing in that result said nobody had looked. Pin the commit
+   (`sha`), because a review of a moving branch reviews a different tree than the one you named.
 
    **🛑 The pass opens the increment's own fragments, and every file the increment changed.** Not
    the plan it was working from — the diff. **This step's own position in this list is why it did

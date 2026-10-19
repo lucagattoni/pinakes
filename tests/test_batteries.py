@@ -205,13 +205,20 @@ def test_no_file_is_claimed_by_two_batteries() -> None:
 
 
 def test_every_battery_is_named_for_a_file_it_actually_mutates() -> None:
-    """The naming rule as a check rather than a paragraph: the target path, `/` → `-`, extension
-    dropped. It is what makes *which battery does this file belong to* answerable by looking."""
+    """The naming rule as a check rather than a paragraph: the target path with its leading dots
+    dropped, `/` → `-`, extension dropped. It is what makes *which battery does this file belong
+    to* answerable by looking.
+
+    **The leading dots are dropped because the alternative hides the file.**
+    `.claude/workflows/x.js` flattens to `.claude-workflows-x`, a hidden name that `ls` and the
+    `tools/batteries/*.toml` glob the README's own lookup commands use both skip — so the next
+    increment asks which battery claims the file, hears none, and starts a second one. Found by a
+    review pass on the first battery that had a dotted target."""
     misnamed: list[str] = []
     for path, data in _batteries():
         stems: set[str] = set()
         for mutant in data.get("mutant", []):
-            flat = str(mutant["file"]).replace("/", "-")
+            flat = str(mutant["file"]).lstrip(".").replace("/", "-")
             stems.add(flat.rsplit(".", 1)[0])
             # The documented tie-break, for the day two targets flatten to one stem —
             # `src/pinakes/extract/floors.py` and `floors.toml` already do. The loser keeps its
@@ -227,6 +234,17 @@ def test_every_battery_is_named_for_a_file_it_actually_mutates() -> None:
     assert not misnamed, (
         "a battery is named for its primary target — the path, `/` → `-`, extension dropped "
         "(tools/batteries/README.md):\n  " + "\n  ".join(misnamed)
+    )
+
+
+def test_no_battery_is_a_hidden_file() -> None:
+    """The directory is read with `pathlib`, which includes dotfiles; the shell and `ls` do not, and
+    the lookups in the README (`ls tools/batteries/*.toml`, `grep -l ... tools/batteries/*.toml`)
+    are the ones a person types. A battery they cannot see is a battery the next increment
+    duplicates."""
+    hidden = sorted(path.name for path in BATTERIES.iterdir() if path.name.startswith("."))
+    assert not hidden, (
+        f"hidden files in tools/batteries/: {hidden} (README: How a battery earns its name)"
     )
 
 
@@ -448,8 +466,8 @@ def test_every_check_here_fails_on_a_directory_built_to_break_it(tmp_path: Path)
             candidate
             for row in data["mutant"]
             for candidate in (
-                str(row["file"]).replace("/", "-").rsplit(".", 1)[0],
-                str(row["file"]).replace("/", "-"),
+                str(row["file"]).lstrip(".").replace("/", "-").rsplit(".", 1)[0],
+                str(row["file"]).lstrip(".").replace("/", "-"),
             )
         }
     ]
