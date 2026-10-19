@@ -1,0 +1,225 @@
+# Mutation battery — `.claude/workflows/adversarial-review.js`.
+#
+#     python3 tools/mutate.py tools/batteries/.claude-workflows-adversarial-review.toml
+#
+# The filename begins with a dot because the naming rule (`tools/batteries/README.md`) says path,
+# `/` → `-`, extension dropped — so `ls` and `tools/batteries/*.toml` do not show it. Name it
+# explicitly, as above.
+#
+# Every row is a way this review could report a pass it did not earn; the test named beside it is
+# the one assertion that catches that. **A row is a claim about one assertion, never about the
+# script.** The script's real fan-out cannot run in `./check.sh`; the stub hooks in
+# `tests/review_workflow_harness.mjs` stand in for the runtime, so these rows prove the *control
+# flow* is held — which lens starts first, what is counted before what is filtered, which model
+# each call names — and nothing about what a real lens finds.
+#
+# The target is JavaScript, so `tools/mutate.py` does not compile the mutant before running it
+# (its `.py`-only check) and an edit that breaks the syntax would read as a kill. Each mutant
+# below was chosen to stay valid JavaScript, and the named test is the one that has to die.
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 22
+
+# ────────────────────────────────────────────────────────
+# unreleased, 20261019 · a review that says whether anyone looked
+# ────────────────────────────────────────────────────────
+#
+# Mutant 1 is the control and it is the original defect: collect the fan-out with `.filter(Boolean)`
+# and a dead lens vanishes from the count. 17 of 19 agents died on a session limit once and the run
+# returned {"raised":0}. A battery with no kills is a broken harness rather than a clean bill, and
+# this is the known-catchable one to run first.
+
+[[mutant]]
+name = "CONTROL — the fan-out is collected with .filter(Boolean), so a lens that died is not counted as dead"
+file = ".claude/workflows/adversarial-review.js"
+# Replaces the whole expression, so no dead record is ever synthesised. The classify() count still
+# sees fewer lenses than expected, which is why the verdict stays PARTIAL — and why the test must
+# assert the *list* of dead lenses and not only the verdict: a count that disagrees with its own
+# list is the shape of the original bug.
+old = '''LENSES.map((lens, i) => runs[i] || { lens: lens.key, dead: true, notRun: [], raised: [], verdicts: [] })'''
+new = '''runs.filter(Boolean)'''
+kills = "tests/test_review_workflow.py::test_a_lens_that_throws_is_a_dead_lens"
+
+[[mutant]]
+name = "a lens that returned null is not listed among the dead"
+file = ".claude/workflows/adversarial-review.js"
+old = '''const lensesDied = lensRecords.filter(r => r.dead).map(r => r.lens)'''
+new = '''const lensesDied = lensRecords.filter(r => false).map(r => r.lens)'''
+kills = "tests/test_review_workflow.py::test_a_dead_lens_is_partial_not_clean"
+
+[[mutant]]
+name = "a pass in which no lens returned reads CLEAN instead of VACUOUS"
+file = ".claude/workflows/adversarial-review.js"
+# VACUOUS is not a smaller CLEAN: it says nobody looked. Folding it into CLEAN is the 20260825 clean
+# bill from a fan-out whose agents were all dead.
+old = '''if (c.lensesReturned === 0) return 'VACUOUS''''
+new = '''if (c.lensesReturned === 0) return 'CLEAN''''
+kills = "tests/test_review_workflow.py::test_every_lens_dead_is_vacuous_and_not_clean"
+
+[[mutant]]
+name = "a probe that could not be run no longer lowers the verdict"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (c.notRun > 0) return 'PARTIAL''''
+new = '''if (c.notRun > 99) return 'PARTIAL''''
+kills = "tests/test_review_workflow.py::test_an_unrun_probe_is_partial_even_though_every_lens_returned"
+
+[[mutant]]
+name = "a finding with no refuter no longer lowers the verdict"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (c.refutersReturned < c.refutersExpected) return 'PARTIAL''''
+new = '''if (false) return 'PARTIAL''''
+kills = "tests/test_review_workflow.py::test_a_finding_whose_refuter_died_is_unrefuted_not_dropped"
+
+[[mutant]]
+name = "survivors with no ruling no longer lower the verdict"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (c.judgeNeeded && !c.judgeReturned) return 'PARTIAL''''
+new = '''if (false) return 'PARTIAL''''
+kills = "tests/test_review_workflow.py::test_a_dead_judge_leaves_survivors_unjudged_and_nothing_confirmed"
+
+[[mutant]]
+name = "a dead lens no longer lowers the verdict, so findings from the survivors read as the whole story"
+file = ".claude/workflows/adversarial-review.js"
+# The precedence the docstring names: a pass with findings and a dead lens is PARTIAL, not FINDINGS.
+old = '''if (c.lensesReturned < c.lensesExpected) return 'PARTIAL''''
+new = '''if (false) return 'PARTIAL''''
+kills = "tests/test_review_workflow.py::test_confirmed_findings_never_hide_a_dead_lens"
+
+# ────────────────────────────────────────────────────────
+# unreleased, 20261019 · what is launched, in what order, on which model
+# ────────────────────────────────────────────────────────
+
+[[mutant]]
+name = "the lenses are launched in reverse, so the runtime lens starts last"
+file = ".claude/workflows/adversarial-review.js"
+# This also misaligns `runs[i]` with `LENSES[i]`, so other tests die too. The named one is the
+# assertion that exists *for* the order; the others dying is the same defect seen from further off.
+old = '''  LENSES,
+  lens => agent(lensPrompt(lens)'''
+new = '''  [...LENSES].reverse(),
+  lens => agent(lensPrompt(lens)'''
+kills = "tests/test_review_workflow.py::test_slow_lenses_are_launched_first"
+
+[[mutant]]
+name = "the judge runs on Sonnet, so the one Opus role is not Opus"
+file = ".claude/workflows/adversarial-review.js"
+old = '''schema: RULING_SCHEMA, model: 'opus' })'''
+new = '''schema: RULING_SCHEMA, model: 'sonnet' })'''
+kills = "tests/test_review_workflow.py::test_every_call_names_its_model_and_only_the_judge_is_opus"
+
+[[mutant]]
+name = "a refuter names no model, so it inherits the session's"
+file = ".claude/workflows/adversarial-review.js"
+# An omitted `model:` inherits the main loop's model — the measured way delegated work reached the
+# top tier. The test needs a finding in the scenario or no refuter is ever launched.
+old = '''schema: VERDICT_SCHEMA, model: 'sonnet' })))'''
+new = '''schema: VERDICT_SCHEMA })))'''
+kills = "tests/test_review_workflow.py::test_every_call_names_its_model_and_only_the_judge_is_opus"
+
+[[mutant]]
+name = "the refuter is not told to look at the disk"
+file = ".claude/workflows/adversarial-review.js"
+# A refuter ruled a defect medium on the claim that nothing had been written before a crash; the
+# file was already zero bytes. The line exists because of that.
+old = '''what they showed in observed.',
+    DISK_RULE,'''
+new = '''what they showed in observed.','''
+kills = "tests/test_review_workflow.py::test_every_prompt_pins_the_commit_and_every_investigator_is_told_to_look_at_the_disk"
+
+[[mutant]]
+name = "the prompts name HEAD instead of the pinned commit"
+file = ".claude/workflows/adversarial-review.js"
+# Two of four raises in one earlier fan-out were stale because three commits landed underneath the
+# reviewers while they read.
+old = '''args.base + '...' + args.sha + '`, pinned at commit ''''
+new = '''args.base + '...HEAD`, pinned at commit ''''
+kills = "tests/test_review_workflow.py::test_every_prompt_pins_the_commit_and_every_investigator_is_told_to_look_at_the_disk"
+
+[[mutant]]
+name = "a review of a branch name, not a commit, is accepted"
+file = ".claude/workflows/adversarial-review.js"
+old = '''!/^[0-9a-f]{7,40}$/.test(args.sha)'''
+new = '''false'''
+kills = "tests/test_review_workflow.py::test_an_unpinned_or_unbased_review_is_refused_before_any_agent_starts"
+
+[[mutant]]
+name = "a review with no base ref is accepted"
+file = ".claude/workflows/adversarial-review.js"
+old = '''typeof args.base !== 'string' || args.base.length === 0'''
+new = '''false'''
+kills = "tests/test_review_workflow.py::test_an_unpinned_or_unbased_review_is_refused_before_any_agent_starts"
+
+# ────────────────────────────────────────────────────────
+# unreleased, 20261019 · refuters, rulings, and the lists nothing may fall off
+# ────────────────────────────────────────────────────────
+
+[[mutant]]
+name = "a finding whose refuter died is dropped instead of listed as unrefuted"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (!checked) unrefuted.push(f)'''
+new = '''if (!checked) { /* dropped */ }'''
+kills = "tests/test_review_workflow.py::test_a_finding_whose_refuter_died_is_unrefuted_not_dropped"
+
+[[mutant]]
+name = "a lens that ran nothing counts as having looked"
+file = ".claude/workflows/adversarial-review.js"
+# The quiet failure the journal gate also names: an agent that completed and returned an empty
+# result. The schema forbids it; this is the second line of defence, and it needs its own test.
+old = '''Array.isArray(out.checks_run) && out.checks_run.length > 0'''
+new = '''Array.isArray(out.checks_run)'''
+kills = "tests/test_review_workflow.py::test_a_lens_that_ran_nothing_is_dead_not_clean"
+
+[[mutant]]
+name = "a refutation that ran no command is accepted as a check"
+file = ".claude/workflows/adversarial-review.js"
+old = '''const checked = v && Array.isArray(v.commands_run) && v.commands_run.length > 0'''
+new = '''const checked = v'''
+kills = "tests/test_review_workflow.py::test_a_refutation_without_a_command_is_not_a_check"
+
+[[mutant]]
+name = "the refuter's verdict is inverted, so a killed finding survives and a surviving one is killed"
+file = ".claude/workflows/adversarial-review.js"
+old = '''else if (v.refuted) refuted.push('''
+new = '''else if (!v.refuted) refuted.push('''
+kills = "tests/test_review_workflow.py::test_a_refuted_finding_is_listed_and_the_pass_is_clean"
+
+[[mutant]]
+name = "the judge's last ruling on an id wins, so a contradiction can flip a finding"
+file = ".claude/workflows/adversarial-review.js"
+old = '''if (!ruling.has(r.id)) ruling.set(r.id, r)'''
+new = '''ruling.set(r.id, r)'''
+kills = "tests/test_review_workflow.py::test_a_repeated_ruling_id_puts_a_finding_on_one_list_only"
+
+[[mutant]]
+name = "survivors the judge did not rule on are not reported as unjudged"
+file = ".claude/workflows/adversarial-review.js"
+old = '''const unjudged = survivors.filter(f => !ruling.has(f.id))'''
+new = '''const unjudged = []'''
+kills = "tests/test_review_workflow.py::test_a_judge_that_rules_on_only_some_survivors_leaves_the_rest_unjudged"
+
+# ────────────────────────────────────────────────────────
+# unreleased, 20261019 · `.gitignore` — the other file this increment's tests hold
+# ────────────────────────────────────────────────────────
+#
+# Claude Code writes `**/.claude/worktrees/` into `.git/info/exclude` on a machine that has run it,
+# so the rule is invisible here whether or not the repository carries it. The test therefore asks
+# the repository's own `.gitignore` in an empty repository; these two rows prove it can fail.
+
+[[mutant]]
+name = ".gitignore no longer excludes .claude/worktrees/, which a clone without Claude Code's own line would commit"
+file = ".gitignore"
+old = '''.claude/worktrees/
+.claude/settings.local.json'''
+new = '''.claude/worktrees-x/
+.claude/settings.local.json'''
+kills = "tests/test_review_workflow.py::test_claude_worktrees_are_ignored_and_the_workflows_directory_is_not"
+
+[[mutant]]
+name = ".gitignore no longer excludes .claude/settings.local.json, which is one person's settings"
+file = ".gitignore"
+old = '''.claude/worktrees/
+.claude/settings.local.json'''
+new = '''.claude/worktrees/
+.claude/settings.local.json.x'''
+kills = "tests/test_review_workflow.py::test_claude_worktrees_are_ignored_and_the_workflows_directory_is_not"
