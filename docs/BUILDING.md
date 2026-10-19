@@ -57,8 +57,8 @@ must not document a command that does not exist yet.
 is not a correct merge — git merges edits that do not overlap textually, never edits that *agree*
 (20260729). The cost is accepted: a correction waits for the planner.
 
-**The one narrow exception is [`VERIFICATION.md`](VERIFICATION.md)** — add **only** the row a test
-you wrote requires, and nothing else in that file.
+**The one narrow exception is [`VERIFICATION.md`](VERIFICATION.md)** — touch **only** the row a test
+you wrote, renamed or removed requires, and nothing else in that file.
 [`tests/test_verification.py`](https://github.com/lucagattoni/pinakes/blob/main/tests/test_verification.py)
 hard-fails on a row that names a test which no longer exists, so a renamed test whose row still
 carries the old name makes *your own* branch red **and you could not self-certify**.
@@ -119,7 +119,7 @@ Never batch increments; each is a separate, bisectable landing:
    `uv sync --frozen --extra light --extra pdf --extra claude` to restore — never `--all-extras`,
    which pulls the ~2 GB `[st]` extra the matrix deliberately omits) — `uv run --extra X` does **not** prune extras a
    previous sync installed. **A version number is a claim about one run**: a `.venv` pins its
-   interpreter once created, and `.python-version` (3.13, since 20261015) is outranked by
+   interpreter once created, and `.python-version` (3.13) is outranked by
    `UV_PYTHON` and `--python`, so pass `--python` explicitly and print `sys.version` in the run that
    produces the number.
 4. **Break the code on purpose — after committing.** Mutate the 3–5 most safety-critical

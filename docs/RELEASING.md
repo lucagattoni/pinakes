@@ -94,7 +94,8 @@ extended on 20260823 when it crossed it again. Nothing was dropped in either mov
    `check` matrix varies extras and runs the 3.14 that `ci.yml`'s workflow-level `UV_PYTHON` pins
    (until 20261015 it resolved to the newest interpreter available, which is how CPython 3.15.0
    turned `main` red with no change to the tree). It
-   runs **only on a push to `main`**, so every release commit gets its own first execution and no
+   runs on a push to `main` (the workflow also lists `pull_request`, but that run is on a merge
+   ref, not on the commit you tag), so every release commit gets its own first execution and no
    earlier green transfers to it. **A green top-line is not this job, and a green job that skipped
    is indistinguishable from one that worked** — read the interpreter it downloaded and the test
    count it reported. Added at 0.32.3, for a defect under which every published release from at

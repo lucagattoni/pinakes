@@ -50,8 +50,7 @@ the block read as though it never had. That was found in the harvested CI data
 
 ### Why the block became pointers
 
-One of its bullets alone was corrected five times in three days (its own count; the live plan
-counts four), and every instance was about who owns what or who must decide what — the one thing a
+One of its bullets alone was corrected five times in three days (its own count), and every instance was about who owns what or who must decide what — the one thing a
 cleared session reads it to learn. The file's growth, 76
 lines on 20260725 to 455 on 20260904, is `plans/20260904_1027-…` § 3.2. The block's own figures
 disagreed with that series and with each other: it gave 302 for the moment the analysis called the

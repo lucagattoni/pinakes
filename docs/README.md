@@ -2,7 +2,8 @@
 
 **Everything in this directory is published** to
 [lucagattoni.github.io/pinakes](https://lucagattoni.github.io/pinakes/) by
-[`.github/workflows/docs.yml`](../.github/workflows/docs.yml) on every push to `main`. The site is a
+[`.github/workflows/docs.yml`](../.github/workflows/docs.yml) on a push to `main` that touches `docs/` or
+the site's configuration. The site is a
 *view* over these files, never a second copy — which is why nothing was moved to build it: these
 filenames are load-bearing in code (`tools/fragments.py` writes `RETROSPECTIVES.md`,
 `tools/status_header_gate.py` and CI parse `STATUS.md`, `tests/test_verification.py` reads

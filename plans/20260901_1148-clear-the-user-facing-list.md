@@ -153,7 +153,7 @@ past releases.
 > gated*, *two freshly-cleared coder sessions within one message of rebuilding a landed
 > increment*, the `pyright … | tail && git commit` shape, or `tools/mutate.py`'s invocation cite
 > text that has since **moved to `docs/BUILDING.md`** (§ *Read the build order out of `plans/`*,
-> step 3 and step 4). *Commit before mutating* left `CLAUDE.md` earlier, on 20260823. They are dated records and were not rewritten.
+> step 3 and step 4). *Commit before mutating* is `docs/BUILDING.md` step 4 and was cited to `CLAUDE.md` in error. They are dated records and were not rewritten.
 
 **Most rows here are coder work — but rows 21 and 22 are planner-owned, and three rows contain a
 choice.** Rows **21** (the dogfooding on-ramp's design) and **22** (regenerating `CLAUDE.md`) are

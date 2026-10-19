@@ -132,15 +132,16 @@ the rebuilt version is checked by reading it as a cleared session would.
 ### 5.1 Outcome — A3, 20261019
 
 **Measured** (`wc -l -w CLAUDE.md`, the instrument of D4): **473 lines / 6,033 words** at `f1804ea` →
-**147 lines / 1,478 words** at the A3 merge. Ceiling 150 and 2,700: met. **The aim of about 100 was
+**148 lines / 1,497 words** at the A3 merge. Ceiling 150 and 2,700: met. **The aim of about 100 was
 not reached**, and the reason is structural, not slack: the file is link-dense — every pointer is at
 least one line that wrapping cannot shorten — and what remains is the set the brief names as *keep*.
 Getting to about 100 means moving a whole kept section out (candidates, cheapest first: *Changing
 retrieval*, *Unbuilt work*'s table, *Tooling*), which is a decision for the user, not a trim.
 
 **The map** — every section of the file at `f1804ea`, its outcome, and where its text went. *Moved*
-means found at the destination by a whitespace-normalised `grep` (38 checks, all OK; a phrase
-wrapped across two lines is invisible to a plain `grep`).
+means found at the destination by a whitespace-normalised `grep` (38 checks, all OK; the list is in the message of the commit found by `git log --grep
+'every moved fact found at its destination'`; a phrase wrapped across two lines is invisible to a
+plain `grep`).
 
 | Section at `f1804ea` | Outcome | Destination |
 |---|---|---|
@@ -438,7 +439,7 @@ stays paused except for this plan; option B is designed and its build is not res
    `.gitignore` and `.paid-path-allowlist` were dangling before A3 and still are (§ 5.1 lists each). Code comments
    are the implementer's; they were not touched.
 3. **The template release row.** `CLAUDE.md`'s row now says what is unbuilt — the `sqlite-vec` tier —
-   because the template ecosystem and `pnk upgrade` shipped in 0.21.0 (`docs/STATUS.md`). The same
+   because the template ecosystem and `pnk upgrade` have shipped (`docs/STATUS.md`, 0.19.0 to 0.21.0). The same
    table is copied at `docs/STATUS.md:316` and described in `docs/README.md` § *Conventions* the old
    way, and whether the name should have left the table at 0.22.0 is a planner decision this
    increment did not take.

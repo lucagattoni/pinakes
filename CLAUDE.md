@@ -22,8 +22,8 @@ fact to its one home. **Status lives in `plans/`; the block below only points. T
     python3 tools/land.py <branch> --cleanup  # ... and remove the worktree and both branches
 
 **`git merge <branch>` from inside that branch's own worktree merges it into itself** — "Already up
-to date", a successful push, nothing landed: a failure that looks like success, hence the rule
-with an executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-branch), and
+to date", a successful push, nothing landed: a failure that looks like success, hence an
+executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-branch), and
 `--cleanup-only` for a branch that landed earlier).
 
 ## Working mode — autonomous by default
@@ -31,7 +31,8 @@ with an executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#land
 - **Run to completion** — next increment from the live plan: build, land, write fragments, repeat;
   stop when the user takes control back, not at a boundary, **unless development is paused (below)**.
 - **Cutting the release is the planner's, and so is the handover** — the ownership table wins. An
-  implementer's increment ends at the fragments: it lands, proposes planner-owned text, no release.
+  implementer's increment ends at the fragments: it lands, proposes planner-owned text (the
+  handover rows included), no release.
 - **A choice you can take, you take** — weigh the options in the open and say which and why; needing
   an answer to proceed is the bar for asking. **An undecided question in a plan is a stop, not a
   guess**: *how* to build what a plan specifies is yours, *what* it should have specified is not.
@@ -49,7 +50,7 @@ with an executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#land
 - **Option A** ([its plan](plans/20261018_2354-option-a-review-coverage-and-claude-md.md)): A0–A3
   landed; **A4, the PATCH release carrying A, is the planner's and remains** (§ 2 status, §§ 8 and 10 handover).
 - **Option B** ([plan](plans/20261019_0817-option-b-dogfooding-on-ramp.md)): designed, not built; build paused.
-- **The live build order**: [§ 3 of this plan](plans/20260901_1148-clear-the-user-facing-list.md).
+- **The live build order**: [§ 3 of the live plan](plans/20260901_1148-clear-the-user-facing-list.md).
   Read a row's **body**, not its cells; **a plan's `## Build order` beats any snapshot of it.**
 
 ## This repository is PUBLIC
@@ -72,7 +73,7 @@ with an executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#land
 |---|---|
 | **Planner-only** | `docs/**`, `plans/**`, **any `README.md`, at any depth**, `CLAUDE.md`, `CHANGELOG.md` |
 | **Yours to write** | `changelog.d/` and `retro.d/` fragments; docstrings and comments in `src/`, `tests/`, `tools/` |
-| **One narrow exception** | `docs/VERIFICATION.md`: touch **only** the row a test you wrote or renamed requires — `tests/test_verification.py` hard-fails on a row naming a test that no longer exists |
+| **One narrow exception** | `docs/VERIFICATION.md`: touch **only** the row a test you wrote, renamed or removed requires — `tests/test_verification.py` hard-fails on a row naming a test that no longer exists |
 
 **Propose as `git diff <sha> -- <file>` against a named commit**, never an edit
 ([BUILDING § Proposing](docs/BUILDING.md#proposing-a-change-to-a-document-you-do-not-own)). Text
@@ -94,7 +95,7 @@ release's **final** cut.
 
 | Name | What it is |
 |---|---|
-| **the template release** | The `sqlite-vec` tier (gated); the template ecosystem and `pnk upgrade` shipped in 0.21.0 |
+| **the template release** | The `sqlite-vec` tier (gated); the template ecosystem and `pnk upgrade` have shipped |
 | **the graph release, staged** | The PPR graph channel and the `[ner]` extra. **Eval-gated, never scheduled** — no plan, increment or number until its gate passes ([plan](plans/20260804_1016-staged-channel-gates.md)). **Not *the graph release***, which left this table at its final cut, 0.11.0 |
 
 ## Naming (fixed — changing any of these is a breaking change)
