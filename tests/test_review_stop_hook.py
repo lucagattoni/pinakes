@@ -214,6 +214,36 @@ def test_the_acknowledgement_records_what_was_told_and_the_verdict(tmp_path: Pat
     assert record["label"] == "PARTIAL"
 
 
+def test_the_acknowledgement_counts_an_empty_result_in_the_shape_it_covers(
+    tmp_path: Path,
+) -> None:
+    """A run that goes from "one died" to "one died and one came back empty" is a new verdict."""
+    run = write_run(
+        tmp_path,
+        "wf_mixed-666",
+        started("k1", "a1"),
+        started("k2", "e2"),
+        started("k3", "dead3"),
+        returned("k1", "a1"),
+        returned("k2", "e2", []),
+    )
+    hook("", "--acknowledge", str(run), "--told", "one died, one was empty")
+    record = json.loads((run / "gate-acknowledged.json").read_text())
+    assert record["verdict"] == {"launched": 3, "returned": 2, "empty": 1}
+    silent(hook(payload(tmp_path)))
+
+
+def test_a_run_the_hook_blocks_can_be_acknowledged_at_once(tmp_path: Path) -> None:
+    """The documented trap is a block that cannot be satisfied. A fan-out killed seconds ago is
+    blocked (nothing is in flight), so acknowledging it must work inside the gate's quiet window
+    too, or the session is stuck for eight rounds."""
+    run = write_run(tmp_path, "wf_fresh-555", started("k1", "d1"), live=True)
+    assert blocked(hook(payload(tmp_path)))
+    done = hook("", "--acknowledge", str(run), "--told", "the review died, told the user")
+    assert done.returncode == 0, done.stderr
+    silent(hook(payload(tmp_path)))
+
+
 def test_an_empty_told_is_refused_and_writes_nothing(tmp_path: Path) -> None:
     """An acknowledgement that says nothing was said is not one."""
     run = three_agents_one_dead(tmp_path)
