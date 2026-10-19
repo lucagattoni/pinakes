@@ -124,6 +124,7 @@ nav:
       - 4.4 Building an increment: BUILDING.md
       - 4.5 Cutting a release: RELEASING.md
       - 4.6 Retrospectives: RETROSPECTIVES.md
+      - 4.7 Starting a KB you will use: DOGFOODING.md
   - 5. Graph research:
       - graph/README.md
       - 5.1 The pinakes approach: graph/PINAKES_APPROACH.md

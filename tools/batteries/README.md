@@ -250,8 +250,8 @@ A green check is not a green run. Run the battery.
 
 ## While anything is reverting a file, the worktree has no committable state
 
-`CLAUDE.md` says **commit before mutating**. That is one direction of the rule; this is the other,
-and the other is the one that failed:
+[`docs/BUILDING.md`](../../docs/BUILDING.md) step 4 says **commit before mutating**. That is one
+direction of the rule; this is the other, and the other is the one that failed:
 
 > **While anything is reverting a file in a worktree, that worktree has no committable state** —
 > not for the files being reverted, and in practice not at all, because `git add -A` does not know
