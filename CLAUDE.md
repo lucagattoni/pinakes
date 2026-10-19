@@ -44,11 +44,11 @@ executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-br
 
 ## What is live right now
 
-- **⏸ DEVELOPMENT IS PAUSED, except option A** (this overrides *Working mode*): pick up no other
-  row; resume the rest only on the user's word. Releases are not held (lifted 20260904). The way
-  back in: [the pause handover](plans/20260904_1027-development-paused-handover-and-evidence.md).
-- **Option A** ([its plan](plans/20261018_2354-option-a-review-coverage-and-claude-md.md)): A0–A3
-  landed; **A4, the PATCH release carrying A, is the planner's and remains** (§ 2 status, §§ 8 and 10 handover).
+- **⏸ DEVELOPMENT IS PAUSED** (this overrides *Working mode*): pick up no row; resume only on the
+  user's word. Releases are not held (lifted 20260904). The way back in:
+  [the pause handover](plans/20260904_1027-development-paused-handover-and-evidence.md).
+- **Option A** ([its plan](plans/20261018_2354-option-a-review-coverage-and-claude-md.md)): **complete**,
+  A0–A4 landed and 0.32.7 published — the pause's one exception (§ 2 status, §§ 8, 10 and 11 handover).
 - **Option B** ([plan](plans/20261019_0817-option-b-dogfooding-on-ramp.md)): designed, not built; build paused.
 - **The live build order**: [§ 3 of the live plan](plans/20260901_1148-clear-the-user-facing-list.md).
   Read a row's **body**, not its cells; **a plan's `## Build order` beats any snapshot of it.**
@@ -145,4 +145,4 @@ not a licensing instrument — a claimed improvement needs the RFC corpus (`tool
 or another corpus whose improvable pool has been **re-measured, not remembered**
 ([DESIGN § What a corpus can license](docs/DESIGN.md#73-what-a-corpus-can-license)).
 
-<!-- Provenance. Role rule: the user, 20260823. Working mode: the user, 20260808 04:39 (stop at a clear-context boundary 20260811 15:37). Ownership table: the user, 20260801 01:24. Pause: the user, 20260904 10:21, to review the process against the analysis "Framing, Not Roles" (artifact 2c7961ec); option A resumed 20261018. Until A3 (20261019) the live block was about 250 lines of incident narrative: `git show f1804ea:CLAUDE.md`. -->
+<!-- Provenance. Role rule: the user, 20260823. Working mode: the user, 20260808 04:39 (stop at a clear-context boundary 20260811 15:37). Ownership table: the user, 20260801 01:24. Pause: the user, 20260904 10:21, to review the process against the analysis "Framing, Not Roles" (artifact 2c7961ec); option A resumed 20261018 and completed 20261019 (0.32.7). Until A3 (20261019) the live block was about 250 lines of incident narrative: `git show f1804ea:CLAUDE.md`. -->
