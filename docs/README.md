@@ -16,6 +16,7 @@ anyway.
 | Doc | Answers |
 |---|---|
 | [**GUIDE.md**](GUIDE.md) | *How do I use this?* Install, first KB, PDFs, search, hooks, MCP, troubleshooting |
+| [**DOGFOODING.md**](DOGFOODING.md) | *How do I start a KB I will actually use?* A measured checklist: the machine, the material, the first sync, what a healthy `doctor` prints, how to know it worked, what to record |
 | [**CLI.md**](CLI.md) | *What does this flag do?* Every command, every flag, exit codes |
 | [**MANIFEST.md**](MANIFEST.md) | *What goes in `pinakes.toml`?* Every manifest and sidecar field, with defaults |
 | [**MEASUREMENT-RUN.md**](MEASUREMENT-RUN.md) | *How were the paid extractor's quality numbers obtained, and how do I re-run them?* The runbook, its steps and its euros |
@@ -97,7 +98,7 @@ When an increment lands, this table says which file to edit — usually exactly 
 | What a command or flag does | **CLI.md** | `--help` is authoritative; CLI.md adds when and why |
 | A manifest or sidecar field, its default, its validation | **MANIFEST.md** | DESIGN gives the rationale and links here |
 | How to accomplish a task | **GUIDE.md** | README links to it |
-| How to start a KB you will actually use, step by step, with what each step cost | **[DOGFOODING.md](DOGFOODING.md)** | measured against the published release on 20261019; GUIDE.md says how each command works |
+| How to start a KB you will actually use, step by step, with what each step cost | **[DOGFOODING.md](DOGFOODING.md)** | measured against the published release on 20261019 12:15 UTC; GUIDE.md says how each command works |
 | Why a design decision was taken, and what it costs | **DESIGN.md** | — |
 | Which code paths are allowed to spend money | **`.paid-path-allowlist`** + [INVARIANTS.md](INVARIANTS.md) | DESIGN §1 gives the rationale; `check.sh`, CI and `tests/test_paid_path.py` read the file itself |
 | A measured number (recall, latency, false-confidence) | **STATUS.md** | cited with its date wherever quoted |
