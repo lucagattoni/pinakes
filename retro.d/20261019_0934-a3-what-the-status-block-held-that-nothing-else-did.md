@@ -9,7 +9,7 @@ Two bullets were not moved at all: **they were wrong**. The full pre-A3 text is
 
 | Pre-A3 bullet | Where its facts live |
 |---|---|
-| The pause, the analysis's conclusions, its *do not* list | `plans/20260904_1027-development-paused-handover-and-evidence.md` §§ 1–3; `plans/20261018_2354-option-a-review-coverage-and-claude-md.md` § 1 for the *do not* list |
+| The pause, the analysis's one-line conclusions, its *do not* list, the user's lifting of the release hold | `plans/20260904_1027-development-paused-handover-and-evidence.md` — **the note at its top was written at A3**, because those lines had no other home; the *do not* list is also in `plans/20261018_2354-option-a-review-coverage-and-claude-md.md` § 1 |
 | The live build order and the option-E answer | `plans/20260901_1148-clear-the-user-facing-list.md` §§ 3–4 |
 | *Every published release offers to delete a permanent ULID* | **Superseded**: fixed and published in 0.32.3 — `docs/ROADMAP.md`, `docs/STATUS.md`, `CHANGELOG.md`, live plan row 30. The bullet said *in no published wheel* while the release was out |
 | *0.32.6 is cut* | `CHANGELOG.md`, `docs/ROADMAP.md` (*Where things stand right now* carries the `minimum-python` counts), `docs/STATUS.md` |

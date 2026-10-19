@@ -11,6 +11,30 @@ time. No ambiguities. So the development can restart anytime from where you both
 
 **This file is the entry point for whoever resumes.** `CLAUDE.md` points here.
 
+> **Update 20261019 (option A's A3), carrying what `CLAUDE.md`'s pre-A3 status block held and no
+> other document did.**
+> - **The release half of this pause was lifted by the user, 20260904 14:5x** — *"I would like you
+>   will handover with clean state, with nothing uncut"* — and **0.32.6 was cut in response**
+>   (`CHANGELOG.md`, 20260904 14:55; published 15:11). §§ 1–2 below, *a release is due and was
+>   deliberately not cut*, are history. What stands is the pause on *development*, except option A
+>   (`plans/20261018_2354-option-a-review-coverage-and-claude-md.md`).
+> - **What the analysis concludes, one line each.** Specialise by **framing, not job title** — a
+>   lens transfers almost no context, a role transfers all of it. The binding constraints are
+>   **fan-outs that die silently and report clean** and **undecided questions only the user can
+>   answer**, neither fixed by adding an agent. The substrate is wrong rather than the instinct:
+>   roles run as sessions instead of `.claude/agents/` definitions, rules as prose instead of hooks,
+>   and the review instrument has never been calibrated. **Its *do not* list:** no reviewer session,
+>   no loosening of the ownership table, no larger fan-outs before the instrument is calibrated, no
+>   agent teams for the planner→coder flow. **Its first three steps are cheap and reversible** —
+>   coverage in every fan-out's return value with nulls counted before filtering,
+>   `review_pass_gate.py` run at fan-out completion (not in `check.sh`), slow lenses first — and
+>   option A built them.
+> - **Read the artifact before acting on any of this**: it states its populations, and its § 6
+>   lists the nine claims that did not survive checking, several of which `CLAUDE.md` had repeated.
+>   The harvested evidence is `plans/20260904-process-review-data/` — 16 TSVs plus `README.md` (read
+>   it before any TSV), `METHOD.md` and `FRAMEWORK.md`, whose § 9 audits which written rules are
+>   actually followed: **9 followed, 5 broken, 12 not auditable**.
+
 ---
 
 ## 1. How to resume, exactly

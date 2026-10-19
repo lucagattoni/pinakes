@@ -6,7 +6,11 @@
 this procedure is unavailable to an implementer by the ownership rule rather than by preference.
 An implementer lands its work, writes its fragments, and stops there.
 
-The *rules* about when to release stay in
+**The bump rule lives here:** a feature is a MINOR, a fix, a documentation update or a dependency
+change is a PATCH, a breaking change to the public API, the install flow or the CLI contract is a
+MAJOR, and the highest wins. Complete, self-contained work is released after the batch that finishes
+it and never lingers in the changelog's unreleased section; partial work and chores wait. The
+*rules* about when are in
 [`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md) — this file is the
 procedure they point at, plus the one trap whose mechanism is too long to keep there
 ([§ Landing a branch](#landing-a-branch)).

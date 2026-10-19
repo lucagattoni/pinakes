@@ -1,8 +1,8 @@
 # Pinakes — project instructions
 
 Rationale: [`docs/DESIGN.md`](docs/DESIGN.md); [`docs/README.md`](docs/README.md) routes every other
-fact to its one home. **Status lives in `plans/`, never here, and this file stays under 150 lines
-and 2,700 words** (`wc -l -w CLAUDE.md`) — a new rule displaces an old one.
+fact to its one home. **Status lives in `plans/`; the block below only points. This file stays under
+150 lines and 2,700 words** (`wc -l -w CLAUDE.md`) — a new rule displaces an old one.
 
 ## 🧭 A cleared context does not know its own role — settle that first
 
@@ -28,19 +28,18 @@ with an executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#land
 
 ## Working mode — autonomous by default
 
-- **Run to completion.** Pick the next increment from the live plan, build it, land it, write the
-  fragments, pick the next; stop when the user takes control back, not at a boundary.
-- **Cutting the release is the planner's, and so is the handover.** An implementer's increment ends
-  at the fragments: it lands, proposes what a planner-owned document needs, and does not release.
-- **A choice you can take, you take** — weigh the options in the open and say which and why.
-  **Never assume what the plans have not decided**: *how* to build what a plan specifies is yours,
-  *what* it should have specified is not.
-- **Iterate: build → adversarially review → fix → re-review until a pass finds nothing**, a commit
-  per pass — broader than the global three-round debug loop.
+- **Run to completion** — next increment from the live plan: build, land, write fragments, repeat;
+  stop when the user takes control back, not at a boundary, **unless development is paused (below)**.
+- **Cutting the release is the planner's, and so is the handover** — the ownership table wins. An
+  implementer's increment ends at the fragments: it lands, proposes planner-owned text, no release.
+- **A choice you can take, you take** — weigh the options in the open and say which and why; needing
+  an answer to proceed is the bar for asking. **An undecided question in a plan is a stop, not a
+  guess**: *how* to build what a plan specifies is yours, *what* it should have specified is not.
+- **Iterate: build → adversarially review → fix → re-review until a pass finds nothing**, a commit per pass.
 - **At each increment boundary, judge whether the context should be cleared. If so, finish the
   handoff, say so, and stop** — clearing is the user's command. **Write the handover before you
-  stop, in the same branch as the work** ([BUILDING § Hand over before you
-  stop](docs/BUILDING.md#hand-over-before-you-stop)).
+  stop, in the same branch as the work**; an implementer *proposes* its planner-owned rows as diffs
+  ([BUILDING § Hand over before you stop](docs/BUILDING.md#hand-over-before-you-stop)).
 
 ## What is live right now
 
@@ -49,11 +48,9 @@ with an executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#land
   back in: [the pause handover](plans/20260904_1027-development-paused-handover-and-evidence.md).
 - **Option A** ([its plan](plans/20261018_2354-option-a-review-coverage-and-claude-md.md)): A0–A3
   landed; **A4, the PATCH release carrying A, is the planner's and remains** (§ 2 status, § 8 handover).
-- **Option B**, the dogfooding on-ramp ([its plan](plans/20261019_0817-option-b-dogfooding-on-ramp.md)):
-  **designed, not built**; its build is paused too.
+- **Option B** ([plan](plans/20261019_0817-option-b-dogfooding-on-ramp.md)): designed, not built; build paused.
 - **The live build order**: [§ 3 of this plan](plans/20260901_1148-clear-the-user-facing-list.md).
-  Read a row's **body**, not its cells. **Where a snapshot and a plan's `## Build order` disagree,
-  the build order wins.**
+  Read a row's **body**, not its cells; **a plan's `## Build order` beats any snapshot of it.**
 
 ## This repository is PUBLIC
 
@@ -77,22 +74,23 @@ with an executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#land
 | **Yours to write** | `changelog.d/` and `retro.d/` fragments; docstrings and comments in `src/`, `tests/`, `tools/` |
 | **One narrow exception** | `docs/VERIFICATION.md`: add **only** the row a test you wrote requires — `tests/test_verification.py` hard-fails without it |
 
-**Propose as `git diff <sha> -- <file>` against a named commit**, never an edit; text that must land
-in *your* commit is dictated by the planner and pasted unchanged — **ask, do not draft**
-([BUILDING § Proposing](docs/BUILDING.md#proposing-a-change-to-a-document-you-do-not-own)).
+**Propose as `git diff <sha> -- <file>` against a named commit**, never an edit
+([BUILDING § Proposing](docs/BUILDING.md#proposing-a-change-to-a-document-you-do-not-own)). Text
+that must land in *your* commit is dictated by the planner and pasted unchanged — **ask, do not
+draft** ([§ Content mine](docs/BUILDING.md#content-mine-keystrokes-yours)).
 
 **README and DESIGN.md are version-free** — no version number or "as of vX" claim in their prose.
 **Read the seven rules in [docs/README § Conventions](docs/README.md#conventions) before any docs
 change.** `docs/` is published on every push to `main`: run `make docs` before landing one.
 **Every date carries a time, in UTC** (`YYYYMMDD HH:MM`); new files in `plans/`, `changelog.d/` and
-`retro.d/` are named `YYYYMMDD_HHMM-<rest>.md`. **Read the clock, never compose it**; stamps
-written before 20260804 11:32 stay local.
+`retro.d/` are named `YYYYMMDD_HHMM-<rest>.md`. **Read the clock, never compose it**; stamps before 20260804 11:32 stay local.
 
 ## 🚫 Unbuilt work is named, never numbered
 
 **A version number belongs to a release when it is cut — never before.** Never write `v0.4` for
 something unbuilt — in docs, `--help`, an error message or a code comment (increment IDs like `I7b`
-stay). The rule: [docs/README § Conventions](docs/README.md#conventions); this table is its list.
+stay). The rule: [docs/README § Conventions](docs/README.md#conventions); a name stays until its
+release's **final** cut.
 
 | Name | What it is |
 |---|---|
@@ -115,18 +113,19 @@ stay). The rule: [docs/README § Conventions](docs/README.md#conventions); this 
 **The procedure is [`docs/BUILDING.md`](docs/BUILDING.md)** — own worktree, tests in the same
 increment, `./check.sh` run bare with its own exit status read, **after your last commit**
 (`land.py` refuses a tree no gate certified), mutate the assertions, adversarial review, fragments,
-then `tools/land.py`; never batch increments, and read the build order out of `plans/`, never "the
+then `tools/land.py`; never batch increments; read the build order out of `plans/`, never "the
 newest file". **Read [`docs/INVARIANTS.md`](docs/INVARIANTS.md) before touching a sidecar, the
-ledger, the index schema, or anything that could import a paid client** — each fails *silently*.
+ledger, the index schema or a paid client** — ULID permanence, sidecar byte-identity, `docs/` is the
+user's, `.pinakes/` disposable, append-only ledger, `Decimal` money, `schema_version` — each fails silently.
 
-**Tooling:** uv only (never pip, poetry or a hand-managed venv); Python 3.13+; `ruff`, `pyright`
-(strict) and `pytest` pass before any commit (`ty` is a pre-check, never the gate). **Core
-dependencies stay light**: nothing pulling torch enters `[project.dependencies]`.
+**Tooling:** uv only (never pip, poetry or a hand-managed venv); Python 3.13+; `ty` is a pre-check,
+never the gate. **Core dependencies stay light**: nothing pulling torch enters `[project.dependencies]`.
 
 ## Landing work: always push, always release
 
 **Nothing is done until it is pushed to `origin/main` (then `git pull --ff-only` the primary
-checkout) and, when it completes a unit of work, tagged** ([`docs/RELEASING.md`](docs/RELEASING.md)):
+checkout) and, when it completes a unit of work, tagged by the planner** ([`RELEASING`](docs/RELEASING.md)
+holds the MINOR / PATCH / MAJOR rule):
 
 - **Before merging, run `python3 tools/shared_file_overlap.py --fetch --strict`** and *read* the
   merged state of the files it names — **a clean auto-merge is not a correct merge.** It **cannot
