@@ -77,6 +77,12 @@ hook's exit 2 whose stderr says a file is missing as a non-blocking error, but t
 case, and without the guard every checkout that predates the hook would print an error at every
 turn end.)
 
+**Seen live once, 20261019 09:24 UTC**, in a fresh app-created worktree session: a planted dead run
+blocked the turn end and, once acknowledged, the next was silent. The script that ran was the
+primary checkout's copy, not the worktree's, so the hook's working directory was the original
+checkout there; why is untested. Building this hook in a worktree therefore still means the old
+copy fires until the branch lands. The real Stop payload has not been seen.
+
     python3 tools/hooks/review_stop_hook.py                # hook mode: the payload is on stdin
     python3 tools/hooks/review_stop_hook.py --acknowledge RUN_DIR --told "what the user was told"
 """

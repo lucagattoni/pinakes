@@ -25,7 +25,10 @@
   runs on the Xcode `python3` 3.9. This is step 2 of *Framing, Not Roles* § 9. Tested over a
   synthetic session of the true layout, including a run under `/usr/bin/python3` and the settings
   command itself; `tools/batteries/tools-hooks-review_stop_hook.toml` holds the mutants, and a fully killed first draft was not enough: two reviewers wrote their own and each left some alive. **The hook
-  has not fired in a live session yet**: the session that created `.claude/settings.json` did not
-  pick it up (a planted dead run did not block its turn end, though the hook blocks on the same
-  input fed by hand), so the Stop payload is built from the hooks reference and a later session's
-  first turn end is the first live firing. Developer tooling — it ships in no wheel.
+  fired live once** (20261019 09:24 UTC, a fresh session): a planted dead run blocked its turn end,
+  the acknowledge command the message prints worked, and the next turn end was silent. The session
+  that created `.claude/settings.json` had not picked it up (08:26 UTC). Two things stay unobserved:
+  the real Stop payload (the hook is built from the hooks reference) and which checkout runs it in
+  a worktree session. In that fresh worktree session the script that ran was the primary
+  checkout's copy, so following the git top-level did not follow the worktree there; the cause is
+  untested. Developer tooling — it ships in no wheel.
