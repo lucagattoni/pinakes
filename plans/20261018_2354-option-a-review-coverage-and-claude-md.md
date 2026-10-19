@@ -33,8 +33,8 @@ fan-outs before step 4, no agent teams for the planner→coder flow.
 | # | What | Files | Owner | Status |
 |---|---|---|---|---|
 | **A0** | Record the decision: this file, a routing row, one line in the pause bullet. | `plans/` (this), `docs/README.md`, `CLAUDE.md` (one line, diff shown first) | planner | ✅ landed `668f92f`, 20261018; CI green |
-| **A1** | **Steps 1 and 3**: one committed review workflow. Contract in § 3. | `.claude/workflows/`, `.gitignore`, tests | builder | ✅ **landed `bba0746`, 20261019; CI green on all 16 jobs, `docs` and `injection-audit` too.** Reviewed in three passes (two adversarial, one cold read for the first live run), with fixes after each. **The real fan-out has not been run** (D3, on A2's diff) |
-| **A2** | **Step 2**: a Stop hook that runs `tools/review_pass_gate.py` on a review run from this turn. Contract in § 4. | `tools/hooks/`, `.claude/settings.json` (diff shown first), tests | builder | not started |
+| **A1** | **Steps 1 and 3**: one committed review workflow. Contract in § 3. | `.claude/workflows/`, `.gitignore`, tests | builder | ✅ **landed `bba0746`, 20261019; CI green on all 16 jobs, `docs` and `injection-audit` too.** Reviewed in three passes (two adversarial, one cold read for the first live run), with fixes after each. **The real fan-out ran 20261019, on A2's diff** (D3; outcomes in § 6.1) |
+| **A2** | **Step 2**: a Stop hook that runs `tools/review_pass_gate.py` on the workflow runs of the session that is ending. Contract in § 4. | `tools/hooks/`, `.claude/settings.json` (diff shown first), tests | builder | ✅ **built 20261019 in branch `20261019_0732-a2-stop-hook`**; its merge commit is the one `git log --first-parent --grep a2-stop-hook main` finds. The user approved the exact `settings.json`. The D3 smoke run reviewed it and confirmed 15 findings, all fixed or recorded in § 8. **The hook has not fired live**: the session that created `settings.json` did not pick it up |
 | **A3** | **Row 22**: regenerate `CLAUDE.md`. Method in § 5. | `CLAUDE.md`, and the docs that receive moved text | planner | not started — diff shown first |
 | **A4** | Cut the release that carries A. | `CHANGELOG.md`, version | planner | not started |
 
@@ -88,18 +88,26 @@ From the artifact § 8.5, limited to steps 1 and 3:
   (`VACUOUS`/`PARTIAL`/`CLEAN`/`FINDINGS` from counts) is pure and must be tested directly; the
   script's fan-out cannot run in `check.sh`, and the D3 smoke run (§ 6, and § 6.1 for what it must settle) is the only live exercise.
 
-## 4. A2 — the hook's contract
+## 4. A2 — the hook's contract, as built
 
-- **Event:** `Stop`. If a workflow journal was written during this turn, run
-  `tools/review_pass_gate.py` over it.
-- **Block** the turn from ending while the fan-out is `VACUOUS` or `PARTIAL` **and unacknowledged**.
-  Acknowledgement is a file the session writes after it has told the user which lenses died; the
-  hook's own message says so. **Claude Code overrides a Stop hook after 8 consecutive blocks**
-  (best-practices page, quoted in the artifact § 2), so the hook is a strong nudge and not a lock —
-  the plan states that limit rather than discovering it.
+- **Event:** `Stop`. Run `tools/review_pass_gate.py` over every workflow run of the session that is
+  ending, found from the payload's `transcript_path`
+  (`<transcript minus its suffix>/subagents/workflows/wf_*/journal.jsonl`). *(Planned as "a journal
+  written this turn"; a Stop payload does not show where a turn began, and § 8 says why a session
+  is the better unit.)*
+- **Block** the turn from ending while a run is `VACUOUS` (no agent returned anything) or `PARTIAL`
+  (some never returned, or returned nothing), **as its journal counts them**, and unacknowledged.
+  Acknowledgement is one command, printed in the block message, that writes `gate-acknowledged.json`
+  into the run's directory with what the session told the user and the verdict it covers. **Claude
+  Code overrides a Stop hook after 8 consecutive blocks** (best-practices page, quoted in the
+  artifact § 2), so the hook is a strong nudge and not a lock — the plan states that limit rather
+  than discovering it.
 - **Never in `check.sh` or CI.** They have no journal and the gate would pass vacuously there.
-- **Paths are relative to the project directory.** This repository is public: no `/Users/...`.
-- **`.claude/settings.json` is configuration**, so its diff is shown to the user before it lands.
+- **Paths are relative to the project directory.** This repository is public: no `/Users/...`. The
+  command in `settings.json` follows the working directory's git top-level, not
+  `${CLAUDE_PROJECT_DIR}` (§ 8, open item 4).
+- **`.claude/settings.json` is configuration**, so its content was shown to the user, and approved,
+  before it was written.
 
 ## 5. A3 — regenerating `CLAUDE.md`
 
@@ -152,6 +160,30 @@ a finding about the script, not about the increment under review.**
    (the script cannot set a timeout: `Date` and `setTimeout` are unavailable)?
 7. Is `coverage` readable as the first line of a real result, or does the person drown in it?
 
+**Outcomes — the first live run, `wf_5b3bc97d-245`, 20261019 07:48–08:19 UTC, on A2's tip `a0781ed`
+(base `55ac0e7`).** Measured from the run's own journal, its 25 agent transcripts and the result.
+Where a line says *seen in other sessions' journals* it is a refuter's reading of data this session
+did not re-measure.
+
+| # | Settled |
+|---|---|
+| 1 | **Yes.** Four lenses and twenty refuters ran on `sonnet`, the judge on `opus` (the agents' `meta.json` says so), and every structured reply used `pattern`, `minLength`, `minItems`, `minimum` and `enum` without a single `died_why`. |
+| 2 | **Found by name**: `Workflow({name: "adversarial-review"})` ran the committed file (the runtime's saved copy, `<session>/workflows/scripts/adversarial-review-wf_<id>.js`, is byte-identical to it), and the harness also lists it as a skill. `args` arrived as the object: the lenses checked the `claims`. |
+| 3 | **Not exercised here** — nothing died, so nothing was resumed. *Seen in other sessions' journals:* **a resume appends to the same journal in the same run directory, with the same Run ID**; a failed key is started again with a new agent id (`started, failed, started, result`); the runtime's own note says agents whose `(prompt, opts)` are unchanged replay from cache. So the docs' two statements agree: the cache is keyed on the call, not its position. |
+| 4 | **Read-only and silent.** 570 tool calls: `Bash` 531, `StructuredOutput` 25, `WebFetch` 6 (the hooks reference), `Read` 3, `ToolSearch` 3, `Skill` 2 (`workflow-authoring`, by two refuters). **No** `SendMessage`, `ListAgents`, `AskUserQuestion`, `Agent`, `Edit` or `Write`; none tried to settle a role. |
+| 5 | **Yes, and no collision.** Lenses ran `git worktree add --detach`, `uv sync --frozen`, the 31-mutant battery and the whole of `./check.sh` in scratch worktrees under `mktemp -d` (47 uses), and removed them: no extra worktree, branch or stash was left in the repository. Ten fixed `/tmp` names were used and **each by exactly one agent**. One lens's first `./check.sh` failed two tests because its shell exported `PYTHONDONTWRITEBYTECODE`, as § 7 warns, and it re-ran without. |
+| 6 | **25 agents (4 + 20 + 1), 2,978,435 subagent tokens, 570 tool calls, 1,821,671 ms — 30 min 22 s wall.** That is the price of one review pass on a five-file, 1,213-line diff, so it is not a per-commit gate. How long one slow refuter held the judge is **not measured**: the journal carries no timestamps. |
+| 7 | **Readable, with one cost.** `coverage` is the first key and the `note` says *NOT a clean pass*; the completion notice truncated the 96 kB result but kept both. The cost: this run was `PARTIAL` with **no lens dead and every agent returned**, because the lenses honestly listed 24 probes they could not run (a live Stop firing among them). An honest `not_run` makes `PARTIAL` the common outcome, and a verdict that is usually `PARTIAL` will be read past. |
+
+**Not on the list, found by the run.** (a) **Fifteen of twenty raised findings were confirmed, three
+refuted, two ruled not real**, and two lenses found defects no stub could have: the gate read a
+result containing U+2028 as a dead agent, and the battery's 31 kills hid six unpinned behaviours (a
+reviewer's own mutants survived). (b) The harness **neutralises subagent output that mentions
+`.claude/settings.json`** as *instruction-shaped* (`settings-json`) in eight of the 25 replies —
+the content still arrived, but a review of a configuration file will carry that log line. (c) **The
+journal and the result are different questions**: this run passed `review_pass_gate.py` (25 of 25
+returned) and was `PARTIAL` on `coverage`. The Stop hook sees only the first.
+
 ## 7. Constraints that apply to every increment
 
 - **Procedure:** own worktree, tests in the same change, `./check.sh` green, an adversarial review
@@ -169,71 +201,78 @@ a finding about the script, not about the increment under review.**
 - **A2's `settings.json` and A3's `CLAUDE.md` are instruction files**: the diff is shown and the user
   says yes before either lands.
 
-## 8. Handover — the state after A1, 20261019
+## 8. Handover — the state after A2, 20261019
 
-**Written in the branch that records it, because context dies with the session and the pointers an
-increment falsifies are the ones the next session opens first** ([`docs/BUILDING.md` § Hand over
-before you stop](../docs/BUILDING.md#hand-over-before-you-stop)). Of that rule's five places only
-this plan is falsified by A1 landing: `CLAUDE.md`'s pointer and the routing row name this plan and
-not an increment, the baseline in § 5 is still true at the sha it names, and `STATUS.md` tracks
-product surface, which a developer-tooling workflow does not add.
+**Written in the branch that records it** ([`docs/BUILDING.md` § Hand over before you
+stop](../docs/BUILDING.md#hand-over-before-you-stop)). Of that rule's five places this plan is the
+one A2 falsifies: `CLAUDE.md`'s pointer and the routing row name this plan and not an increment,
+and `STATUS.md` tracks product surface, which developer tooling does not add. `docs/BUILDING.md`
+step 5 now describes the hook.
 
-**State.** `origin/main` is `bba0746` at the time of writing — **verify with `git ls-remote origin
-refs/heads/main`, not from here**. Development is paused except for this plan. A0 and A1 are landed;
-**A2, A3 and A4 are not started.** Fragments wait in `changelog.d/` (`ls` counts them; none is user-visible, and
-there is no release until A4). A1's branch and worktree, `20261019_0002-a1-review-workflow`, still exist:
-`python3 tools/land.py 20261019_0002-a1-review-workflow --cleanup-only` removes them, and so does
-the older `20261018_2354-option-a-resume`.
+**State.** A0, A1 and A2 are built; **A3 (regenerating `CLAUDE.md`) and A4 (the release) are not
+started.** Verify what is on `main` with `git ls-remote origin refs/heads/main` and `git log
+--first-parent --grep a2-stop-hook main`, not from here. Fragments wait in `changelog.d/` (`ls`
+counts them; none is user-visible, there is no release until A4). Development is paused except
+for this plan.
 
-**What shipped beside what § 3 asked for**, so A2 does not rediscover it:
+**What A2 shipped beside what § 4 asked for**, so the next increment does not rediscover it:
 
-- A1 grew from one workflow into a workflow, a Node harness that runs it against stub hooks
-  (`tests/review_workflow_harness.mjs`, with a seeded fuzz and a strict check of the `meta`
-  literal), a test module, a 114-row battery written from a generator, and an amendment to the
-  battery naming rule (a leading dot is dropped, because the hidden name was invisible to the
-  README's own lookup commands).
-- **Three review passes found what the first battery could not.** A battery of 22 mutants was fully
-  killed; a reviewer who then wrote 62 of its own saw 50 survive. The lesson is kept as a memory
-  note and is the argument for the analysis's step 4 (calibrate the review instrument): a fully
-  killed battery measures the mutants its author thought of.
-- **Behaviour the first plan did not specify**: both ends of the diff are pinned (a branch name as
-  `base` is refused); every agent call goes through `ask()` so a throw keeps its cause; an empty
-  diff is a dead lens, so a sha that does not exist is `VACUOUS`; a high-severity finding a refuter
-  dismissed on a guess is a gap and every guess is listed; rulings that are malformed or disagree
-  contest their survivor; finding text is fenced as data in the prompts.
+- **"Written this turn" became "this session, unacknowledged".** The hook judges every workflow run
+  of the ending session that did not finish cleanly and has no acknowledgement covering it. A turn
+  boundary is not visible from a Stop payload, and a run a user was never told about should block
+  the next turn too. An acknowledgement ends it for good.
+- **An acknowledgement covers a digest of the journal as well as the counts.** A resume appends to
+  the same journal in the same run directory, and the gate pairs agents by key, so a counts-only
+  fingerprint let one acknowledgement hide every later pass. (Review finding, confirmed.)
+- **The hook defers to the payload on whether a run is live**: nothing is judged while
+  `background_tasks` lists a workflow; with the list present and no workflow in it, every run is
+  judged `--assume-finished`; with the list absent the gate's 180 s window decides.
+- **It fails loudly, never as a block**: a bad payload, a crash, or a gate that exits `1` without
+  its verdict exits `1` with the cause on stderr, and one run the gate cannot judge does not hide
+  a dead run beside it.
+- **Agents are named by the label the journal gave them** (`lens:runtime`), not by hex id, and
+  `--told` must be a sentence (at least three words, not the placeholder the message prints).
+- **The review gate was fixed** (`tools/review_pass_gate.py`): it read a result quoting U+2028 as a
+  dead agent. Two tests, fragment `fixed-the-review-gate-read-a-unicode-line-separator…`.
+- **The battery is 48 mutants**, 31 written with the hook and 17 added because the review wrote its
+  own and six survived. Appended to one battery that also holds the `settings.json` rows.
 
-**What A2 needs, gathered while building A1:**
+**Open, in the order they matter.** None blocks A3.
 
-1. **The Stop hook's contract, from the hooks reference.** It receives the common fields
-   (`session_id`, `transcript_path`, `cwd`, `hook_event_name`, …) plus `stop_hook_active`,
-   `last_assistant_message`, `background_tasks` and `session_crons`. It blocks by exiting 2 with the
-   reason on stderr, or by printing `{"decision": "block", "reason": "…"}`. **`stop_hook_active` is
-   true when Claude is already continuing because of a stop hook: check it, or the hook blocks on a
-   condition that cannot resolve.** Claude Code overrides after 8 consecutive continuations and the
-   count resets whenever Claude calls a tool (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` raises it). Project
-   hooks live in `.claude/settings.json` and a handler's `timeout` is in seconds (600 by default for
-   a command hook). *Not established:* whether a committed hook needs workspace trust before it runs.
-2. **`${CLAUDE_PROJECT_DIR}` stays at the original project root in a worktree**, while `cwd` follows
-   Claude. A hook command written as `${CLAUDE_PROJECT_DIR}/tools/hooks/…` therefore runs the
-   **primary checkout's** copy, not the worktree's: building A2 in a worktree means the hook that
-   fires is the old one until A2 lands. Decide the command's path with that in view.
-3. **Where the journals are.** On this machine a workflow run writes
-   `~/.claude/projects/<project dir>/<session id>/subagents/workflows/wf_<id>/journal.jsonl`, and
-   `tools/review_pass_gate.py` already takes `--journal`, `--transcript-dir`, `--list` and `--json`.
-   The Stop hook's `transcript_path` and `session_id` should be enough to find the runs of this turn;
-   that derivation is A2's to design and to test against a synthetic directory.
-4. **The gate has two jobs the hook must not conflate**: `review_pass_gate.py` says whether a run's
-   agents all returned (a count from the journal), and the workflow's own `coverage` says whether
-   the review was complete. A run can pass the first and be `PARTIAL` on the second.
-5. **The smoke run (D3) is on A2's diff**, and § 6.1 is the list of what it must settle. It is a
-   multi-agent run the user approved; run it with `args = {sha: <A2's tip>, base: <git merge-base
-   origin/main <tip>>, title, claims}`, **before landing A2**, from a directory where
-   `git show <sha>:<path>` works.
-6. **`.claude/settings.json` is configuration: show its diff and wait for the user's yes.** So is
-   the `CLAUDE.md` of A3.
+1. **The hook has not fired live.** The session that created `.claude/settings.json` did not pick it
+   up: a dead run planted in that session's directory, with only a shell task in the registry, did
+   not block its turn end, while the hook blocks on the same input fed by hand. The hooks reference
+   says direct edits to settings files are picked up by a file watcher, so the likely cause is that
+   the file did not exist at startup; that was not tested. **The first real firing is the first turn
+   end of a session started after this lands, and nobody has seen the real Stop payload.** Whoever
+   starts that session should plant a dead run once (`wf_livetest` with two `started` and one
+   `result`, an old mtime) and see it block, then remove it. Workspace trust for a committed hook
+   is also not established.
+2. **The hook counts agents, not coverage.** `coverage: PARTIAL` is not in the journal; the run in
+   § 6.1 was `PARTIAL` and passed the hook. Putting it in reach needs the workflow to write its
+   result somewhere the hook can read; it is a new increment, not a fix.
+3. **The gate counts by journal key.** A key that returned and was later started again without
+   returning reads as returned (seen in a real journal: 8 keys, 7 of them `started, result,
+   started`). The hook re-judges after a resume but the gate may still say the same thing. What it
+   should say is a decision about the runtime's semantics, not a patch.
+4. **The command in `settings.json` follows the working directory's git top-level**, so a session
+   that `cd`s into another checkout runs that checkout's copy at every Stop, with no prompt. The
+   alternative, `${CLAUDE_PROJECT_DIR}`, always runs the original checkout's copy, which defeats a
+   worktree. Accepted, and written in the hook's docstring.
+5. **Stale text found and left**: `review_pass_gate.py`'s `find_runs` docstring cites
+   `test_discovery_finds_a_real_layout`, which does not exist; `tools/review_ledger.py` reads
+   transcripts with `splitlines()` (the defect the gate had, not measured there).
 
-**How to run the gate in this environment** (measured 20261014–19, and in memory): in a Claude Code
-shell `PYTHONDONTWRITEBYTECODE=1` is exported and `python3` is the Xcode 3.9, so
+**What A3 needs, from this increment.** Nothing new: A3 describes a finished state, and `CLAUDE.md`
+should point at this plan's § 8 and not carry the list above. **Do not copy the open items into
+`CLAUDE.md`** — they are the most-falsified kind of text there.
+
+**Where the review's artefacts are**, for anyone auditing the 15 findings: the run's journal and
+agent transcripts are at `~/.claude/projects/<project slug>/<session>/subagents/workflows/wf_5b3bc97d-245/`,
+and its full result is in that session's `tasks/` directory; neither is in the repository.
+
+**How to run things in this environment** (measured 20261014–19, and in memory): in a Claude Code
+shell `PYTHONDONTWRITEBYTECODE=1` is exported and `python3` may be the Xcode 3.9 or a 3.15, so
 `PATH="$PWD/.venv/bin:$PATH" env -u PYTHONDONTWRITEBYTECODE ./check.sh`, with its exit status read
 from a log you wrote. In an `EnterWorktree` session the Bash tool refuses compound commands that
 mention git: write commit messages to a file and use `git commit -F`, and put multi-step edits in a
