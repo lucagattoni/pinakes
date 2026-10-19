@@ -1,13 +1,14 @@
 # Option B — the dogfooding on-ramp: what "started" means, and the command that gets there
 
 **Written 20261019 08:17 UTC by the planner session, at the user's instruction; revised 20261019 08:50
-UTC after two independent, read-only adversarial reads, whose findings are folded in where they apply
-rather than layered on.** **DESIGN ONLY.** Nothing here is built, and **the pause stands for the
-build**: the user resumed option A
+UTC after two independent, read-only adversarial reads, and again at 20261019 12:25 UTC with B0's results
+(§ 5.1); the findings are folded in where they apply rather than layered on.** **DESIGN, WITH B0 RUN
+AND B1 WRITTEN.** Nothing is built, and **the pause stands for the build**: the user resumed option A
 ([`plans/20261018_2354-option-a-review-coverage-and-claude-md.md`](20261018_2354-option-a-review-coverage-and-claude-md.md))
-and asked for *"then plan option B's dogfooding on-ramp"* — a plan, not a build. Increments B0–B4
-start only when the user lifts the pause for them (§ 9). **Do not pick one up because this file
-exists.**
+and asked for *"then plan option B's dogfooding on-ramp"* — a plan, not a build. **On 20261019 the
+user lifted the pause for B0, a measurement, and B1, a checklist document, and for those two only**;
+B2, B3 and B4 start only when the user lifts it for them (§ 9). **Do not pick one up because this
+file exists.**
 
 ## 1. The instruction, and what it left open
 
@@ -38,8 +39,7 @@ re-read before quoting it. B0 (§ 5) is the record; this table is what the desig
 |---|---|
 | The dogfooding KB `pinakes-kb` is a **private sibling repository** with **one commit** (20260804), an **empty `docs/`**, **no `.pinakes/`**, and a clean working tree except an untracked `.DS_Store`. A `.venv` exists (modified 13 October); its contents were not inspected | `git log`, `ls`, `git status` in the sibling checkout |
 | That KB is **stale against the product it dogfoods**: `uv.lock` pins `pinakes` **0.7.1**, `pyproject.toml` asks for `pinakes[light]>=0.7.1`, the manifest is stamped `notes@1.0` with `provider = "fastembed"` under `[embedding]`. The published release is **0.32.6** and the template this build stamps is `notes@1.2` | `uv.lock`, `pyproject.toml`, the first lines of `pinakes.toml` there; `pnk --version` and `pnk init` here |
-| **First-use friction has a record, and every entry in it has a recorded closure.** `FRICTION.md` in the RFC corpus holds **ten entries** written 20260803–04 against 0.7.1. [`plans/20260731_1202-open-corrections.md`](20260731_1202-open-corrections.md)'s Closed table disposes of all ten (`docs/STATUS.md` points there): **#1** the Guide leads with `uv init` or `uvx`; **#2** `init` adopts a populated directory and never overwrites; **#3** the `[light]` error names the manifest edit, not the 2 GB install; **#4** a throttled progress line **on a terminal**; **#5** `sync completeness`, a WARN whose remedy is `pnk sync`, replaced a FAIL that prescribed `--rebuild`; **#6** `sync`'s own stamp and the price clock moved to UTC to match the lock; **#7** the Guide row says same-host locks are reclaimed; **#8** `[chunking] headings = "numbered"`, opt-in, plus a heading-coverage check; **#9** a `titles` check that reports and never warns, the filename fallback kept on purpose; **#10** `doctor` strips the KB root from paths and **leaves paths outside the KB — the model cache, a linked KB — as printed, by decision**. What is **not** on record is any run of those closures on a terminal, or of the path from nothing to a used KB | `FRICTION.md` there; `plans/20260731_1202-open-corrections.md` Closed table; `docs/STATUS.md:558`. *An earlier draft of this row said six of the ten were unchecked; a reviewer found the table and it was right.* |
-| **What the rehearsal on 0.32.6 (§ 3.5) is consistent with, and does not show:** #1 — `uv add "pinakes[light]"` in an empty directory exits 2 with *No `pyproject.toml` found*; **the Guide warns about it and README § Quickstart (lines 74–75) still opens with `uv add`**, so the README is the half the closure did not reach. #4 — a captured, non-terminal run printed nothing while it worked, which is what a terminal-only progress line predicts; a terminal was not tried. #8, #9 — fine on Markdown (`7133 of 7137 chunks carry a heading path`, `all 65 titles are the author's`); the plain-text corpus both entries are about was not run. #10 — the model-cache path printed, as decided | the rehearsal; `README.md:74-75`; `docs/GUIDE.md:42` |
+| **First-use friction has a record, every entry in it has a recorded closure, and B0 has now run all ten against the published 0.32.7 (§ 5.1).** `FRICTION.md` in the RFC corpus holds **ten entries** written 20260803–04 against 0.7.1, and [`plans/20260731_1202-open-corrections.md`](20260731_1202-open-corrections.md)'s Closed table disposes of all ten (`docs/STATUS.md` points there). **Nine hold as recorded; the tenth, #1, holds in the Guide and fails in the README**, whose Quickstart still opens with four bare `uv add` lines. B0 also found four things that no closure covers: `pnk doctor` is not offline and fetched a 1.1 GB reranker, its remedy names a flag no command has, the Guide's `.mcp.json` snippet runs a `pnk` that is not on the `PATH`, and `uvx --from "pinakes[light]"` does not resolve on a machine whose newest Python is 3.15 | `FRICTION.md` there; the Closed table; `docs/STATUS.md:558`; § 5.1. *An earlier draft of this row said six of the ten were unchecked; a reviewer found the table and it was right.* |
 | The pieces of an on-ramp exist **scattered**: the Guide covers Python 3.13+, the extras and their disk cost (`[light]` ~100 MB, `[st]` ~2 GB), the one-time ~1.4 GB weight download, `uv init`, adopting a populated directory, the backend flag and the `.mcp.json` entry; `pnk init` prints the three steps after it runs. **No document walks them in order, and none says what counts as *used*** | `docs/GUIDE.md` §§ Install (36–85), Your first KB (87–190), Using it from an agent (607–639) |
 | A **fresh** `pnk init --backend light` on 0.32.6, then `pnk doctor`, exits **0** with **five WARNs** before the first sync (both model revisions unpinned, *index not built*, *not a git repository*, price table 44 days old) and **six** after it (*index not built* goes; *no fitted calibration thresholds* and *no authored links* arrive). The price-table WARN follows **the release's age, not the KB**, and its own remedy says to upgrade; the user *can* clear it by adding `max_price_age_days` to `[budget]` (the stamped manifest does not carry the key; the default is 30), which changes a safety setting, so the checklist says so rather than hiding it | the rehearsal; `docs/MANIFEST.md:201` |
 | **`pnk upgrade` cannot compare a `notes@1.0` KB**: *"cannot compare: notes@1.0 is not in this build's archive"*, exit 3, `--apply` writes nothing. The Guide documents it, says it was re-run against 0.28.1 on a KB created before the archive existed, and gives the route: `pnk init` on a throwaway directory and diff its `pinakes.toml` against yours | `docs/GUIDE.md:743-763` |
@@ -97,20 +97,28 @@ content is fixed by B0's measurements, not by this file.
    the system interpreter — **and pinned**, because on 20261019 `uvx --from "pinakes[light]==0.32.7"`
    on a machine whose newest interpreter is CPython 3.15 did not resolve (`onnxruntime` ships no
    `cp315` wheel) and worked with `--python 3.13`, so the install line the checklist gives carries
-   the pin; the extra and its disk cost; **the one-time weight fetch — which command,
-   measured**, because `doctor` runs offline and will FAIL on an empty cache; **the WARNs a KB shows
-   before and after its first sync, and which are expected**, so a first user does not read a normal
-   report as a broken one; and the price-table WARN with the `max_price_age_days` choice stated.
+   the pin (§ 5.1 D); the extra and its disk cost; **the weights, measured (§ 5.1 A and B):** the
+   first `pnk sync` fetches the embedder (64 MB), the reranker (1.1 GB) arrives with the first command
+   that loads it — a `pnk doctor` run did it — and the `--offline` flag `doctor`'s remedy names does
+   not exist; **the WARNs a KB shows before and after its first sync, and which are expected**, so a
+   first user does not read a normal report as a broken one; and the price-table WARN, which a release
+   clears for 30 days and which adding `max_price_age_days` to `[budget]` also clears, as a decision
+   about a safety setting.
 2. **The material.** *What* goes in is the user's (D-B5). What the checklist fixes: text the user
    would search again within a week; **nothing that cannot sit in a private repository**; the KB is
    its own private repository; `.pinakes/` ignored before the first sync; sidecars committed.
-3. **The first sync.** What it costs per megabyte on this machine (§ 3.5), the progress line a
-   terminal shows, and the recovery from an interrupted first sync (`sync completeness` → `pnk sync`,
-   never `--rebuild`).
-4. **Use.** `pnk search`, `pnk ask`, and the `.mcp.json` entry — **with the PATH question settled**:
-   the Guide's snippet runs a bare `pnk`, and in a `uv` project `pnk` lives in the project's
-   `.venv/bin`, which an agent harness does not have on its `PATH` (B0 measures; until then this is
-   a suspicion, not a finding). **Five real questions the user actually had this week, written into
+3. **The first sync.** What it costs on this machine — about 17 to 21 chunks a second, which was
+   79 s per MB of Markdown and 310 s per MB of plain text, so the estimate is made in chunks and not
+   bytes (§ 3.5, § 5.1); the progress line a terminal shows (`syncing: 3/8 documents (7.0/min)`) and
+   a pipe does not; and the recovery from an interrupted first sync, measured (§ 5.1 row 5):
+   `pnk doctor` says `sync completeness` and *Run `pnk sync`*, which resumes and keeps every embedding
+   — never `--rebuild`.
+4. **Use.** `pnk search`, `pnk ask`, and the `.mcp.json` entry — **the PATH question is measured
+   (§ 5.1 C):** the Guide's snippet runs a bare `pnk`, which was not found in this shell, under a
+   minimal `env -i` shell, or in `~/.local/bin`; `uv tool install --python 3.13 "pinakes[light]"`
+   installs an executable that is, and an absolute path does not depend on the `PATH` of whatever
+   launches it. Whether a live agent harness launches with the user's `PATH` was **not tested**.
+   **Five real questions the user actually had this week, written into
    `eval/questions.yaml` before any measurement**, because a question set written after the result
    is not a test.
 5. **Recording friction.** The format `FRICTION.md` used — *the exact command, what the docs led me
@@ -135,12 +143,15 @@ reinstalls a stale package); with `--no-sync` it can fall through to whatever `p
 is **NOT READY**, with the Guide's two commands (`uv init && uv add "pinakes[light]"`); a `pinakes`
 older than the checkout the tool lives in (its `pnk --version` is the floor — the installed version,
 not the lock) is **NOT READY** with the upgrade command. The tool never resolves, installs or
-fetches.
+fetches, and it **enforces** that: it sets `HF_HUB_OFFLINE=1` for every `pnk` it runs, because B0
+measured (§ 5.1 B) that a plain `pnk doctor` downloaded the 1.1 GB reranker, while the same `doctor`
+with that variable fetched nothing and exited 1 with a traceback — which the tool classes as NOT READY
+(a `doctor` that printed no status lines) and never relays.
 
 | Step | What it does | What it will not do |
 |---|---|---|
 | 1 | Find or create the KB: `--create` runs **this checkout's** `pnk init` (it only stamps files) with the stated backend, and the verdict is then NOT READY — the new KB has no environment yet — naming the next command; without `--create` a path that is not a KB is **NOT READY**, not an invitation | Create anything without `--create` |
-| 2 | Environment: the KB's own interpreter and `pinakes` version, the installed extra against the manifest's `provider`, weights read from `doctor`'s `embedding` and `reranker` lines | Trust `doctor`'s `OK model cache` line (§ 2), or touch the network |
+| 2 | Environment: the KB's own interpreter and `pinakes` version, the installed extra against the manifest's `provider`, whether `doctor`, run offline, prints status lines for `embedding` and `reranker` at all — it FAILs on an absent cache and crashes on a cache missing one model (§ 5.1 A and B) | Trust `doctor`'s `OK model cache` line (§ 2), or reach the network |
 | 3 | `pnk doctor`, parsed by **status prefix only**: it prints each check's **name and status** (`WARN price table`) and drops the detail text. Expected WARNs are named as expected | Relay `doctor`'s detail text by default: it contains document paths and out-of-KB paths (§ 2). `--verbose` is the human's opt-in |
 | 4 | Count indexable files (§ 3.1). None → **NO MATERIAL YET** | Succeed on none |
 | 5 | With `--sync`, run `pnk sync`, print the time per megabyte it measured. **Refuses first** unless `doctor`'s `machine-driven spend` line is OK and, inside a git repository, `.pinakes/` is ignored | Run `--rebuild`, `--force-unlock` or `doctor --prune`, pass `--extract`, or run `ask --deep`. The embedding backends here cannot spend; the paid paths are `[extraction]` and `--deep`, and the tool reaches neither |
@@ -167,10 +178,10 @@ each reads NOT READY. A KB "older than the checkout" is built with the stub, whi
 `--version`. The tests add their row to `docs/VERIFICATION.md` (the one
 document an implementer may touch, and only for a test they wrote).
 
-**B0 may shrink it.** Steps 2 and 5 were sketched against first-use failures that § 2 shows already
-closed. If B0 confirms the closures hold on a terminal and on a killed sync, what remains is the
-verdict, the probe and leak-safe output. **Build the smaller thing the measurement leaves, not the one
-this table sketches.**
+**B0 has shrunk it** (§ 5.1, § 5.2). Steps 2 and 5 were sketched against first-use failures that
+B0 found closed on a terminal and on a killed sync, so what remains is the verdict, the probe, the
+offline enforcement and leak-safe output. **Build the smaller thing the measurement leaves, not the
+one this table sketches — and § 5.2 asks whether to build it yet.**
 
 ### 3.4 What neither half does
 
@@ -187,7 +198,7 @@ The command needs a corpus that is real, structured, public and larger than `tes
 `docs/` plus `plans/` plus `CLAUDE.md` is **65 documents, 4.3 MB** (largest: `RETROSPECTIVES.md`
 961 KB), and **can** be used because a throwaway **copy** carries its own sidecars (D-B4). Run on
 20261019 from 08:13 UTC, `pnk` 0.32.6, `--backend light`, model weights already in the Hugging Face
-cache, an Apple-silicon laptop, a scratch KB; the script (`b_rehearsal.py`) lives in the planner's
+cache, an Apple-silicon Mac, a scratch KB; the script (`b_rehearsal.py`) lives in the planner's
 scratchpad and is not committed. The repository was only read.
 
 | Step | Result |
@@ -199,7 +210,9 @@ scratchpad and is not committed. The repository was only read.
 | `pnk search`, four queries | 3.0–3.2 s each, exit 0, up to eight hits **with the chunk text**. Judged by the planner against what it knows of the repository, not against a golden set: the document that owns the answer was in the top eight for **three** queries (ranks 1, 2 and 5/7) and **absent for one** — *"who owns CLAUDE.md and which documents may an implementer edit"* did not return `CLAUDE.md`'s own *Documentation has one owner*. Not investigated; a seed for the user's five real questions and **not a retrieval measurement** |
 
 **What this changes in the design.** (1) A first sync of a realistic corpus takes minutes, not the
-hours the 0.7.1 record shows, so the checklist's time figure is a measured rate with a caveat.
+hours the 0.7.1 record shows, and the stable figure is chunks a second — about 21 here (7,137 chunks in
+338 s), 17 and 18 in B0 (§ 5.1) — because the same machine took 79 s per MB of Markdown and 310 s per MB
+of plain text.
 (2) **`pnk search` prints chunk text, so an agent running it against a private KB puts that text into
 a stored transcript** — which is why § 3.3 prints names, statuses and counts and nothing else.
 (3) A fresh install of a release more than 30 days old shows the price-table WARN; option A's A4 cut
@@ -217,18 +230,74 @@ question, listed here and **not** taken: the pause forbids it.
 | **D-B4** | Acceptance corpus | planner | A throwaway **copy** of this repository's `docs/`, `plans/`, `CLAUDE.md` | An in-place KB mints ~65 sidecars into a public repository (§ 2). The copy costs a re-copy before each run; `pnk sync` is incremental, so that is cheap |
 | **D-B5** | **Which material starts the private KB** | **the user** | **Not decided by anyone** | An agent cannot choose it and must not read candidates to choose. *Needed:* **one folder of your own Markdown or text, ten documents or more, that you would search again within a week.** B3 waits on it |
 | **D-B6** | How `pinakes-kb` is brought up to date | **the user** | **Recommend keeping its id and history, and bringing it up by hand** | The KB id is permanent by rule, the KB has one commit and no content, and `pnk upgrade` **cannot** compare `notes@1.0` (§ 2), so the route is the Guide's: hand-diff its `pinakes.toml` against a fresh `pnk init`, then bump the lock. *Cost, stated:* that is the whole of it — an empty KB exercises the hand-diff and a lock bump and **nothing else**, so it is not a test of `pnk upgrade` or of an upgrade over an index and sidecars; the Guide already records the `notes@1.0` message re-run against 0.28.1. *The alternative is a re-stamp,* equally cheap and fresher, at the price of the id: with no links and no documents it loses nothing real, and it is the user's call whether the rule is worth keeping in letter for an empty KB |
-| **D-B7** | Lift the pause | **the user** | **Recommend yes for B0 and B1 now; ask again for B2, B3 and B4 once B0 has read** | B0 and B1 are measurement and a document; B2 is code whose size B0 decides, and B3 and B4 depend on the user's material and time, not on the planner |
+| **D-B7** | Lift the pause | **the user** | **Taken 20261019: yes for B0 and B1 only.** B2, B3 and B4 are asked again now that B0 has read (§ 5.2) | B0 and B1 are a measurement and a document; B2 is code whose size B0 decided, and B3 and B4 depend on the user's material and time, not on the planner |
 | **D-B8** | Which `pnk` the command runs | planner | The KB's own executable, run directly (`<kb>/.venv/bin/pnk` or `--pnk`), with the checkout's version as the floor | § 3.3. Running this checkout's `pnk` against a KB whose environment is 0.7.1 would print INDEXED for an environment that cannot serve the index; and `uv run` was measured to sync, to fall through to another `pnk`, and to share exit codes 1 and 2 with `pnk` |
 
 ## 5. Increments
 
 | # | What | Owner | Needs | Done when |
 |---|---|---|---|---|
-| **B0** | **Verify the ten recorded closures where a closure can fail, on 0.32.6, each on a small corpus:** the first sync on a **terminal** (progress line); a **killed** first sync, then `pnk doctor` (`sync completeness`, no FAIL, no `--rebuild`); a plain-text sample with `headings = "numbered"`, and its titles; the one-time weight fetch on an empty cache (**which command**); the `.mcp.json` entry in a `uv` project (bare `pnk`); the README's `uv add` line; and `uvx --from "pinakes[light]"` with and without `--python 3.13` on a machine whose newest interpreter is 3.15 (seen once, 20261019, unresolvable without the pin). Output: a table in this file, `HOLDS` / `FAILS` / `CHANGED` / `NOT TESTABLE`, each with the output quoted. The 300-document runs are **not** repeated. B0 verifies the closures; it does not rediscover them | planner | D-B7 (yes) | Every row carries a quoted output. Its size is not estimated here: each item is stated on ten documents on purpose |
-| **B1** | `docs/DOGFOODING.md` and a routing row, from B0's table. Includes the expected-WARN list | planner | B0 | The document's every claim carries a measured output, or says *unstated* |
+| **B0** | ✅ **Ran 20261019 against the published 0.32.7; results in § 5.1.** *As specified:* **verify the ten recorded closures where a closure can fail, each on a small corpus:** the first sync on a **terminal** (progress line); a **killed** first sync, then `pnk doctor` (`sync completeness`, no FAIL, no `--rebuild`); a plain-text sample with `headings = "numbered"`, and its titles; the one-time weight fetch on an empty cache (**which command**); the `.mcp.json` entry in a `uv` project (bare `pnk`); the README's `uv add` line; and `uvx --from "pinakes[light]"` with and without `--python 3.13` on a machine whose newest interpreter is 3.15 (seen once, 20261019, unresolvable without the pin). Output: a table in this file, `HOLDS` / `FAILS` / `CHANGED` / `NOT TESTABLE`, each with the output quoted. The 300-document runs are **not** repeated. B0 verifies the closures; it does not rediscover them | planner | D-B7 (yes) | Every row carries a quoted output. Its size is not estimated here: each item is stated on ten documents on purpose |
+| **B1** | ✅ **Written 20261019**: [`docs/DOGFOODING.md`](../docs/DOGFOODING.md) and its routing row and nav entry, from B0's table. Includes the expected-WARN list | planner | B0 | The document's every claim carries a measured output, or says *unstated* |
 | **B2** | `tools/dogfood_start.py`, tests with the fixture helper and the injectable stub (§ 3.3), a mutation battery, a `changelog.d/` fragment, a `docs/VERIFICATION.md` row. Scope after B0 (§ 3.3) | builder | B0, a second yes | § 6 passes, **including the probe's measured pass rate and its negative control** |
 | **B3** | First run on `pinakes-kb`: bring its environment up (D-B6), point it at the user's folder, first sync, five real questions into `eval/questions.yaml` | **the user**; a builder for the environment only | D-B5, D-B6, B1, B2 | The verdict is **INDEXED** and the user ran it |
 | **B4** | Friction entries, **written by the user** and sanitised before they reach `retro.d/` (§ 3.2 part 5), as findings arise; **and the stop-loss in § 7 evaluated** | the user; planner for the fragment | B3 | A dated entry or a dated *not used* line per week |
+
+### 5.1 B0 — the ten closures, run
+
+**Run 20261019 from 12:15 UTC against the published `pinakes` 0.32.7**, installed from the index into a
+scratch environment on CPython 3.13.16 (`pinakes[light]`), on an Apple-silicon Mac with the model
+weights already cached unless a row says otherwise. The harness is `b0_run.py` in the planner's
+scratchpad, not committed — its log holds home paths and a hostname, and is quoted de-homed below.
+Corpora: eight Markdown documents of this repository (767 chunks) and six public RFC `.txt` files
+(387 KB, 2,189 chunks).
+
+| # | The closure | What was run, and what it printed | Verdict |
+|---|---|---|---|
+| 1 | The Guide leads with `uv init` / `uvx` | `uv add "pinakes[light]"` in an empty directory: exit 2, *No `pyproject.toml` found in current directory or any parent directory*. `docs/GUIDE.md:42` and `:47` warn and give `uv init && uv add "pinakes[light]"`. **`README.md:74-77` open with four bare `uv add` lines** | **HOLDS in the Guide, FAILS in the README** |
+| 2 | `init` adopts a populated directory | A directory holding `README.md`, `.gitignore`, `pyproject.toml` and `docs/a.md`: `pnk init . --name Adopted` exit 0, *left as they were: .gitignore, README.md*, the four files byte-identical afterwards, and *your .gitignore does not ignore `.pinakes/`*. With an existing `.github/workflows/pinakes.yml`, `pnk init . --ci` exit 1, *Nothing has been created* | **HOLDS** |
+| 3 | The `[light]` error names the manifest edit | A KB stamped with the default `st` backend, only `[light]` installed: `pnk sync` exit 1, *the `sentence-transformers` backend is not installed. `fastembed` is already installed on this machine — no install needed. Set `provider = "fastembed"` in both `[embedding]` and `[rerank]` in pinakes.toml…* | **HOLDS** |
+| 4 | A progress line on a terminal | Eight documents, 767 chunks, 47 s. On a pseudo-terminal (`script -q`): `syncing: 1/8 documents (20.7/min)` … `syncing: 8/8 documents (10.3/min)`, then the two summary lines. Captured, not a terminal: the two summary lines only | **HOLDS** (terminal only, as recorded) |
+| 5 | A killed first sync is resumable and `doctor` says so | SIGKILL 12 s into a 46 s first sync, two sidecars minted: `pnk doctor` exit 0, **no FAIL**, *WARN sync completeness: the index has no embedding identity recorded yet — an earlier `pnk sync` did not finish. → Run `pnk sync`. It resumes incrementally and keeps every embedding already written — no rebuild is needed*. Then `pnk sync`: stderr *took over a stale sync lock left by a process that is no longer running*, `7 indexed, 1 unchanged`; the final `doctor`: no FAIL, `model coherence` OK | **HOLDS** |
+| 6 | The lock and the manifest stamp in one zone | While a sync ran: `sync.lock` `"started": "20261019 12:15"`; `pinakes.toml` `created = "20261019 12:15"`; `date -u` 12:15, local 13:15 IST | **HOLDS** — both UTC |
+| 7 | Same-host lock reclaim is documented | With the killed sync's lock still on disk, `doctor`: *WARN sync lock: held by pid … since 20261019 12:15 → If no sync is running, the next `pnk sync` reclaims it automatically on this host; across hosts use `pnk sync --force-unlock`*; the next sync did | **HOLDS** |
+| 8 | Numbered headings on plain text | The six RFC `.txt` files: by default `0 of 2189 chunks carry a heading path (0%)`, with the remedy in the line (*set `[chunking] headings = "numbered"`*); with it, `1865 of 1955 chunks (95%)`, and `parent-child` edges 0 → 4,395. The default stays size-based **by decision**, and `pnk sync` itself says nothing | **HOLDS** |
+| 9 | A `titles` check that reports and never warns | The same files: `OK titles: 6 of 6 documents still carry the title minted from their filename: docs/rfc2251.txt, docs/rfc3568.txt, docs/rfc5023.txt and 3 more`; first sidecar `title: rfc8089`. For the Markdown KB, `all 8 titles are the author's` | **HOLDS as designed** — and that line prints **document paths** |
+| 10 | Paths in `doctor` | In-KB paths print relative (`docs/rfc2251.txt`). `OK model cache: weights resolve under /Users/<user>/.cache/huggingface/hub` prints the home directory, as decided. The lock line and `doctor` print the **hostname** (*held by pid … on <host>*) | **HOLDS as decided** |
+| A | *not a closure* | An empty Hugging Face cache, `pnk doctor`: exit 1, `FAIL embedding: --offline was requested but no model cache exists at <dir>. → Run once without --offline to populate the cache.`, the same for `reranker` — **and on the same run `OK model cache: weights resolve under <the empty dir>`**. `pnk doctor --help` lists `--kb` and `--prune`: **no command takes `--offline`** | **FAILS** — the remedy is not actionable and the report contradicts itself |
+| B | *not a closure* | `pnk sync` against that empty cache: *Fetching 5 files* in 2 s, 63 MB (the embedder). **Then `pnk doctor`, which is meant to be offline, printed *Fetching 5 files* again, took 11 s, and the cache grew from 63 MB to 1.1 GB** — the reranker. `src/pinakes/embed.py:192` guards `--offline` only by checking that the cache *directory* exists, and fastembed has no `local_files_only`. With `HF_HUB_OFFLINE=1` the same `doctor` fetched nothing (63 MB) and exited 1 with a **traceback**, `ValueError: Could not load model BAAI/bge-reranker-base from any source` | **FAILS** — `doctor` is not offline, and offline it crashes |
+| C | the Guide's `.mcp.json` snippet | `command -v pnk` found nothing in this shell, under `env -i PATH=/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin`, or in `~/.local/bin`; the scratch environment's `pnk` is on no `PATH` until it is activated. `uv tool install --python 3.13 "pinakes[light]==0.32.7"`, into scratch directories, *Installed 1 executable: pnk*, and it prints `pinakes 0.32.7`. **Not tested:** a live agent launching the entry | **FAILS as a copy-paste**: the Guide shows `"command": "pnk"` and its own install route, `uv init && uv add`, leaves `pnk` in the project's `.venv/bin` |
+| D | *not a closure* | `uvx --from "pinakes[light]==0.32.7" pnk --version`, no pin: exit 1, *No solution found … `onnxruntime>=1.24.2` has no wheels with a matching Python ABI tag (e.g., `cp315`)*; `uv python list` shows CPython 3.15.0 installed here. With `--python 3.13`: `pinakes 0.32.7`, 1.6 s | **FAILS without the pin** |
+
+**Findings for the user to rule on — none is taken, because the pause forbids it.** Each is a
+separate piece of work with its own owner: (F1) README § Quickstart opens with `uv add`, which the
+Guide warns does not work in a KB directory — a one-sentence README edit, the planner's;
+(F2) `pnk doctor` downloads the reranker when the cache directory exists, and crashes with a traceback
+when it may not — code; (F3) `doctor`'s remedy names an `--offline` flag no command has, and prints
+`OK model cache` beside two FAILs — text and code; (F4) the Guide's `.mcp.json` snippet needs a `pnk` on
+the `PATH` and does not say how to get one — docs; (F5) `uvx --from "pinakes[light]"` is unsatisfiable
+on a machine whose newest interpreter is CPython 3.15, because `onnxruntime` ships no wheel for it —
+docs now, and an upper-bound or interpreter-pin decision later; (F6) `doctor` and `sync.lock` print the
+machine's hostname and `doctor`'s `titles` line prints document paths, which matters only to whoever
+relays that output.
+
+### 5.2 What B0 does to B2
+
+The closures hold, so the first-move protections B2 was sketched around are not needed; what is left
+is a **verdict and a probe that cannot be vacuous**, run offline. That is a smaller thing, and the
+question is whether to build even that yet.
+
+| Option | What | For | Against |
+|---|---|---|---|
+| **(a) As sketched** | The tool of § 3.3 with `--create`, `--sync`, the six verdicts and the probe | Row 21's words, *a one-command start*, met literally | The largest; its first-move protections guard failures § 5.1 shows closed; tested against an imagined first run |
+| **(b) Smaller** | The verdict ladder, the probe and the offline enforcement — no `--create`, no `--sync` | Keeps the one thing nothing else gives: a "started" that cannot be green on nothing | Still a tool, a battery, an outsider's mutants and a review for something done once per KB, which the user can approximate by hand with `pnk doctor` and one `pnk search` |
+| **(c) Defer** | Ship B1 now; do the probe by hand as the checklist says; build B2 only after the first real B3 run says what a person got wrong or skipped | Nothing built for friction that has not happened; the environment problems B0 found are documentation problems the checklist already carries; it is the shape § 7's stop-loss rewards | Does not satisfy *a one-command start* literally; "started" is judged by a person |
+
+**Recommended: (c), with (b) as the next step if B3 shows a step was skipped or misread.** The
+evidence is § 5.1: the failures a first user meets are in the README, the `.mcp.json` snippet and the
+interpreter pin — all words — and § 7's whole argument is that the bottleneck was never the tooling.
+(c) costs the user's own instruction, which named a one-command start, and that is said here rather
+than hidden.
 
 ## 6. Acceptance for B2 — what has to be shown, not asserted
 
@@ -300,13 +369,16 @@ on-ramp.
 
 ## 9. What the user is asked
 
-1. **Lift the pause for B0 and B1?** (D-B7) — recommended yes. B2, B3 and B4 are asked about
-   separately, after B0 has read.
-2. **D-B5: name the folder** that starts `pinakes-kb`. Until then B3 cannot start and the command can
+1. **B0 and B1 are done** (D-B7, taken 20261019). **B2: which of (a), (b) or (c) in § 5.2** —
+   recommended (c). B3 and B4 stay paused with it.
+2. **Rule on the six findings in § 5.1** (F1–F6): which become work, in what order, and when the
+   pause lifts for them. Recommended first: F1, F3 and F2, because a first user hits the README
+   before anything else and `doctor` downloading 1.1 GB is the only one that costs something.
+3. **D-B5: name the folder** that starts `pinakes-kb`. Until then B3 cannot start and the command can
    only ever say NO MATERIAL YET, or NOT READY while the lock is old.
-3. **D-B6: how to bring `pinakes-kb` up to date** — keep the id and update by hand (recommended), or
+4. **D-B6: how to bring `pinakes-kb` up to date** — keep the id and update by hand (recommended), or
    re-stamp.
 
-Nothing else in this file needs the user. **Not done and not decided here:** whether each recorded
-closure still holds on a terminal and on a killed sync (B0), the content of the checklist beyond
-§ 3.2's skeleton (B1), and whether B2 survives B0 at its sketched size.
+Nothing else in this file needs the user. **Not done and not decided here:** whether a live agent
+harness launches a `.mcp.json` entry with the user's `PATH` (not tested), the reranker's behaviour on a
+machine with a partial cache beyond the two cases in § 5.1, and everything in B2, B3 and B4.
