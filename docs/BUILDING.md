@@ -171,21 +171,34 @@ Never batch increments; each is a separate, bisectable landing:
 
    **The pass has a committed script, and its first output is `coverage`, not the findings.**
    Run the saved workflow `adversarial-review` ([`.claude/workflows/adversarial-review.js`](https://github.com/lucagattoni/pinakes/blob/main/.claude/workflows/adversarial-review.js))
-   and pass it `sha` and `base`, **both commit shas** — `git merge-base origin/main <sha>` gives
-   the base, because `origin/main...<sha>` is an empty diff once the increment has landed. It runs
-   four lenses, the runtime one launched first, one refuter per finding and one Opus judge, and
-   returns `VACUOUS | PARTIAL | CLEAN | FINDINGS`. **Only `CLEAN` and `FINDINGS` mean every lens,
-   refuter and judge that was asked for returned.** `PARTIAL` and `VACUOUS` are not a clean pass,
-   and what clears one depends on why: relaunching with `resumeFromRunId` may retry an agent that
-   **died**, but a reply that came back unusable (`lenses.died_why` says why), a lens that
-   completed and reported `not_run`, a finding over the per-lens cap, a high-severity finding a
-   refuter dismissed on a guess (`basis: "uncertain"`) and a contradictory ruling are replayed as
-   they were, so those need their cause fixed or the gap reported to the user. Whether a relaunch
-   retries a failed agent, and whether the resume cache is keyed on the prompt or on the order of
-   calls, has not been observed yet; the first live run is where it will be. It exists because a
-   fan-out that lost 17 of 19 agents to a session limit once returned `{"raised":0}`, and nothing
-   in that result said nobody had looked. Pin the commit (`sha`), because a review of a moving
-   branch reviews a different tree than the one you named.
+   **before landing** (step 7), with `args` an object:
+
+       {"sha": "<the branch tip>", "base": "<git merge-base origin/main <tip>>",
+        "title": "A1", "claims": ["what the increment says it does", "another"]}
+
+   `sha` and `base` are both commit shas, because `origin/main...<sha>` is an empty diff once the
+   increment has landed; `title` and `claims` are optional, and the lenses check the increment
+   against what it says it does. **After a `--no-ff` landing `git merge-base origin/main <tip>`
+   returns the tip itself** and the script refuses with that explanation: use the merge commit's
+   first parent (`git rev-parse <merge>^1`) as `base`. It runs four lenses, the runtime one
+   launched first, one refuter per finding (at most 20 findings per lens get one, the most severe
+   first) and one Opus judge, and returns `VACUOUS | PARTIAL | CLEAN | FINDINGS`. **Only `CLEAN` and
+   `FINDINGS` mean every lens, refuter and judge that was asked for returned.** `PARTIAL` and
+   `VACUOUS` are not a clean pass, and what clears one depends on why: relaunching with
+   `resumeFromRunId` may retry an agent that **died**, but a reply that came back unusable
+   (`lenses.died_why` says why, and so does a bad sha: every lens reports an empty diff), a lens
+   that completed and reported `not_run`, a finding over the per-lens cap, a high-severity finding
+   a refuter dismissed on a guess (`basis: "uncertain"`) and a contradictory ruling are replayed as
+   they were, so those need their cause fixed or the gap reported to the user. A `CLEAN` also lists
+   every finding dismissed on a guess in `dismissed_on_a_guess` and its `note`. **Coverage does not
+   say that a lens opened every changed file or fragment**; the rule below is checked with
+   `tools/review_ledger.py`. A run that never returned (stopped, or cut by a session limit) has no
+   verdict at all: `tools/review_pass_gate.py` reads its journal. **The script has not been run for
+   real yet.** It is tested against a stub of the runtime, and the first live run is the smoke run
+   planned for the next increment (the plan's § 6.1 lists what it must settle); until then treat a
+   surprise as a finding about the script, not about the increment. It exists because a fan-out
+   that lost 17 of 19 agents to a session limit once returned `{"raised":0}`, and nothing in that
+   result said nobody had looked.
 
    **🛑 The pass opens the increment's own fragments, and every file the increment changed.** Not
    the plan it was working from — the diff. **This step's own position in this list is why it did

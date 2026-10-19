@@ -33,7 +33,7 @@ fan-outs before step 4, no agent teams for the planner→coder flow.
 | # | What | Files | Owner | Status |
 |---|---|---|---|---|
 | **A0** | Record the decision: this file, a routing row, one line in the pause bullet. | `plans/` (this), `docs/README.md`, `CLAUDE.md` (one line, diff shown first) | planner | ✅ landed `668f92f`, 20261018; CI green |
-| **A1** | **Steps 1 and 3**: one committed review workflow. Contract in § 3. | `.claude/workflows/`, `.gitignore`, tests | builder | ✅ built on its branch after three independent review passes; **the real fan-out has not been run** (D3, on A2's diff) |
+| **A1** | **Steps 1 and 3**: one committed review workflow. Contract in § 3. | `.claude/workflows/`, `.gitignore`, tests | builder | ✅ built on its branch and reviewed in three passes (two adversarial, one cold read for the first live run), with fixes after each; **the real fan-out has not been run** (D3, on A2's diff) |
 | **A2** | **Step 2**: a Stop hook that runs `tools/review_pass_gate.py` on a review run from this turn. Contract in § 4. | `tools/hooks/`, `.claude/settings.json` (diff shown first), tests | builder | not started |
 | **A3** | **Row 22**: regenerate `CLAUDE.md`. Method in § 5. | `CLAUDE.md`, and the docs that receive moved text | planner | not started — diff shown first |
 | **A4** | Cut the release that carries A. | `CHANGELOG.md`, version | planner | not started |
@@ -49,17 +49,30 @@ From the artifact § 8.5, limited to steps 1 and 3:
 - **Coverage in the return value.** The result carries
   `coverage: VACUOUS | PARTIAL | CLEAN | FINDINGS` with `lenses: {expected, returned, died}`,
   `checks` (what each lens says it ran), `not_run`, `raised` (a count), `confirmed`, `refuted`,
-  `not_real`, `unrefuted`, `unjudged`, `conflicting_rulings` and `ignored_rulings`. **A finding
-  whose refuter died is `unrefuted`, never dropped.** *(Field names as shipped. This bullet said
-  `lenses_run` and `lenses_died` until the first review pass of A1 found the plan and the script
-  disagreeing; the shape that settled is the script's.)*
+  `not_real`, `unrefuted`, `unjudged`, `dismissed_on_a_guess`, `unchecked_high`,
+  `contested_rulings` and `ignored_rulings`. **A finding whose refuter died is `unrefuted`, never
+  dropped.** *(Field names as shipped. This bullet said `lenses_run` and `lenses_died` until the
+  first review pass of A1 found the plan and the script disagreeing, and `conflicting_rulings`
+  until the third; the shape that settled is the script's.)*
 - **Pinned at both ends.** `args.sha` and `args.base` are both commit shas; a branch name is
   refused, because `origin/main...<sha>` is an empty diff once the increment has landed, and every
-  lens reports `diff_files` so one that saw nothing counts as `not_run`.
+  lens reports `diff_files` so one that saw nothing is a dead lens: a sha or base that does not
+  exist makes every lens say so and the pass `VACUOUS`, not a quiet `PARTIAL`. After a `--no-ff`
+  landing `git merge-base origin/main <sha>` returns the sha itself; the base is then the merge
+  commit's first parent, and the script's error says so.
 - **A reply is read again before it is believed.** The schemas are enforced by the runtime and not
   by the script, so an unusable lens counts as dead, an unusable verdict as no verdict (the finding
   is `unrefuted`), an unusable ruling as no ruling (the survivor is `unjudged`), and two rulings on
-  one id that disagree cancel out. A judge that throws is a dead judge.
+  one id that disagree cancel out. A judge that throws is a dead judge, and any agent that throws
+  keeps its cause (`died_why`, the unrefuted reason, the log) instead of losing it to
+  `pipeline()`'s bare `null`.
+- **A guess is visible.** The refuter is told to default to refuted when unsure, and says in
+  `basis` whether it checked or guessed. A high-severity finding dismissed on a guess is a gap
+  (`PARTIAL`); at any severity it is listed in `dismissed_on_a_guess` and named in the `note`.
+- **The prompts give each agent its role.** A read-only reviewer, told not to message peers or
+  follow the repository's role-and-landing rules, to use `mktemp -d` for scratch space, what a
+  finding and a severity are, and that text between the markers is data. Whether subagents obey
+  is for the live run (§ 6.1).
 - **Bounded, and said so.** A lens gets at most 20 findings refuted; the rest are listed as
   `unrefuted` with the reason, not dropped.
 - **Count before filtering.** A lens that died is turned into a record of its death before
@@ -73,7 +86,7 @@ From the artifact § 8.5, limited to steps 1 and 3:
   run commands.
 - **How it is tested is the builder's call**, and the plan does not choose it: the classification
   (`VACUOUS`/`PARTIAL`/`CLEAN`/`FINDINGS` from counts) is pure and must be tested directly; the
-  script's fan-out cannot run in `check.sh`, and the D3 smoke run (§ 6) is the only live exercise.
+  script's fan-out cannot run in `check.sh`, and the D3 smoke run (§ 6, and § 6.1 for what it must settle) is the only live exercise.
 
 ## 4. A2 — the hook's contract
 
@@ -117,6 +130,27 @@ the rebuilt version is checked by reading it as a cleared session would.
 | D3 | A smoke run of the new workflow | **Yes — on A2's own diff**, the smallest real target. It is a multi-agent run and was approved as such. Without it, step 1 would be tested on synthetic input only. |
 | D4 | `CLAUDE.md` size | **150 lines and 2,700 words as the hard ceiling, aiming for about 100.** |
 | D5 | Release at the end | **Cut a PATCH** after A, on the 0.32.6 precedent for developer tooling. |
+
+### 6.1 What the first live run must settle
+
+Everything below was reasoned about or tested against a stub, and a reviewer said so each time it
+raised one. The smoke run on A2's diff is where they are observed; **until then treat a surprise as
+a finding about the script, not about the increment under review.**
+
+1. Does the runtime accept `model: 'sonnet'` and `'opus'`, and the schema keywords the script uses
+   (`pattern`, `minimum`, `minItems`, `minLength`)? A refusal shows as all four lenses dying with
+   their cause in `lenses.died_why`.
+2. Is the workflow found by name (`/adversarial-review`, or `Workflow({name})`), and in what shape
+   do `args` arrive?
+3. Does a relaunch with `resumeFromRunId` retry an agent that failed, and is the resume cache keyed
+   on the prompt and options or on the order of calls? The docs say both in different places.
+4. Do the lens and refuter subagents, which receive this repository's `CLAUDE.md`, stay read-only
+   and silent, or do they try to settle a role or message peers?
+5. Do unattended agents manage `git worktree add`, `uv sync` and `/tmp` writes inside a
+   worktree-isolated session, and do two agents ever pick the same scratch name?
+6. What does a run cost in calls and tokens, and how long does one slow refuter hold up the judge
+   (the script cannot set a timeout: `Date` and `setTimeout` are unavailable)?
+7. Is `coverage` readable as the first line of a real result, or does the person drown in it?
 
 ## 7. Constraints that apply to every increment
 

@@ -21,6 +21,12 @@
 # changed what a role's prompt contained all passed. They are rows now, and the fuzz test
 # (`test_no_random_scenario_breaks_an_invariant`) catches the class a hand-written row cannot.
 #
+# **A third pass changed the control.** Once every agent call goes through `ask()`, which catches
+# a throw and returns its cause, nothing inside a lens stage can throw, so the original idiom -
+# `.filter(Boolean)` over the pipeline's results - became an equivalent mutant and the first row is
+# now `ask()` letting a throw through. The same pass added the rows on the role, severity, scratch
+# and stop-on-a-bad-sha content of the prompts, which only a test of the prompt can pin.
+#
 # **Not rows, on purpose.** Removing `Array.isArray(out.findings)`, or the `not_run` type check,
 # is an equivalent mutant: a non-array reaches a `.map` or `.trim()` inside the stage, which
 # throws, and pipeline() drops the lens exactly as the guard would. The guards stay because the
@@ -28,19 +34,22 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 99
+mutants = 114
 
 # ────────────────────────────────────────────────────────
 # unreleased, 20261019 · a review that says whether anyone looked
 # ────────────────────────────────────────────────────────
 
 [[mutant]]
-name = "CONTROL — the pipeline's results are collected with .filter(Boolean), so a lens whose stage threw is not counted as dead"
+name = "CONTROL — ask() lets a throw through, so a lens or a judge that throws is no longer a recorded death with a cause"
 file = ".claude/workflows/adversarial-review.js"
-# The original idiom, applied to the fan-out's results: a lens that is missing from the list is not in the dead list either. classify() still sees fewer lenses than expected, which is why the verdict stays PARTIAL - and why the test asserts the *list* of dead lenses and not only the verdict. A count that disagrees with its own list is the shape of the original bug.
-old = '''LENSES.map((lens, i) => runs[i] || deadRecord(lens.key, 'the stage threw'))'''
-new = '''runs.filter(Boolean)'''
-kills = "tests/test_review_workflow.py::test_a_lens_that_throws_is_a_dead_lens"
+# The original idiom's modern form. pipeline() turns a throw into a bare null and `.filter(Boolean)` erases it; ask() catches the throw first so the death is counted and its cause kept. With the catch gone a lens still dies (pipeline absorbs the throw, and `runs[i] ||` turns it into a dead record) but the cause is lost, and a judge that throws ends the whole run. `.filter(Boolean)` on the pipeline's results is now an equivalent mutant - nothing in a stage can throw once every agent call goes through ask() - so it is not a row.
+old = '''return { value: null, error: String(error && error.message || error) }'''
+new = '''throw error'''
+kills = [
+    "tests/test_review_workflow.py::test_a_lens_that_throws_is_a_dead_lens",
+    "tests/test_review_workflow.py::test_a_judge_that_throws_is_a_dead_judge_and_loses_nothing",
+]
 
 [[mutant]]
 name = "a lens that returned null is not listed among the dead"
@@ -133,15 +142,15 @@ kills = "tests/test_review_workflow.py::test_confirmed_findings_never_hide_a_dea
 name = "a lens that saw an empty diff is not counted as having reviewed nothing"
 file = ".claude/workflows/adversarial-review.js"
 # Once an increment lands, origin/main...<sha> is empty; a lens reviewing it checked nothing whatever it ran.
-old = '''if (read.diffFiles < 1) notRun.push('''
-new = '''if (read.diffFiles < 0) notRun.push('''
+old = '''if (out.diff_files < 1) return {'''
+new = '''if (out.diff_files < 0) return {'''
 kills = "tests/test_review_workflow.py::test_a_lens_that_saw_an_empty_diff_reviewed_nothing"
 
 [[mutant]]
 name = "a one-file diff counts as an empty one"
 file = ".claude/workflows/adversarial-review.js"
-old = '''if (read.diffFiles < 1) notRun.push('''
-new = '''if (read.diffFiles < 2) notRun.push('''
+old = '''if (out.diff_files < 1) return {'''
+new = '''if (out.diff_files < 2) return {'''
 kills = "tests/test_review_workflow.py::test_a_one_file_diff_is_a_diff"
 
 [[mutant]]
@@ -168,6 +177,41 @@ kills = "tests/test_review_workflow.py::test_classify_refuses_a_flag_that_is_not
 # ────────────────────────────────────────────────────────
 # unreleased, 20261019 · a reply is evidence only in the shape that was asked for
 # ────────────────────────────────────────────────────────
+
+[[mutant]]
+name = "a lens that threw is reported as dead without what it threw"
+file = ".claude/workflows/adversarial-review.js"
+old = '''prev && prev.error ? 'agent() threw: ' + prev.error : 'the agent died or returned nothing''''
+new = ''''the agent died or returned nothing''''
+kills = "tests/test_review_workflow.py::test_every_lens_throwing_is_vacuous_and_says_what_it_threw"
+
+[[mutant]]
+name = "a refuter that threw is reported as dead without what it threw"
+file = ".claude/workflows/adversarial-review.js"
+old = '''asked && asked.error ? 'the refuter threw: ' + asked.error : 'the refuter died or returned an unusable verdict''''
+new = ''''the refuter died or returned an unusable verdict''''
+kills = "tests/test_review_workflow.py::test_a_refuter_that_throws_says_what_it_threw"
+
+[[mutant]]
+name = "a clean pass resting on guessed dismissals does not say so in its note"
+file = ".claude/workflows/adversarial-review.js"
+old = '''(guessed.length ? ' ' + guessed.length + ' finding(s) were dismissed on a guess and not a check: read refuted[].basis.' : '')'''
+new = ''''''''
+kills = "tests/test_review_workflow.py::test_a_clean_pass_resting_on_guesses_says_so_at_the_top"
+
+[[mutant]]
+name = "the result does not list the findings dismissed on a guess"
+file = ".claude/workflows/adversarial-review.js"
+old = '''dismissed_on_a_guess: guessed,'''
+new = '''dismissed_on_a_guess: [],'''
+kills = "tests/test_review_workflow.py::test_a_clean_pass_resting_on_guesses_says_so_at_the_top"
+
+[[mutant]]
+name = "a confirmed finding loses the judge's rationale and commands"
+file = ".claude/workflows/adversarial-review.js"
+old = ''', judge_rationale: clip(ruling.get(f.id).rationale), judge_commands: commands(ruling.get(f.id).commands_run) }))'''
+new = ''' }))'''
+kills = "tests/test_review_workflow.py::test_a_confirmed_finding_keeps_the_judges_reasons"
 
 [[mutant]]
 name = "a lens that ran nothing counts as having looked"
@@ -266,8 +310,8 @@ kills = "tests/test_review_workflow.py::test_a_verdict_the_schema_forbids_is_no_
 [[mutant]]
 name = "a finding whose refuter died is dropped instead of listed as unrefuted"
 file = ".claude/workflows/adversarial-review.js"
-old = '''if (!v) unrefuted.push({ ...f, reason: 'the refuter died or returned an unusable verdict' })'''
-new = '''if (!v) { /* dropped */ }'''
+old = '''if (!v) unrefuted.push('''
+new = '''if (!v) void ('''
 kills = "tests/test_review_workflow.py::test_a_finding_whose_refuter_died_is_unrefuted_not_dropped"
 
 [[mutant]]
@@ -312,18 +356,10 @@ kills = "tests/test_review_workflow.py::test_a_very_long_field_is_clipped_in_the
 # ────────────────────────────────────────────────────────
 
 [[mutant]]
-name = "a judge that throws ends the run and loses every lens result"
-file = ".claude/workflows/adversarial-review.js"
-# The judge is awaited directly, outside pipeline() and parallel(), so nothing absorbs a throw. The runtime ends a run whose directly-awaited agent fails after its retries.
-old = '''log('the judge threw: ' + (error && error.message || error))'''
-new = '''throw error'''
-kills = "tests/test_review_workflow.py::test_a_judge_that_throws_is_a_dead_judge_and_loses_nothing"
-
-[[mutant]]
 name = "a judge that throws leaves no record of why it is dead"
 file = ".claude/workflows/adversarial-review.js"
-old = '''log('the judge threw: ' + (error && error.message || error))'''
-new = '''void error'''
+old = '''if (asked.error) log('the judge threw: ' + asked.error)'''
+new = '''if (asked.error) void 0'''
 kills = "tests/test_review_workflow.py::test_a_judge_that_throws_is_a_dead_judge_and_loses_nothing"
 
 [[mutant]]
@@ -427,8 +463,8 @@ kills = "tests/test_review_workflow.py::test_a_judge_ruling_a_finding_not_real_i
 [[mutant]]
 name = "a confirmed finding reports the severity it was raised with, not the one the judge ruled"
 file = ".claude/workflows/adversarial-review.js"
-old = '''severity_as_ruled: ruling.get(f.id).severity }))'''
-new = '''severity_as_ruled: f.severity }))'''
+old = '''severity_as_ruled: ruling.get(f.id).severity,'''
+new = '''severity_as_ruled: f.severity,'''
 kills = "tests/test_review_workflow.py::test_a_survivor_the_judge_confirms_is_a_finding"
 
 # ────────────────────────────────────────────────────────
@@ -440,9 +476,9 @@ name = "the lenses are launched in reverse, so the runtime lens starts last"
 file = ".claude/workflows/adversarial-review.js"
 # This also misaligns runs[i] with LENSES[i], so other tests die too. The named one is the assertion that exists for the order.
 old = '''  LENSES,
-  lens => agent(lensPrompt(lens)'''
+  lens => ask(lensPrompt(lens)'''
 new = '''  [...LENSES].reverse(),
-  lens => agent(lensPrompt(lens)'''
+  lens => ask(lensPrompt(lens)'''
 kills = "tests/test_review_workflow.py::test_slow_lenses_are_launched_first"
 
 [[mutant]]
@@ -451,12 +487,12 @@ file = ".claude/workflows/adversarial-review.js"
 # Every lens still starts up front and in order, so launch order is unchanged; only the refuters' start moves behind the slowest lens.
 old = '''const runs = await pipeline(
   LENSES,
-  lens => agent(lensPrompt(lens), { label: 'lens:' + lens.key, phase: 'Lenses', schema: LENS_SCHEMA, model: 'sonnet' })
-    .then(out => ({ lens: lens.key, out })),
+  lens => ask(lensPrompt(lens), { label: 'lens:' + lens.key, phase: 'Lenses', schema: LENS_SCHEMA, model: 'sonnet' })
+    .then(reply => ({ lens: lens.key, out: reply.value, error: reply.error })),
   async (prev, lens) => {
 '''
-new = '''const stage1 = LENSES.map(lens => agent(lensPrompt(lens), { label: 'lens:' + lens.key, phase: 'Lenses', schema: LENS_SCHEMA, model: 'sonnet' })
-  .then(out => ({ lens: lens.key, out })))
+new = '''const stage1 = LENSES.map(lens => ask(lensPrompt(lens), { label: 'lens:' + lens.key, phase: 'Lenses', schema: LENS_SCHEMA, model: 'sonnet' })
+  .then(reply => ({ lens: lens.key, out: reply.value, error: reply.error })))
 const everyLens = Promise.all(stage1)
 const runs = await pipeline(
   LENSES,
@@ -493,8 +529,8 @@ kills = "tests/test_review_workflow.py::test_every_call_names_its_model_and_only
 [[mutant]]
 name = "a refuter call is filed under the wrong phase"
 file = ".claude/workflows/adversarial-review.js"
-old = '''agent(refutePrompt(f), { label: 'refute:' + f.id, phase: 'Refute','''
-new = '''agent(refutePrompt(f), { label: 'refute:' + f.id, phase: 'Lenses','''
+old = '''ask(refutePrompt(f), { label: 'refute:' + f.id, phase: 'Refute','''
+new = '''ask(refutePrompt(f), { label: 'refute:' + f.id, phase: 'Lenses','''
 kills = "tests/test_review_workflow.py::test_every_call_is_in_the_phase_that_names_it"
 
 [[mutant]]
@@ -511,6 +547,13 @@ file = ".claude/workflows/adversarial-review.js"
 old = '''log('coverage ' + coverage + ': ''''
 new = '''log('cov ' + coverage + ': ''''
 kills = "tests/test_review_workflow.py::test_the_log_says_the_coverage"
+
+[[mutant]]
+name = "a field of any length is passed on whole"
+file = ".claude/workflows/adversarial-review.js"
+old = '''const MAX_FIELD = 2500'''
+new = '''const MAX_FIELD = 250000'''
+kills = "tests/test_review_workflow.py::test_a_very_long_field_is_clipped_in_the_prompt_and_in_the_result"
 
 [[mutant]]
 name = "a lens may raise any number of findings"
@@ -668,6 +711,78 @@ new = ''''Your lens: ' + lens.key + '. ' + LENSES[0].frame,'''
 kills = "tests/test_review_workflow.py::test_each_lens_gets_its_own_frame_and_only_its_own"
 
 [[mutant]]
+name = "the lens prompt does not say it is a read-only reviewer"
+file = ".claude/workflows/adversarial-review.js"
+# The subagents get this repository's CLAUDE.md, whose rules about settling a role and messaging peers are for the sessions that build it. Whether a reviewer obeys them is for the live run to show; that it is told not to is a test.
+old = '''    ROLE_RULE,
+    target,
+    'Your lens: ''''
+new = '''    target,
+    'Your lens: ''''
+kills = "tests/test_review_workflow.py::test_every_prompt_pins_the_commit_and_every_investigator_is_told_to_look_at_the_disk"
+
+[[mutant]]
+name = "the refuter prompt does not say it is a read-only reviewer"
+file = ".claude/workflows/adversarial-review.js"
+old = '''    ROLE_RULE,
+    target,
+    'Another reviewer raised'''
+new = '''    target,
+    'Another reviewer raised'''
+kills = "tests/test_review_workflow.py::test_every_prompt_pins_the_commit_and_every_investigator_is_told_to_look_at_the_disk"
+
+[[mutant]]
+name = "the judge prompt does not say it is a read-only reviewer"
+file = ".claude/workflows/adversarial-review.js"
+old = '''    ROLE_RULE,
+    target,
+    'Each finding between'''
+new = '''    target,
+    'Each finding between'''
+kills = "tests/test_review_workflow.py::test_every_prompt_pins_the_commit_and_every_investigator_is_told_to_look_at_the_disk"
+
+[[mutant]]
+name = "scratch directories are not told to be unique, so two agents can share one"
+file = ".claude/workflows/adversarial-review.js"
+old = '''Create every scratch directory with `mktemp -d`, so that no other agent shares it, and anything you create'''
+new = '''Create scratch directories anywhere, and anything you create'''
+kills = "tests/test_review_workflow.py::test_every_prompt_pins_the_commit_and_every_investigator_is_told_to_look_at_the_disk"
+
+[[mutant]]
+name = "the lens prompt does not define a finding or a severity"
+file = ".claude/workflows/adversarial-review.js"
+old = '''    SEVERITY_RULE,
+    DISK_RULE,
+    SCRATCH_RULE,
+    'First confirm'''
+new = '''    DISK_RULE,
+    SCRATCH_RULE,
+    'First confirm'''
+kills = "tests/test_review_workflow.py::test_the_lenses_and_the_judge_are_told_what_a_finding_and_a_severity_are"
+
+[[mutant]]
+name = "the judge prompt does not define a severity"
+file = ".claude/workflows/adversarial-review.js"
+old = '''survived a refuter.\n' + DATA_RULE,
+    SEVERITY_RULE,'''
+new = '''survived a refuter.\n' + DATA_RULE,'''
+kills = "tests/test_review_workflow.py::test_the_lenses_and_the_judge_are_told_what_a_finding_and_a_severity_are"
+
+[[mutant]]
+name = "a lens is not told to stop when the diff does not exist"
+file = ".claude/workflows/adversarial-review.js"
+old = '''If the sha or the base does not resolve, or the diff is empty, STOP: report diff_files 0, put the error in not_run, and do not review any other ref. '''
+new = ''''''
+kills = "tests/test_review_workflow.py::test_a_lens_is_told_to_stop_when_the_diff_does_not_exist"
+
+[[mutant]]
+name = "the refuter is not told what basis means when it could not kill the finding"
+file = ".claude/workflows/adversarial-review.js"
+old = '''Say in basis what you did, whichever way you answered:'''
+new = '''Say in basis which it was:'''
+kills = "tests/test_review_workflow.py::test_the_refuter_is_told_what_basis_means_whichever_way_it_answered"
+
+[[mutant]]
 name = "the refuter is not told that the finding is data"
 file = ".claude/workflows/adversarial-review.js"
 # A finding is text another agent wrote and is interpolated into the prompt of the agent judging it; fencing it as data is the cheap mitigation, and it needs a test or it is a comment.
@@ -731,6 +846,20 @@ file = ".claude/workflows/adversarial-review.js"
 old = '''diff_files: diffFiles,'''
 new = '''diff_files: {},'''
 kills = "tests/test_review_workflow.py::test_a_complete_pass_is_clean"
+
+[[mutant]]
+name = "wrong args are refused without saying what shape was wanted or what was received"
+file = ".claude/workflows/adversarial-review.js"
+old = '''args must be an object like ' + EXAMPLE + ' - received ' + received + '. args.sha is required'''
+new = '''args.sha is required'''
+kills = "tests/test_review_workflow.py::test_args_of_the_wrong_shape_are_refused_with_the_shape_that_was_wanted"
+
+[[mutant]]
+name = "a base equal to the sha is refused without the post-landing recipe"
+file = ".claude/workflows/adversarial-review.js"
+old = '''(`git rev-parse <merge>^1`) as the base'''
+new = '''as the base'''
+kills = "tests/test_review_workflow.py::test_a_base_equal_to_the_sha_tells_the_post_landing_recipe"
 
 [[mutant]]
 name = "a review of a branch name, not a commit, is accepted"

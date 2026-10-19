@@ -128,8 +128,16 @@ def verdict(refuted: bool, commands: Any = None, basis: str = "checked") -> dict
     }
 
 
-def ruling(id_: str, real: bool = True, severity: str = "high") -> dict[str, Any]:
-    return {"id": id_, "real": real, "severity": severity, "rationale": "reproduced it"}
+def ruling(
+    id_: str, real: bool = True, severity: str = "high", commands: list[str] | None = None
+) -> dict[str, Any]:
+    return {
+        "id": id_,
+        "real": real,
+        "severity": severity,
+        "rationale": "reproduced it",
+        "commands_run": commands or [],
+    }
 
 
 def everyone_returns() -> dict[str, Any]:
@@ -217,7 +225,26 @@ def test_a_lens_that_throws_is_a_dead_lens() -> None:
     result = review(replies)["result"]
     assert result["coverage"] == "PARTIAL"
     assert result["lenses"]["died"] == ["population"]
-    assert result["lenses"]["died_why"]["population"]
+    assert result["lenses"]["died_why"]["population"] == "agent() threw: stub agent threw"
+
+
+def test_every_lens_throwing_is_vacuous_and_says_what_it_threw() -> None:
+    """The runtime rejecting a model name or a schema keyword kills all four lenses at once, and the
+    cause is the one thing the person needs: it used to be lost in pipeline()'s bare null."""
+    replies = everyone_returns() | {f"lens:{key}": "__throw__" for key in LENS_ORDER}
+    result = review(replies)["result"]
+    assert result["coverage"] == "VACUOUS"
+    assert set(result["lenses"]["died_why"].values()) == {"agent() threw: stub agent threw"}
+
+
+def test_a_refuter_that_throws_says_what_it_threw() -> None:
+    replies = everyone_returns() | {
+        "lens:runtime": lens([finding()]),
+        "refute:runtime-1": "__throw__",
+    }
+    result = review(replies)["result"]
+    assert result["coverage"] == "PARTIAL"
+    assert result["unrefuted"][0]["reason"] == "the refuter threw: stub agent threw"
 
 
 def test_a_lens_that_ran_nothing_is_dead_not_clean() -> None:
@@ -268,12 +295,28 @@ def test_a_three_character_command_is_a_check() -> None:
 
 def test_a_lens_that_saw_an_empty_diff_reviewed_nothing() -> None:
     """Once an increment lands, `origin/main...<sha>` is empty. A lens that reports it saw no files
-    looked at nothing, whatever it says it ran."""
+    looked at nothing, whatever it says it ran - it is a dead lens, and says why."""
     replies = everyone_returns() | {"lens:docs-vs-tree": lens(diff_files=0)}
     result = review(replies)["result"]
     assert result["coverage"] == "PARTIAL"
-    assert "empty diff" in result["not_run"]["docs-vs-tree"][0]
-    assert result["lenses"]["died"] == []
+    assert result["lenses"]["died"] == ["docs-vs-tree"]
+    assert "saw an empty diff" in result["lenses"]["died_why"]["docs-vs-tree"]
+    assert result["raised"] == 0
+
+
+def test_a_sha_that_does_not_exist_is_vacuous_not_partial() -> None:
+    """Every lens runs `git diff`, gets 'bad revision', reports no files: nobody looked at anything.
+    The first version of this answered PARTIAL with `died: []`, which understated it."""
+    bad = lens(
+        not_run=["git diff def5678...abc1234: fatal: bad revision"],
+        checks=["git diff --stat def5678...abc1234"],
+        diff_files=0,
+    )
+    replies = everyone_returns() | {f"lens:{key}": bad for key in LENS_ORDER}
+    result = review(replies)["result"]
+    assert result["coverage"] == "VACUOUS"
+    assert result["lenses"]["died"] == LENS_ORDER
+    assert "bad revision" in result["lenses"]["died_why"]["runtime"]
 
 
 def test_a_one_file_diff_is_a_diff() -> None:
@@ -447,6 +490,7 @@ def test_a_high_finding_dismissed_on_a_guess_is_a_gap() -> None:
     assert killed["severity"] == "high" and killed["basis"] == "uncertain"
     assert result["coverage"] == "PARTIAL"
     assert result["unchecked_high"] == ["runtime-1"]
+    assert result["dismissed_on_a_guess"] == ["runtime-1"]
     assert "dismissed on a guess" in result["note"]
 
 
@@ -458,6 +502,22 @@ def test_a_lesser_finding_dismissed_on_a_guess_is_listed_but_not_a_gap() -> None
     result = review(replies)["result"]
     assert result["coverage"] == "CLEAN"
     assert result["refuted"][0]["basis"] == "uncertain"
+    assert result["unchecked_high"] == []
+    assert result["dismissed_on_a_guess"] == ["runtime-1"]
+    assert "1 finding(s) were dismissed on a guess" in result["note"]
+
+
+def test_a_clean_pass_resting_on_guesses_says_so_at_the_top() -> None:
+    """Three medium findings, each dismissed on a guess: CLEAN is still the verdict, and the note
+    and `dismissed_on_a_guess` say what it rests on. It used to say 'every refuter returned'."""
+    replies = everyone_returns() | {
+        "lens:runtime": lens([finding(f"c{i}", "medium") for i in range(3)]),
+        "refute:*": verdict(True, basis="uncertain"),
+    }
+    result = review(replies)["result"]
+    assert result["coverage"] == "CLEAN"
+    assert result["dismissed_on_a_guess"] == ["runtime-1", "runtime-2", "runtime-3"]
+    assert "3 finding(s) were dismissed on a guess" in result["note"]
     assert result["unchecked_high"] == []
 
 
@@ -480,6 +540,13 @@ def test_a_survivor_the_judge_confirms_is_a_finding() -> None:
     assert result["coverage"] == "FINDINGS"
     assert [f["id"] for f in result["confirmed"]] == ["runtime-1"]
     assert result["confirmed"][0]["severity_as_ruled"] == "high"
+
+
+def test_a_confirmed_finding_keeps_the_judges_reasons() -> None:
+    judged = ruling("runtime-1", commands=["pnk sync --kb /tmp/x"])
+    kept = review(one_survivor({"rulings": [judged]}))["result"]["confirmed"][0]
+    assert kept["judge_rationale"] == "reproduced it"
+    assert kept["judge_commands"] == ["pnk sync --kb /tmp/x"]
 
 
 def test_a_dead_judge_leaves_survivors_unjudged_and_nothing_confirmed() -> None:
@@ -694,7 +761,7 @@ def test_a_very_long_field_is_clipped_in_the_prompt_and_in_the_result() -> None:
     replies["lens:runtime"] = lens([finding(evidence=long)])
     out = review(replies)
     kept = out["result"]["confirmed"][0]
-    assert len(kept["evidence"]) < 4100 and "truncated by the review script" in kept["evidence"]
+    assert len(kept["evidence"]) < 2700 and "truncated by the review script" in kept["evidence"]
     refuter = next(c for c in out["calls"] if c["label"] == "refute:runtime-1")
     assert "x" * 9000 not in refuter["prompt"]
 
@@ -843,6 +910,29 @@ def test_every_prompt_pins_the_commit_and_every_investigator_is_told_to_look_at_
         assert f"git show {SHA}:<path>" in call["prompt"], call["label"]
         assert "look at the disk" in call["prompt"], call["label"]
         assert "Do not edit any file in the repository" in call["prompt"], call["label"]
+        assert "read-only reviewer" in call["prompt"], call["label"]
+        assert "do not use ListAgents or SendMessage" in call["prompt"], call["label"]
+        assert "`mktemp -d`" in call["prompt"], call["label"]
+
+
+def test_the_lenses_and_the_judge_are_told_what_a_finding_and_a_severity_are() -> None:
+    prompts = lens_prompts(review(one_survivor({"rulings": [ruling("runtime-1")]})))
+    for label in ("lens:runtime", "lens:population", "judge"):
+        assert 'Severity: "high" is a wrong result' in prompts[label], label
+        assert "a check that found nothing is not a finding" in prompts[label], label
+
+
+def test_a_lens_is_told_to_stop_when_the_diff_does_not_exist() -> None:
+    prompt = lens_prompts(review(everyone_returns()))["lens:runtime"]
+    assert "If the sha or the base does not resolve, or the diff is empty, STOP" in prompt
+    assert "do not review any other ref" in prompt
+
+
+def test_the_refuter_is_told_what_basis_means_whichever_way_it_answered() -> None:
+    prompt = lens_prompts(review(one_survivor({"rulings": [ruling("runtime-1")]})))[
+        "refute:runtime-1"
+    ]
+    assert "whichever way you answered" in prompt and "shown to hold" in prompt
 
 
 def test_the_increments_title_and_every_claim_reach_every_prompt() -> None:
@@ -882,6 +972,25 @@ def test_an_unpinned_or_unbased_review_is_refused_before_any_agent_starts(
     assert not out["ok"]
     assert reason in out["error"]
     assert out["calls"] == []
+
+
+@pytest.mark.parametrize("args", [None, "abc1234 def5678", '{"sha": "abc1234"}', [], 7])
+def test_args_of_the_wrong_shape_are_refused_with_the_shape_that_was_wanted(args: Any) -> None:
+    """Passed as a string, a JSON-encoded string or not at all, a first attempt got 'args.sha is
+    required' and no hint of what was received or what to send."""
+    # Straight to the harness: review() reads `args=None` as "use the default arguments".
+    out = node("run", {"args": args, "replies": everyone_returns()})
+    assert not out["ok"] and out["calls"] == []
+    assert "args must be an object like" in out["error"] and '"sha"' in out["error"]
+    assert "received" in out["error"]
+
+
+def test_a_base_equal_to_the_sha_tells_the_post_landing_recipe() -> None:
+    """After a --no-ff landing `git merge-base origin/main <sha>` returns the sha itself, which is
+    exactly how a person following BUILDING.md after landing arrives here."""
+    out = review(everyone_returns(), {"sha": SHA, "base": SHA})
+    assert not out["ok"]
+    assert "same commit" in out["error"] and "<merge>^1" in out["error"]
 
 
 def test_a_seven_and_a_forty_character_sha_are_accepted() -> None:
