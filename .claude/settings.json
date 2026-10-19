@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'r=$(git rev-parse --show-toplevel 2>/dev/null) && f=\"$r/tools/hooks/review_stop_hook.py\" && [ -f \"$f\" ] && exec python3 \"$f\"; exit 0'",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,663 @@
+# Mutation battery — `tools/hooks/review_stop_hook.py`, and the `.claude/settings.json` that wires it.
+#
+#     python3 tools/mutate.py tools/batteries/tools-hooks-review_stop_hook.toml
+#
+# Every row is a way this hook could let a turn end over a fan-out that lost agents, or trap a turn
+# it should have let go, while every other test stayed green. **A row is a claim about one
+# assertion, never about the script**: the named test is the one that has to die, and nothing here
+# says what a real Stop payload looks like — the hook has not fired live yet (the payload is built
+# from the hooks reference; the session that created `settings.json` did not pick it up, so the
+# first live firing is a later session's first turn end).
+#
+# The settings rows share this battery on purpose: `.claude/settings.json` is a file with one
+# consumer, and a second battery for it would make two files for one increment to maintain
+# (`tools/batteries/README.md`). The command in it carries three properties that each fail
+# silently — it must follow the working directory and not `${CLAUDE_PROJECT_DIR}`, and it must
+# exit 0 quietly where the script is absent (`python3` on a missing script exits 2, which the hooks
+# reference makes a block unless the stderr says a file is missing - not a special case to lean on).
+#
+# **Not rows, on purpose.** Dropping `sorted(...)` in `session_runs` reorders the message and
+# nothing else; a glob widened from `wf_*` to `*` changes nothing the tests can tell apart (the
+# first live review measured 118 real run directories: every journal sits in a `wf_*` directory,
+# beside only `agent-*` files), and the `exit 3` branch's wording is equivalent to the crash path
+# it sits beside (both reach exit 1 with the run named). **The `bool` guard in `_int` was on this
+# list until the first live review pass showed the claim false** - without it a gate printing
+# `true` for a count turns a crash into a block carrying a nonsense number - and it is a row now.
+# A survivor among the ones still listed would be a finding about the tests, not about the hook.
+#
+# **How this battery got its size.** The first draft had 31 rows, all killed. The first live review
+# pass (the D3 smoke run, 20261019) then wrote its own mutants and seven survived: the `exec` in the
+# settings command, the UTC stamp, a path quoted three ways in the printed command, the guard on a
+# non-string `transcript_path`, and the exit status of "cannot be judged yet". They are rows now,
+# beside the ones the review's other findings (a per-run failure hiding a neighbour, a digest to
+# cover a resume, a placeholder accepted as an acknowledgement) added. A second reviewer then wrote
+# 82 mutants of its own against the result and 28 genuine ones survived, which is why the rows at
+# the end exist. A fully killed battery measures the mutants its author thought of.
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 73
+
+# ────────────────────────────────────────────────────────
+# unreleased, 20261019 · a Stop hook that will not let a turn end over a lost fan-out
+# ────────────────────────────────────────────────────────
+#
+# Mutant 1 is the control: a known-catchable change run first, because a battery with no kills is a
+# broken harness rather than a clean bill.
+
+[[mutant]]
+name = "CONTROL — the hook never blocks, whatever the gate found"
+file = "tools/hooks/review_stop_hook.py"
+old = '''    if verdicts:
+        again'''
+new = '''    if False:
+        again'''
+kills = "tests/test_review_stop_hook.py::test_a_run_that_lost_an_agent_blocks_and_names_it"
+
+[[mutant]]
+name = "a block is announced as something Claude Code does not treat as one"
+file = "tools/hooks/review_stop_hook.py"
+# `decision: "block"` is the documented spelling; any other value lets the turn end with a hook
+# that printed a perfectly good reason, which is the same outcome as not running.
+old = '''"decision": "block"'''
+new = '''"decision": "approve"'''
+kills = "tests/test_review_stop_hook.py::test_a_run_that_lost_an_agent_blocks_and_names_it"
+
+[[mutant]]
+name = "a run in which nobody returned reads PARTIAL, not VACUOUS"
+file = "tools/hooks/review_stop_hook.py"
+# Zero usable agents is a different outcome from some, not a smaller one: nobody looked.
+old = '''return "VACUOUS" if self.usable <= 0 else "PARTIAL"'''
+new = '''return "VACUOUS" if self.usable < 0 else "PARTIAL"'''
+kills = "tests/test_review_stop_hook.py::test_a_run_where_nobody_returned_is_vacuous"
+
+[[mutant]]
+name = "an agent that returned nothing still counts as usable"
+file = "tools/hooks/review_stop_hook.py"
+# A fan-out whose every agent came back empty is VACUOUS. Counting only the dead calls it PARTIAL,
+# as though somebody had found something.
+old = '''return self.launched - len(self.dead) - len(self.empty)'''
+new = '''return self.launched - len(self.dead)'''
+kills = "tests/test_review_stop_hook.py::test_a_run_whose_every_agent_returned_nothing_is_vacuous"
+
+[[mutant]]
+name = "the acknowledgement forgets how many agents came back empty"
+file = "tools/hooks/review_stop_hook.py"
+old = '''"empty": len(self.empty),'''
+new = '''"empty": 0,'''
+kills = "tests/test_review_stop_hook.py::test_the_acknowledgement_counts_an_empty_result_in_the_shape_it_covers"
+
+[[mutant]]
+name = "a workflow in flight is judged anyway"
+file = "tools/hooks/review_stop_hook.py"
+# A slow agent and a dead one look identical in the journal. Judging a run that is still going
+# blocks a healthy review, and the hook is then learned to be ignored.
+old = '''    if in_flight:
+        return []'''
+new = '''    if False:
+        return []'''
+kills = "tests/test_review_stop_hook.py::test_a_workflow_in_flight_is_never_judged"
+
+[[mutant]]
+name = "any background task counts as a workflow in flight"
+file = "tools/hooks/review_stop_hook.py"
+# A dev server in the registry is not the review. Reading "anything running" as "the workflow is
+# running" hides a dead fan-out behind every unrelated shell.
+old = '''.get("type") == "workflow"'''
+new = '''.get("type") != "workflow"'''
+kills = [
+    "tests/test_review_stop_hook.py::test_a_workflow_in_flight_is_never_judged",
+    "tests/test_review_stop_hook.py::test_other_background_tasks_do_not_hide_a_dead_run",
+]
+
+[[mutant]]
+name = "a run killed seconds ago is judged by the gate's quiet window, so it passes"
+file = "tools/hooks/review_stop_hook.py"
+# The 180-second window cannot tell a slow agent from a dead one, which is why the payload is
+# asked. With an empty registry nothing is in flight, so outstanding agents will not return.
+old = '''assume_finished=in_flight is False'''
+new = '''assume_finished=False'''
+kills = "tests/test_review_stop_hook.py::test_a_run_killed_seconds_ago_is_judged_when_nothing_is_in_flight"
+
+[[mutant]]
+name = "an absent registry is read as an empty one, and a live run is called dead"
+file = "tools/hooks/review_stop_hook.py"
+old = '''assume_finished=in_flight is False'''
+new = '''assume_finished=True'''
+kills = "tests/test_review_stop_hook.py::test_without_the_registry_the_gates_own_window_decides"
+
+[[mutant]]
+name = "a payload without background_tasks says nothing is in flight"
+file = "tools/hooks/review_stop_hook.py"
+old = '''    if not isinstance(tasks, list):
+        return None'''
+new = '''    if not isinstance(tasks, list):
+        return False'''
+kills = "tests/test_review_stop_hook.py::test_without_the_registry_the_gates_own_window_decides"
+
+[[mutant]]
+name = "the gate is not told the run has ended"
+file = "tools/hooks/review_stop_hook.py"
+old = '''    if assume_finished:
+        command.append("--assume-finished")'''
+new = '''    if False:
+        command.append("--assume-finished")'''
+kills = "tests/test_review_stop_hook.py::test_a_run_killed_seconds_ago_is_judged_when_nothing_is_in_flight"
+
+[[mutant]]
+name = "a gate exit of 3 is read as cannot-judge-yet and passes quietly"
+file = "tools/hooks/review_stop_hook.py"
+# Only 0, 1 and 2 are the gate's vocabulary. Anything else is a crash and must be seen.
+old = '''    if done.returncode == 2:'''
+new = '''    if done.returncode in (2, 3):'''
+kills = "tests/test_review_stop_hook.py::test_a_gate_that_crashes_is_not_a_failed_review"
+
+[[mutant]]
+name = "a gate that exits 1 is read as a pass"
+file = "tools/hooks/review_stop_hook.py"
+old = '''    if done.returncode == 0:'''
+new = '''    if done.returncode in (0, 1):'''
+kills = "tests/test_review_stop_hook.py::test_a_run_that_lost_an_agent_blocks_and_names_it"
+
+[[mutant]]
+name = "an acknowledgement with a blank told still silences the hook"
+file = "tools/hooks/review_stop_hook.py"
+old = '''        and told.strip() != ""
+'''
+new = '''        and True
+'''
+kills = "tests/test_review_stop_hook.py::test_a_malformed_acknowledgement_does_not_silence_the_hook"
+
+[[mutant]]
+name = "an acknowledgement covers whatever shape the run later takes"
+file = "tools/hooks/review_stop_hook.py"
+# A resumed run is a new verdict. Without the comparison, one acknowledgement hides every later
+# death in that run.
+old = '''and body.get("verdict") == (verdict.covered_by())'''
+new = '''and True'''
+kills = [
+    "tests/test_review_stop_hook.py::test_an_acknowledgement_does_not_cover_a_run_that_changes_shape",
+    "tests/test_review_stop_hook.py::test_a_malformed_acknowledgement_does_not_silence_the_hook",
+]
+
+[[mutant]]
+name = "an acknowledgement file that is not an object is read as one"
+file = "tools/hooks/review_stop_hook.py"
+old = '''    if not isinstance(recorded, dict):'''
+new = '''    if False:'''
+kills = "tests/test_review_stop_hook.py::test_a_malformed_acknowledgement_does_not_silence_the_hook"
+
+[[mutant]]
+name = "the session's directory is the transcript file itself, so no run is ever found"
+file = "tools/hooks/review_stop_hook.py"
+# The seam the hook adds to the gate: from transcript_path to a run. Every other test would still
+# pass if it pointed at nothing and returned [], except those that build the true layout.
+old = '''Path(transcript).expanduser().with_suffix("")'''
+new = '''Path(transcript).expanduser()'''
+kills = "tests/test_review_stop_hook.py::test_a_run_that_lost_an_agent_blocks_and_names_it"
+
+[[mutant]]
+name = "another session's dead run blocks this one"
+file = "tools/hooks/review_stop_hook.py"
+# The hook must read only the ending session. Reading the machine (the gate's `find_runs`) would
+# block this turn over somebody else's fan-out.
+old = '''    return sorted(journal.parent for journal in root.glob("wf_*/journal.jsonl"))'''
+new = '''    return sorted(j.parent for j in Path(transcript).parent.glob("*/subagents/workflows/wf_*/journal.jsonl"))'''
+kills = "tests/test_review_stop_hook.py::test_only_the_ending_sessions_runs_are_judged"
+
+[[mutant]]
+name = "stop_hook_active turns the block off, so a session can ignore it once"
+file = "tools/hooks/review_stop_hook.py"
+# D2 was block-until-acknowledged. The documentation's advice to check the flag is about a
+# condition that never resolves; this one resolves with a command, and the eight-round cap is the
+# bound.
+old = '''    if verdicts:
+        again'''
+new = '''    if verdicts and payload.get("stop_hook_active") is not True:
+        again'''
+kills = "tests/test_review_stop_hook.py::test_stop_hook_active_still_blocks_and_says_again"
+
+[[mutant]]
+name = "the repeat is not announced"
+file = "tools/hooks/review_stop_hook.py"
+old = '''again = payload.get("stop_hook_active") is True'''
+new = '''again = False'''
+kills = "tests/test_review_stop_hook.py::test_stop_hook_active_still_blocks_and_says_again"
+
+[[mutant]]
+name = "the reason drops the distinction between the journal's count and the review's coverage"
+file = "tools/hooks/review_stop_hook.py"
+old = '''not the review's own `coverage`'''
+new = '''the review's own `coverage`'''
+kills = "tests/test_review_stop_hook.py::test_the_reason_says_this_is_not_the_workflows_coverage"
+
+[[mutant]]
+name = "an acknowledgement is accepted with nothing said"
+file = "tools/hooks/review_stop_hook.py"
+old = '''    if not told.strip():'''
+new = '''    if False:'''
+kills = "tests/test_review_stop_hook.py::test_an_empty_told_is_refused_and_writes_nothing"
+
+[[mutant]]
+name = "an acknowledgement is written for a directory that is not a run"
+file = "tools/hooks/review_stop_hook.py"
+old = '''    if not (directory / "journal.jsonl").is_file():'''
+new = '''    if False:'''
+kills = "tests/test_review_stop_hook.py::test_acknowledging_something_that_is_not_a_run_is_refused"
+
+[[mutant]]
+name = "a clean run is acknowledged, and the file lies about there having been something to say"
+file = "tools/hooks/review_stop_hook.py"
+old = '''    if judged.status == "clean":'''
+new = '''    if False:'''
+kills = "tests/test_review_stop_hook.py::test_acknowledging_a_clean_run_writes_nothing"
+
+[[mutant]]
+name = "acknowledging waits for the gate's quiet window, so a fresh failure cannot be acknowledged"
+file = "tools/hooks/review_stop_hook.py"
+# The hook blocks a run killed seconds ago; if the command that satisfies it refuses until three
+# minutes have passed, the session is stuck for the eight rounds the cap allows.
+old = '''    judged = judge(directory, assume_finished=True)'''
+new = '''    judged = judge(directory, assume_finished=False)'''
+kills = "tests/test_review_stop_hook.py::test_a_run_the_hook_blocks_can_be_acknowledged_at_once"
+
+[[mutant]]
+name = "an internal failure exits 0, so a broken hook reads as a quiet pass"
+file = "tools/hooks/review_stop_hook.py"
+old = '''        return 1
+
+
+if __name__'''
+new = '''        return 0
+
+
+if __name__'''
+kills = "tests/test_review_stop_hook.py::test_a_bad_payload_fails_loudly_and_does_not_block"
+
+[[mutant]]
+name = "an internal failure says nothing"
+file = "tools/hooks/review_stop_hook.py"
+old = '''        print(f"review_stop_hook: {type(error).__name__}: {error}", file=sys.stderr)'''
+new = '''        pass'''
+kills = "tests/test_review_stop_hook.py::test_a_bad_payload_fails_loudly_and_does_not_block"
+
+# ── the wiring: `.claude/settings.json` ──────────────────────────────────────────────────────────
+
+[[mutant]]
+name = "the command is registered on SubagentStop, so the main turn ends unchecked"
+file = ".claude/settings.json"
+old = '''"Stop": ['''
+new = '''"SubagentStop": ['''
+kills = "tests/test_review_stop_hook.py::test_settings_registers_the_hook_on_stop"
+
+[[mutant]]
+name = "the command takes the script from the project dir, which stays at the original checkout in a worktree"
+file = ".claude/settings.json"
+old = '''$(git rev-parse --show-toplevel 2>/dev/null)'''
+new = '''$CLAUDE_PROJECT_DIR'''
+kills = "tests/test_review_stop_hook.py::test_the_command_runs_the_working_directorys_copy_not_the_project_dirs"
+
+[[mutant]]
+name = "the command runs python3 on a script that may not exist, and exit 2 is not a quiet pass"
+file = ".claude/settings.json"
+old = '''[ -f \"$f\" ] && '''
+new = ''''''
+kills = "tests/test_review_stop_hook.py::test_a_checkout_without_the_hook_exits_zero_not_two"
+
+[[mutant]]
+name = "the command falls through with the status of the failed test instead of 0"
+# `; true` is the same exit status as `; exit 0` - an equivalent mutant, which this row was first
+# written as and which survived for the right reason. Dropping the tail is the real change: the
+# `&&` chain then exits with the status of the test that failed.
+file = ".claude/settings.json"
+old = '''; exit 0'"'''
+new = ''''"'''
+kills = [
+    "tests/test_review_stop_hook.py::test_a_checkout_without_the_hook_exits_zero_not_two",
+    "tests/test_review_stop_hook.py::test_a_directory_that_is_not_a_checkout_exits_zero",
+]
+
+# ── added after the first live review pass (D3, 20261019) ─────────────────────────────────────────
+
+[[mutant]]
+name = "the settings command drops exec, so python's exit status is replaced by the trailing exit 0 and a crash reads as success"
+file = ".claude/settings.json"
+old = '''exec python3'''
+new = '''python3'''
+kills = "tests/test_review_stop_hook.py::test_an_internal_error_stays_loud_through_the_settings_command"
+
+[[mutant]]
+name = "the acknowledgement covers the counts and not the journal, so a resume that re-launches an agent is never judged again"
+file = "tools/hooks/review_stop_hook.py"
+# A resume appends to the same journal in the same run directory, and the gate pairs agents by key,
+# so a re-launched agent leaves launched/returned/empty where they were.
+old = '''            "digest": self.digest,'''
+new = '''            "digest": "",'''
+kills = [
+    "tests/test_review_stop_hook.py::test_a_resume_that_relaunches_an_agent_is_judged_again",
+    "tests/test_review_stop_hook.py::test_the_acknowledgement_records_what_was_told_and_the_verdict",
+]
+
+[[mutant]]
+name = "the placeholder the block message prints is accepted as an acknowledgement"
+file = "tools/hooks/review_stop_hook.py"
+# The placeholder has five words, so the word count alone lets it through.
+old = '''    if told.strip() == PLACEHOLDER or len(told.split()) < MIN_TOLD_WORDS:'''
+new = '''    if len(told.split()) < MIN_TOLD_WORDS:'''
+kills = [
+    "tests/test_review_stop_hook.py::test_the_placeholder_and_a_fragment_are_not_an_acknowledgement",
+    "tests/test_review_stop_hook.py::test_the_pasted_command_from_the_reason_is_refused",
+]
+
+[[mutant]]
+name = "two words are enough to say what the user was told"
+file = "tools/hooks/review_stop_hook.py"
+old = '''MIN_TOLD_WORDS: Final = 3'''
+new = '''MIN_TOLD_WORDS: Final = 2'''
+kills = "tests/test_review_stop_hook.py::test_the_placeholder_and_a_fragment_are_not_an_acknowledgement"
+
+[[mutant]]
+name = "one run the gate cannot judge stops the others being judged"
+file = "tools/hooks/review_stop_hook.py"
+old = '''            errors.append(str(error))
+            continue'''
+new = '''            raise'''
+kills = "tests/test_review_stop_hook.py::test_one_run_the_gate_cannot_judge_does_not_hide_another"
+
+[[mutant]]
+name = "a run that could not be judged, with nothing else to report, exits 0"
+file = "tools/hooks/review_stop_hook.py"
+old = '''    return 1 if errors else 0'''
+new = '''    return 0'''
+kills = "tests/test_review_stop_hook.py::test_one_run_the_gate_cannot_judge_does_not_hide_another"
+
+[[mutant]]
+name = "a run that could not be judged is not mentioned"
+file = "tools/hooks/review_stop_hook.py"
+old = '''        print(f"review_stop_hook: {error}", file=sys.stderr)'''
+new = '''        pass'''
+kills = "tests/test_review_stop_hook.py::test_one_run_the_gate_cannot_judge_does_not_hide_another"
+
+[[mutant]]
+name = "agents are named by hex id only"
+file = "tools/hooks/review_stop_hook.py"
+old = '''            labels=journal_labels(directory / "journal.jsonl"),'''
+new = '''            labels={},'''
+kills = "tests/test_review_stop_hook.py::test_the_block_names_agents_by_the_label_the_journal_gave_them"
+
+[[mutant]]
+name = "a dead agent's last tool is lost"
+file = "tools/hooks/review_stop_hook.py"
+old = '''_text(item.get("last_tool")) or "none"'''
+new = '''"none"'''
+kills = "tests/test_review_stop_hook.py::test_the_last_tool_of_a_dead_agent_is_named"
+
+[[mutant]]
+name = "one agent is reported as 1 agents"
+file = "tools/hooks/review_stop_hook.py"
+old = '''        plural = "" if verdict.launched == 1 else "s"'''
+new = '''        plural = "s"'''
+kills = "tests/test_review_stop_hook.py::test_a_run_whose_every_agent_returned_nothing_is_vacuous"
+
+[[mutant]]
+name = "a gate that prints a JSON boolean for a count is believed, turning a crash into a block"
+file = "tools/hooks/review_stop_hook.py"
+# The header said this guard was equivalent to the crash path. The review showed it is not: True
+# is an int, so the verdict builds, `usable` goes to zero and the hook blocks on a nonsense count.
+old = '''    if isinstance(value, bool) or not isinstance(value, int):'''
+new = '''    if not isinstance(value, int):'''
+kills = "tests/test_review_stop_hook.py::test_a_gate_that_crashes_is_not_a_failed_review"
+
+[[mutant]]
+name = "the acknowledgement stamp says UTC and carries local time"
+file = "tools/hooks/review_stop_hook.py"
+old = '''time.gmtime()'''
+new = '''time.localtime()'''
+kills = "tests/test_review_stop_hook.py::test_the_acknowledgement_stamp_is_utc_whatever_the_local_zone"
+
+[[mutant]]
+name = "a run with no agents is acknowledged with exit 0 and nothing written"
+file = "tools/hooks/review_stop_hook.py"
+old = '''        print(f"{directory.name} cannot be judged yet: {judged.note}", file=sys.stderr)
+        return 1'''
+new = '''        print(f"{directory.name} cannot be judged yet: {judged.note}", file=sys.stderr)
+        return 0'''
+kills = "tests/test_review_stop_hook.py::test_a_run_with_no_agents_cannot_be_acknowledged"
+
+[[mutant]]
+name = "the printed command does not quote the interpreter"
+file = "tools/hooks/review_stop_hook.py"
+old = '''    python = shlex.quote(sys.executable)'''
+new = '''    python = sys.executable'''
+kills = "tests/test_review_stop_hook.py::test_the_acknowledge_command_survives_a_path_with_a_space_and_a_quote"
+
+[[mutant]]
+name = "the printed command does not quote the script"
+file = "tools/hooks/review_stop_hook.py"
+old = '''    script = shlex.quote(str(Path(__file__).resolve()))'''
+new = '''    script = str(Path(__file__).resolve())'''
+kills = "tests/test_review_stop_hook.py::test_the_acknowledge_command_survives_a_path_with_a_space_and_a_quote"
+
+[[mutant]]
+name = "the printed command does not quote the run directory"
+file = "tools/hooks/review_stop_hook.py"
+old = '''            f"{shlex.quote(str(verdict.directory))} --told {shlex.quote(PLACEHOLDER)}"'''
+new = '''            f"{str(verdict.directory)} --told {shlex.quote(PLACEHOLDER)}"'''
+kills = "tests/test_review_stop_hook.py::test_the_acknowledge_command_survives_a_path_with_a_space_and_a_quote"
+
+[[mutant]]
+name = "a transcript path that is not a string reaches Path() and crashes the hook"
+file = "tools/hooks/review_stop_hook.py"
+old = '''    if not isinstance(transcript, str) or not transcript:'''
+new = '''    if not transcript:'''
+kills = "tests/test_review_stop_hook.py::test_a_transcript_path_that_is_not_a_string_is_ignored"
+
+# ── added after the second review (a fresh reviewer, 82 mutants of its own, 28 genuine survivors) ─
+
+[[mutant]]
+name = "a placeholder padded with spaces is accepted"
+file = "tools/hooks/review_stop_hook.py"
+# Second review pass, R01.
+old = '''told.strip() == PLACEHOLDER'''
+new = '''told == PLACEHOLDER'''
+kills = "tests/test_review_stop_hook.py::test_the_placeholder_and_a_fragment_are_not_an_acknowledgement"
+
+[[mutant]]
+name = "two words split by a double space count as three"
+file = "tools/hooks/review_stop_hook.py"
+# R04.
+old = '''len(told.split())'''
+new = '''len(told.strip().split(' '))'''
+kills = "tests/test_review_stop_hook.py::test_the_placeholder_and_a_fragment_are_not_an_acknowledgement"
+
+[[mutant]]
+name = "an agent with an empty label is printed with a blank name"
+file = "tools/hooks/review_stop_hook.py"
+# R08.
+old = '''return self.labels.get(agent_id) or "no label"'''
+new = '''return self.labels.get(agent_id, "no label")'''
+kills = "tests/test_review_stop_hook.py::test_labels_survive_garbage_lines_and_a_raw_line_separator"
+
+[[mutant]]
+name = "an unlabelled agent is shown under another agent's label"
+file = "tools/hooks/review_stop_hook.py"
+# S06. 55 of the 1420 `started` events in the 118 real journals had no label.
+old = '''or "no label"'''
+new = '''or next(iter(self.labels.values()), "no label")'''
+kills = "tests/test_review_stop_hook.py::test_labels_survive_garbage_lines_and_a_raw_line_separator"
+
+[[mutant]]
+name = "the hook's own journal reader splits on U+2028 and loses the label"
+file = "tools/hooks/review_stop_hook.py"
+# R09. The fix in the gate has its own copy here; this is the test of it.
+old = '''journal.read_text(encoding="utf-8", errors="replace").split("\n")'''
+new = '''journal.read_text(encoding="utf-8", errors="replace").splitlines()'''
+kills = "tests/test_review_stop_hook.py::test_labels_survive_garbage_lines_and_a_raw_line_separator"
+
+[[mutant]]
+name = "a journal cut mid-character makes the label read fail, and the hook exits 1 unblocked"
+file = "tools/hooks/review_stop_hook.py"
+# R10.
+old = '''journal.read_text(encoding="utf-8", errors="replace")'''
+new = '''journal.read_text(encoding="utf-8")'''
+kills = "tests/test_review_stop_hook.py::test_a_journal_cut_in_the_middle_of_a_character_still_blocks"
+
+[[mutant]]
+name = "only the first unacknowledged run is reported"
+file = "tools/hooks/review_stop_hook.py"
+# R11.
+old = '''            found.append(judged.verdict)'''
+new = '''            found.append(judged.verdict)
+            break'''
+kills = "tests/test_review_stop_hook.py::test_every_unacknowledged_run_is_named_not_only_the_first"
+
+[[mutant]]
+name = "the gate has no timeout, so a hung run holds the turn end"
+file = "tools/hooks/review_stop_hook.py"
+# R12.
+old = '''check=False, timeout=GATE_TIMEOUT'''
+new = '''check=False'''
+kills = "tests/test_review_stop_hook.py::test_a_hung_gate_costs_one_run_not_the_hook"
+
+[[mutant]]
+name = "a gate timeout is not caught per run and takes the whole hook down"
+file = "tools/hooks/review_stop_hook.py"
+# S02.
+old = '''except (OSError, subprocess.SubprocessError) as error:'''
+new = '''except OSError as error:'''
+kills = "tests/test_review_stop_hook.py::test_a_hung_gate_costs_one_run_not_the_hook"
+
+[[mutant]]
+name = "the gate may take longer than the hook that runs it"
+file = "tools/hooks/review_stop_hook.py"
+# S21.
+old = '''GATE_TIMEOUT: Final = 20'''
+new = '''GATE_TIMEOUT: Final = 3600'''
+kills = [
+    "tests/test_review_stop_hook.py::test_the_gate_timeout_fits_inside_the_settings_timeout",
+    "tests/test_review_stop_hook.py::test_a_hung_gate_costs_one_run_not_the_hook",
+]
+
+[[mutant]]
+name = "only the first background task is read"
+file = "tools/hooks/review_stop_hook.py"
+# R14.
+old = '''for task in cast(list[object], tasks)'''
+new = '''for task in cast(list[object], tasks)[:1]'''
+kills = "tests/test_review_stop_hook.py::test_every_background_task_is_read_not_only_the_first_or_last"
+
+[[mutant]]
+name = "only the last background task is read"
+file = "tools/hooks/review_stop_hook.py"
+# R15.
+old = '''for task in cast(list[object], tasks)'''
+new = '''for task in cast(list[object], tasks)[-1:]'''
+kills = "tests/test_review_stop_hook.py::test_every_background_task_is_read_not_only_the_first_or_last"
+
+[[mutant]]
+name = "a background task that is not an object crashes the hook"
+file = "tools/hooks/review_stop_hook.py"
+# R46.
+old = '''isinstance(task, dict) and '''
+new = ''''''
+kills = "tests/test_review_stop_hook.py::test_a_background_task_that_is_not_an_object_is_skipped_not_fatal"
+
+[[mutant]]
+name = "a vacuous run's acknowledgement says PARTIAL"
+file = "tools/hooks/review_stop_hook.py"
+# R36.
+old = '''"label": judged.verdict.label,'''
+new = '''"label": "PARTIAL",'''
+kills = "tests/test_review_stop_hook.py::test_the_acknowledgement_records_the_label_of_the_verdict"
+
+[[mutant]]
+name = "a malformed line stops the labels being read"
+file = "tools/hooks/review_stop_hook.py"
+# T01.
+old = '''        except ValueError:
+            continue'''
+new = '''        except ValueError:
+            break'''
+kills = "tests/test_review_stop_hook.py::test_labels_survive_garbage_lines_and_a_raw_line_separator"
+
+[[mutant]]
+name = "a journal line that is JSON but not an object crashes the label read"
+file = "tools/hooks/review_stop_hook.py"
+# T02.
+old = '''        if not isinstance(event, dict):
+            continue'''
+new = '''        if False:
+            continue'''
+kills = "tests/test_review_stop_hook.py::test_labels_survive_garbage_lines_and_a_raw_line_separator"
+
+[[mutant]]
+name = "a label that is not a string is used as the agent's name"
+file = "tools/hooks/review_stop_hook.py"
+# T03.
+old = ''' and isinstance(label, str)'''
+new = ''''''
+kills = "tests/test_review_stop_hook.py::test_labels_survive_garbage_lines_and_a_raw_line_separator"
+
+[[mutant]]
+name = "a tilde in the transcript path is read literally and finds no run"
+file = "tools/hooks/review_stop_hook.py"
+# Second review, finding 3: the hooks reference prints `~/.claude/projects/...` in its example.
+old = '''.expanduser().with_suffix("")'''
+new = '''.with_suffix("")'''
+kills = "tests/test_review_stop_hook.py::test_a_tilde_in_the_transcript_path_is_expanded"
+
+[[mutant]]
+name = "a run that lost thousands of agents fills the transcript"
+file = "tools/hooks/review_stop_hook.py"
+# Second review, finding 5.
+old = '''for agent, tool in verdict.dead[:MAX_LISTED]'''
+new = '''for agent, tool in verdict.dead'''
+kills = "tests/test_review_stop_hook.py::test_a_reason_names_a_bounded_number_of_agents"
+
+[[mutant]]
+name = "the empty list is not bounded"
+file = "tools/hooks/review_stop_hook.py"
+# Finding 5.
+old = '''for agent in verdict.empty[:MAX_LISTED]'''
+new = '''for agent in verdict.empty'''
+kills = "tests/test_review_stop_hook.py::test_a_reason_names_a_bounded_number_of_agents"
+
+[[mutant]]
+name = "the 'and N more' count includes the ones that were listed"
+file = "tools/hooks/review_stop_hook.py"
+# Finding 5.
+old = '''len(verdict.dead) - MAX_LISTED'''
+new = '''len(verdict.dead)'''
+kills = "tests/test_review_stop_hook.py::test_a_reason_names_a_bounded_number_of_agents"
+
+[[mutant]]
+name = "the settings timeout is 1 second"
+file = ".claude/settings.json"
+# R27, R28: the only assertion on it was `isinstance(..., int)`, so an always-killed hook passed.
+old = '''"timeout": 120'''
+new = '''"timeout": 1'''
+kills = "tests/test_review_stop_hook.py::test_the_gate_timeout_fits_inside_the_settings_timeout"
+
+[[mutant]]
+name = "the command does not quote the script path in exec, so a checkout with a space exits 2"
+file = ".claude/settings.json"
+# R29.
+old = '''exec python3 \"$f\"'''
+new = '''exec python3 $f'''
+kills = "tests/test_review_stop_hook.py::test_the_command_runs_the_working_directorys_copy_not_the_project_dirs"
+
+[[mutant]]
+name = "the command does not quote the script path in the test, so a checkout with a space disables the hook silently"
+file = ".claude/settings.json"
+# R30.
+old = '''[ -f \"$f\" ]'''
+new = '''[ -f $f ]'''
+kills = "tests/test_review_stop_hook.py::test_the_command_runs_the_working_directorys_copy_not_the_project_dirs"
+
+[[mutant]]
+name = "the command spells the interpreter python, which a hook environment's PATH may not have"
+file = ".claude/settings.json"
+# R33: the suite runs from a venv that has a `python`.
+old = '''exec python3'''
+new = '''exec python'''
+kills = "tests/test_review_stop_hook.py::test_the_command_finds_python3_by_that_name"

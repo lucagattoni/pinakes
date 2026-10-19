@@ -15,7 +15,7 @@ venv/
 site/
 
 # Claude Code. Worktrees and personal settings belong to one machine; `.claude/workflows/` is the
-# project's and is committed, and so will `.claude/settings.json` be. A machine that has run
+# project's and is committed, and so is `.claude/settings.json`. A machine that has run
 # Claude Code already excludes the worktrees in `.git/info/exclude` and `settings.local.json` in
 # `~/.config/git/ignore`; no other clone has either line.
 .claude/worktrees/

@@ -68,8 +68,13 @@ result you are holding is not a clean bill. Never pipe it into anything before r
 here twice (`CLAUDE.md` § *A gate is only a gate when its exit status is what the next command
 reads*).
 
-`--journal` and `--transcript-dir` exist for the unit tests and for the negative check that this
-gate can still fail; with neither, it finds the newest run itself.
+`--journal` and `--transcript-dir` exist for the unit tests, for the negative check that this
+gate can still fail, and for `tools/hooks/review_stop_hook.py`, the Stop hook that runs this gate
+over every workflow run of the session that is ending. **That hook depends on a production
+interface here**: `--journal <run>/journal.jsonl --json [--assume-finished]`, the exit statuses
+`0` (clean), `1` (not clean, with the verdict on stdout) and `2` (cannot judge), and the keys
+`launched`, `returned`, `dead[].agent_id`, `dead[].last_tool` and `empty`. Renaming one is a change
+to the hook. With neither flag it finds the newest run itself.
 """
 
 from __future__ import annotations
@@ -196,10 +201,18 @@ def read_journal(journal: Path) -> list[Agent]:
     Matching is on `key`, which is what the journal itself pairs a `result` to a `started` with. A
     malformed line is skipped rather than fatal: a truncated journal is exactly the situation this
     gate is for, and refusing to parse it would hide the failure it exists to report.
+
+    **Lines are split on a newline and nothing else.** `str.splitlines()` also splits on U+2028,
+    U+2029 and U+0085, which JSON allows raw inside a string and Node writes raw, so a result that
+    quoted one was cut into two malformed halves, both skipped, and its agent read as dead - a
+    finished review reported as one that lost an agent. Reported 20261019 by the first live review
+    pass of the Stop hook, which counted four such journals among the real ones it surveyed (not
+    re-measured here: they are other projects' transcripts); `enrich` reads an agent's own
+    transcript the same way. The test builds the shape and does not depend on that count.
     """
     agents: dict[str, Agent] = {}
     order: list[str] = []
-    for line in journal.read_text(errors="replace").splitlines():
+    for line in journal.read_text(errors="replace").split("\n"):
         line = line.strip()
         if not line:
             continue
@@ -237,7 +250,7 @@ def enrich(agent: Agent, transcript_dir: Path) -> None:
     if not transcript.is_file():
         return
     seen: set[str] = set()
-    for line in transcript.read_text(errors="replace").splitlines():
+    for line in transcript.read_text(errors="replace").split("\n"):
         line = line.strip()
         if not line:
             continue
@@ -402,7 +415,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "run", nargs="?", help="workflow run id (wf_…); default: the newest fan-out"
     )
-    parser.add_argument("--journal", type=Path, help="read this journal.jsonl directly (tests)")
+    parser.add_argument(
+        "--journal", type=Path, help="read this journal.jsonl directly (tests, the Stop hook)"
+    )
     parser.add_argument("--transcript-dir", type=Path, help="read this fan-out directory (tests)")
     parser.add_argument("--script", help="script path to print in the resume hint")
     parser.add_argument(

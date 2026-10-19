@@ -193,12 +193,21 @@ Never batch increments; each is a separate, bisectable landing:
    every finding dismissed on a guess in `dismissed_on_a_guess` and its `note`. **Coverage does not
    say that a lens opened every changed file or fragment**; the rule below is checked with
    `tools/review_ledger.py`. A run that never returned (stopped, or cut by a session limit) has no
-   verdict at all: `tools/review_pass_gate.py` reads its journal. **The script has not been run for
-   real yet.** It is tested against a stub of the runtime, and the first live run is the smoke run
-   planned for the next increment (the plan's § 6.1 lists what it must settle); until then treat a
-   surprise as a finding about the script, not about the increment. It exists because a fan-out
-   that lost 17 of 19 agents to a session limit once returned `{"raised":0}`, and nothing in that
-   result said nobody had looked.
+   verdict at all: `tools/review_pass_gate.py` reads its journal, and a **Stop hook**
+   ([`tools/hooks/review_stop_hook.py`](https://github.com/lucagattoni/pinakes/blob/main/tools/hooks/review_stop_hook.py),
+   wired in `.claude/settings.json`) runs that gate over every workflow run of the session that is
+   ending, and refuses to let the turn end while a run lost or emptied an agent and no
+   acknowledgement covers it. Its message names the agents and prints the command that
+   acknowledges the run (`--acknowledge <run dir> --told "<what you told the user>"`): run it
+   **after** telling the user which agents died, not instead. **It is a nudge and not a lock** —
+   Claude Code overrides a Stop hook after eight consecutive continuations — **and it counts
+   agents, not coverage**: a run whose agents all returned passes it however `coverage` reads, so
+   read `coverage` first. The session that created `.claude/settings.json` did not pick it up
+   (measured 20261019 08:26 UTC), so the first live firing is a later session's first turn end. **The workflow ran for real once, 20261019, on the hook's own diff**
+   (the plan's § 6.1 records what that settled); that pass was `PARTIAL` because twenty-odd probes
+   could not be run, and it found a defect in the gate that the stub could not have. It exists
+   because a fan-out that lost 17 of 19 agents to a session limit once returned `{"raised":0}`, and
+   nothing in that result said nobody had looked.
 
    **🛑 The pass opens the increment's own fragments, and every file the increment changed.** Not
    the plan it was working from — the diff. **This step's own position in this list is why it did
