@@ -234,13 +234,16 @@ for this plan.
   `--told` must be a sentence (at least three words, not the placeholder the message prints).
 - **The review gate was fixed** (`tools/review_pass_gate.py`): it read a result quoting U+2028 as a
   dead agent. Two tests, fragment `fixed-the-review-gate-read-a-unicode-line-separator…`.
-- **The battery is 48 mutants**, 31 written with the hook and 17 added because the review wrote its
-  own and six survived. Appended to one battery that also holds the `settings.json` rows.
+- **The battery more than doubled while it was reviewed.** It was written with 31 mutants, all
+  killed; the first review's own mutants left seven alive, and a second, independent reviewer wrote
+  82 more and left 28 genuine survivors. Every one is a row now, in the one battery that also
+  holds the `settings.json` rows. `grep -c '^\[\[mutant\]\]'` counts them. **A fully killed
+  battery measures the mutants its author thought of**, twice over.
 
 **Open, in the order they matter.** None blocks A3.
 
 1. **The hook has not fired live.** The session that created `.claude/settings.json` did not pick it
-   up: a dead run planted in that session's directory, with only a shell task in the registry, did
+   up (measured 20261019 08:26 UTC): a dead run planted in that session's directory, with only a shell task in the registry, did
    not block its turn end, while the hook blocks on the same input fed by hand. The hooks reference
    says direct edits to settings files are picked up by a file watcher, so the likely cause is that
    the file did not exist at startup; that was not tested. **The first real firing is the first turn
@@ -259,7 +262,16 @@ for this plan.
    that `cd`s into another checkout runs that checkout's copy at every Stop, with no prompt. The
    alternative, `${CLAUDE_PROJECT_DIR}`, always runs the original checkout's copy, which defeats a
    worktree. Accepted, and written in the hook's docstring.
-5. **Stale text found and left**: `review_pass_gate.py`'s `find_runs` docstring cites
+5. **Journals the gate cannot read pass silently.** One with no parseable agent line — the first
+   `started` line cut by a kill, or nothing written — is a gate exit `2`, and the hook treats `2` as
+   "cannot judge yet". A run whose only agent line was lost is invisible. Not fixed: telling it from
+   a run that has not started needs the registry the hook already reads, and the case was not seen.
+6. **What "never returned" covers.** Of the 118 journals on this machine when the second review
+   counted (it judged them `--assume-finished` after the U+2028 fix: 97 clean, 21 not), the 49
+   `failed` events include 44 on agents the gate calls dead. So the message's *never returned*
+   includes agents that errored, not only ones cut off by a limit, and the remedy differs: an error
+   may recur on a resume. The journal does not say why. Counts are that reviewer's, not re-measured.
+7. **Stale text found and left**: `review_pass_gate.py`'s `find_runs` docstring cites
    `test_discovery_finds_a_real_layout`, which does not exist; `tools/review_ledger.py` reads
    transcripts with `splitlines()` (the defect the gate had, not measured there).
 
@@ -280,6 +292,6 @@ script file.
 
 ## 9. After A
 
-**Option B — the dogfooding on-ramp (row 21)** is planned next, as the user asked. It is **not
-designed yet**: no plan states what the one-command start does, what the checklist checks, or what
-"started" means. That plan is written after A lands, not folded into it.
+**Option B — the dogfooding on-ramp (row 21)** is designed in
+[`plans/20261019_0817-option-b-dogfooding-on-ramp.md`](20261019_0817-option-b-dogfooding-on-ramp.md):
+design only, the build not resumed. Read that file, not this one, for what it does.

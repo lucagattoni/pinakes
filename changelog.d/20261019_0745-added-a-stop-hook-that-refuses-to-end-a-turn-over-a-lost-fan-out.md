@@ -24,7 +24,7 @@
   a checkout that predates the hook prints no error at every turn end. The script is standard-library only and
   runs on the Xcode `python3` 3.9. This is step 2 of *Framing, Not Roles* § 9. Tested over a
   synthetic session of the true layout, including a run under `/usr/bin/python3` and the settings
-  command itself; `tools/batteries/tools-hooks-review_stop_hook.toml` holds 48 mutants. **The hook
+  command itself; `tools/batteries/tools-hooks-review_stop_hook.toml` holds the mutants, and a fully killed first draft was not enough: two reviewers wrote their own and each left some alive. **The hook
   has not fired in a live session yet**: the session that created `.claude/settings.json` did not
   pick it up (a planted dead run did not block its turn end, though the hook blocks on the same
   input fed by hand), so the Stop payload is built from the hooks reference and a later session's
