@@ -203,7 +203,8 @@ Never batch increments; each is a separate, bisectable landing:
    Claude Code overrides a Stop hook after eight consecutive continuations — **and it counts
    agents, not coverage**: a run whose agents all returned passes it however `coverage` reads, so
    read `coverage` first. The session that created `.claude/settings.json` did not pick it up
-   (measured 20261019 08:26 UTC), so the first live firing is a later session's first turn end. **The workflow ran for real once, 20261019, on the hook's own diff**
+   (measured 20261019 08:26 UTC); a fresh one saw it fire (09:24 UTC), running the primary
+   checkout's copy even from a worktree. **The workflow ran for real once, 20261019, on the hook's own diff**
    (the plan's § 6.1 records what that settled); that pass was `PARTIAL` because twenty-odd probes
    could not be run, and it found a defect in the gate that the stub could not have. It exists
    because a fan-out that lost 17 of 19 agents to a session limit once returned `{"raised":0}`, and
