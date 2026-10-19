@@ -141,6 +141,13 @@ it covers, never for when it was written, because the name is how the next incre
 
     tools/release_order_gate.py   →  tools/batteries/tools-release_order_gate.toml
     src/pinakes/graph/traverse.py →  tools/batteries/src-pinakes-graph-traverse.toml
+    .claude/workflows/adversarial-review.js →  tools/batteries/.claude-workflows-adversarial-review.toml
+
+**A path that begins with a dot gives a hidden filename**, and the rule above is followed
+literally for it. `ls` and the shell glob in the commands at the top of this file
+(`tools/batteries/*.toml`) skip a hidden file, so name that battery explicitly when you run it.
+`tests/test_batteries.py` reads the directory with `pathlib`, which includes it, so the anchor and
+selector checks in `./check.sh` do see it.
 
 **Not collision-free** — two real pairs in this repository already flatten to one stem
 (`src/pinakes/extract/floors.py` / `floors.toml`, and `src/pinakes/budget/prices.py` /

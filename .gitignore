@@ -14,6 +14,12 @@ venv/
 # .github/workflows/docs.yml, so a committed one could only ever be a stale second answer.
 site/
 
+# Claude Code. Worktrees and personal settings belong to one machine; `.claude/workflows/` and
+# `.claude/settings.json` are the project's and are committed. A machine that has run Claude Code
+# already excludes the worktrees in `.git/info/exclude`, which no other clone has.
+.claude/worktrees/
+.claude/settings.local.json
+
 # Tooling
 .pytest_cache/
 .ruff_cache/
