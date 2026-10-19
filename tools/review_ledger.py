@@ -62,8 +62,8 @@ probes here. Nothing has to cooperate.
   enough, and a later pass that treats a listed file as covered has been made *worse* by this tool.
 - **A quoted command's exit status is not recoverable.** The transcript stores what a command
   printed, not what it returned. So probes are shown with their output, never with a verdict — the
-  distinction this repository already enforces in the other direction (`CLAUDE.md`: *a gate is only
-  a gate when its exit status is what the next command reads*).
+  distinction this repository already enforces in the other direction (`docs/BUILDING.md` step 3:
+  a gate is only a gate when its exit status is what the next command reads).
 - **A quoted finding is the claim of the pass that made it.** Passes 1 to 4 over one increment found
   30, 22, 13 and 6 issues; nothing here says which survived.
 

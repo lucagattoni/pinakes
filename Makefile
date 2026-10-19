@@ -102,7 +102,7 @@ smoke: build  ## Install the built wheel in isolation and exercise it — what r
 # Four legs, each named in the tool's docstring with what it costs: a release tag points at HEAD
 # (and exactly one does), it names pinakes.__version__, it is annotated with a message
 # `gh release create --notes-from-tag` can read, and it is **not already on origin** — which is
-# what makes CLAUDE.md's "before the tag, never after" checkable instead of remembered.
+# what makes CLAUDE.md's "before the push, never after" checkable instead of remembered.
 #
 # It ran for the life of this target as three `echo`s: no comparison and no failure path, so it
 # could not fail and therefore verified nothing, while CLAUDE.md sent an operator here as the last

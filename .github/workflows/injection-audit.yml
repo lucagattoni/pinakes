@@ -113,5 +113,5 @@ jobs:
         # contract the tool already owns, free to drift out of step with it.
         #
         # Run bare. `… | tee log` would make this step read `tee`'s status, which is the failure
-        # `CLAUDE.md` names and which landed two red commits on 20260904.
+        # `docs/BUILDING.md` step 3 names and which landed two red commits on 20260904.
         run: python3 tools/vacuous_injection_audit.py --runs 2

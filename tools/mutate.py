@@ -557,8 +557,8 @@ def applied(mutant: Mutant) -> Generator[None]:
             )
         if found != mutated:
             # Not a refusal: the file is back and the batch can go on. But something other than
-            # this process wrote to the target while the mutant was in place, and CLAUDE.md's
-            # standing assumption is that other agents are running right now — so the edit that was
+            # this process wrote to the target while the mutant was in place, and the standing
+            # assumption here is that other agents are running right now — so the edit that was
             # just overwritten was somebody's.
             print(
                 f"mutate: WARNING — {mutant.path.name} changed on disk while the mutant was in "
