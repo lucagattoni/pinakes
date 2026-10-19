@@ -10,6 +10,132 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.32.7] — 20261019 11:33
+
+### Added
+
+- **`.python-version` pins local development to 3.13, the declared floor.** A fresh worktree used
+  to take the newest installed interpreter (3.14) while the primary checkout kept the 3.13 its
+  `.venv` was created with, so one commit could pass the branch gate and fail the merged one. `uv`
+  now resolves 3.13 in every directory of a checkout. `UV_PYTHON` and `--python` outrank the file —
+  measured in a scratch project, including under `--isolated --no-project` — so CI's 3.14 legs and
+  `minimum-python` are unchanged. The two workflows with no pin of their own, `release.yml` and
+  `docs.yml`, follow the file and now run on 3.13: `release.yml`'s wheel-import and MCP-handshake
+  gates and the `--strict` docs build were replayed on 3.13 first and pass. Developer tooling — it
+  ships in no wheel.
+
+- **A committed review workflow, `.claude/workflows/adversarial-review.js`, that returns whether
+  anyone looked.** It reviews one pinned commit — `args.sha` and `args.base`, both commit shas, a
+  moving ref is refused because `origin/main...<sha>` goes empty once the increment lands — with
+  four lenses launched slowest first (runtime, missing-set, population, docs-vs-tree), one refuter
+  per finding started the moment its lens returns, and one Opus judge, every call naming its model.
+  The result carries `coverage`: `VACUOUS` when no lens returned (a sha that does not exist makes
+  every lens report an empty diff), `PARTIAL` when a lens died, a probe was not run, a malformed
+  finding was dropped, a finding has no refuter, a high-severity finding was dismissed on a guess,
+  or a survivor has no usable ruling, and only otherwise `CLEAN` or `FINDINGS`. A dead agent is
+  **counted before anything is filtered**, and one that threw keeps its cause; a finding whose
+  refuter died is listed as `unrefuted`, never dropped; a refuted finding keeps its severity,
+  evidence and whether the refuter *checked* or only defaulted, and every guess is listed in
+  `dismissed_on_a_guess`; a judge that throws is a dead judge rather than the end of the run. Every
+  reply is read again before it is believed, because the schemas are enforced by the runtime and
+  not by the script.
+  This is step 1 and step 3 of *Framing, Not Roles* § 9: a fan-out once lost 17 of its 19 agents to
+  a session limit, `.filter(Boolean)` erased them, and it returned `{"raised":0}` as if it had
+  looked. `tests/test_review_workflow.py` runs the script file itself against stub hooks under
+  Node, and the stub is itself tested to refuse what the runtime refuses; a machine without Node
+  skips those tests and `CI` fails instead. `tools/batteries/claude-workflows-adversarial-review.toml`
+  holds the mutants. **The real fan-out has not been run yet**; that is the smoke run planned on the
+  next increment's diff. `.gitignore` now excludes `.claude/worktrees/` and
+  `.claude/settings.local.json`, which a clone without Claude Code's own exclude lines would
+  otherwise have committed. Developer tooling — it ships in no wheel.
+
+- **A Stop hook that will not let a turn end over a review fan-out that lost agents, until the user
+  has been told.** `tools/hooks/review_stop_hook.py`, wired by the new `.claude/settings.json`,
+  runs at the end of every turn: it reads `transcript_path` from the hook payload, finds the
+  workflow runs of that session, runs `tools/review_pass_gate.py` over each journal, and blocks
+  while a run has an agent that never returned or returned nothing and no acknowledgement covers it.
+  The reason names the run, each agent by the label the journal gave it, and the verdict
+  (`VACUOUS` when nobody returned anything, `PARTIAL` otherwise), and prints the one command that
+  acknowledges it (`--acknowledge <run> --told "<what the user was told>"`, a sentence and not the
+  placeholder the message prints). That records what was said and the counts plus a digest of the
+  journal, because a resume appends to the same journal in the same run directory, so a run that
+  is resumed and changes is judged again. A run on which the gate errors is reported on stderr and
+  does not hide a dead run beside it; a journal with no parseable agent line passes silently. The message says in the same breath that this is the
+  journal's count and not the workflow's own `coverage`.
+  Three things decide a run's fate that the gate alone cannot: nothing is judged while the payload's
+  `background_tasks` lists a workflow in flight (a slow agent looks exactly like a dead one); with
+  the list present and no workflow in it every run is judged as finished, because a fan-out killed
+  seconds before the turn ended would otherwise read "probably still running" and pass; and with the
+  list absent the gate's own quiet window decides. An internal error, a malformed payload, or a gate
+  that exits `1` without the verdict it promises exits `1` with the cause on stderr — visible, and
+  never a block — because `1` is also what a traceback exits with. It is a nudge and not a lock:
+  Claude Code overrides a Stop hook after eight consecutive continuations. The command in
+  `settings.json` follows the working directory's git top-level, since `${CLAUDE_PROJECT_DIR}` stays
+  at the original checkout inside a worktree, and exits `0` quietly where the script is absent, so
+  a checkout that predates the hook prints no error at every turn end. The script is standard-library only and
+  runs on the Xcode `python3` 3.9. This is step 2 of *Framing, Not Roles* § 9. Tested over a
+  synthetic session of the true layout, including a run under `/usr/bin/python3` and the settings
+  command itself; `tools/batteries/tools-hooks-review_stop_hook.toml` holds the mutants, and a fully killed first draft was not enough: two reviewers wrote their own and each left some alive. **The hook
+  fired live once** (20261019 09:24 UTC, a fresh session): a planted dead run blocked its turn end,
+  the acknowledge command the message prints worked, and the next turn end was silent. The session
+  that created `.claude/settings.json` had not picked it up (08:26 UTC). Two things stay unobserved:
+  the real Stop payload (the hook is built from the hooks reference) and which checkout runs it in
+  a worktree session. In that fresh worktree session the script that ran was the primary
+  checkout's copy, so following the git top-level did not follow the worktree there; the cause is
+  untested. Developer tooling — it ships in no wheel.
+
+### Changed
+
+- **`CLAUDE.md` points at the cross-project rules instead of restating them.** Five bullets that
+  had drifted from `~/.claude/CLAUDE.md` now name it and keep only this repo's delta: the
+  autonomous-working note (the global file defaults to acting too, so what this adds is that
+  increment boundaries are not a stop), the build→review→fix loop (deliberately broader here than
+  the global correctness-only, three-round debug loop), the clean-auto-merge warning, the
+  cut-the-release bullet (who may cut it is the ownership table's call, not that bullet's), and the
+  two timestamp/naming bullets. No rule changed meaning; every repo-specific override, and the
+  20260729 and 20260804 11:32 records, are kept verbatim.
+
+- **A battery's name drops the leading dot of its target's path.** `.claude/workflows/x.js` would
+  have flattened to `.claude-workflows-x.toml`, a hidden file that `ls` and the
+  `tools/batteries/*.toml` glob in the README's own lookup commands skip — so the next increment
+  would have asked which battery claims the file, heard none, and started a second.
+  `test_no_battery_is_a_hidden_file` holds it. Developer tooling.
+
+- **`CLAUDE.md` was regenerated: its live-status block became pointers, and the file now fits the
+  ceiling it states for itself.** It had reached 473 lines and 6,033 words against a ceiling of 150
+  and 2,700, three slimming passes having each grown back within days. About 250 lines of status
+  narrative went to the documents that own those facts (each found there by `grep` before the
+  deletion) or were dropped as superseded — two bullets, on the `pnk doctor --prune` ULID bug and on
+  an unreadable `[sources]` root, had been false since 0.32.3 and 0.32.4. The one rule nothing else
+  carried, *a status claim is never gated, so read the body*, moved to `docs/BUILDING.md`. No code
+  path changed; a session's first read is now the role rule, the pause and its exception, and four
+  pointers. The pointers to the maintainer's machine-local global file, added on 20260915,
+  are gone: the file keeps only this repository's rules. Developer instructions only. Part of
+  option A (A3).
+
+### Fixed
+
+- **CI no longer follows the newest CPython.** `.github/workflows/ci.yml` sets `UV_PYTHON: "3.14"`
+  at the workflow level, so every `uv` call — `uv sync --frozen`, and the `--isolated --no-project
+  --with` resolves that `--frozen` does not protect — runs the interpreter the last green run used;
+  `minimum-python` overrides it with `"3.13"` at the job level and still asserts what it got.
+  Nothing pinned an interpreter before, so when CPython 3.15.0 was released on 2026-10-09 the next
+  push (a one-line docs change) turned five jobs red in `uv sync --frozen`: `onnxruntime`, which
+  `fastembed` and therefore every `[light]` leg depends on, ships no `cp315` wheel. It is the workflow
+  variable and not a `.python-version` because a repo-wide file also changes every developer's
+  interpreter; that file now exists separately, for local development at 3.13, and `UV_PYTHON`
+  outranks it, so CI is unaffected. Developer tooling — it ships in no wheel.
+
+- **`tools/review_pass_gate.py` no longer reads a finished agent as dead because its result quoted a
+  Unicode line separator.** It split journals, and the transcripts it enriches a dead agent from,
+  with `str.splitlines()`, which also splits on U+2028, U+2029 and U+0085. JSON allows those raw
+  inside a string and Node writes them raw, so a result that quoted one was cut into two malformed
+  halves, both skipped, and its agent counted as one that never returned — a finished review
+  reported as one that lost an agent. Found by the first live run of the review workflow (the lens
+  that surveyed 118 real journals counted four such runs, not re-measured here: they are other
+  projects' transcripts); both sites now split on a newline only, and two tests build the shape
+  once per separator. Developer tooling — it ships in no wheel.
+
 ## [0.32.6] — 20260904 14:55
 
 ### Added
@@ -4905,7 +5031,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.6...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.7...HEAD
+[0.32.7]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.7
 [0.32.6]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.6
 [0.32.5]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.5
 [0.32.4]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.4

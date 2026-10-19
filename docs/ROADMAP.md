@@ -317,6 +317,7 @@ number belongs to a release only when it is cut
 | **[0.32.4](#0324--a-directory-the-walk-could-not-enter-deleted-what-was-under-it--20260903-1638)** | 20260903 16:38 | a directory the walk could not enter deleted what was under it | • `pnk sync` printed `N removed`, dropped the chunks, and exited **0**; `pnk doctor` reported OK and `pnk search` then answered nothing, with no surface saying why<br>• **Three shapes, not one mechanism** — a symlinked root under a blocked in-KB ancestor (crashes 3.13, silent 3.14); a `0o000` subdirectory (**silent on both**, so not a floor defect); a `0o400` subdirectory, listable but not traversable<br>• **The third defeats an error hook by construction**: `scandir` succeeds so `os.walk`'s `onerror` never fires, the glob yields the entry, and every `stat` on it fails<br>• `paths.py` gains `is_directory`, `is_symlink`, `unreachable`, `unreadable_directories` — and the old note that `is_symlink()` was *“deliberately not wrapped”* was a true measurement over a population with a **readable parent**<br>• **The glob is deliberately not replaced.** Reimplementing `**`, `[seq]`, `..` and pathlib's symlinked-directory rules to gain a hook is a larger risk than the defect; the hooked walk runs beside it and the *parent* of an unreachable candidate is recorded<br>• **`exclude` does not suppress it, ruled deliberately** — the walk is refused before any pattern applies, and `Path("docs/sub").match("docs/sub/**")` is `False`, so suppression would not fire in the spelling users write<br>• Measured on a 30-document KB: `0 removed`, `30 unchanged`, exit 1, and `pnk search` answers from the held document inside the locked directory<br>• Battery **59/59 on 3.13**; on 3.14 one row survives, as its own comment predicted before the run<br>• no `schema_version`, no rebuild |
 | **[0.32.5](#0325--a-permission-problem-reported-as-three-other-things--20260904-0849)** | 20260904 08:49 | a permission problem reported as three other things | • `pnk link` blamed the user's path — *“is not a document in this KB”*, remedy about spelling — for a source under a directory it could not read<br>• `pnk doctor` dropped an unreadable paid document from **both** lists, reporting `stale: none` about a document nothing could read<br>• A linked partner KB that was present but unreadable came back **absent**, indistinguishable from one never created, on `doctor`, `link` and the cross-KB scan<br>• **All three were the same dead `except OSError`** — the probe raises on 3.13 and returns `False` on 3.14, so every guard fired on the floor and nowhere else<br>• `paths.unreachable_through_links` follows the link, unlike `unreachable`, whose `lstat` is load-bearing on the delete-on-absence path and was left alone<br>• **The planner's first ruling here was wrong and would have regressed 3.13** — it named `unreachable`, which answers `False` for the very shape behind the ULID bug<br>• `why_not_a_kb` is total now, so three call-site guards that could not fire were **removed**, not left as comments justifying dead code<br>• `tools/land.py` refuses a **merged** tree no `./check.sh` certified — no override, `--cleanup-only` exempt — after two sessions landed over red gates in one day<br>• `tools/mutate.py` names the interpreter its counts came from; neither tool ships in the wheel<br>• no `schema_version`, no rebuild |
 | **[0.32.6](#0326--instruments-that-could-report-success-while-measuring-nothing--20260904-1455)** | 20260904 14:55 | instruments that could report success while measuring nothing | • The vacuous-injection audit refuses an empty site list rather than printing `0 sites · 0 vacuous · 0 not ruled` (`--min-sites`, default 10)<br>• A probe run in which nothing passed is `INCONCLUSIVE`, not a verdict — an all-skipped selector is no longer reported as a vacuous fake<br>• A run whose environment changed between first and last probe is `UNATTRIBUTABLE` and exits non-zero; a `VACUOUS` row still exits 0, being a finding for a person rather than a build to fail<br>• The audit runs on **Linux** under the declared floor, naming interpreter, platform and `NAME_MAX` — whether an injected `ENAMETOOLONG` is redundant is a property of the filesystem<br>• A `pnk doctor` test asserted only that the diagnosis *finished*, and **passed with its own injection disabled**<br>• `tools/register_gate.py` compares documented row counts to the files they name — the harvest `README.md` held **three counts for one dataset**, the steered one withdrawn twice and 4.4x high<br>• `prices.toml` carries the 2026-09-04 fixing, `1.1615` → `1.1622`; **this is the one thing here a user can observe**<br>• Two `pathlib` holdouts converted in `sync.py` and `upgrade.py` — **hygiene, not a fix**: no production call reaches them, measured before the change<br>• no `schema_version`, no rebuild |
+| **[0.32.7](#0327--a-price-table-that-had-run-out-and-review-tooling-that-says-who-looked--20261019-1133)** | 20261019 11:33 | a price table that had run out, and review tooling that says who looked | • `prices.toml` re-stamped after 44 days — `usd_per_eur` `1.1622` → `1.1253` (ECB fixing 2026-10-16), `claude-opus-5` unchanged at `5.00`/`25.00`; **this is the one thing here a user can observe**<br>• A committed review workflow returns `VACUOUS`/`PARTIAL`/`CLEAN`/`FINDINGS` — a dead lens is counted before anything is filtered<br>• A Stop hook refuses to end a turn over a fan-out that lost agents until the user has been told<br>• `.python-version` pins local development to 3.13 and CI pins its interpreters, after CPython 3.15.0 turned `main` red<br>• `CLAUDE.md` rebuilt from 473 lines to 148, as pointers rather than summaries<br>• none of it ships in a wheel; no `schema_version`, no rebuild |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -2951,6 +2952,44 @@ actually followed: **9 followed, 5 measurably broken, and 12 that cannot be chec
 not part of the shipped package and is named here because a release is the only thing that dates it.
 
 ---
+
+## 0.32.7 — a price table that had run out, and review tooling that says who looked · 20261019 11:33
+
+**One thing here reaches a user. The rest is the machinery that decides whether a review looked at
+anything, and it ships in no wheel.**
+
+**`prices.toml` had run out.** Its `as_of` was `20260904 14:55`, so on the morning of this cut it was
+44 days old against a 30-day window (`max_price_age_days`): a fresh `pnk init` and `pnk doctor` on
+0.32.6 printed `WARN price table`, and paid estimation would have refused outright. It is re-stamped
+at 20261019 11:33 against two named sources. `usd_per_eur` moves `1.1622` → `1.1253`: the ECB had not yet
+published that Monday's fixing, so the newest is Friday 2026-10-16, read from `api.frankfurter.dev`
+twice in one session with identical results, and **EUR figures for the same USD cost are 3.3%
+higher**; ledger lines already written keep the rate they were written with. `claude-opus-5` was
+re-checked against the model's own page, which states the API id and the price together, and is
+unchanged at `5.00`/`25.00` per Mtok. **That model is a legacy one now** — Claude Opus 5.5 is the
+current Opus, at `4.00`/`20.00` — and the table prices only `claude-opus-5`; whether it should price the
+current model is recorded here and not taken.
+
+**A review fan-out can now say whether anyone looked.** `.claude/workflows/adversarial-review.js`
+reviews one pinned commit with four lenses, one refuter per finding and one judge, and returns
+`VACUOUS`, `PARTIAL`, `CLEAN` or `FINDINGS`: a dead agent is counted before anything is filtered, a
+finding whose refuter died is listed rather than dropped, and every dismissal made on a guess is
+named. It exists because a fan-out once lost 17 of its 19 agents to a session limit, `.filter(Boolean)`
+erased them, and the run returned `{"raised":0}` as if it had looked. A Stop hook
+(`tools/hooks/review_stop_hook.py`, wired by `.claude/settings.json`) will not let a turn end over a run
+that lost agents until the user has been told; **it fired live once, in a fresh session**, and in that
+worktree session the copy that ran was the primary checkout's, for a cause nobody has tested. Both were
+reviewed more than once, and a fully killed first mutation battery was not enough either time:
+reviewers who wrote their own mutants left some alive.
+
+**Two instruments around it.** `.python-version` pins local development to 3.13 and `ci.yml` pins its
+interpreters, after CPython 3.15.0 turned `main` red with no change to the tree — `onnxruntime` has no
+wheel for it. And `CLAUDE.md` went from 473 lines and 6,033 words to 148 and 1,497: its status block
+became pointers to the plans that own the facts, because three earlier slimming passes each grew back
+within days.
+
+**None of it ships in the wheel.** The wheel's only changes are `__version__` and the price table.
+**No `schema_version` bump and no rebuild.**
 
 # Part 5 · What is not built
 
