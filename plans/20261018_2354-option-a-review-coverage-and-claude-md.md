@@ -35,7 +35,7 @@ fan-outs before step 4, no agent teams for the planner→coder flow.
 | **A0** | Record the decision: this file, a routing row, one line in the pause bullet. | `plans/` (this), `docs/README.md`, `CLAUDE.md` (one line, diff shown first) | planner | ✅ landed `668f92f`, 20261018; CI green |
 | **A1** | **Steps 1 and 3**: one committed review workflow. Contract in § 3. | `.claude/workflows/`, `.gitignore`, tests | builder | ✅ **landed `bba0746`, 20261019; CI green on all 16 jobs, `docs` and `injection-audit` too.** Reviewed in three passes (two adversarial, one cold read for the first live run), with fixes after each. **The real fan-out ran 20261019, on A2's diff** (D3; outcomes in § 6.1) |
 | **A2** | **Step 2**: a Stop hook that runs `tools/review_pass_gate.py` on the workflow runs of the session that is ending. Contract in § 4. | `tools/hooks/`, `.claude/settings.json` (diff shown first), tests | builder | ✅ **built 20261019 in branch `20261019_0732-a2-stop-hook`**; its merge commit is the one `git log --first-parent --grep a2-stop-hook main` finds. The user approved the exact `settings.json`. The D3 smoke run reviewed it and confirmed 15 findings, all fixed or recorded in § 8. **The hook fired live once, 20261019 09:24 UTC** (the A2 session's report; § 8 open item 1 says what was and was not observed) |
-| **A3** | **Row 22**: regenerate `CLAUDE.md`. Method in § 5; outcome in § 5.1. | `CLAUDE.md`, and the docs that receive moved text | planner | ✅ **built 20261019 in branch `20261019_0913-a3-claude-md`**; its merge commit is the one `git log --first-parent --grep a3-claude-md main` finds. The map and the diff were put to the user, and it landed only on their yes (§ 5.1) |
+| **A3** | **Row 22**: regenerate `CLAUDE.md`. Method in § 5; outcome in § 5.1. | `CLAUDE.md`, and the docs that receive moved text | planner | ✅ **built 20261019 in branch `20261019_0913-a3-claude-md`**; its merge commit is the one `git log --first-parent --grep a3-claude-md main` finds. The map and the diff were put to the user, who said yes (read 20261019 11:27 UTC); it landed after that (§ 5.1) |
 | **A4** | Cut the release that carries A. | `CHANGELOG.md`, version | planner | not started |
 
 **Order, and why `CLAUDE.md` is last:** A3 describes a finished state; written first it would
@@ -137,6 +137,11 @@ not reached**, and the reason is structural, not slack: the file is link-dense �
 least one line that wrapping cannot shorten — and what remains is the set the brief names as *keep*.
 Getting to about 100 means moving a whole kept section out (candidates, cheapest first: *Changing
 retrieval*, *Unbuilt work*'s table, *Tooling*), which is a decision for the user, not a trim.
+
+**The user's yes.** The map above and the diff (`CLAUDE.md` and every other file the change touches)
+were put to the user as files, with the measurement and the review summary below; their answer, *yes
+to the CLAUDE.md map and diff — land and push A3*, was read at 20261019 11:27 UTC, and nothing landed
+before it. The size was put as it stands: 148 lines, not the aim of about 100.
 
 **The map** — every section of the file at `f1804ea`, its outcome, and where its text went. *Moved*
 means found at the destination by a whitespace-normalised `grep` (38 checks, all OK; the list is in the message of the commit found by `git log --grep
