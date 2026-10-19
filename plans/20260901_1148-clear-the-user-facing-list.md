@@ -151,9 +151,9 @@ past releases.
 
 > **Note, 20261019 (option A's A3).** Rows below that cite `CLAUDE.md` for *a status claim is never
 > gated*, *two freshly-cleared coder sessions within one message of rebuilding a landed
-> increment*, *commit before mutating*, the `pyright … | tail && git commit` shape, or
-> `tools/mutate.py`'s invocation cite text that has since **moved to `docs/BUILDING.md`** (§ *Read
-> the build order out of `plans/`*, step 3 and step 4). They are dated records and were not rewritten.
+> increment*, the `pyright … | tail && git commit` shape, or `tools/mutate.py`'s invocation cite
+> text that has since **moved to `docs/BUILDING.md`** (§ *Read the build order out of `plans/`*,
+> step 3 and step 4). *Commit before mutating* left `CLAUDE.md` earlier, on 20260823. They are dated records and were not rewritten.
 
 **Most rows here are coder work — but rows 21 and 22 are planner-owned, and three rows contain a
 choice.** Rows **21** (the dogfooding on-ramp's design) and **22** (regenerating `CLAUDE.md`) are

@@ -139,7 +139,7 @@ Getting to about 100 means moving a whole kept section out (candidates, cheapest
 retrieval*, *Unbuilt work*'s table, *Tooling*), which is a decision for the user, not a trim.
 
 **The map** — every section of the file at `f1804ea`, its outcome, and where its text went. *Moved*
-means found at the destination by a whitespace-normalised `grep` (28 checks, all OK; a phrase
+means found at the destination by a whitespace-normalised `grep` (38 checks, all OK; a phrase
 wrapped across two lines is invisible to a plain `grep`).
 
 | Section at `f1804ea` | Outcome | Destination |
@@ -148,7 +148,7 @@ wrapped across two lines is invisible to a plain `grep`).
 | 🧭 Role first | **Kept**; the 20260823 failure record deleted | `docs/BUILDING.md` § *Settle your role before anything else* already held it |
 | 🛑 Land with `land.py` | **Kept**; the three-successful-commands narrative deleted | `docs/RELEASING.md` § *Landing a branch* |
 | Working mode (7 bullets) | **Kept** (five after merging two pairs); dates to a provenance comment | handover rule: `docs/BUILDING.md` § *Hand over before you stop* |
-| What is live right now (about 265 lines, 9 bullets) | **Rebuilt from the tree** as four pointers | table below |
+| What is live right now (about 250 lines, 9 bullets) | **Rebuilt from the tree** as four pointers | table below |
 | This repository is PUBLIC | **Kept** | `docs/INVARIANTS.md` § *The paid path's key is its own* |
 | Documentation has one owner | **Kept** (table and propose rule); the *Docs* section folded in as a paragraph | `docs/BUILDING.md` §§ *Proposing…*, *Content mine…* |
 | 🚫 Unbuilt work is named | **Kept** (rule and table); the *final cut* clause moved | `docs/README.md` § *Conventions* |
@@ -172,7 +172,7 @@ wrapped across two lines is invisible to a plain `grep`).
 | 🛑 Two plans have scheduled work | **Deleted — superseded**; its owners are in `docs/README.md`'s rows | `plans/20260825_1803-open-decisions.md`, `plans/20260825_1240-run-pinakes-sweep.md`, live plan |
 | A status claim is never gated | **Moved** | `docs/BUILDING.md` § *Read the build order out of `plans/`*, third bullet |
 
-**The sweep on the file's own name** (`ROADMAP.md` 0.15.1 records the last slimming leaving 21
+**The sweep on the file's own name** (`ROADMAP.md` 0.15.1 records an earlier relocation, 20260806, leaving 21
 references to moved text, 13 of them in `src/` and `tests/`, none findable by the moved wording).
 `git grep -n "CLAUDE.md"` over the tree, 20261019: **closed plans, `CHANGELOG.md`, `ROADMAP.md`,
 `STATUS.md` and `RETROSPECTIVES.md` are dated records and keep the file they described — not
@@ -197,6 +197,11 @@ reference by reference against the new text.
   `~/.claude/CLAUDE.md`'s; and `Makefile:105`, `tests/test_release_tag_gate.py:159` and
   `tools/batteries/tools-release_tag_gate.toml:116` quote *before the tag, never after* where the file
   says *before the push*.
+- **Pointers to `~/.claude/CLAUDE.md` (five at `f1804ea`, added 20260915) were dropped.** That file is
+  machine-local, so a public file naming it helped no cloud run or other clone; the regenerated file
+  keeps only this repository's rules. `tools/land.py:215` and `tools/mutate.py:560` cite rules that
+  live there (listed above); the pending 20260915 changelog fragment says `CLAUDE.md` names it, and
+  A3's own fragment now says the pointers are gone.
 - **No test reads `CLAUDE.md`'s sentences.** The gates that read the file: `tools/markdown_link_gate.py`
   (links and anchors; every one resolves), `tools/shared_file_overlap.py` (the filename in a hotspot
   list), `tests/test_markdown_link_gate.py` (the slugifier over every heading in the repository).
@@ -212,7 +217,7 @@ handover-versus-ownership contradiction, which the old file resolved in six word
 `CLAUDE.md` held it), *needing an answer to proceed is the bar for asking*, the invariants list,
 and the right link for *ask, do not draft*. Not acted on: *A0–A3 landed* and the user's yes, true
 only at landing. Round 2 — a second read-only Sonnet reviewer, on the questions *does every moved fact exist at its
-destination* and *what pointer now dangles* (24 of 24 map rows, 17 file links, 10 anchors and every
+destination* and *what pointer now dangles* (24 of 24 map rows, every link and anchor, and every
 non-record hit of the file's name): no row not found, and both *false* bullets confirmed false from
 the tagged sources (`934190c` is an ancestor of `v0.32.3` and not of `v0.32.2`). Eight findings, all
 acted on or recorded: open live-plan row 24 and built rows 26 and 38–41 and 43 cited `CLAUDE.md` for
@@ -399,8 +404,8 @@ design only, the build not resumed. Read that file, not this one, for what it do
 
 **Written in the branch that records it** ([`docs/BUILDING.md` § Hand over before you
 stop](../docs/BUILDING.md#hand-over-before-you-stop)). Of that rule's five places, A3 changed three:
-`CLAUDE.md`'s pointer block (rebuilt, and now the only place that says *A0–A3 landed, A4 remains*),
-this plan's § 2 rows, and `docs/README.md`'s two routing rows. `docs/STATUS.md` tracks product
+`CLAUDE.md`'s pointer block (rebuilt, and the place a cleared session reads *A0–A3 landed, A4
+remains*), this plan's § 2 rows, and `docs/README.md`'s routing rows. `docs/STATUS.md` tracks product
 surface, which a documentation-only increment does not add.
 
 **State.** A0 to A3 are landed. **A4 — cut the PATCH release carrying A (D5) — is the only increment
@@ -415,12 +420,12 @@ stays paused except for this plan; option B is designed and its build is not res
   retrospective one carries three lessons that had no other home; it is spliced into
   `docs/RETROSPECTIVES.md` at the cut, so read it there afterwards.
 - **A PATCH, on the 0.32.6 precedent** (developer tooling and instructions, nothing a wheel ships).
-  `docs/RELEASING.md` is the procedure; step 3 refreshes `prices.toml` from the ECB at every
-  release, and step 6 reads `minimum-python` in the CI run for the commit being tagged.
-- **Changes `CLAUDE.md` once, by one line:** the pointer block says *A0–A3 landed; A4 … remains*. When
-  A4 lands, that bullet becomes a statement that option A is complete and the pause bullet's
-  *except option A* goes with it — **a planner edit with the diff shown to the user first**, like A3.
-  The file is at its ceiling, so the edit must displace text rather than add (§ 5.1).
+  `docs/RELEASING.md` is the procedure; step 3 refreshes `prices.toml`'s `usd_per_eur` from a named FX
+  source at every release, and step 6 reads `minimum-python` in the CI run for the commit being tagged.
+- **Changes `CLAUDE.md` in two bullets:** the option A bullet says *A0–A3 landed; A4 … remains*, and
+  the pause bullet says *except option A*. When A4 lands the first becomes a statement that option A
+  is complete and the second goes with it — **a planner edit with the diff shown to the user first**,
+  like A3. The file is close to its line ceiling (see § 5.1), so the edit displaces text rather than adds.
 - **`docs/README.md`'s option A row** says A3 is built; A4 turns it to done. The A3 landing did not
   touch the live plan's other rows.
 
@@ -429,8 +434,13 @@ stays paused except for this plan; option B is designed and its build is not res
 1. **The size is unguarded.** § 5.1: nothing enforces 150 lines and 2,700 words, which is how three
    earlier passes grew back. A test is a small implementer increment and a new row, so it waits for
    the pause.
-2. **Twelve citations of moved or global text** in `tools/`, `src/`, `tests/`, `Makefile`, `.gitignore`
-   and `.paid-path-allowlist` were dangling before A3 and still are (§ 5.1 lists each). Code comments
+2. **Twelve citations of moved or global text** in `tools/`, `src/`, `tests/`, `.github/`, `Makefile`,
+   `.gitignore` and `.paid-path-allowlist` were dangling before A3 and still are (§ 5.1 lists each). Code comments
    are the implementer's; they were not touched.
-3. **The aim of about 100 lines was not reached** (§ 5.1). It needs a kept section moved out, which
+3. **The template release row.** `CLAUDE.md`'s row now says what is unbuilt — the `sqlite-vec` tier —
+   because the template ecosystem and `pnk upgrade` shipped in 0.21.0 (`docs/STATUS.md`). The same
+   table is copied at `docs/STATUS.md:316` and described in `docs/README.md` § *Conventions* the old
+   way, and whether the name should have left the table at 0.22.0 is a planner decision this
+   increment did not take.
+4. **The aim of about 100 lines was not reached** (§ 5.1). It needs a kept section moved out, which
    is the user's decision.

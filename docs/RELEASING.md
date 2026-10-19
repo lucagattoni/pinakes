@@ -274,8 +274,8 @@ Fast-forward the primary checkout: `git pull --ff-only`.
 
 ## Landing beside a peer
 
-**`tools/shared_file_overlap.py` compares your branch to `origin/main`. It never looks at another
-branch, so it cannot see the session working beside you** — it reports *none* while a peer holds a
+**`tools/shared_file_overlap.py` compares your branch to one ref, `origin/main` unless `--ref`
+names another. It does not enumerate peers, so it cannot see the session working beside you** — it reports *none* while a peer holds a
 branch touching the same files. It is a merge-safety check, not a peer check, and reading it as one
 is how two sessions end up racing.
 
@@ -315,6 +315,6 @@ fires — the no-op is silent by design. So `tools/land.py` is the guard, and th
 - **`--cleanup-only` does that for a branch you landed earlier**, after verifying it is an ancestor
   of `origin/main` — because "looks merged" is not "landed".
 
-It is the only rule in [`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md)
-with an executable guard, because it is the only one that fails silently. Everything else there
-fails loudly or is caught by `./check.sh`.
+It is the rule in [`CLAUDE.md`](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md)
+whose failure looks like success — a no-op — which is why it has an executable guard. (`land.py`
+also refuses a merged tree no `./check.sh` run certified.)

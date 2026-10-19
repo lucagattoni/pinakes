@@ -22,7 +22,7 @@ fact to its one home. **Status lives in `plans/`; the block below only points. T
     python3 tools/land.py <branch> --cleanup  # ... and remove the worktree and both branches
 
 **`git merge <branch>` from inside that branch's own worktree merges it into itself** — "Already up
-to date", a successful push, nothing landed: the one rule here that fails silently, hence the one
+to date", a successful push, nothing landed: a failure that looks like success, hence the rule
 with an executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-branch), and
 `--cleanup-only` for a branch that landed earlier).
 
@@ -72,7 +72,7 @@ with an executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#land
 |---|---|
 | **Planner-only** | `docs/**`, `plans/**`, **any `README.md`, at any depth**, `CLAUDE.md`, `CHANGELOG.md` |
 | **Yours to write** | `changelog.d/` and `retro.d/` fragments; docstrings and comments in `src/`, `tests/`, `tools/` |
-| **One narrow exception** | `docs/VERIFICATION.md`: add **only** the row a test you wrote requires — `tests/test_verification.py` hard-fails without it |
+| **One narrow exception** | `docs/VERIFICATION.md`: touch **only** the row a test you wrote or renamed requires — `tests/test_verification.py` hard-fails on a row naming a test that no longer exists |
 
 **Propose as `git diff <sha> -- <file>` against a named commit**, never an edit
 ([BUILDING § Proposing](docs/BUILDING.md#proposing-a-change-to-a-document-you-do-not-own)). Text
@@ -81,7 +81,7 @@ draft** ([§ Content mine](docs/BUILDING.md#content-mine-keystrokes-yours)).
 
 **README and DESIGN.md are version-free** — no version number or "as of vX" claim in their prose.
 **Read the rules in [docs/README § Conventions](docs/README.md#conventions) before any docs
-change.** `docs/` is published on every push to `main`: run `make docs` before landing one.
+change.** `docs/` is published from `main`: run `make docs` before landing one.
 **Every date carries a time, in UTC** (`YYYYMMDD HH:MM`); new files in `plans/`, `changelog.d/` and
 `retro.d/` are named `YYYYMMDD_HHMM-<rest>.md`. **Read the clock, never compose it**; stamps before 20260804 11:32 stay local.
 
@@ -94,7 +94,7 @@ release's **final** cut.
 
 | Name | What it is |
 |---|---|
-| **the template release** | Template ecosystem, `pnk upgrade`, the `sqlite-vec` tier |
+| **the template release** | The `sqlite-vec` tier (gated); the template ecosystem and `pnk upgrade` shipped in 0.21.0 |
 | **the graph release, staged** | The PPR graph channel and the `[ner]` extra. **Eval-gated, never scheduled** — no plan, increment or number until its gate passes ([plan](plans/20260804_1016-staged-channel-gates.md)). **Not *the graph release***, which left this table at its final cut, 0.11.0 |
 
 ## Naming (fixed — changing any of these is a breaking change)
@@ -128,12 +128,12 @@ checkout) and, when it completes a unit of work, tagged by the planner** ([`RELE
 holds the MINOR / PATCH / MAJOR rule):
 
 - **Before merging, run `python3 tools/shared_file_overlap.py --fetch --strict`** and *read* the
-  merged state of the files it names — **a clean auto-merge is not a correct merge.** It **cannot
-  see a peer**: intersect file sets with every live branch yourself ([RELEASING § Landing beside a
+  merged state of the files it names — **a clean auto-merge is not a correct merge.** It compares
+  you to one ref, not to peers: intersect file sets with every live branch yourself ([RELEASING § Landing beside a
   peer](docs/RELEASING.md#landing-beside-a-peer)).
 - **A tag publishes to PyPI**, which never accepts a version twice: `make release-check` runs
   **before the push**, never after, and **before that tag read `minimum-python`'s conclusion in the
-  CI run for the commit you tag** — the one leg on the declared floor, run only on `main`.
+  CI run for the commit you tag** — the one leg on the declared floor; no earlier green transfers.
 
 ## Changing retrieval
 
@@ -144,4 +144,4 @@ not a licensing instrument — a claimed improvement needs the RFC corpus (`tool
 or another corpus whose improvable pool has been **re-measured, not remembered**
 ([DESIGN § What a corpus can license](docs/DESIGN.md#73-what-a-corpus-can-license)).
 
-<!-- Provenance. Role rule: the user, 20260823. Working mode: the user, 20260808 04:39 (stop at a clear-context boundary 20260811 15:37). Ownership table: the user, 20260801 01:24. Pause: the user, 20260904 10:21, to review the process against the analysis "Framing, Not Roles" (artifact 2c7961ec); option A resumed 20261018. Until A3 (20261019) the live block was ~265 lines of incident narrative: `git show f1804ea:CLAUDE.md`. -->
+<!-- Provenance. Role rule: the user, 20260823. Working mode: the user, 20260808 04:39 (stop at a clear-context boundary 20260811 15:37). Ownership table: the user, 20260801 01:24. Pause: the user, 20260904 10:21, to review the process against the analysis "Framing, Not Roles" (artifact 2c7961ec); option A resumed 20261018. Until A3 (20261019) the live block was about 250 lines of incident narrative: `git show f1804ea:CLAUDE.md`. -->

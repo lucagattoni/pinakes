@@ -1,6 +1,6 @@
 ## A3 — what the status block held that nothing else did (20261019 09:34)
 
-**`CLAUDE.md` lost about 265 lines of status narrative at A3, and the test of the move was not
+**`CLAUDE.md` lost about 250 lines of status narrative at A3, and the test of the move was not
 whether the facts were still true but whether each one had a home.** Before it was deleted every
 bullet was traced to the document that owns its facts, and the text was found there by `grep`
 (whitespace-normalised, because a phrase wrapped across two lines is invisible to a plain one).
@@ -36,7 +36,7 @@ pinned that way survived all four revisions of the paragraph; the one claim made
 **2. A null result is about its population (20260903 14:20).** The planner ran the published
 `pnk doctor` on both interpreters, watched it finish, and wrote into row 28 that it does not crash
 on 3.13. True measurement, wrong population: the KB had no sidecar for the unreachable document, so
-the loop whose body raises (`doctor.py:420`) was never entered. Against a KB where the document had
+the loop whose body raises (`doctor.py:420` at v0.32.2) was never entered. Against a KB where the document had
 been indexed it dies there. `rglob` itself raises on neither version, so the walk looks safe and
 the `stat` inside it is not. **Do not accept a null result here with the sidecar absent.** This is
 *Seven selectors that could not fire* with an instance that entry does not hold.
@@ -50,14 +50,16 @@ the block read as though it never had. That was found in the harvested CI data
 
 ### Why the block became pointers
 
-It was wrong in five different ways in three days, and every instance was about who owns what or
-who must decide what — the one thing a cleared session reads it to learn. The file's growth, 76
+One of its bullets alone was corrected five times in three days (its own count; the live plan
+counts four), and every instance was about who owns what or who must decide what — the one thing a
+cleared session reads it to learn. The file's growth, 76
 lines on 20260725 to 455 on 20260904, is `plans/20260904_1027-…` § 3.2. The block's own figures
 disagreed with that series and with each other: it gave 302 for the moment the analysis called the
 file too long where § 3.2 measures 410, and it said 427 for two hours while the file was already
 459. **A count in prose has no column to check.**
-**Three slimming passes each grew back within days, because each kept a summary and a summary of a
-plan is a second register of its facts.** The rebuilt block is four pointers, a size line that
+**Three slimming passes each grew back within days — and the likely reason, an inference rather
+than a measurement, is that each kept a summary, and a summary of a plan is a second register of
+its facts.** The rebuilt block is four pointers, a size line that
 names `wc -l -w` instead of a number, and the rule that where a snapshot and a `## Build order`
 disagree the build order wins. It holds nothing that can become false when a plan changes, except
 one clause — which increments of option A remain — and that is the one the handover rule in
