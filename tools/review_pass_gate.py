@@ -196,10 +196,18 @@ def read_journal(journal: Path) -> list[Agent]:
     Matching is on `key`, which is what the journal itself pairs a `result` to a `started` with. A
     malformed line is skipped rather than fatal: a truncated journal is exactly the situation this
     gate is for, and refusing to parse it would hide the failure it exists to report.
+
+    **Lines are split on a newline and nothing else.** `str.splitlines()` also splits on U+2028,
+    U+2029 and U+0085, which JSON allows raw inside a string and Node writes raw, so a result that
+    quoted one was cut into two malformed halves, both skipped, and its agent read as dead - a
+    finished review reported as one that lost an agent. Reported 20261019 by the first live review
+    pass of the Stop hook, which counted four such journals among the real ones it surveyed (not
+    re-measured here: they are other projects' transcripts); `enrich` reads an agent's own
+    transcript the same way. The test builds the shape and does not depend on that count.
     """
     agents: dict[str, Agent] = {}
     order: list[str] = []
-    for line in journal.read_text(errors="replace").splitlines():
+    for line in journal.read_text(errors="replace").split("\n"):
         line = line.strip()
         if not line:
             continue
@@ -237,7 +245,7 @@ def enrich(agent: Agent, transcript_dir: Path) -> None:
     if not transcript.is_file():
         return
     seen: set[str] = set()
-    for line in transcript.read_text(errors="replace").splitlines():
+    for line in transcript.read_text(errors="replace").split("\n"):
         line = line.strip()
         if not line:
             continue

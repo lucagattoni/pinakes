@@ -153,6 +153,53 @@ def test_a_malformed_line_does_not_hide_a_death(tmp_path: Path) -> None:
     assert "2 launched, 0 returned" in out.stdout
 
 
+def test_a_result_quoting_a_unicode_line_separator_is_not_a_death(tmp_path: Path) -> None:
+    """JSON allows U+2028, U+2029 and U+0085 raw inside a string, and Node writes them raw. A
+    reader that splits on them (`str.splitlines`) cuts such a result into two malformed halves,
+    skips both, and reads a finished agent as dead - a clean review reported as one that lost an
+    agent. Each separator is tried, because a fix for one is not a fix for the others."""
+    for separator in ("\u2028", "\u2029", "\u0085"):
+        path = tmp_path / f"journal-{ord(separator):x}.jsonl"
+        path.write_text(
+            "\n".join(
+                json.dumps(event, ensure_ascii=False)
+                for event in (
+                    started("k1", "a1"),
+                    result("k1", "a1", f"quoted a line{separator}break from the diff"),
+                )
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        out = run("--journal", str(path))
+        assert out.returncode == 0, (hex(ord(separator)), out.stdout + out.stderr)
+        assert "1 launched, 1 returned" in out.stdout
+
+
+def test_an_agent_transcript_quoting_a_unicode_line_separator_is_still_read(
+    tmp_path: Path,
+) -> None:
+    """`enrich` reads a dead agent's own transcript for what it spent and left behind; the same
+    split applies, so a tool call after a quoted separator must not be lost."""
+    path = journal(tmp_path, started("k1", "dead1"))
+    lines = [
+        {"message": {"content": [{"type": "text", "text": "saw a\u2028break"}]}},
+        {
+            "message": {
+                "content": [
+                    {"type": "tool_use", "name": "Write", "input": {"file_path": "/tmp/probe.py"}}
+                ]
+            }
+        },
+    ]
+    (tmp_path / "agent-dead1.jsonl").write_text(
+        "\n".join(json.dumps(line, ensure_ascii=False) for line in lines) + "\n", encoding="utf-8"
+    )
+    out = run("--journal", str(path), "--assume-finished")
+    assert out.returncode == 1
+    assert "/tmp/probe.py" in out.stdout
+
+
 def test_an_empty_journal_is_not_a_clean_bill(tmp_path: Path) -> None:
     """Nothing launched is a broken harness, and it must not share an exit status with a pass that
     ran. Exit 2 keeps 'the gate could not check' distinct from 'the gate checked and refused'."""
