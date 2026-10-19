@@ -63,7 +63,12 @@ the first one written here was wrong.** `C:\notes\kb` was quoted until the run m
 *rejected*, because `\k` is not an escape at all — so the mutant died on a `TOMLDecodeError` while
 the row's name claimed a round-trip nothing in the file was asserting. It now kills through a
 single-value test over `C:\notes` and dies on an equality. **A mutant killed for the wrong reason
-is a survivor wearing a green light.** **Named for is not covers**: nine files under `src/` are mutated by some
+is a survivor wearing a green light.** **One battery is named for something under neither `tools/`
+nor `src/`**: `claude-workflows-adversarial-review.toml`, over `.claude/workflows/adversarial-review.js`
+(plus two rows on `.gitignore`), added 20261019. Its target is JavaScript, so `tools/mutate.py`'s
+compile check — which covers `.py` targets only — does not protect its rows, and each was chosen to
+stay valid JavaScript. It runs the script against stub hooks under Node, so it proves control flow
+and nothing about what a real review agent finds. **Named for is not covers**: nine files under `src/` are mutated by some
 battery, `src/pinakes/serve.py` among them via `tools-mcp_handshake_gate.toml` — which is why a
 `src-pinakes-serve.toml` proposed on 20260831 was refused by
 `test_no_file_is_claimed_by_two_batteries` and its rows appended to the handshake gate instead.
@@ -135,12 +140,20 @@ also the reason not to over-claim what the directory does.
 
 ## How a battery earns its name
 
-**A battery is named for its primary target: the path, `/` → `-`, extension dropped.** Not the
-`YYYYMMDD_HHMM-` prefix `plans/`, `changelog.d/` and `retro.d/` carry — a battery is named for what
-it covers, never for when it was written, because the name is how the next increment finds it.
+**A battery is named for its primary target: the path with its leading dots dropped, `/` → `-`,
+extension dropped.** Not the `YYYYMMDD_HHMM-` prefix `plans/`, `changelog.d/` and `retro.d/` carry —
+a battery is named for what it covers, never for when it was written, because the name is how the
+next increment finds it.
 
     tools/release_order_gate.py   →  tools/batteries/tools-release_order_gate.toml
     src/pinakes/graph/traverse.py →  tools/batteries/src-pinakes-graph-traverse.toml
+    .claude/workflows/adversarial-review.js →  tools/batteries/claude-workflows-adversarial-review.toml
+
+**The leading dot goes because the alternative hides the file.** `.claude-workflows-…toml` is
+skipped by `ls` and by the `tools/batteries/*.toml` glob that this file's own lookup commands use,
+so the next increment asks which battery claims `.claude/workflows/adversarial-review.js`, hears
+none, and starts a second one — the outcome the section below forbids. A review pass on the first
+battery with a dotted target found this; `test_no_battery_is_a_hidden_file` holds it.
 
 **Not collision-free** — two real pairs in this repository already flatten to one stem
 (`src/pinakes/extract/floors.py` / `floors.toml`, and `src/pinakes/budget/prices.py` /

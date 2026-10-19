@@ -118,8 +118,8 @@ Never batch increments; each is a separate, bisectable landing:
    **The battery is a committed file, one per target, and you append to the one your target
    already has** — never a second file for it, which is how two increments end up maintaining two
    sets of mutants that disagree. `grep -l 'file *= *"src/pinakes/x.py"' tools/batteries/*.toml` says
-   which; no hit means start one, named for the path with `/` → `-` and the extension dropped. The
-   rule, and what to do when an anchor rots, are in
+   which; no hit means start one, named for the path with its leading dots dropped, `/` → `-` and
+   the extension dropped. The rule, and what to do when an anchor rots, are in
    [`tools/batteries/README.md`](https://github.com/lucagattoni/pinakes/blob/main/tools/batteries/README.md);
    `tests/test_batteries.py` fails if an anchor stops resolving, if a `kills` selector names a test
    that no longer exists, or if two batteries claim one file.
@@ -168,6 +168,37 @@ Never batch increments; each is a separate, bisectable landing:
    else, so the battery re-runs after it. Anything worth keeping gets a
    [`retro.d/`](https://github.com/lucagattoni/pinakes/blob/main/retro.d/README.md) fragment; trivia
    stays in the commit message.
+
+   **The pass has a committed script, and its first output is `coverage`, not the findings.**
+   Run the saved workflow `adversarial-review` ([`.claude/workflows/adversarial-review.js`](https://github.com/lucagattoni/pinakes/blob/main/.claude/workflows/adversarial-review.js))
+   **before landing** (step 7), with `args` an object:
+
+       {"sha": "<the branch tip>", "base": "<git merge-base origin/main <tip>>",
+        "title": "A1", "claims": ["what the increment says it does", "another"]}
+
+   `sha` and `base` are both commit shas, because `origin/main...<sha>` is an empty diff once the
+   increment has landed; `title` and `claims` are optional, and the lenses check the increment
+   against what it says it does. **After a `--no-ff` landing `git merge-base origin/main <tip>`
+   returns the tip itself** and the script refuses with that explanation: use the merge commit's
+   first parent (`git rev-parse <merge>^1`) as `base`. It runs four lenses, the runtime one
+   launched first, one refuter per finding (at most 20 findings per lens get one, the most severe
+   first) and one Opus judge, and returns `VACUOUS | PARTIAL | CLEAN | FINDINGS`. **Only `CLEAN` and
+   `FINDINGS` mean every lens, refuter and judge that was asked for returned.** `PARTIAL` and
+   `VACUOUS` are not a clean pass, and what clears one depends on why: relaunching with
+   `resumeFromRunId` may retry an agent that **died**, but a reply that came back unusable
+   (`lenses.died_why` says why, and so does a bad sha: every lens reports an empty diff), a lens
+   that completed and reported `not_run`, a finding over the per-lens cap, a high-severity finding
+   a refuter dismissed on a guess (`basis: "uncertain"`) and a contradictory ruling are replayed as
+   they were, so those need their cause fixed or the gap reported to the user. A `CLEAN` also lists
+   every finding dismissed on a guess in `dismissed_on_a_guess` and its `note`. **Coverage does not
+   say that a lens opened every changed file or fragment**; the rule below is checked with
+   `tools/review_ledger.py`. A run that never returned (stopped, or cut by a session limit) has no
+   verdict at all: `tools/review_pass_gate.py` reads its journal. **The script has not been run for
+   real yet.** It is tested against a stub of the runtime, and the first live run is the smoke run
+   planned for the next increment (the plan's § 6.1 lists what it must settle); until then treat a
+   surprise as a finding about the script, not about the increment. It exists because a fan-out
+   that lost 17 of 19 agents to a session limit once returned `{"raised":0}`, and nothing in that
+   result said nobody had looked.
 
    **🛑 The pass opens the increment's own fragments, and every file the increment changed.** Not
    the plan it was working from — the diff. **This step's own position in this list is why it did

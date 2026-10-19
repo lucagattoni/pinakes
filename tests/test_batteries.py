@@ -60,6 +60,24 @@ def _batteries(directory: Path | None = None) -> list[tuple[Path, dict[str, Any]
     ]
 
 
+def _stems_for(target: str) -> set[str]:
+    """The names a battery may carry when one of its mutants targets `target`.
+
+    The path with its leading dots dropped, `/` → `-`, extension dropped — and the flat name with
+    its extension, the documented tie-break for the day two targets flatten to one stem:
+    `src/pinakes/extract/floors.py` and `floors.toml` already do, and the loser keeps its extension.
+    One function, used by the check and by the control at the foot of this file, so the control
+    cannot keep an old copy of the rule: a review pass found it had, and that removing the
+    `lstrip` from its copy still passed.
+    """
+    flat = target.lstrip(".").replace("/", "-")
+    return {flat.rsplit(".", 1)[0], flat}
+
+
+def _hidden_files(directory: Path) -> list[str]:
+    return sorted(path.name for path in directory.iterdir() if path.name.startswith("."))
+
+
 def _mutants(directory: Path | None = None) -> list[tuple[Path, int, dict[str, Any]]]:
     return [
         (path, index, mutant)
@@ -205,18 +223,20 @@ def test_no_file_is_claimed_by_two_batteries() -> None:
 
 
 def test_every_battery_is_named_for_a_file_it_actually_mutates() -> None:
-    """The naming rule as a check rather than a paragraph: the target path, `/` → `-`, extension
-    dropped. It is what makes *which battery does this file belong to* answerable by looking."""
+    """The naming rule as a check rather than a paragraph: the target path with its leading dots
+    dropped, `/` → `-`, extension dropped. It is what makes *which battery does this file belong
+    to* answerable by looking.
+
+    **The leading dots are dropped because the alternative hides the file.**
+    `.claude/workflows/x.js` flattens to `.claude-workflows-x`, a hidden name that `ls` and the
+    `tools/batteries/*.toml` glob the README's own lookup commands use both skip — so the next
+    increment asks which battery claims the file, hears none, and starts a second one. Found by a
+    review pass on the first battery that had a dotted target."""
     misnamed: list[str] = []
     for path, data in _batteries():
         stems: set[str] = set()
         for mutant in data.get("mutant", []):
-            flat = str(mutant["file"]).replace("/", "-")
-            stems.add(flat.rsplit(".", 1)[0])
-            # The documented tie-break, for the day two targets flatten to one stem —
-            # `src/pinakes/extract/floors.py` and `floors.toml` already do. The loser keeps its
-            # extension, and this is the check that has to accept that spelling.
-            stems.add(flat)
+            stems |= _stems_for(str(mutant["file"]))
         if path.stem not in stems:
             misnamed.append(
                 f"{path.name}: mutates {', '.join(sorted(stems))} and is named for none of them "
@@ -225,8 +245,31 @@ def test_every_battery_is_named_for_a_file_it_actually_mutates() -> None:
             )
 
     assert not misnamed, (
-        "a battery is named for its primary target — the path, `/` → `-`, extension dropped "
-        "(tools/batteries/README.md):\n  " + "\n  ".join(misnamed)
+        "a battery is named for its primary target — the path with leading dots dropped, "
+        "`/` → `-`, extension dropped (tools/batteries/README.md):\n  " + "\n  ".join(misnamed)
+    )
+
+
+def test_the_naming_rule_drops_leading_dots_and_keeps_the_tie_break() -> None:
+    assert _stems_for(".claude/workflows/adversarial-review.js") == {
+        "claude-workflows-adversarial-review",
+        "claude-workflows-adversarial-review.js",
+    }
+    assert _stems_for("src/pinakes/extract/floors.py") == {
+        "src-pinakes-extract-floors",
+        "src-pinakes-extract-floors.py",
+    }
+    assert _stems_for(".gitignore") == {"gitignore"}
+
+
+def test_no_battery_is_a_hidden_file() -> None:
+    """The directory is read with `pathlib`, which includes dotfiles; the shell and `ls` do not, and
+    the lookups in the README (`ls tools/batteries/*.toml`, `grep -l ... tools/batteries/*.toml`)
+    are the ones a person types. A battery they cannot see is a battery the next increment
+    duplicates."""
+    hidden = _hidden_files(BATTERIES)
+    assert not hidden, (
+        f"hidden files in tools/batteries/: {hidden} (README: How a battery earns its name)"
     )
 
 
@@ -280,15 +323,18 @@ def test_every_battery_declares_how_many_mutants_it_carries() -> None:
 def test_the_committed_batteries_cover_only_tools_and_the_readme_says_so() -> None:
     """A coverage index with a hidden denominator is the thing this repository keeps catching.
 
-    Thirteen batteries over thirteen primary targets. Nine are under `tools/`; **four are named
-    for a module under `src/`** — `src-pinakes-init.toml` since 20260825, `src-pinakes-pairing.toml`
+    Most batteries are named for a file under `tools/`; the rest are named for something outside
+    it: modules under `src/` (`src-pinakes-init.toml` since 20260825, `src-pinakes-pairing.toml`
     the same day, also the first battery to span two files, `src-pinakes-budget-ledger.toml` since
     20260902, the first over the paid path and the first to span three, and
-    `src-pinakes-template.toml` the same day, the only one of the four spanning a single file.
+    `src-pinakes-template.toml` and `src-pinakes-search.toml`), and
+    `claude-workflows-adversarial-review.toml`, over a JavaScript workflow script, the first
+    outside both `tools/` and `src/`.
 
-    **Re-derive rather than trust these numbers** — `ls tools/batteries/*.toml | wc -l`,
-    `ls tools/batteries/src-*.toml`. They were counted at the commit that added the fourth, and a
-    count is a fact about the moment it was taken. This docstring has gone stale twice, and it is a
+    **No count is written here, because every one that was went stale** — *"Thirteen batteries over
+    thirteen primary targets"* read that way while fifteen were on disk, then sixteen. Re-derive
+    it: `ls tools/batteries/*.toml | wc -l`, `ls tools/batteries/src-*.toml`. A count is a fact
+    about the moment it was taken. This docstring has gone stale three times, and it is a
     docstring rather than an assertion, so nothing goes red when it does: it is a true statement
     with nothing that notices when it stops being one. **A name is not a coverage claim,
     and this sentence is where that keeps being forgotten**: `tools-mcp_handshake_gate.toml` mutates
@@ -443,17 +489,14 @@ def test_every_check_here_fails_on_a_directory_built_to_break_it(tmp_path: Path)
     misnamed = [
         path.name
         for path, data in parsed
-        if path.stem
-        not in {
-            candidate
-            for row in data["mutant"]
-            for candidate in (
-                str(row["file"]).replace("/", "-").rsplit(".", 1)[0],
-                str(row["file"]).replace("/", "-"),
-            )
-        }
+        if path.stem not in set().union(*(_stems_for(str(row["file"])) for row in data["mutant"]))
     ]
     assert misnamed == ["not-named-for-any-target.toml"], misnamed
+
+    _ = (broken / ".hidden-battery").write_text("", encoding="utf-8")
+    assert _hidden_files(broken) == [".hidden-battery"], (
+        "the hidden-file check would not notice a battery hidden from `ls` and from the shell glob"
+    )
 
     miscounted = [path.name for path, data in parsed if data["mutants"] != len(data["mutant"])]
     assert miscounted == ["not-named-for-any-target.toml"], miscounted
