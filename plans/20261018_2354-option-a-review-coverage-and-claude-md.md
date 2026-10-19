@@ -129,6 +129,95 @@ Provenance (who asked, when, which incident) goes in own-line HTML comments, whi
 session's context. **A cleared session's only pointer to the live build order is that block**, so
 the rebuilt version is checked by reading it as a cleared session would.
 
+### 5.1 Outcome — A3, 20261019
+
+**Measured** (`wc -l -w CLAUDE.md`, the instrument of D4): **473 lines / 6,033 words** at `f1804ea` →
+**147 lines / 1,471 words** at the A3 merge. Ceiling 150 and 2,700: met. **The aim of about 100 was
+not reached**, and the reason is structural, not slack: the file is link-dense — every pointer is at
+least one line that wrapping cannot shorten — and what remains is the set the brief names as *keep*.
+Getting to about 100 means moving a whole kept section out (candidates, cheapest first: *Changing
+retrieval*, *Unbuilt work*'s table, *Tooling*), which is a decision for the user, not a trim.
+
+**The map** — every section of the file at `f1804ea`, its outcome, and where its text went. *Moved*
+means found at the destination by a whitespace-normalised `grep` (28 checks, all OK; a phrase
+wrapped across two lines is invisible to a plain `grep`).
+
+| Section at `f1804ea` | Outcome | Destination |
+|---|---|---|
+| Intro | **Kept**, plus a size line naming `wc -l -w` | — |
+| 🧭 Role first | **Kept**; the 20260823 failure record deleted | `docs/BUILDING.md` § *Settle your role before anything else* already held it |
+| 🛑 Land with `land.py` | **Kept**; the three-successful-commands narrative deleted | `docs/RELEASING.md` § *Landing a branch* |
+| Working mode (7 bullets) | **Kept** (six after merging two); dates to a provenance comment | handover rule: `docs/BUILDING.md` § *Hand over before you stop* |
+| What is live right now (about 265 lines, 9 bullets) | **Rebuilt from the tree** as four pointers | table below |
+| This repository is PUBLIC | **Kept** | `docs/INVARIANTS.md` § *The paid path's key is its own* |
+| Documentation has one owner | **Kept** (table and propose rule); the *Docs* section folded in as a paragraph | `docs/BUILDING.md` §§ *Proposing…*, *Content mine…* |
+| 🚫 Unbuilt work is named | **Kept** (rule and table); the *final cut* clause moved | `docs/README.md` § *Conventions* |
+| Naming | **Kept**; the capital-P paragraph folded into its table row | — |
+| Invariants | **Folded** into *Building an increment* as one sentence | `docs/INVARIANTS.md` |
+| Building an increment | **Kept**; the mutation paragraph moved | `docs/BUILDING.md` step 4; `tools/batteries/README.md` |
+| Landing work (6 bullets) | **Kept** as a lead and two bullets; the bump rule and *never lingers in Unreleased* moved | `docs/RELEASING.md` (new paragraph at its head), §§ *Landing beside a peer*, steps 6–7 |
+| Tooling | **Folded** into *Building an increment* | `docs/RETROSPECTIVES.md` (the `ty` measurement) |
+| Changing retrieval | **Kept** | `docs/DESIGN.md` § 7.3 |
+| Docs | **Folded** into *Documentation has one owner* | `docs/README.md` § *Conventions* |
+
+| Old status bullet | Outcome | Destination |
+|---|---|---|
+| ⏸ Development is paused (analysis, *do not* list, evidence, the lifting of the release hold) | Rebuilt as one pointer | `plans/20260904_1027-…`, **in a note at its top written at A3** — those lines had no other home; the *do not* list is also in this plan's § 1 |
+| 🧭 The live build order | Rebuilt as one pointer; the *build order wins* rule kept | `plans/20260901_1148-…` §§ 3–4; the rule is now also `docs/BUILDING.md`'s |
+| 🛑 Every release offers to delete a ULID | **Deleted — false**: fixed and published in 0.32.3 | `docs/ROADMAP.md`, `docs/STATUS.md`, `CHANGELOG.md`, live plan row 30; its three lessons in `retro.d/20261019_0934-…` |
+| 🚦 0.32.6 is cut | **Deleted — superseded** | `CHANGELOG.md`, `docs/ROADMAP.md`, `docs/STATUS.md`; the *read `minimum-python`* rule is kept in *Landing work* |
+| 🛑 Row 31 is not fixed | **Deleted — false**: closed by 0.32.4 (row 37) | live plan rows 31 and 37 |
+| 📌 The release timing rule | **Moved** | `docs/RELEASING.md` § *Sweep the three documents* |
+| ✅ 0.32.0 | **Moved** | `CHANGELOG.md`; `plans/20260830_0927-…`; `docs/RELEASING.md` § *Before you start* step 3 |
+| 🛑 Two plans have scheduled work | **Deleted — superseded**; its owners are in `docs/README.md`'s rows | `plans/20260825_1803-open-decisions.md`, `plans/20260825_1240-run-pinakes-sweep.md`, live plan |
+| A status claim is never gated | **Moved** | `docs/BUILDING.md` § *Read the build order out of `plans/`*, third bullet |
+
+**The sweep on the file's own name** (`ROADMAP.md` 0.15.1 records the last slimming leaving 21
+references to moved text, 13 of them in `src/` and `tests/`, none findable by the moved wording).
+`git grep -n "CLAUDE.md"` over the tree, 20261019: **closed plans, `CHANGELOG.md`, `ROADMAP.md`,
+`STATUS.md` and `RETROSPECTIVES.md` are dated records and keep the file they described — not
+edited.** Live documents, `src/`, `tests/`, `tools/`, CI, `Makefile` and the dotfiles were read
+reference by reference against the new text.
+- **Caused by A3, fixed:** `docs/README.md` (a routing row said a 🛑 in `CLAUDE.md` held row 30; one row
+  needed the A3 status), `docs/RELEASING.md` (one phrase about `CLAUDE.md`'s live rows), the option B
+  plan (three citations, one of them a figure — the 126 skipped now cited at `docs/ROADMAP.md`), live
+  plan row 22. No `src/` or `tests/` reference now dangles because of A3: the sections they cite
+  (*Changing retrieval*, *This repository is PUBLIC*, the key rule's wording, the UTC rule,
+  *Documentation has one owner*, *Landing work*) kept their names and text.
+- **Already dangling before A3 — found, not caused, not touched** (code comments are the
+  implementer's, and the user confirmed this session as planner only). Proposed as a diff against
+  `f1804ea` for whichever implementer next holds these files: `tools/review_pass_gate.py:68` and
+  `tools/review_ledger.py:65` cite a `CLAUDE.md` § on exit status that was extracted to
+  `docs/BUILDING.md` step 3 (the new *Building an increment* paragraph restores the rule in
+  `CLAUDE.md` itself); `.github/workflows/injection-audit.yml:116` the same; `tools/land.py:215`,
+  `tools/mutate.py:560` cite rules that live in `~/.claude/CLAUDE.md`; `tools/batteries/README.md:253`
+  cites *commit before mutating*, which is `docs/BUILDING.md` step 4; `src/pinakes/paid.py:41` cites
+  *a deliberate act*, which is `docs/INVARIANTS.md`; `.paid-path-allowlist:17` cites a
+  `CLAUDE.md` allowlist that is `docs/INVARIANTS.md`'s; `.gitignore:31` cites a "primary check" that is
+  `~/.claude/CLAUDE.md`'s; and `Makefile:105`, `tests/test_release_tag_gate.py:159` and
+  `tools/batteries/tools-release_tag_gate.toml:116` quote *before the tag, never after* where the file
+  says *before the push*.
+- **No test reads `CLAUDE.md`'s sentences.** The gates that read the file: `tools/markdown_link_gate.py`
+  (links and anchors; every one resolves), `tools/shared_file_overlap.py` (the filename in a hotspot
+  list), `tests/test_markdown_link_gate.py` (the slugifier over every heading in the repository).
+  `tests/test_docs_quote_the_shipped_sentences.py` searches `docs/`, `README.md` and `src/`, not this file.
+
+**Review.** Round 1 — a read-only Sonnet reviewer, question *what does a cleared session do wrong with
+the new file* (it read the file cold first, then the old one, then followed every pointer): ten
+findings, nine acted on in `d026fa4`. The two that mattered: **the lifting of the release hold had
+no source outside the file being deleted**, so the pause handover said a release was due while
+`CLAUDE.md` said releases were free — it is now a note at the top of the pause handover; and **the
+handover-versus-ownership contradiction, which the old file resolved in six words, had lost them**
+— restored. Also restored: the bump rule (now in `docs/RELEASING.md`, whose header claimed
+`CLAUDE.md` held it), *needing an answer to proceed is the bar for asking*, the invariants list,
+and the right link for *ask, do not draft*. Not acted on: *A0–A3 landed* and the user's yes, true
+only at landing. @ROUND2@
+
+**Not done, and recommended.** (a) **A size guard.** Three passes grew back; the new file says it
+stays under 150 lines and 2,700 words and nothing enforces it. A test that counts both, excluding
+own-line comments as the hygiene rule does, is a small implementer increment — and a new row, so it
+waits for the pause. (b) The leftovers above.
+
 ## 6. Decisions — taken by the user 20261018, with the recommendations
 
 | # | Question | Taken |
@@ -295,3 +384,43 @@ script file.
 **Option B — the dogfooding on-ramp (row 21)** is designed in
 [`plans/20261019_0817-option-b-dogfooding-on-ramp.md`](20261019_0817-option-b-dogfooding-on-ramp.md):
 design only, the build not resumed. Read that file, not this one, for what it does.
+
+## 10. Handover — the state after A3, 20261019
+
+**Written in the branch that records it** ([`docs/BUILDING.md` § Hand over before you
+stop](../docs/BUILDING.md#hand-over-before-you-stop)). Of that rule's five places, A3 changed three:
+`CLAUDE.md`'s pointer block (rebuilt, and now the only place that says *A0–A3 landed, A4 remains*),
+this plan's § 2 rows, and `docs/README.md`'s two routing rows. `docs/STATUS.md` tracks product
+surface, which a documentation-only increment does not add.
+
+**State.** A0 to A3 are landed. **A4 — cut the PATCH release carrying A (D5) — is the only increment
+left, it is the planner's, and it has not started.** Verify with `git ls-remote origin
+refs/heads/main` and `git log --first-parent --grep a3-claude-md main`, not from here. Development
+stays paused except for this plan; option B is designed and its build is not resumed (§ 9).
+
+**What A4 needs, from A3.**
+
+- **Fragments wait in `changelog.d/` and `retro.d/`** — count them with `ls`. A3 added one of each
+  (`…changed-claude-md-status-block-became-pointers`, `a3-what-the-status-block-held-…`). The
+  retrospective one carries three lessons that had no other home; it is spliced into
+  `docs/RETROSPECTIVES.md` at the cut, so read it there afterwards.
+- **A PATCH, on the 0.32.6 precedent** (developer tooling and instructions, nothing a wheel ships).
+  `docs/RELEASING.md` is the procedure; step 3 refreshes `prices.toml` from the ECB at every
+  release, and step 6 reads `minimum-python` in the CI run for the commit being tagged.
+- **Changes `CLAUDE.md` once, by one line:** the pointer block says *A0–A3 landed; A4 … remains*. When
+  A4 lands, that bullet becomes a statement that option A is complete and the pause bullet's
+  *except option A* goes with it — **a planner edit with the diff shown to the user first**, like A3.
+  The file is at its ceiling, so the edit must displace text rather than add (§ 5.1).
+- **`docs/README.md`'s option A row** says A3 is built; A4 turns it to done. The A3 landing did not
+  touch the live plan's other rows.
+
+**Open, none blocking A4.**
+
+1. **The size is unguarded.** § 5.1: nothing enforces 150 lines and 2,700 words, which is how three
+   earlier passes grew back. A test is a small implementer increment and a new row, so it waits for
+   the pause.
+2. **Twelve citations of moved or global text** in `tools/`, `src/`, `tests/`, `Makefile`, `.gitignore`
+   and `.paid-path-allowlist` were dangling before A3 and still are (§ 5.1 lists each). Code comments
+   are the implementer's; they were not touched.
+3. **The aim of about 100 lines was not reached** (§ 5.1). It needs a kept section moved out, which
+   is the user's decision.
