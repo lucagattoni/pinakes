@@ -670,6 +670,10 @@ def test_exactly_the_cap_is_not_over_it() -> None:
     twenty = [finding(f"c{i}") for i in range(20)]
     out = review(everyone_returns() | {"lens:runtime": lens(twenty)})
     assert out["result"]["coverage"] == "CLEAN" and out["result"]["unrefuted"] == []
+    # All twenty were refuted, and raised counts what the lens handed over, not what was kept: a
+    # slice one short lost the twentieth finding and lowered both figures together.
+    assert out["result"]["raised"] == 20 and len(out["result"]["refuted"]) == 20
+    assert sum(1 for c in out["calls"] if c["label"].startswith("refute:")) == 20
     assert not any("over the cap" in line for line in out["logs"])
 
 

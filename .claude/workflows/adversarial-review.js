@@ -253,7 +253,7 @@ const readVerdict = v => v && typeof v === 'object' && typeof v.refuted === 'boo
   && commands(v.commands_run).length > 0
   && typeof v.observed === 'string' && v.observed.trim() !== '' ? v : null
 
-const deadRecord = (key, why) => ({ lens: key, dead: true, why, checks: [], notRun: [], diffFiles: 0, raised: [], overflow: [], verdicts: [] })
+const deadRecord = (key, why) => ({ lens: key, dead: true, why, checks: [], notRun: [], diffFiles: 0, total: 0, raised: [], overflow: [], verdicts: [] })
 
 phase('Lenses')
 
@@ -278,7 +278,7 @@ const runs = await pipeline(
     if (overflow.length) log('lens ' + lens.key + ' raised ' + all.length + ' findings; ' + overflow.length + ' over the cap of ' + MAX_FINDINGS_PER_LENS + ' were not refuted')
     const verdicts = await parallel(raised.map(f => () =>
       agent(refutePrompt(f), { label: 'refute:' + f.id, phase: 'Refute', schema: VERDICT_SCHEMA, model: 'sonnet' })))
-    return { lens: lens.key, dead: false, why: null, checks: read.checks, notRun, diffFiles: read.diffFiles, raised, overflow, verdicts }
+    return { lens: lens.key, dead: false, why: null, checks: read.checks, notRun, diffFiles: read.diffFiles, total: all.length, raised, overflow, verdicts }
   },
 )
 
@@ -289,6 +289,9 @@ const lensesReturned = lensRecords.filter(r => !r.dead).map(r => r.lens)
 const diedWhy = Object.fromEntries(lensRecords.filter(r => r.dead).map(r => [r.lens, r.why]))
 
 const raised = lensRecords.flatMap(r => r.raised.concat(r.overflow))
+// What each lens handed over, counted before the cap split it in two: the lists below are checked
+// against this, so a slice that loses a finding cannot also lower the figure that would expose it.
+const raisedTotal = lensRecords.reduce((n, r) => n + r.total, 0)
 const refuted = []
 const unrefuted = lensRecords.flatMap(r => r.overflow)
 const survivors = []
@@ -379,7 +382,7 @@ return {
   checks,
   diff_files: diffFiles,
   not_run: notRun,
-  raised: raised.length,
+  raised: raisedTotal,
   confirmed,
   refuted,
   not_real: notReal,
