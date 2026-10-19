@@ -57,7 +57,7 @@ def repo(tmp_path: Path) -> Path:
     """A work repository with one commit and a **bare local remote** named `origin`.
 
     Bare and local so `git ls-remote` is the real command over a real transport with no network:
-    leg 4 is the one that makes "before the tag, never after" checkable, and mocking it away would
+    leg 4 is the one that makes "before the push, never after" checkable, and mocking it away would
     leave the only leg about an irreversible act untested.
     """
     remote = tmp_path / "remote.git"
@@ -156,7 +156,7 @@ def test_an_annotated_tag_with_an_empty_message_fails(repo: Path) -> None:
 
 
 def test_a_tag_already_on_the_remote_fails(repo: Path) -> None:
-    """**This is what makes `CLAUDE.md`'s *"before the tag, never after"* checkable.** Everything
+    """**This is what makes `CLAUDE.md`'s *"before the push, never after"* checkable.** Everything
     else about this tree is correct — right name, right commit, annotated — and the one thing that
     is wrong is *when* the gate is being run. PyPI has already had the version by now."""
     git(repo, "tag", "-a", "v1.2.3", "-m", "pinakes 1.2.3")

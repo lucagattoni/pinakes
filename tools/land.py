@@ -212,8 +212,8 @@ def cleanup_only(branch: str) -> None:
     cannot move a second time — so without this, the only way to finish was by hand, which is the
     class of mistake this script exists to remove.
 
-    **The safety check is ancestry, not the reflog.** `CLAUDE.md`: before deleting anything, confirm
-    its content actually landed rather than that it "looks merged".
+    **The safety check is ancestry, not the reflog.** Before deleting a branch, confirm its content
+    actually landed rather than that it "looks merged".
     """
     root = primary_checkout()
     if branch == DEFAULT_BRANCH:

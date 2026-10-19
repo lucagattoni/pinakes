@@ -113,7 +113,7 @@ kills = "tests/test_release_tag_gate.py::test_an_annotated_tag_with_an_empty_mes
 [[mutant]]
 name = "leg 4 inverts: a tag already on the remote passes and an unpushed one is refused"
 file = "tools/release_tag_gate.py"
-# This is the leg that makes CLAUDE.md's *before the tag, never after* checkable. Inverted, the
+# This is the leg that makes CLAUDE.md's *before the push, never after* checkable. Inverted, the
 # gate is green exactly when the version has already gone to PyPI.
 old = '''    if remote_tag.stdout.strip():'''
 new = '''    if not remote_tag.stdout.strip():'''

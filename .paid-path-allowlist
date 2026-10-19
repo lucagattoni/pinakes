@@ -14,8 +14,8 @@
 # the gate refused that commit until it was added, which is gate 1 working rather than gate 1
 # asserted.
 #
-# Adding an entry point here edits CLAUDE.md's paid-path allowlist and docs/DESIGN.md §1 in the
-# same commit.
+# Adding an entry point here edits docs/INVARIANTS.md's paid-path allowlist and docs/DESIGN.md §1
+# in the same commit.
 #
 # E3 adds the second line the same way: `src/pinakes/deep/client.py`, in the commit that creates the
 # module. The rules those two files obey — the key's name, the SDK's retries, whether a failure

@@ -65,8 +65,7 @@ the empty result it replaces.
 `0` — every agent started, returned, and returned something. `1` — at least one did not, and the
 result you are holding is not a clean bill. Never pipe it into anything before reading `$?`:
 `check | tail && commit` reports `tail`'s status, and that shape has landed commits over a red gate
-here twice (`CLAUDE.md` § *A gate is only a gate when its exit status is what the next command
-reads*).
+here twice (`docs/BUILDING.md` step 3: run the gate bare and read its own exit status).
 
 `--journal` and `--transcript-dir` exist for the unit tests, for the negative check that this
 gate can still fail, and for `tools/hooks/review_stop_hook.py`, the Stop hook that runs this gate
