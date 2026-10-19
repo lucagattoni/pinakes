@@ -434,16 +434,21 @@ def test_claude_worktrees_are_ignored_and_the_workflows_directory_is_not(tmp_pat
     """`.claude/worktrees/` sits inside the repository on disk; committing it, or ignoring the
     directory this file lives in, would each be silent.
 
-    Asked of the repository's own `.gitignore` in an empty repository, not of this checkout: Claude
-    Code writes `**/.claude/worktrees/` into `.git/info/exclude` on a machine that has run it, so
-    asking the checkout answers yes here whether or not the rule is committed - and a clone on
-    another machine has no such line."""
+    Asked of the repository's own `.gitignore` in an empty repository, not of this checkout, and
+    with the user's global excludes switched off: Claude Code writes `**/.claude/worktrees/` into
+    `.git/info/exclude` and `**/.claude/settings.local.json` into `~/.config/git/ignore` on a
+    machine that has run it, so asking the checkout - or an empty repository on the same machine -
+    answers yes whether or not the rule is committed, and a clone elsewhere has neither line. The
+    battery's last row caught the second of these: with the rule broken, this test still passed."""
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     shutil.copy(ROOT / ".gitignore", tmp_path / ".gitignore")
 
     def ignored(path: str) -> bool:
         done = subprocess.run(
-            ["git", "check-ignore", "-q", path], cwd=tmp_path, capture_output=True, check=False
+            ["git", "-c", "core.excludesFile=/dev/null", "check-ignore", "-q", path],
+            cwd=tmp_path,
+            capture_output=True,
+            check=False,
         )
         assert done.returncode in (0, 1), done.stderr
         return done.returncode == 0
