@@ -25,6 +25,7 @@ import calendar
 import hashlib
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -271,6 +272,13 @@ def test_a_run_the_hook_blocks_can_be_acknowledged_at_once(tmp_path: Path) -> No
     silent(hook(payload(tmp_path)))
 
 
+def test_the_acknowledgement_records_the_label_of_the_verdict(tmp_path: Path) -> None:
+    """A VACUOUS run's acknowledgement says VACUOUS, not the PARTIAL of the other case."""
+    run = write_run(tmp_path, "wf_none-222", started("k1", "d1"), started("k2", "d2"))
+    hook("", "--acknowledge", str(run), "--told", TOLD)
+    assert json.loads((run / "gate-acknowledged.json").read_text())["label"] == "VACUOUS"
+
+
 def test_an_empty_told_is_refused_and_writes_nothing(tmp_path: Path) -> None:
     """An acknowledgement that says nothing was said is not one."""
     run = three_agents_one_dead(tmp_path)
@@ -286,7 +294,13 @@ def test_the_placeholder_and_a_fragment_are_not_an_acknowledgement(tmp_path: Pat
     """The block message prints a placeholder in `--told`; pasting the command unchanged must not
     silence the hook, and neither may a word. Three words is a sentence, and is accepted."""
     run = three_agents_one_dead(tmp_path)
-    for told in ("<what you told the user>", "ok", "told user"):
+    for told in (
+        "<what you told the user>",
+        " <what you told the user> ",
+        "ok",
+        "told user",
+        "told  user",
+    ):
         done = hook("", "--acknowledge", str(run), "--told", told)
         assert done.returncode == 1, told
         assert "placeholder or too short" in done.stderr
@@ -513,6 +527,11 @@ def settings_command() -> str:
     return handlers[0]["command"]
 
 
+def settings_timeout() -> int:
+    body = json.loads(SETTINGS.read_text(encoding="utf-8"))
+    return int(body["hooks"]["Stop"][0]["hooks"][0]["timeout"])
+
+
 def checkout(path: Path, with_hook: bool) -> Path:
     """A throwaway git checkout, with or without the hook and the gate it runs."""
     path.mkdir(parents=True)
@@ -550,7 +569,7 @@ def test_the_command_runs_the_working_directorys_copy_not_the_project_dirs(
 ) -> None:
     """`${CLAUDE_PROJECT_DIR}` stays at the original checkout inside a worktree, so a command built
     on it would run that checkout's copy. This one follows the directory the session is in."""
-    worktree = checkout(tmp_path / "worktree", with_hook=True)
+    worktree = checkout(tmp_path / "work tree", with_hook=True)
     primary = checkout(tmp_path / "primary", with_hook=False)
     projects = tmp_path / "projects"
     three_agents_one_dead(projects)
@@ -561,7 +580,8 @@ def test_the_command_runs_the_working_directorys_copy_not_the_project_dirs(
 
 
 def test_a_checkout_without_the_hook_exits_zero_not_two(tmp_path: Path) -> None:
-    """`python3` on a missing script exits 2, and exit 2 on a Stop hook is a block."""
+    """`python3` on a missing script exits 2, and the hooks reference makes a Stop hook's exit 2 a
+    block unless its stderr says a file is missing - a special case this does not lean on."""
     bare = checkout(tmp_path / "bare", with_hook=False)
     projects = tmp_path / "projects"
     three_agents_one_dead(projects)
@@ -710,3 +730,148 @@ def test_an_internal_error_stays_loud_through_the_settings_command(tmp_path: Pat
     assert done.returncode == 1, done.stderr
     assert "review_stop_hook:" in done.stderr
     assert done.stdout == ""
+
+
+def test_the_gate_timeout_fits_inside_the_settings_timeout() -> None:
+    """A hook killed by Claude Code at its own timeout reports nothing; the gate must give up
+    first, and several runs must fit."""
+    found = re.search(r"^GATE_TIMEOUT: Final = (\d+)$", HOOK.read_text(), re.MULTILINE)
+    assert found is not None
+    declared = int(found.group(1))
+    assert 5 <= declared <= 30
+    assert 60 <= settings_timeout() <= 600
+    assert settings_timeout() >= 3 * declared
+
+
+def test_the_command_finds_python3_by_that_name(tmp_path: Path) -> None:
+    """A hook environment's PATH is not the suite's: the venv here has a `python` too. A command
+    that spells it `python` passes every test run from the venv and dies with 127 under a PATH that
+    has only `python3`."""
+    pybin = tmp_path / "pybin"
+    pybin.mkdir()
+    (pybin / "python3").symlink_to(sys.executable)
+    worktree = checkout(tmp_path / "worktree", with_hook=True)
+    projects = tmp_path / "projects"
+    three_agents_one_dead(projects)
+    done = run_command(
+        settings_command(), worktree, payload(projects), PATH=f"{pybin}:/usr/bin:/bin"
+    )
+    assert "PARTIAL" in blocked(done)
+
+
+def test_every_background_task_is_read_not_only_the_first_or_last(tmp_path: Path) -> None:
+    shell: dict[str, object] = {"id": "t0", "type": "shell", "status": "running"}
+    flow: dict[str, object] = {"id": "t1", "type": "workflow", "status": "running"}
+    three_agents_one_dead(tmp_path)
+    for tasks in ([shell, flow], [flow, shell], [shell, shell, flow, shell]):
+        silent(hook(payload(tmp_path, background_tasks=tasks)))
+
+
+def test_a_background_task_that_is_not_an_object_is_skipped_not_fatal(tmp_path: Path) -> None:
+    three_agents_one_dead(tmp_path)
+    shell: dict[str, object] = {"id": "t0", "type": "shell", "status": "running"}
+    assert blocked(hook(payload(tmp_path, background_tasks=["x", 7, None, shell])))
+
+
+def hostile_run(projects: Path) -> Path:
+    """A journal with every line a killed or buggy writer leaves, and every kind of label."""
+    lines = [
+        "not json at all",
+        "null",
+        "[]",
+        json.dumps(started("k1", "ok1", "lens:population")),
+        json.dumps(started("k2", "dead2", "lens:run\u2028time"), ensure_ascii=False),
+        json.dumps({**started("k3", "dead3"), "label": ""}),
+        json.dumps({**started("k4", "dead4"), "label": 5}),
+        json.dumps(started("k5", "dead5")),
+        json.dumps(returned("k1", "ok1")),
+    ]
+    directory = projects / "-some-project" / SESSION / "subagents" / "workflows" / "wf_hostile-1"
+    directory.mkdir(parents=True)
+    (directory / "journal.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    old = time.time() - 3600
+    os.utime(directory / "journal.jsonl", (old, old))
+    return directory
+
+
+def test_labels_survive_garbage_lines_and_a_raw_line_separator(tmp_path: Path) -> None:
+    """A label comes from a journal the gate has already tolerated; the hook must tolerate it too,
+    and must not label an agent with another agent's label, an empty one, or a number."""
+    hostile_run(tmp_path)
+    reason = blocked(hook(payload(tmp_path)))
+    assert "never returned: lens:run\u2028time (dead2," in reason
+    assert "never returned: no label (dead3," in reason
+    assert "never returned: no label (dead4," in reason
+    assert "never returned: no label (dead5," in reason
+
+
+def test_a_journal_cut_in_the_middle_of_a_character_still_blocks(tmp_path: Path) -> None:
+    """A writer killed mid-write leaves half a UTF-8 sequence at the end. The gate reads that with
+    replacement characters, so the hook must, or the very case it exists for exits 1 unblocked."""
+    run = three_agents_one_dead(tmp_path)
+    with (run / "journal.jsonl").open("ab") as handle:
+        handle.write(b'{"type":"started","key":"k9","agentId":"cut","label":"\xe2\x80')
+    old = time.time() - 3600
+    os.utime(run / "journal.jsonl", (old, old))
+    assert "dead3" in blocked(hook(payload(tmp_path)))
+
+
+def test_every_unacknowledged_run_is_named_not_only_the_first(tmp_path: Path) -> None:
+    three_agents_one_dead(tmp_path, "wf_first-001")
+    three_agents_one_dead(tmp_path, "wf_second-002")
+    reason = blocked(hook(payload(tmp_path)))
+    assert "wf_first-001:" in reason
+    assert "wf_second-002:" in reason
+
+
+def test_a_hung_gate_costs_one_run_not_the_hook(tmp_path: Path) -> None:
+    """The gate's timeout is a SubprocessError, not an OSError, and one run's hang must not hide a
+    dead neighbour or hold the turn end for the gate's whole timeout."""
+    sandbox = tmp_path / "copy" / "tools"
+    (sandbox / "hooks").mkdir(parents=True)
+    source = HOOK.read_text()
+    assert source.count("GATE_TIMEOUT: Final = 20") == 1
+    (sandbox / "hooks" / HOOK.name).write_text(
+        source.replace("GATE_TIMEOUT: Final = 20", "GATE_TIMEOUT: Final = 1")
+    )
+    (sandbox / "review_pass_gate.py").write_text(
+        "import runpy, sys, time\n"
+        "if any('wf_a_hang' in argument for argument in sys.argv):\n"
+        "    time.sleep(6)\n"
+        "    sys.exit(3)\n"
+        f"sys.argv[0] = {str(GATE)!r}\n"
+        f"runpy.run_path({str(GATE)!r}, run_name='__main__')\n"
+    )
+    projects = tmp_path / "projects"
+    write_run(projects, "wf_a_hang-001", started("k1", "a1"), returned("k1", "a1"))
+    three_agents_one_dead(projects, "wf_z_dead-002")
+    began = time.monotonic()
+    done = hook(payload(projects), tool=sandbox / "hooks" / HOOK.name)
+    elapsed = time.monotonic() - began
+    assert "wf_z_dead-002" in blocked(done)
+    assert "wf_a_hang-001" in done.stderr
+    assert elapsed < 5, elapsed
+
+
+def test_a_reason_names_a_bounded_number_of_agents(tmp_path: Path) -> None:
+    """A run that lost thousands must not write a hundred-kilobyte reason into the transcript."""
+    events: list[dict[str, object]] = [started(f"k{n}", f"dead{n}") for n in range(30)]
+    events += [started(f"e{n}", f"empty{n}") for n in range(25)]
+    events += [returned(f"e{n}", f"empty{n}", []) for n in range(25)]
+    write_run(tmp_path, "wf_many-001", *events)
+    reason = blocked(hook(payload(tmp_path)))
+    assert reason.count("  - never returned:") == 20
+    assert "... and 10 more that never returned" in reason
+    assert reason.count("  - returned nothing:") == 20
+    assert "... and 5 more that returned nothing" in reason
+
+
+def test_a_tilde_in_the_transcript_path_is_expanded(tmp_path: Path) -> None:
+    """The hooks reference prints `~/.claude/projects/...` in its example payload; a path read
+    literally is a relative one, finds no run, and passes."""
+    home = tmp_path / "home"
+    projects = home / ".claude" / "projects"
+    three_agents_one_dead(projects)
+    body = payload(projects)
+    body["transcript_path"] = f"~/.claude/projects/-some-project/{SESSION}.jsonl"
+    assert "PARTIAL" in blocked(hook(body, env={"HOME": str(home)}))

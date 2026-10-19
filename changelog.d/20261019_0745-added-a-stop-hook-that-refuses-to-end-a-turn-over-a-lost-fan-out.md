@@ -8,8 +8,8 @@
   acknowledges it (`--acknowledge <run> --told "<what the user was told>"`, a sentence and not the
   placeholder the message prints). That records what was said and the counts plus a digest of the
   journal, because a resume appends to the same journal in the same run directory, so a run that
-  is resumed and changes is judged again. A run the gate cannot judge is reported on stderr and
-  does not hide a dead run beside it. The message says in the same breath that this is the
+  is resumed and changes is judged again. A run on which the gate errors is reported on stderr and
+  does not hide a dead run beside it; a journal with no parseable agent line passes silently. The message says in the same breath that this is the
   journal's count and not the workflow's own `coverage`.
   Three things decide a run's fate that the gate alone cannot: nothing is judged while the payload's
   `background_tasks` lists a workflow in flight (a slow agent looks exactly like a dead one); with
@@ -20,8 +20,8 @@
   never a block — because `1` is also what a traceback exits with. It is a nudge and not a lock:
   Claude Code overrides a Stop hook after eight consecutive continuations. The command in
   `settings.json` follows the working directory's git top-level, since `${CLAUDE_PROJECT_DIR}` stays
-  at the original checkout inside a worktree, and exits `0` where the script is absent, since
-  `python3` on a missing script exits `2` and `2` blocks. The script is standard-library only and
+  at the original checkout inside a worktree, and exits `0` quietly where the script is absent, so
+  a checkout that predates the hook prints no error at every turn end. The script is standard-library only and
   runs on the Xcode `python3` 3.9. This is step 2 of *Framing, Not Roles* § 9. Tested over a
   synthetic session of the true layout, including a run under `/usr/bin/python3` and the settings
   command itself; `tools/batteries/tools-hooks-review_stop_hook.toml` holds 48 mutants. **The hook

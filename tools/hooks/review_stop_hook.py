@@ -53,12 +53,15 @@ would read "probably still running" and pass. When the list is absent the gate's
 `coverage` is not in the journal, so a run whose every agent returned passes here even when the
 review reported `PARTIAL` — the first live run did exactly that, over 24 probes it could not run.
 (2) The gate pairs agents by journal key: a key that returned and was later started again without
-returning still reads as returned, so a resumed pass that loses already-returned agents can pass
-(a gate limit, open; the hook re-judges the run after a resume but the gate may still say the same
-thing). (3) The command in `settings.json` runs the script from the working directory's git
-top-level, so a session that `cd`s into another checkout runs that checkout's copy at every Stop,
-with no prompt: the price of following a worktree, accepted because the alternative is the original
-checkout's stale copy.
+returning still reads as returned, so a resumed pass that loses already-returned agents can pass (a
+gate limit, open; the hook re-judges the run after a resume but the gate may still say the same
+thing). (3) A journal with no parseable agent line — the first `started` line cut by a kill, or
+nothing written — is a gate exit `2`, "cannot judge", and passes silently. (4) An acknowledgement
+covers the journal as it stood when it was given, not as the block message described it; no
+direction was found in which that lets a lost agent through. (5) The command in `settings.json`
+runs the script from the working directory's git top-level, so a session that `cd`s into another
+checkout runs that checkout's copy at every Stop, with no prompt: the price of following a
+worktree, accepted because the alternative is the original checkout's stale copy.
 
 **Written to run on whatever `python3` the hook's environment finds.** On this machine that has been
 the Xcode 3.9, and a hook that does not even start is a silent non-blocking error — the failure this
@@ -69,7 +72,10 @@ runs it under `/usr/bin/python3` where there is one.
 **The command in `.claude/settings.json` finds this file from the working directory's git
 top-level, not from `${CLAUDE_PROJECT_DIR}`**, which stays at the original checkout inside a
 worktree and would run that checkout's copy — a stale one, or none. A checkout without the file
-exits `0`; `python3` on a missing script exits `2`, which for a Stop hook is a block.
+exits `0` quietly. (`python3` on a missing script exits `2`; the hooks reference treats a Stop
+hook's exit 2 whose stderr says a file is missing as a non-blocking error, but that is a special
+case, and without the guard every checkout that predates the hook would print an error at every
+turn end.)
 
     python3 tools/hooks/review_stop_hook.py                # hook mode: the payload is on stdin
     python3 tools/hooks/review_stop_hook.py --acknowledge RUN_DIR --told "what the user was told"
@@ -102,6 +108,9 @@ PLACEHOLDER: Final = "<what you told the user>"
 """What the block message prints in `--told`. Pasting it unchanged is not an acknowledgement."""
 
 MIN_TOLD_WORDS: Final = 3
+
+MAX_LISTED: Final = 20
+"""Agents named per list in one message; a run that lost thousands must not fill the transcript."""
 
 
 class HookError(Exception):
@@ -278,7 +287,7 @@ def session_runs(payload: dict[str, object]) -> list[Path]:
     transcript = payload.get("transcript_path")
     if not isinstance(transcript, str) or not transcript:
         return []
-    root = Path(transcript).with_suffix("") / "subagents" / "workflows"
+    root = Path(transcript).expanduser().with_suffix("") / "subagents" / "workflows"
     if not root.is_dir():
         return []
     return sorted(journal.parent for journal in root.glob("wf_*/journal.jsonl"))
@@ -342,11 +351,18 @@ def message(verdicts: list[Verdict], again: bool) -> str:
         )
         lines.extend(
             f"  - never returned: {verdict.named(agent)} ({agent}, last tool: {tool})"
-            for agent, tool in verdict.dead
+            for agent, tool in verdict.dead[:MAX_LISTED]
         )
+        if len(verdict.dead) > MAX_LISTED:
+            lines.append(f"  - ... and {len(verdict.dead) - MAX_LISTED} more that never returned")
         lines.extend(
-            f"  - returned nothing: {verdict.named(agent)} ({agent})" for agent in verdict.empty
+            f"  - returned nothing: {verdict.named(agent)} ({agent})"
+            for agent in verdict.empty[:MAX_LISTED]
         )
+        if len(verdict.empty) > MAX_LISTED:
+            lines.append(
+                f"  - ... and {len(verdict.empty) - MAX_LISTED} more that returned nothing"
+            )
         lines.append(
             "  This is the journal's count of agents, not the review's own `coverage`: read the "
             "result's `coverage`, `lenses.died_why` and `not_run` as well. Resuming "
