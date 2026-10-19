@@ -231,8 +231,8 @@ matching, because an empty sequence is sorted by definition.
 
 **Last, ask what is *missing* rather than what is wrong** — `ls plans/` read against
 [`docs/README.md`](https://github.com/lucagattoni/pinakes/blob/main/docs/README.md)'s plan-routing
-table, and its live rows against `CLAUDE.md`'s. On 20260811 that table had **no row at all** for the
-plan `CLAUDE.md` named as the live build order: the plan was written, its six increments were built
+table, and its live rows against the plans `CLAUDE.md` names under *What is live right now*. On
+20260811 that table had **no row at all** for the plan `CLAUDE.md` named as the live build order: the plan was written, its six increments were built
 and landed, and the index of plans never learned it existed. **A missing row has no wrong text to
 find**, so no diff review and no grep can reach it — only the question does.
 

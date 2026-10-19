@@ -80,6 +80,16 @@ Two rules about reading a plan, each learned more than once:
   (T7's containment rule named one of its two real layers). But a named test can also be a
   prediction that cannot discriminate — T4's conflicting-hunk test asserted an observable both
   implementations produce — so re-derive the scenario before writing it.
+- **A status claim is never gated — not a `##` heading, not a table cell — so read the body.** An
+  item's closure can sit in its body: `grep '^## '` on `plans/20260731_1202-open-corrections.md`
+  returns *Live* and stops, which put two freshly-cleared coder sessions within one message of
+  rebuilding a landed increment (20260824, and again 20260825); both times a peer caught it and no
+  gate did. **Where a dated snapshot and a `## Build order` disagree, the build order wins.** An
+  item that reads as a decision may only be an unchecked assumption, and one that reads as live may
+  already be closed; an empty-looking list means *the next thing has not been planned yet*, never
+  *nothing to do*. *(Moved here from `CLAUDE.md`'s status block at A3, 20261019; the same drift
+  one level in — two registers of one set of facts — is in
+  [RETROSPECTIVES.md](RETROSPECTIVES.md), "twelve of its 27 rows".)*
 
 ## One increment at a time
 

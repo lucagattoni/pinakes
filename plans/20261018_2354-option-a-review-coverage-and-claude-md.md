@@ -34,8 +34,8 @@ fan-outs before step 4, no agent teams for the planner→coder flow.
 |---|---|---|---|---|
 | **A0** | Record the decision: this file, a routing row, one line in the pause bullet. | `plans/` (this), `docs/README.md`, `CLAUDE.md` (one line, diff shown first) | planner | ✅ landed `668f92f`, 20261018; CI green |
 | **A1** | **Steps 1 and 3**: one committed review workflow. Contract in § 3. | `.claude/workflows/`, `.gitignore`, tests | builder | ✅ **landed `bba0746`, 20261019; CI green on all 16 jobs, `docs` and `injection-audit` too.** Reviewed in three passes (two adversarial, one cold read for the first live run), with fixes after each. **The real fan-out ran 20261019, on A2's diff** (D3; outcomes in § 6.1) |
-| **A2** | **Step 2**: a Stop hook that runs `tools/review_pass_gate.py` on the workflow runs of the session that is ending. Contract in § 4. | `tools/hooks/`, `.claude/settings.json` (diff shown first), tests | builder | ✅ **built 20261019 in branch `20261019_0732-a2-stop-hook`**; its merge commit is the one `git log --first-parent --grep a2-stop-hook main` finds. The user approved the exact `settings.json`. The D3 smoke run reviewed it and confirmed 15 findings, all fixed or recorded in § 8. **The hook has not fired live**: the session that created `settings.json` did not pick it up |
-| **A3** | **Row 22**: regenerate `CLAUDE.md`. Method in § 5. | `CLAUDE.md`, and the docs that receive moved text | planner | not started — diff shown first |
+| **A2** | **Step 2**: a Stop hook that runs `tools/review_pass_gate.py` on the workflow runs of the session that is ending. Contract in § 4. | `tools/hooks/`, `.claude/settings.json` (diff shown first), tests | builder | ✅ **built 20261019 in branch `20261019_0732-a2-stop-hook`**; its merge commit is the one `git log --first-parent --grep a2-stop-hook main` finds. The user approved the exact `settings.json`. The D3 smoke run reviewed it and confirmed 15 findings, all fixed or recorded in § 8. **The hook fired live once, 20261019 09:24 UTC** (the A2 session's report; § 8 open item 1 says what was and was not observed) |
+| **A3** | **Row 22**: regenerate `CLAUDE.md`. Method in § 5; outcome in § 5.1. | `CLAUDE.md`, and the docs that receive moved text | planner | ✅ **built 20261019 in branch `20261019_0913-a3-claude-md`**; its merge commit is the one `git log --first-parent --grep a3-claude-md main` finds. The map and the diff were put to the user, and it landed only on their yes (§ 5.1) |
 | **A4** | Cut the release that carries A. | `CHANGELOG.md`, version | planner | not started |
 
 **Order, and why `CLAUDE.md` is last:** A3 describes a finished state; written first it would
@@ -209,8 +209,8 @@ one A2 falsifies: `CLAUDE.md`'s pointer and the routing row name this plan and n
 and `STATUS.md` tracks product surface, which developer tooling does not add. `docs/BUILDING.md`
 step 5 now describes the hook.
 
-**State.** A0, A1 and A2 are built; **A3 (regenerating `CLAUDE.md`) and A4 (the release) are not
-started.** Verify what is on `main` with `git ls-remote origin refs/heads/main` and `git log
+**State.** A0, A1 and A2 were built; **A3 (regenerating `CLAUDE.md`) has since landed (§ 5.1) and A4
+(the release) is not started (§ 10).** Verify what is on `main` with `git ls-remote origin refs/heads/main` and `git log
 --first-parent --grep a2-stop-hook main`, not from here. Fragments wait in `changelog.d/` (`ls`
 counts them; none is user-visible, there is no release until A4). Development is paused except
 for this plan.
@@ -242,15 +242,13 @@ for this plan.
 
 **Open, in the order they matter.** None blocks A3.
 
-1. **The hook has not fired live.** The session that created `.claude/settings.json` did not pick it
-   up (measured 20261019 08:26 UTC): a dead run planted in that session's directory, with only a shell task in the registry, did
-   not block its turn end, while the hook blocks on the same input fed by hand. The hooks reference
-   says direct edits to settings files are picked up by a file watcher, so the likely cause is that
-   the file did not exist at startup; that was not tested. **The first real firing is the first turn
-   end of a session started after this lands, and nobody has seen the real Stop payload.** Whoever
-   starts that session should plant a dead run once (`wf_livetest` with two `started` and one
-   `result`, an old mtime) and see it block, then remove it. Workspace trust for a committed hook
-   is also not established.
+1. **The hook fired live once, on a planted run.** *Reported by the A2 session, which started a
+   fresh session for it; A3 did not observe it.* Observed live 20261019 09:24 UTC from a worktree
+   session at `f1804ea`: a planted dead run blocked the turn end and, once acknowledged, the next
+   turn end was silent. Earlier (20261019 08:26 UTC) the session that *created* `.claude/settings.json`
+   did not pick the hook up, probably because the file did not exist at startup; that was not
+   tested. **Not observed:** the real Stop payload, a block while a workflow is in
+   `background_tasks`, the 8-block cap, and workspace trust for a committed hook.
 2. **The hook counts agents, not coverage.** `coverage: PARTIAL` is not in the journal; the run in
    § 6.1 was `PARTIAL` and passed the hook. Putting it in reach needs the workflow to write its
    result somewhere the hook can read; it is a new increment, not a fix.
@@ -261,7 +259,9 @@ for this plan.
 4. **The command in `settings.json` follows the working directory's git top-level**, so a session
    that `cd`s into another checkout runs that checkout's copy at every Stop, with no prompt. The
    alternative, `${CLAUDE_PROJECT_DIR}`, always runs the original checkout's copy, which defeats a
-   worktree. Accepted, and written in the hook's docstring.
+   worktree. Accepted, and written in the hook's docstring. **In the live check (item 1) the hook ran
+   the primary checkout's copy, not the worktree's**: following the git top-level did not follow the
+   worktree there. A throwaway hook that prints `pwd` would settle why. *(The A2 session's report.)*
 5. **Journals the gate cannot read pass silently.** One with no parseable agent line — the first
    `started` line cut by a kill, or nothing written — is a gate exit `2`, and the hook treats `2` as
    "cannot judge yet". A run whose only agent line was lost is invisible. Not fixed: telling it from
