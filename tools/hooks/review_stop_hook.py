@@ -24,9 +24,12 @@ that came back unusable, a finding over the cap and a guess. A run can pass this
 when the workflow's return value never arrived.
 
 **Acknowledging.** The block message prints the command. It writes `gate-acknowledged.json` into the
-run's own directory, carrying what the session told the user (`--told`, never empty) and the verdict
-it covers — `launched`, `returned`, `empty`. A run that is resumed and changes shape is a different
-verdict and blocks again; a run that is acknowledged and then loses another agent does too.
+run's own directory, carrying what the session told the user (`--told`: a sentence of at least three
+words, and not the placeholder the message prints) and the verdict it covers: `launched`,
+`returned`, `empty` and a digest of the journal. The digest is what makes "covers only the verdict
+it was given for" true: a resume appends to the same journal in the same run directory (seen in
+real journals, and the reason a counts-only fingerprint would not do), so any later line is a
+different verdict that is judged again.
 
 **Never in `check.sh` or CI.** There is no journal there, and a gate over no journal passes
 vacuously. It reads `transcript_path` from the hook payload, so it only ever looks at the session
@@ -46,6 +49,17 @@ run is judged with `--assume-finished`, because a run that is not in flight and 
 agents has none that will return; without that, a fan-out killed seconds before the turn ended
 would read "probably still running" and pass. When the list is absent the gate's own window decides.
 
+**What it cannot see, stated so nobody reads silence as a clean review.** (1) The workflow's own
+`coverage` is not in the journal, so a run whose every agent returned passes here even when the
+review reported `PARTIAL` — the first live run did exactly that, over 24 probes it could not run.
+(2) The gate pairs agents by journal key: a key that returned and was later started again without
+returning still reads as returned, so a resumed pass that loses already-returned agents can pass
+(a gate limit, open; the hook re-judges the run after a resume but the gate may still say the same
+thing). (3) The command in `settings.json` runs the script from the working directory's git
+top-level, so a session that `cd`s into another checkout runs that checkout's copy at every Stop,
+with no prompt: the price of following a worktree, accepted because the alternative is the original
+checkout's stale copy.
+
 **Written to run on whatever `python3` the hook's environment finds.** On this machine that has been
 the Xcode 3.9, and a hook that does not even start is a silent non-blocking error — the failure this
 file exists to remove. So: standard library only, `from __future__ import annotations`, no
@@ -64,6 +78,7 @@ exits `0`; `python3` on a missing script exits `2`, which for a Stop hook is a b
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shlex
 import subprocess
@@ -83,6 +98,11 @@ ACK: Final = "gate-acknowledged.json"
 GATE_TIMEOUT: Final = 20
 """Seconds a single gate run may take. A journal is read once; this is generous."""
 
+PLACEHOLDER: Final = "<what you told the user>"
+"""What the block message prints in `--told`. Pasting it unchanged is not an acknowledgement."""
+
+MIN_TOLD_WORDS: Final = 3
+
 
 class HookError(Exception):
     """Something the hook could not do. Reported on stderr with exit `1`; never a block."""
@@ -100,6 +120,10 @@ class Verdict:
     """`(agent id, last tool)` for every agent that started and never returned."""
     empty: tuple[str, ...]
     """Ids of agents that returned, with nothing in the result."""
+    digest: str
+    """SHA-256 of the journal as the gate read it: any later line changes it."""
+    labels: dict[str, str]
+    """Agent id to the label its `started` event carried (`lens:runtime`), where it had one."""
 
     @property
     def usable(self) -> int:
@@ -110,9 +134,17 @@ class Verdict:
         """`VACUOUS` when nobody returned anything, `PARTIAL` when some did."""
         return "VACUOUS" if self.usable <= 0 else "PARTIAL"
 
-    def covered_by(self) -> dict[str, int]:
-        """What an acknowledgement records: the shape of the run it was given for."""
-        return {"launched": self.launched, "returned": self.returned, "empty": len(self.empty)}
+    def named(self, agent_id: str) -> str:
+        return self.labels.get(agent_id) or "no label"
+
+    def covered_by(self) -> dict[str, object]:
+        """What an acknowledgement records: the run it was given for, down to its last line."""
+        return {
+            "launched": self.launched,
+            "returned": self.returned,
+            "empty": len(self.empty),
+            "digest": self.digest,
+        }
 
 
 @dataclass(frozen=True)
@@ -144,6 +176,27 @@ def _int(value: object, what: str) -> int:
 
 def _text(value: object) -> str:
     return value if isinstance(value, str) else ""
+
+
+def journal_labels(journal: Path) -> dict[str, str]:
+    """Agent id to label, from the journal's `started` events; empty where it carries none.
+
+    Split on a newline only (`str.splitlines` also splits on U+2028, which JSON allows raw inside a
+    string). A line that does not parse is skipped: the gate has already said what it thinks of it.
+    """
+    labels: dict[str, str] = {}
+    for line in journal.read_text(encoding="utf-8", errors="replace").split("\n"):
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        body = cast(dict[str, object], event)
+        agent, label = body.get("agentId"), body.get("label")
+        if body.get("type") == "started" and isinstance(agent, str) and isinstance(label, str):
+            labels.setdefault(agent, label)
+    return labels
 
 
 def judge(directory: Path, assume_finished: bool) -> Judged:
@@ -182,8 +235,10 @@ def judge(directory: Path, assume_finished: bool) -> Judged:
             returned=_int(body.get("returned"), "returned"),
             dead=dead,
             empty=empty,
+            digest=hashlib.sha256((directory / "journal.jsonl").read_bytes()).hexdigest(),
+            labels=journal_labels(directory / "journal.jsonl"),
         )
-    except (ValueError, HookError) as error:
+    except (OSError, ValueError, HookError) as error:
         raise HookError(
             f"the gate exited 1 on {directory.name} without a verdict ({error}): {_tail(done)}"
         ) from error
@@ -232,8 +287,9 @@ def session_runs(payload: dict[str, object]) -> list[Path]:
 def workflow_in_flight(payload: dict[str, object]) -> bool | None:
     """Whether a workflow is running now: `True`, `False`, or `None` when the payload cannot say.
 
-    `background_tasks` is "present when the task registry is reachable and empty when nothing is in
-    flight". Absent is not empty, and treating it as empty would call every live run dead.
+    The hooks reference says both arrays "are present when the task registry is reachable and are
+    empty when nothing is in flight or scheduled". Absent is not empty, and treating it as empty
+    would call every live run dead.
     """
     tasks = payload.get("background_tasks")
     if not isinstance(tasks, list):
@@ -244,17 +300,27 @@ def workflow_in_flight(payload: dict[str, object]) -> bool | None:
     )
 
 
-def unacknowledged(payload: dict[str, object]) -> list[Verdict]:
-    """Every run of this session that did not finish cleanly and has not been acknowledged."""
+def unacknowledged(payload: dict[str, object]) -> tuple[list[Verdict], list[str]]:
+    """Every run of this session that did not finish cleanly and has not been acknowledged, and the
+    runs that could not be judged at all.
+
+    One run the gate chokes on must not hide a dead run beside it, so a failure is collected per
+    run and the others are still judged.
+    """
     in_flight = workflow_in_flight(payload)
     if in_flight:
-        return []
+        return [], []
     found: list[Verdict] = []
+    errors: list[str] = []
     for directory in session_runs(payload):
-        judged = judge(directory, assume_finished=in_flight is False)
+        try:
+            judged = judge(directory, assume_finished=in_flight is False)
+        except HookError as error:
+            errors.append(str(error))
+            continue
         if judged.verdict is not None and not acknowledged(judged.verdict):
             found.append(judged.verdict)
-    return found
+    return found, errors
 
 
 def message(verdicts: list[Verdict], again: bool) -> str:
@@ -268,22 +334,28 @@ def message(verdicts: list[Verdict], again: bool) -> str:
     if again:
         lines.append("(This hook already stopped this turn once; it stops again until it is done.)")
     for verdict in verdicts:
+        plural = "" if verdict.launched == 1 else "s"
         lines.append(
-            f"\n{verdict.run}: {verdict.label} - {verdict.launched} agents launched, "
-            f"{verdict.returned} returned, {len(verdict.dead)} died, {len(verdict.empty)} returned "
-            "nothing."
+            f"\n{verdict.run}: {verdict.label} - {verdict.launched} agent{plural} launched: "
+            f"{verdict.usable} returned something, {len(verdict.empty)} returned nothing, "
+            f"{len(verdict.dead)} never returned."
         )
-        lines.extend(f"  - died: {agent} (last tool: {tool})" for agent, tool in verdict.dead)
-        lines.extend(f"  - returned nothing: {agent}" for agent in verdict.empty)
+        lines.extend(
+            f"  - never returned: {verdict.named(agent)} ({agent}, last tool: {tool})"
+            for agent, tool in verdict.dead
+        )
+        lines.extend(
+            f"  - returned nothing: {verdict.named(agent)} ({agent})" for agent in verdict.empty
+        )
         lines.append(
             "  This is the journal's count of agents, not the review's own `coverage`: read the "
             "result's `coverage`, `lenses.died_why` and `not_run` as well. Resuming "
-            "(`resumeFromRunId`) retries an agent that died; one that returned nothing is replayed "
-            "as it was and must be re-run."
+            "(`resumeFromRunId`) may retry an agent that never returned; one that returned nothing "
+            "is replayed as it was and must be re-run."
         )
         lines.append(
             f"  Then acknowledge it: {python} {script} --acknowledge "
-            f"{shlex.quote(str(verdict.directory))} --told '<what you told the user>'"
+            f"{shlex.quote(str(verdict.directory))} --told {shlex.quote(PLACEHOLDER)}"
         )
     lines.append(
         "\nTell the user in your reply which agents died or came back empty and that the review "
@@ -298,11 +370,14 @@ def run_hook(stdin: str) -> int:
         payload = _object(json.loads(stdin))
     except (ValueError, HookError) as error:
         raise HookError(f"the Stop payload is not a JSON object: {error}") from error
-    verdicts = unacknowledged(payload)
+    verdicts, errors = unacknowledged(payload)
+    for error in errors:
+        print(f"review_stop_hook: {error}", file=sys.stderr)
     if verdicts:
         again = payload.get("stop_hook_active") is True
         print(json.dumps({"decision": "block", "reason": message(verdicts, again)}))
-    return 0
+        return 0
+    return 1 if errors else 0
 
 
 def acknowledge(directory: Path, told: str) -> int:
@@ -314,6 +389,13 @@ def acknowledge(directory: Path, told: str) -> int:
     """
     if not told.strip():
         print("--told is empty: say what the user was told, in a sentence.", file=sys.stderr)
+        return 1
+    if told.strip() == PLACEHOLDER or len(told.split()) < MIN_TOLD_WORDS:
+        print(
+            f"--told must say what the user was told, in a sentence of at least {MIN_TOLD_WORDS} "
+            f"words; {told.strip()!r} is the placeholder or too short to be one.",
+            file=sys.stderr,
+        )
         return 1
     if not (directory / "journal.jsonl").is_file():
         print(f"{directory} is not a workflow run: no journal.jsonl in it.", file=sys.stderr)

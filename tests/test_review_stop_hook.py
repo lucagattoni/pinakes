@@ -21,8 +21,11 @@ says otherwise, because the gate treats a run written to in the last 180 seconds
 """
 
 import ast
+import calendar
+import hashlib
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -39,8 +42,21 @@ SETTINGS = ROOT / ".claude" / "settings.json"
 SESSION = "7b1c2d3e-0000-4000-8000-aaaaaaaaaaaa"
 
 
-def started(key: str, agent_id: str) -> dict[str, object]:
-    return {"type": "started", "key": key, "agentId": agent_id}
+TOLD = "told the user which agents never returned"
+"""An acknowledgement the hook accepts: a sentence, not the placeholder."""
+
+
+def started(key: str, agent_id: str, label: str | None = None) -> dict[str, object]:
+    event: dict[str, object] = {"type": "started", "key": key, "agentId": agent_id}
+    if label is not None:
+        event["label"] = label
+    return event
+
+
+def shape(run: Path, launched: int, returned: int, empty: int) -> dict[str, object]:
+    """What an acknowledgement of `run` as it stands records: counts, and the journal's digest."""
+    digest = hashlib.sha256((run / "journal.jsonl").read_bytes()).hexdigest()
+    return {"launched": launched, "returned": returned, "empty": empty, "digest": digest}
 
 
 def returned(key: str, agent_id: str, payload: object = "found a defect") -> dict[str, object]:
@@ -77,11 +93,20 @@ def payload(projects: Path, **extra: object) -> dict[str, object]:
 
 
 def hook(
-    stdin: object, *args: str, python: str = sys.executable, tool: Path = HOOK
+    stdin: object,
+    *args: str,
+    python: str = sys.executable,
+    tool: Path = HOOK,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     text = stdin if isinstance(stdin, str) else json.dumps(stdin)
     return subprocess.run(
-        [python, str(tool), *args], input=text, capture_output=True, text=True, check=False
+        [python, str(tool), *args],
+        input=text,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=None if env is None else {**os.environ, **env},
     )
 
 
@@ -141,7 +166,7 @@ def test_a_run_that_lost_an_agent_blocks_and_names_it(tmp_path: Path) -> None:
     assert "wf_aaaa-111" in reason
     assert "PARTIAL" in reason
     assert "dead3" in reason
-    assert "3 agents launched, 2 returned, 1 died" in reason
+    assert "3 agents launched: 2 returned something, 0 returned nothing, 1 never returned" in reason
 
 
 def test_a_run_where_nobody_returned_is_vacuous(tmp_path: Path) -> None:
@@ -164,7 +189,7 @@ def test_an_agent_that_returned_nothing_counts_as_a_failure(tmp_path: Path) -> N
     )
     reason = blocked(hook(payload(tmp_path)))
     assert "PARTIAL" in reason
-    assert "returned nothing: e2" in reason
+    assert "returned nothing: no label (e2)" in reason
 
 
 def test_a_run_whose_every_agent_returned_nothing_is_vacuous(tmp_path: Path) -> None:
@@ -175,7 +200,9 @@ def test_a_run_whose_every_agent_returned_nothing_is_vacuous(tmp_path: Path) -> 
         started("k1", "e1"),
         returned("k1", "e1", ""),
     )
-    assert "VACUOUS" in blocked(hook(payload(tmp_path)))
+    reason = blocked(hook(payload(tmp_path)))
+    assert "VACUOUS" in reason
+    assert "1 agent launched: 0 returned something, 1 returned nothing" in reason
 
 
 def test_the_reason_says_this_is_not_the_workflows_coverage(tmp_path: Path) -> None:
@@ -206,10 +233,10 @@ def test_acknowledging_stops_the_block(tmp_path: Path) -> None:
 
 def test_the_acknowledgement_records_what_was_told_and_the_verdict(tmp_path: Path) -> None:
     run = three_agents_one_dead(tmp_path)
-    hook("", "--acknowledge", str(run), "--told", "  one lens died  ")
+    hook("", "--acknowledge", str(run), "--told", "  told the user one lens died  ")
     record = json.loads((run / "gate-acknowledged.json").read_text())
-    assert record["told"] == "one lens died"
-    assert record["verdict"] == {"launched": 3, "returned": 2, "empty": 0}
+    assert record["told"] == "told the user one lens died"
+    assert record["verdict"] == shape(run, 3, 2, 0)
     assert record["run"] == "wf_aaaa-111"
     assert record["label"] == "PARTIAL"
 
@@ -227,9 +254,9 @@ def test_the_acknowledgement_counts_an_empty_result_in_the_shape_it_covers(
         returned("k1", "a1"),
         returned("k2", "e2", []),
     )
-    hook("", "--acknowledge", str(run), "--told", "one died, one was empty")
+    hook("", "--acknowledge", str(run), "--told", "one died, one was empty, told the user")
     record = json.loads((run / "gate-acknowledged.json").read_text())
-    assert record["verdict"] == {"launched": 3, "returned": 2, "empty": 1}
+    assert record["verdict"] == shape(run, 3, 2, 1)
     silent(hook(payload(tmp_path)))
 
 
@@ -239,7 +266,7 @@ def test_a_run_the_hook_blocks_can_be_acknowledged_at_once(tmp_path: Path) -> No
     too, or the session is stuck for eight rounds."""
     run = write_run(tmp_path, "wf_fresh-555", started("k1", "d1"), live=True)
     assert blocked(hook(payload(tmp_path)))
-    done = hook("", "--acknowledge", str(run), "--told", "the review died, told the user")
+    done = hook("", "--acknowledge", str(run), "--told", TOLD)
     assert done.returncode == 0, done.stderr
     silent(hook(payload(tmp_path)))
 
@@ -255,10 +282,38 @@ def test_an_empty_told_is_refused_and_writes_nothing(tmp_path: Path) -> None:
     assert blocked(hook(payload(tmp_path)))
 
 
+def test_the_placeholder_and_a_fragment_are_not_an_acknowledgement(tmp_path: Path) -> None:
+    """The block message prints a placeholder in `--told`; pasting the command unchanged must not
+    silence the hook, and neither may a word. Three words is a sentence, and is accepted."""
+    run = three_agents_one_dead(tmp_path)
+    for told in ("<what you told the user>", "ok", "told user"):
+        done = hook("", "--acknowledge", str(run), "--told", told)
+        assert done.returncode == 1, told
+        assert "placeholder or too short" in done.stderr
+        assert not (run / "gate-acknowledged.json").exists(), told
+    assert blocked(hook(payload(tmp_path)))
+    done = hook("", "--acknowledge", str(run), "--told", "told the user")
+    assert done.returncode == 0, done.stderr
+    silent(hook(payload(tmp_path)))
+
+
+def test_the_pasted_command_from_the_reason_is_refused(tmp_path: Path) -> None:
+    """End to end: take the command out of the block message and run it as printed."""
+    three_agents_one_dead(tmp_path)
+    reason = blocked(hook(payload(tmp_path)))
+    line = next(x for x in reason.splitlines() if x.startswith("  Then acknowledge it: "))
+    done = subprocess.run(
+        shlex.split(line.split(": ", 1)[1]), capture_output=True, text=True, check=False
+    )
+    assert done.returncode == 1
+    assert "placeholder or too short" in done.stderr
+    assert blocked(hook(payload(tmp_path)))
+
+
 def test_an_acknowledgement_does_not_cover_a_run_that_changes_shape(tmp_path: Path) -> None:
     """A resumed run is a different verdict: telling the user about yesterday's is not today's."""
     run = three_agents_one_dead(tmp_path)
-    hook("", "--acknowledge", str(run), "--told", "one died")
+    hook("", "--acknowledge", str(run), "--told", TOLD)
     silent(hook(payload(tmp_path)))
     with (run / "journal.jsonl").open("a") as handle:
         handle.write(json.dumps(started("k4", "dead4")) + "\n")
@@ -271,7 +326,7 @@ def test_an_acknowledgement_does_not_cover_a_run_that_changes_shape(tmp_path: Pa
 def test_an_acknowledgement_for_one_run_does_not_cover_another(tmp_path: Path) -> None:
     first = three_agents_one_dead(tmp_path, "wf_first-001")
     three_agents_one_dead(tmp_path, "wf_second-002")
-    hook("", "--acknowledge", str(first), "--told", "told")
+    hook("", "--acknowledge", str(first), "--told", TOLD)
     reason = blocked(hook(payload(tmp_path)))
     assert "wf_second-002" in reason
     assert "wf_first-001:" not in reason
@@ -281,13 +336,17 @@ def test_a_malformed_acknowledgement_does_not_silence_the_hook(tmp_path: Path) -
     """Truncated, a list, no `told`, or a different verdict: none of them is an acknowledgement."""
     run = three_agents_one_dead(tmp_path)
     ack = run / "gate-acknowledged.json"
-    good_verdict = {"launched": 3, "returned": 2, "empty": 0}
+    good_verdict = shape(run, 3, 2, 0)
     for text in (
         "{",
         "[]",
         json.dumps({"verdict": good_verdict}),
         json.dumps({"verdict": good_verdict, "told": "  "}),
-        json.dumps({"verdict": {"launched": 3, "returned": 3, "empty": 0}, "told": "x"}),
+        json.dumps({"verdict": {**good_verdict, "returned": 3}, "told": "x"}),
+        json.dumps({"verdict": {**good_verdict, "digest": "0" * 64}, "told": "x"}),
+        json.dumps(
+            {"verdict": {k: v for k, v in good_verdict.items() if k != "digest"}, "told": "x"}
+        ),
     ):
         ack.write_text(text)
         assert blocked(hook(payload(tmp_path))), text
@@ -297,14 +356,14 @@ def test_a_malformed_acknowledgement_does_not_silence_the_hook(tmp_path: Path) -
 
 def test_acknowledging_a_clean_run_writes_nothing(tmp_path: Path) -> None:
     run = write_run(tmp_path, "wf_good-000", started("k1", "a1"), returned("k1", "a1"))
-    done = hook("", "--acknowledge", str(run), "--told", "all fine")
+    done = hook("", "--acknowledge", str(run), "--told", TOLD)
     assert done.returncode == 0, done.stderr
     assert "nothing to acknowledge" in done.stdout
     assert not (run / "gate-acknowledged.json").exists()
 
 
 def test_acknowledging_something_that_is_not_a_run_is_refused(tmp_path: Path) -> None:
-    done = hook("", "--acknowledge", str(tmp_path), "--told", "x")
+    done = hook("", "--acknowledge", str(tmp_path), "--told", TOLD)
     assert done.returncode == 1
     assert "not a workflow run" in done.stderr
 
@@ -385,8 +444,18 @@ def test_a_bad_payload_fails_loudly_and_does_not_block(tmp_path: Path) -> None:
         "import sys\nprint('not json')\nsys.exit(1)\n",
         "raise RuntimeError('boom')\n",
         "import sys\nsys.exit(3)\n",
+        "import sys\n"
+        'print(\'{"launched": true, "returned": true, "dead": [], "empty": ["e1"]}\')\n'
+        "sys.exit(1)\n",
     ],
-    ids=["exit1-silent", "exit1-empty-object", "exit1-not-json", "traceback", "exit3"],
+    ids=[
+        "exit1-silent",
+        "exit1-empty-object",
+        "exit1-not-json",
+        "traceback",
+        "exit3",
+        "bool-counts",
+    ],
 )
 def test_a_gate_that_crashes_is_not_a_failed_review(tmp_path: Path, gate_source: str) -> None:
     """`1` is what an uncaught traceback exits with too. Without a verdict it is a crash: visible
@@ -420,7 +489,7 @@ def test_it_runs_under_the_system_python3(tmp_path: Path) -> None:
     run = three_agents_one_dead(tmp_path)
     reason = blocked(hook(payload(tmp_path), python="/usr/bin/python3"))
     assert "PARTIAL" in reason
-    done = hook("", "--acknowledge", str(run), "--told", "told", python="/usr/bin/python3")
+    done = hook("", "--acknowledge", str(run), "--told", TOLD, python="/usr/bin/python3")
     assert done.returncode == 0, done.stderr
     silent(hook(payload(tmp_path), python="/usr/bin/python3"))
 
@@ -509,3 +578,134 @@ def test_the_settings_file_is_valid_and_is_the_only_hook_it_declares() -> None:
     body = json.loads(SETTINGS.read_text(encoding="utf-8"))
     assert set(body) == {"hooks"}
     assert set(body["hooks"]) == {"Stop"}
+
+
+def test_a_resume_that_relaunches_an_agent_is_judged_again(tmp_path: Path) -> None:
+    """A resume appends to the same journal in the same run directory. Starting an agent again
+    leaves the counts (keyed) where they were, so the acknowledgement must cover the journal and
+    not only the counts, or one acknowledgement hides every later pass."""
+    run = three_agents_one_dead(tmp_path)
+    hook("", "--acknowledge", str(run), "--told", TOLD)
+    silent(hook(payload(tmp_path)))
+    with (run / "journal.jsonl").open("a") as handle:
+        handle.write(json.dumps(started("k1", "relaunch1")) + "\n")
+    old = time.time() - 3600
+    os.utime(run / "journal.jsonl", (old, old))
+    reason = blocked(hook(payload(tmp_path)))
+    assert "3 agents launched: 2 returned something" in reason
+
+
+def test_the_block_names_agents_by_the_label_the_journal_gave_them(tmp_path: Path) -> None:
+    """A hex id cannot be told to the user; `lens:runtime` can."""
+    write_run(
+        tmp_path,
+        "wf_named-777",
+        started("k1", "a1", "lens:population"),
+        started("k2", "dead2", "lens:runtime"),
+        started("k3", "e3", "refute:population-1"),
+        returned("k1", "a1"),
+        returned("k3", "e3", {"findings": []}),
+    )
+    reason = blocked(hook(payload(tmp_path)))
+    assert "never returned: lens:runtime (dead2, last tool: none)" in reason
+    assert "returned nothing: refute:population-1 (e3)" in reason
+
+
+def test_the_last_tool_of_a_dead_agent_is_named(tmp_path: Path) -> None:
+    """The hook depends on the gate's `--json` keys as a production interface; a rename of
+    `last_tool` would otherwise degrade this to "none" with every other test green."""
+    run = write_run(tmp_path, "wf_tool-888", started("k1", "dead1"))
+    entry = {"message": {"content": [{"type": "tool_use", "name": "Bash", "input": {}}]}}
+    (run / "agent-dead1.jsonl").write_text(json.dumps(entry) + "\n")
+    old = time.time() - 3600
+    os.utime(run / "agent-dead1.jsonl", (old, old))
+    assert "last tool: Bash" in blocked(hook(payload(tmp_path)))
+
+
+def test_one_run_the_gate_cannot_judge_does_not_hide_another(tmp_path: Path) -> None:
+    """A gate that chokes on one journal says nothing about its neighbour, which may be dead."""
+    sandbox = tmp_path / "copy" / "tools"
+    (sandbox / "hooks").mkdir(parents=True)
+    shutil.copy(HOOK, sandbox / "hooks" / HOOK.name)
+    (sandbox / "review_pass_gate.py").write_text(
+        "import runpy, sys\n"
+        "if any('wf_a_bad' in argument for argument in sys.argv):\n"
+        "    sys.exit(3)\n"
+        f"sys.argv[0] = {str(GATE)!r}\n"
+        f"runpy.run_path({str(GATE)!r}, run_name='__main__')\n"
+    )
+    projects = tmp_path / "projects"
+    write_run(projects, "wf_a_bad-001", started("k1", "a1"), returned("k1", "a1"))
+    three_agents_one_dead(projects, "wf_z_dead-002")
+    tool = sandbox / "hooks" / HOOK.name
+    done = hook(payload(projects), tool=tool)
+    reason = blocked(done)
+    assert "wf_z_dead-002" in reason
+    assert "wf_a_bad-001" in done.stderr
+    alone = tmp_path / "alone"
+    write_run(alone, "wf_a_bad-001", started("k1", "a1"), returned("k1", "a1"))
+    only = hook(payload(alone), tool=tool)
+    assert only.returncode == 1
+    assert only.stdout == ""
+
+
+def test_the_acknowledge_command_survives_a_path_with_a_space_and_a_quote(tmp_path: Path) -> None:
+    """The command is printed for a model to run; one that word-splits on a space is a block that
+    cannot be satisfied."""
+    sandbox = tmp_path / "my repo's dir" / "tools"
+    (sandbox / "hooks").mkdir(parents=True)
+    shutil.copy(HOOK, sandbox / "hooks" / HOOK.name)
+    shutil.copy(GATE, sandbox / GATE.name)
+    projects = tmp_path / "pro jects's"
+    run = three_agents_one_dead(projects)
+    tool = sandbox / "hooks" / HOOK.name
+    wrapper = tmp_path / "py thon" / "python3"  # sys.executable keeps a symlink's own path
+    wrapper.parent.mkdir()
+    wrapper.symlink_to(sys.executable)
+    reason = blocked(hook(payload(projects), tool=tool, python=str(wrapper)))
+    line = next(x for x in reason.splitlines() if x.startswith("  Then acknowledge it: "))
+    tokens = shlex.split(line.split(": ", 1)[1])
+    assert tokens[0] == str(wrapper)
+    assert Path(tokens[1]).resolve() == tool.resolve()
+    assert tokens[2:4] == ["--acknowledge", str(run)]
+    done = subprocess.run([*tokens[:-1], TOLD], capture_output=True, text=True, check=False)
+    assert done.returncode == 0, done.stderr
+    silent(hook(payload(projects), tool=tool, python=str(wrapper)))
+
+
+@pytest.mark.parametrize("value", [7, ["x"], {"a": 1}, None, ""])
+def test_a_transcript_path_that_is_not_a_string_is_ignored(tmp_path: Path, value: object) -> None:
+    body = payload(tmp_path)
+    body["transcript_path"] = value
+    silent(hook(body))
+
+
+def test_the_acknowledgement_stamp_is_utc_whatever_the_local_zone(tmp_path: Path) -> None:
+    """The stamp says UTC; a local time under that word is a lie by up to a day."""
+    run = three_agents_one_dead(tmp_path)
+    done = hook("", "--acknowledge", str(run), "--told", TOLD, env={"TZ": "Pacific/Auckland"})
+    assert done.returncode == 0, done.stderr
+    stamp = json.loads((run / "gate-acknowledged.json").read_text())["at"]
+    assert stamp.endswith(" UTC")
+    written = calendar.timegm(time.strptime(stamp.removesuffix(" UTC"), "%Y%m%d %H:%M"))
+    assert abs(time.time() - written) < 180
+
+
+def test_a_run_with_no_agents_cannot_be_acknowledged(tmp_path: Path) -> None:
+    """Nothing launched is a broken harness, not a verdict to be told about."""
+    run = write_run(tmp_path, "wf_nothing-999")
+    (run / "journal.jsonl").write_text("")
+    done = hook("", "--acknowledge", str(run), "--told", TOLD)
+    assert done.returncode == 1
+    assert "cannot be judged yet" in done.stderr
+    assert not (run / "gate-acknowledged.json").exists()
+
+
+def test_an_internal_error_stays_loud_through_the_settings_command(tmp_path: Path) -> None:
+    """`exec` is load-bearing: without it the trailing `; exit 0` replaces python's status and a
+    crash reads as success. Only a test that runs the whole command on a bad payload sees it."""
+    worktree = checkout(tmp_path / "worktree", with_hook=True)
+    done = run_command(settings_command(), worktree, "not an object")
+    assert done.returncode == 1, done.stderr
+    assert "review_stop_hook:" in done.stderr
+    assert done.stdout == ""

@@ -68,8 +68,13 @@ result you are holding is not a clean bill. Never pipe it into anything before r
 here twice (`CLAUDE.md` § *A gate is only a gate when its exit status is what the next command
 reads*).
 
-`--journal` and `--transcript-dir` exist for the unit tests and for the negative check that this
-gate can still fail; with neither, it finds the newest run itself.
+`--journal` and `--transcript-dir` exist for the unit tests, for the negative check that this
+gate can still fail, and for `tools/hooks/review_stop_hook.py`, the Stop hook that runs this gate
+over every workflow run of the session that is ending. **That hook depends on a production
+interface here**: `--journal <run>/journal.jsonl --json [--assume-finished]`, the exit statuses
+`0` (clean), `1` (not clean, with the verdict on stdout) and `2` (cannot judge), and the keys
+`launched`, `returned`, `dead[].agent_id`, `dead[].last_tool` and `empty`. Renaming one is a change
+to the hook. With neither flag it finds the newest run itself.
 """
 
 from __future__ import annotations
@@ -410,7 +415,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "run", nargs="?", help="workflow run id (wf_…); default: the newest fan-out"
     )
-    parser.add_argument("--journal", type=Path, help="read this journal.jsonl directly (tests)")
+    parser.add_argument(
+        "--journal", type=Path, help="read this journal.jsonl directly (tests, the Stop hook)"
+    )
     parser.add_argument("--transcript-dir", type=Path, help="read this fan-out directory (tests)")
     parser.add_argument("--script", help="script path to print in the resume hint")
     parser.add_argument(
