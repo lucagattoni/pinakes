@@ -33,7 +33,7 @@ fan-outs before step 4, no agent teams for the planner→coder flow.
 | # | What | Files | Owner | Status |
 |---|---|---|---|---|
 | **A0** | Record the decision: this file, a routing row, one line in the pause bullet. | `plans/` (this), `docs/README.md`, `CLAUDE.md` (one line, diff shown first) | planner | ✅ landed `668f92f`, 20261018; CI green |
-| **A1** | **Steps 1 and 3**: one committed review workflow. Contract in § 3. | `.claude/workflows/`, `.gitignore`, tests | builder | ✅ built on its branch and reviewed in three passes (two adversarial, one cold read for the first live run), with fixes after each; **the real fan-out has not been run** (D3, on A2's diff) |
+| **A1** | **Steps 1 and 3**: one committed review workflow. Contract in § 3. | `.claude/workflows/`, `.gitignore`, tests | builder | ✅ **landed `bba0746`, 20261019; CI green on all 16 jobs, `docs` and `injection-audit` too.** Reviewed in three passes (two adversarial, one cold read for the first live run), with fixes after each. **The real fan-out has not been run** (D3, on A2's diff) |
 | **A2** | **Step 2**: a Stop hook that runs `tools/review_pass_gate.py` on a review run from this turn. Contract in § 4. | `tools/hooks/`, `.claude/settings.json` (diff shown first), tests | builder | not started |
 | **A3** | **Row 22**: regenerate `CLAUDE.md`. Method in § 5. | `CLAUDE.md`, and the docs that receive moved text | planner | not started — diff shown first |
 | **A4** | Cut the release that carries A. | `CHANGELOG.md`, version | planner | not started |
@@ -169,7 +169,77 @@ a finding about the script, not about the increment under review.**
 - **A2's `settings.json` and A3's `CLAUDE.md` are instruction files**: the diff is shown and the user
   says yes before either lands.
 
-## 8. After A
+## 8. Handover — the state after A1, 20261019
+
+**Written in the branch that records it, because context dies with the session and the pointers an
+increment falsifies are the ones the next session opens first** ([`docs/BUILDING.md` § Hand over
+before you stop](../docs/BUILDING.md#hand-over-before-you-stop)). Of that rule's five places only
+this plan is falsified by A1 landing: `CLAUDE.md`'s pointer and the routing row name this plan and
+not an increment, the baseline in § 5 is still true at the sha it names, and `STATUS.md` tracks
+product surface, which a developer-tooling workflow does not add.
+
+**State.** `origin/main` is `bba0746` at the time of writing — **verify with `git ls-remote origin
+refs/heads/main`, not from here**. Development is paused except for this plan. A0 and A1 are landed;
+**A2, A3 and A4 are not started.** Fragments wait in `changelog.d/` (`ls` counts them; none is user-visible, and
+there is no release until A4). A1's branch and worktree, `20261019_0002-a1-review-workflow`, still exist:
+`python3 tools/land.py 20261019_0002-a1-review-workflow --cleanup-only` removes them, and so does
+the older `20261018_2354-option-a-resume`.
+
+**What shipped beside what § 3 asked for**, so A2 does not rediscover it:
+
+- A1 grew from one workflow into a workflow, a Node harness that runs it against stub hooks
+  (`tests/review_workflow_harness.mjs`, with a seeded fuzz and a strict check of the `meta`
+  literal), a test module, a 114-row battery written from a generator, and an amendment to the
+  battery naming rule (a leading dot is dropped, because the hidden name was invisible to the
+  README's own lookup commands).
+- **Three review passes found what the first battery could not.** A battery of 22 mutants was fully
+  killed; a reviewer who then wrote 62 of its own saw 50 survive. The lesson is kept as a memory
+  note and is the argument for the analysis's step 4 (calibrate the review instrument): a fully
+  killed battery measures the mutants its author thought of.
+- **Behaviour the first plan did not specify**: both ends of the diff are pinned (a branch name as
+  `base` is refused); every agent call goes through `ask()` so a throw keeps its cause; an empty
+  diff is a dead lens, so a sha that does not exist is `VACUOUS`; a high-severity finding a refuter
+  dismissed on a guess is a gap and every guess is listed; rulings that are malformed or disagree
+  contest their survivor; finding text is fenced as data in the prompts.
+
+**What A2 needs, gathered while building A1:**
+
+1. **The Stop hook's contract, from the hooks reference.** It receives the common fields
+   (`session_id`, `transcript_path`, `cwd`, `hook_event_name`, …) plus `stop_hook_active`,
+   `last_assistant_message`, `background_tasks` and `session_crons`. It blocks by exiting 2 with the
+   reason on stderr, or by printing `{"decision": "block", "reason": "…"}`. **`stop_hook_active` is
+   true when Claude is already continuing because of a stop hook: check it, or the hook blocks on a
+   condition that cannot resolve.** Claude Code overrides after 8 consecutive continuations and the
+   count resets whenever Claude calls a tool (`CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` raises it). Project
+   hooks live in `.claude/settings.json` and a handler's `timeout` is in seconds (600 by default for
+   a command hook). *Not established:* whether a committed hook needs workspace trust before it runs.
+2. **`${CLAUDE_PROJECT_DIR}` stays at the original project root in a worktree**, while `cwd` follows
+   Claude. A hook command written as `${CLAUDE_PROJECT_DIR}/tools/hooks/…` therefore runs the
+   **primary checkout's** copy, not the worktree's: building A2 in a worktree means the hook that
+   fires is the old one until A2 lands. Decide the command's path with that in view.
+3. **Where the journals are.** On this machine a workflow run writes
+   `~/.claude/projects/<project dir>/<session id>/subagents/workflows/wf_<id>/journal.jsonl`, and
+   `tools/review_pass_gate.py` already takes `--journal`, `--transcript-dir`, `--list` and `--json`.
+   The Stop hook's `transcript_path` and `session_id` should be enough to find the runs of this turn;
+   that derivation is A2's to design and to test against a synthetic directory.
+4. **The gate has two jobs the hook must not conflate**: `review_pass_gate.py` says whether a run's
+   agents all returned (a count from the journal), and the workflow's own `coverage` says whether
+   the review was complete. A run can pass the first and be `PARTIAL` on the second.
+5. **The smoke run (D3) is on A2's diff**, and § 6.1 is the list of what it must settle. It is a
+   multi-agent run the user approved; run it with `args = {sha: <A2's tip>, base: <git merge-base
+   origin/main <tip>>, title, claims}`, **before landing A2**, from a directory where
+   `git show <sha>:<path>` works.
+6. **`.claude/settings.json` is configuration: show its diff and wait for the user's yes.** So is
+   the `CLAUDE.md` of A3.
+
+**How to run the gate in this environment** (measured 20261014–19, and in memory): in a Claude Code
+shell `PYTHONDONTWRITEBYTECODE=1` is exported and `python3` is the Xcode 3.9, so
+`PATH="$PWD/.venv/bin:$PATH" env -u PYTHONDONTWRITEBYTECODE ./check.sh`, with its exit status read
+from a log you wrote. In an `EnterWorktree` session the Bash tool refuses compound commands that
+mention git: write commit messages to a file and use `git commit -F`, and put multi-step edits in a
+script file.
+
+## 9. After A
 
 **Option B — the dogfooding on-ramp (row 21)** is planned next, as the user asked. It is **not
 designed yet**: no plan states what the one-command start does, what the checklist checks, or what
