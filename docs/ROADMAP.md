@@ -17,19 +17,28 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20260904 15:13 UTC
+## Where things stand right now — 20261019 11:47 UTC
 
-- **65 releases in 41 days** — **counted from `CHANGELOG.md`, not incremented from this
+- **66 releases in 86 days** — **counted from `CHANGELOG.md`, not incremented from this
   sentence's own previous value**, which is exactly how it drifted: it read **58** while the file
   held **59**. Across the **109** commits that have carried this sentence it agreed with the
   CHANGELOG in **70** and was wrong in **39** — all but two of them low, because a release added one
-  to the printed number instead of counting the entries. The three registers still reconcile: **66**
-  entries = **65** git tags + `0.30.3`, prepared and never tagged — **counted from
+  to the printed number instead of counting the entries. The three registers still reconcile: **67**
+  entries = **66** git tags + `0.30.3`, prepared and never tagged — **counted from
   `git ls-remote --tags`, the CHANGELOG's headings and this file's table, never incremented**, which is
   the discipline this row exists to keep and the one it previously failed. **The index is a fourth
-  register and is deliberately lower — 58** — because seven tags predate publishing and `0.30.3`
+  register and is deliberately lower — 59** — because seven tags predate publishing and `0.30.3`
   reached no index.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725.
+  [`0.32.7`](#0327--a-price-table-that-had-run-out-and-review-tooling-that-says-who-looked--20261019-1133)
+  is **on PyPI as of 20261019 11:44** — landed 11:38:05, on the index 6 minutes 32 seconds later, the tag
+  held until `minimum-python` had completed at this commit and been read in its log (CPython 3.13.16,
+  2794 passed, 126 skipped). **Its control is two published wheels read side by side**: 0.32.6's
+  `prices.toml` carries `1.1622` and 0.32.7's carries `1.1253`, both read out of the artifacts. Both hold
+  78 entries and **no `tools/` entry**, and apart from the `dist-info` directory only `pinakes/__init__.py`
+  and `prices.toml` differ. **The first attempt to install it did not resolve**: `uvx` took CPython 3.15
+  and `pinakes[light]` has no `onnxruntime` wheel there, so the control was run with `--python 3.13`;
+  every earlier control predates 3.15.0 and could not have seen it.
   [`0.32.6`](#0326--instruments-that-could-report-success-while-measuring-nothing--20260904-1455)
   is **on PyPI as of 20260904 15:11** — landed 15:04:43, on the index 6 minutes 55 seconds later,
   the tag held until `minimum-python` had completed at this commit and been read in its log
@@ -124,7 +133,7 @@ precision nobody measured.
   rather than folded away, because the record was written honestly and deleting it would erase the
   gap instead of correcting it. The **seven** tags below `v0.2.2` are not a second exception: they
   predate publishing altogether, since `PUBLISH_TO_PYPI` became `true` on 20260728 17:15.
-- **Latest on PyPI: `0.32.6`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.32.7`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
