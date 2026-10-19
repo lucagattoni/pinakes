@@ -293,9 +293,12 @@ kills = "tests/test_review_stop_hook.py::test_a_checkout_without_the_hook_exits_
 
 [[mutant]]
 name = "the command falls through with the status of the failed test instead of 0"
+# `; true` is the same exit status as `; exit 0` - an equivalent mutant, which this row was first
+# written as and which survived for the right reason. Dropping the tail is the real change: the
+# `&&` chain then exits with the status of the test that failed.
 file = ".claude/settings.json"
 old = '''; exit 0'"'''
-new = '''; true'"'''
+new = ''''"'''
 kills = [
     "tests/test_review_stop_hook.py::test_a_checkout_without_the_hook_exits_zero_not_two",
     "tests/test_review_stop_hook.py::test_a_directory_that_is_not_a_checkout_exits_zero",

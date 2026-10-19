@@ -353,7 +353,12 @@ def test_stop_hook_active_still_blocks_and_says_again(tmp_path: Path) -> None:
 
 
 def test_only_the_ending_sessions_runs_are_judged(tmp_path: Path) -> None:
-    """A dead run in another session is not this turn's business."""
+    """A dead run in another session is not this turn's business.
+
+    The ending session has a run of its own, clean, so that the hook gets as far as looking: with
+    no run directory at all it would return before it could read anyone else's.
+    """
+    write_run(tmp_path, "wf_good-000", started("k1", "a1"), returned("k1", "a1"))
     other = tmp_path / "-some-project" / "ffffffff-0000-4000-8000-bbbbbbbbbbbb"
     run = other / "subagents" / "workflows" / "wf_other-999"
     run.mkdir(parents=True)
