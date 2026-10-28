@@ -14,11 +14,18 @@
   `IndexSchemaError` and `EmbeddingError` carry the absolute path of the index or the model cache,
   so a wrapper over all of `PinakesError` would have handed an agent a user name and a directory
   layout whenever an index was stale; they stay crashes, and 2.3.0 keeps their text on the server.
-  On the locked 2.0.0 the library still sends every exception's text, as 0.32.7 did, and nothing
-  here changes that. The tool schemas are unchanged (the snapshot test still passes). The tests
-  read what the tool itself raised, which is why they fail with the wrapper removed on 2.0.0 — the
-  version CI runs, where the message alone is sent either way — as well as on 2.3.0; a mutation
-  pass (wrapper off, one tool left out, a blanket `PinakesError`, the wrong class, each allowlist
-  member dropped) was killed on both versions. `pinakes_list_kbs` is registered through the wrapper
-  too and has no refusal to carry, since it swallows `PinakesError`. Anything else a tool raises is
-  still a crash to `mcp`: that is its rule, read from its source, and no test here pins it.
+  Failures that depend on the KB's state and not on the request — `CoherenceError`,
+  `IncompleteIndexError`, `ExtractionCoherenceError`, the backend errors — carry no absolute path
+  (checked 20261028) but are not about what the caller asked either, so they stay withheld too:
+  an agent on 2.3.0 is told only that the tool failed, as it was on 0.32.7. Whether to tell it that
+  the index is stale is a decision about the boundary and is one line in `CALLER_FACING`. On the
+  locked 2.0.0 the library still sends every exception's text, as 0.32.7 did, and nothing here
+  changes that. The tool schemas are unchanged (the snapshot test still passes). The tests read
+  what the tool itself raised, which is why they fail with the wrapper removed on 2.0.0 — the
+  version CI runs, where the message alone is sent either way — as well as on 2.3.0, and a test
+  pins the allowlist's exact membership. A mutation pass (wrapper off, one tool left out, a blanket
+  `PinakesError`, the wrong class, each member dropped, `IndexSchemaError` or `CoherenceError`
+  added) was killed on both versions; the one survivor, `pinakes_list_kbs` left unwrapped, is
+  equivalent, since it swallows `PinakesError` and has no refusal to carry. Anything else a tool
+  raises is still a crash to `mcp`: that is its rule, read from its source, and no test here pins
+  it.

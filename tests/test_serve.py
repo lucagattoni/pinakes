@@ -12,11 +12,18 @@ from conftest import pdf_extraction_runnable
 
 from pinakes import store
 from pinakes.embed import ModelInfo, Vectors, register_embedding_backend, register_reranker
-from pinakes.errors import EmbeddingError, ServeError, StoreError
+from pinakes.errors import EmbeddingError, IndexSchemaError, ServeError, StoreError, TraversalError
 from pinakes.ids import mint_doc_id
 from pinakes.init import init
 from pinakes.manifest import load
-from pinakes.serve import EVIDENCE_HEADER, Server, as_payload, build, refusals_as_tool_errors
+from pinakes.serve import (
+    CALLER_FACING,
+    EVIDENCE_HEADER,
+    Server,
+    as_payload,
+    build,
+    refusals_as_tool_errors,
+)
 from pinakes.sync import SyncOptions, sync
 
 DIM = 3
@@ -989,14 +996,25 @@ def test_a_refusal_becomes_a_tool_error_carrying_its_message_and_nothing_else() 
     assert isinstance(exc_info.value.__cause__, ServeError)
 
 
+def test_the_allowlist_is_exactly_the_two_caller_facing_refusals() -> None:
+    """Membership is the decision, so it is pinned: adding a class must fail something.
+
+    The behavioural cases below only reach the classes they name, so a class added to the list that
+    none of them names — `IndexSchemaError`, which carries the index's absolute path, passed every
+    one when a reviewer tried it — would change nothing a test can see.
+    """
+    assert set(CALLER_FACING) == {ServeError, TraversalError}
+
+
 @pytest.mark.parametrize(
     "error",
     [
         StoreError("no index at /home/someone/kb/.pinakes/index.db.", remedy="Run `pnk sync`."),
+        IndexSchemaError(Path("/home/someone/kb/.pinakes/index.db"), found="0", expected=3),
         EmbeddingError("no model cache at /home/someone/.cache/huggingface", remedy="Go online."),
         RuntimeError("an unexpected crash"),
     ],
-    ids=["store", "embedding", "not-a-pinakes-error"],
+    ids=["store", "index-schema", "embedding", "not-a-pinakes-error"],
 )
 def test_the_servers_own_state_is_not_handed_to_the_caller(error: Exception) -> None:
     """Fail closed: an error that is not about the caller's request stays a crash.

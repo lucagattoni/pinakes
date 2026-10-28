@@ -10,8 +10,9 @@
   lowercase operation id would have been filed under a second spelling. The module now requires the
   library's canonical spelling to equal its input, so the answer no longer depends on the version.
   The four tests that failed were right and are kept; they pass on 4.0.1 and 4.1.0 alike. Two new
-  tests (three cases) and one new row in the malformed-ID table are the point of the change: they
-  stand in a library that normalises case and fail on the old code even under 4.0.1, which the old
-  tests could not — those tested the installed version, not this module. Every ID `pnk` mints is
-  uppercase; a hand-edited lowercase one that a 4.1.0 install had been accepting is refused, as it
-  always was on 4.0.1.
+  tests (three cases) and one new row in the malformed-ID table are added. The two cases that stand
+  in a library which normalises case are the point of the change: they fail on the old code even
+  under 4.0.1, which the old tests could not — those tested the installed version, not this module
+  (the control case and the mixed-case row pass on the old code under 4.0.1, which refuses mixed
+  case; the old code fails five tests on 4.1.0). Every ID `pnk` mints is uppercase; a hand-edited
+  lowercase one that a 4.1.0 install had been accepting is refused, as it always was on 4.0.1.

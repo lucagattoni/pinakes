@@ -571,9 +571,17 @@ Each message is built from the caller's own selector or id, a served KB's name, 
 `PinakesError`**: the rest of that family describes the server's own state. `StoreError` and
 `IndexSchemaError` carry the absolute path of `.pinakes/index.db` (`store.py: _open`), and
 `EmbeddingError` the model-cache path under the home directory, so a blanket wrap would hand an
-agent a user name and a directory layout the moment an index is stale — the boundary this
-module's docstring draws. A new error class is therefore withheld until someone decides it is the
-caller's."""
+agent a user name and a directory layout the moment an index is stale — nothing the caller asked
+for, and nothing a result needs. A new error class is therefore withheld until someone decides it
+is the caller's, and `tests/test_serve.py` pins the membership so that adding one is a decision
+taken in the open.
+
+**What this leaves bare on `mcp` 2.3.0, stated rather than glossed:** failures that depend on the
+KB's state and not on the request — `CoherenceError`, `IncompleteIndexError`,
+`ExtractionCoherenceError`, the backend errors. Their messages carry no absolute path (checked
+20261028), so they could join the list in one line; they are not in it because whether an agent
+should be told *the index is stale* is a decision about the boundary, not a defect. The locked
+`mcp` 2.0.0 sends their text either way."""
 
 
 def refusals_as_tool_errors(tool: Callable[..., Any]) -> Callable[..., Any]:
