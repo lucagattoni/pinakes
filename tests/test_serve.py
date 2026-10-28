@@ -12,11 +12,18 @@ from conftest import pdf_extraction_runnable
 
 from pinakes import store
 from pinakes.embed import ModelInfo, Vectors, register_embedding_backend, register_reranker
-from pinakes.errors import ServeError
+from pinakes.errors import EmbeddingError, IndexSchemaError, ServeError, StoreError, TraversalError
 from pinakes.ids import mint_doc_id
 from pinakes.init import init
 from pinakes.manifest import load
-from pinakes.serve import EVIDENCE_HEADER, Server, as_payload, build
+from pinakes.serve import (
+    CALLER_FACING,
+    EVIDENCE_HEADER,
+    Server,
+    as_payload,
+    build,
+    refusals_as_tool_errors,
+)
 from pinakes.sync import SyncOptions, sync
 
 DIM = 3
@@ -915,6 +922,115 @@ def test_a_mistyped_source_type_over_mcp_is_refused_rather_than_answered_with_no
         assert "markdown, code, pdf, text" in said
     finally:
         server.close()
+
+
+@pytest.mark.parametrize(
+    ("tool", "arguments", "names"),
+    [
+        ("pinakes_search", {"query": "sourdough", "kb": "no-such-kb"}, "no-such-kb"),
+        ("pinakes_get", {"doc_id": ABSENT_DOC}, ABSENT_DOC),
+        ("pinakes_get", {"doc_id": ABSENT_DOC, "kb": "no-such-kb"}, "no-such-kb"),
+        ("pinakes_links", {"doc_id": ABSENT_DOC}, ABSENT_DOC),
+        ("pinakes_links", {"doc_id": ABSENT_DOC, "kb": "no-such-kb"}, "no-such-kb"),
+        ("pinakes_get", {"doc_id": "not-a-ulid"}, "not-a-ulid"),
+        ("pinakes_links", {"doc_id": "<a.md>", "direction": "sideways"}, "sideways"),
+    ],
+    # Named, because `ABSENT_DOC` is minted at import and an id built from it would differ between
+    # two collections of the same file.
+    ids=[
+        "search-unknown-kb",
+        "get-unknown-doc",
+        "get-unknown-kb",
+        "links-unknown-doc",
+        "links-unknown-kb",
+        "get-malformed-id",
+        "links-unknown-direction",
+    ],
+)
+def test_every_tool_says_why_it_refused_over_mcp(
+    kb: Path, tool: str, arguments: dict[str, str], names: str
+) -> None:
+    """The client must be told *what* was refused, by each tool that can refuse.
+
+    `mcp` 2.3.0 sends the text of a `ToolError` and withholds the text of any other exception, so a
+    refusal that is not wrapped arrives as *Error executing tool <name>* and nothing more. The case
+    above holds one tool; this holds the wrapper where it is applied, so leaving one tool out is
+    caught. (`pinakes_list_kbs` is not here: it swallows `PinakesError`, so it has no refusal.)
+    Each case names a value the caller sent, which the reason must repeat.
+
+    **The `__cause__` check is what makes this fail on the locked `mcp` 2.0.0**, which CI runs and
+    which sends every exception's text whether wrapped or not: the text assertions alone pass there
+    with the wrapper removed. What the tool itself raised is the one thing both versions keep —
+    their `ToolError` is raised `from` it — so it is a `ToolError` only if the wrapper made it one.
+    """
+    import asyncio
+
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    # A direction is only checked once the document exists, so that case needs a real id.
+    arguments = {
+        key: doc_id_of(kb, "a.md") if value == "<a.md>" else value
+        for key, value in arguments.items()
+    }
+    mcp, server = build([kb])
+    try:
+        with pytest.raises(ToolError) as exc_info:
+            asyncio.run(mcp.call_tool(tool, arguments))
+        said = str(exc_info.value)
+        assert names in said, said
+        assert said != f"Error executing tool {tool}"
+        assert isinstance(exc_info.value.__cause__, ToolError), repr(exc_info.value.__cause__)
+    finally:
+        server.close()
+
+
+def test_a_refusal_becomes_a_tool_error_carrying_its_message_and_nothing_else() -> None:
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    def refuses() -> None:
+        raise ServeError("no served KB called 'x'.", remedy="Name one of the served KBs.")
+
+    with pytest.raises(ToolError) as exc_info:
+        refusals_as_tool_errors(refuses)()
+    assert str(exc_info.value) == "no served KB called 'x'."
+    assert isinstance(exc_info.value.__cause__, ServeError)
+
+
+def test_the_allowlist_is_exactly_the_two_caller_facing_refusals() -> None:
+    """Membership is the decision, so it is pinned: adding a class must fail something.
+
+    The behavioural cases below only reach the classes they name, so a class added to the list that
+    none of them names — `IndexSchemaError`, which carries the index's absolute path, passed every
+    one when a reviewer tried it — would change nothing a test can see.
+    """
+    assert set(CALLER_FACING) == {ServeError, TraversalError}
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        StoreError("no index at /home/someone/kb/.pinakes/index.db.", remedy="Run `pnk sync`."),
+        IndexSchemaError(Path("/home/someone/kb/.pinakes/index.db"), found="0", expected=3),
+        EmbeddingError("no model cache at /home/someone/.cache/huggingface", remedy="Go online."),
+        RuntimeError("an unexpected crash"),
+    ],
+    ids=["store", "index-schema", "embedding", "not-a-pinakes-error"],
+)
+def test_the_servers_own_state_is_not_handed_to_the_caller(error: Exception) -> None:
+    """Fail closed: an error that is not about the caller's request stays a crash.
+
+    `StoreError`, `IndexSchemaError` and `EmbeddingError` carry absolute paths, and `mcp` 2.3.0
+    keeps the text of a crash on the server. Wrapping `PinakesError` as a whole would send it to the
+    client instead — a user name and a directory layout, to an LLM, on a stale index. The error
+    must come out as the very object that went in, not as a `ToolError` quoting it.
+    """
+
+    def crashes() -> None:
+        raise error
+
+    with pytest.raises(type(error)) as exc_info:
+        refusals_as_tool_errors(crashes)()
+    assert exc_info.value is error
 
 
 def test_every_valid_source_type_still_reaches_the_index_over_mcp(kb: Path) -> None:
