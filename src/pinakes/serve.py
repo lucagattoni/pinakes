@@ -32,7 +32,7 @@ from pinakes import __version__, store
 from pinakes import manifest as manifest_module
 from pinakes.chunk import source_type_complaint
 from pinakes.embed import EmbeddingBackend, Reranker, load_backend, load_reranker
-from pinakes.errors import PinakesError, ServeError
+from pinakes.errors import PinakesError, ServeError, TraversalError
 from pinakes.extract import ExtractedText
 from pinakes.extract import cache as extract_cache
 from pinakes.graph.traverse import Result as TraverseResult
@@ -563,33 +563,47 @@ def _links_suggestion(result: "TraverseResult", *, filtered: bool) -> str:
     return "Read a neighbour in full with pinakes_get, or widen the walk with depth=2."
 
 
-def _refusals_as_tool_errors(tool: Callable[..., Any]) -> Callable[..., Any]:
-    """Let a refusal reach the client as the reason it is.
+CALLER_FACING = (ServeError, TraversalError)
+"""The refusals that are about what the caller asked for, and so are the caller's to read.
+
+Each message is built from the caller's own selector or id, a served KB's name, or a path
+*inside* a KB — never from where the KB sits on this machine. **An allowlist, not
+`PinakesError`**: the rest of that family describes the server's own state. `StoreError` and
+`IndexSchemaError` carry the absolute path of `.pinakes/index.db` (`store.py: _open`), and
+`EmbeddingError` the model-cache path under the home directory, so a blanket wrap would hand an
+agent a user name and a directory layout the moment an index is stale — the boundary this
+module's docstring draws. A new error class is therefore withheld until someone decides it is the
+caller's."""
+
+
+def refusals_as_tool_errors(tool: Callable[..., Any]) -> Callable[..., Any]:
+    """Let a refusal that is about the caller's request reach the caller as the reason it is.
 
     `mcp` 2.3.0 sorts what a tool raises into two kinds. A `ToolError` is a failure the tool meant,
     and its text goes to the client; anything else is a crash, and its text stays on the server so
     that nothing from an unexpected exception leaks. 2.0.0 sent every exception's text. A
-    `PinakesError` is "every failure Pinakes reports to a human" — the first kind — but it is not a
-    `ToolError`, so under 2.3.0 an agent that mistyped `source_type` was told *Error executing tool
-    pinakes_search* and nothing of why (measured 20261028 22:2x; the case
-    `test_a_mistyped_source_type_over_mcp_is_refused_rather_than_answered_with_nothing` holds). That
-    is the empty answer the refusal exists to prevent, one layer down: the agent cannot tell a typo
-    from a crashed server.
+    `ServeError` is the first kind but is not a `ToolError`, so under 2.3.0 an agent that mistyped
+    `source_type` was told *Error executing tool pinakes_search* and nothing of why (measured
+    20261028; `test_a_mistyped_source_type_over_mcp_is_refused_rather_than_answered_with_nothing`
+    holds it). That is the empty answer the refusal exists to prevent, one layer down: the agent
+    cannot tell a typo from a crashed server.
 
-    The message crosses and nothing else does, which is what 2.0.0 sent: `remedy` was never part of
-    the text over MCP and is not added here. `functools.wraps` carries the signature, annotations
-    and docstring through, because `mcp` derives the tool's JSON schema and description from them —
-    `docs/VERIFICATION.md` names the test that holds the four schemas still. The annotation says
-    `Callable[..., Any]` and not a `ParamSpec` because the registration loop passes four functions
-    of four signatures, which `ty` cannot solve one generic over; `mcp` reads the real signature
-    at runtime and never the annotation.
+    Only `CALLER_FACING` crosses, and only its message — which is what 2.0.0 sent for those:
+    `remedy` was never part of the text over MCP and is not added here. Everything else stays a
+    crash to `mcp`, so 2.3.0 keeps its text on the server, as its default is.
+    `functools.wraps` carries the signature, annotations and docstring through, because `mcp`
+    derives the tool's JSON schema and description from them — `docs/VERIFICATION.md` names the
+    test that holds the four schemas still. The annotation says `Callable[..., Any]` and not a
+    `ParamSpec` because the registration loop passes four functions of four signatures, which `ty`
+    cannot solve one generic over; `mcp` reads the real signature at runtime and never the
+    annotation.
     """
 
     @functools.wraps(tool)
     def refusing(*args: Any, **kwargs: Any) -> Any:
         try:
             return tool(*args, **kwargs)
-        except PinakesError as exc:
+        except CALLER_FACING as exc:
             raise ToolError(str(exc)) from exc
 
     return refusing
@@ -702,6 +716,6 @@ def build(roots: list[Path], *, offline: bool = False) -> tuple[MCPServer, Serve
     # Registered explicitly rather than by decorator: the four names are then visibly *used*, and
     # the set of tools this server exposes is one readable line instead of four annotations.
     for tool in (pinakes_search, pinakes_get, pinakes_links, pinakes_list_kbs):
-        mcp.tool()(_refusals_as_tool_errors(tool))
+        mcp.tool()(refusals_as_tool_errors(tool))
 
     return mcp, server
