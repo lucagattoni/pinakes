@@ -7,9 +7,13 @@ Every document and every KB carries a ULID, minted once and **never regenerated*
 IDs are canonical uppercase Crockford base32, 26 characters. Lowercase is **rejected, not
 normalised**: two spellings of one identity would slip straight past the duplicate-ID check that
 protects §6.4's pairing, and an ID is machine-minted, so a lowercase one means something already
-went wrong. `python-ulid` is strict about the rest for us — it rejects the ambiguous Crockford
-letters (`I`, `L`, `O`, `U` — all four probed), wrong lengths, and timestamps past the 48-bit
-ceiling (verified 20260725 14:05, python-ulid 4.0.1).
+went wrong. **This module enforces that itself, by requiring the library's canonical spelling to
+equal the input**: it used to lean on `python-ulid` refusing lowercase, and 4.1.0 does not — it
+accepts lowercase and mixed case and returns the uppercase form (measured 20261028 22:24, against
+4.0.1 refusing both), so on a fresh install every lowercase ID was a valid one. `python-ulid` is
+still relied on for the rest — it rejects the ambiguous Crockford letters (`I`, `L`, `O`, `U` — all
+four probed), wrong lengths, and timestamps past the 48-bit ceiling (verified 20260725 14:05,
+python-ulid 4.0.1; the four letters re-probed 20261028 22:24 on 4.1.0).
 """
 
 from typing import NewType
@@ -52,9 +56,21 @@ def mint_call_id() -> CallId:
     return CallId(str(ULID()))
 
 
+def _canonical(raw: str) -> str:
+    """`raw` in the library's canonical spelling, or `ValueError` when `raw` is not that spelling.
+
+    The comparison is the whole point: whatever a version of `python-ulid` is willing to read
+    (lowercase, in 4.1.0), only the one spelling it would itself write is an ID here.
+    """
+    canonical = str(ULID.from_str(raw))
+    if canonical != raw:
+        raise ValueError(f"{raw!r} is not the canonical spelling {canonical!r}")
+    return canonical
+
+
 def _parse(raw: str, *, kind: str) -> str:
     try:
-        return str(ULID.from_str(raw))
+        return _canonical(raw)
     except (ValueError, TypeError) as exc:
         raise InvalidIdError(raw, kind=kind) from exc
 
@@ -70,7 +86,7 @@ def parse_doc_id(raw: str) -> DocId:
 def is_id(raw: str) -> bool:
     """Whether `raw` is a well-formed ULID — for telling an ID from an alias, not for validation."""
     try:
-        ULID.from_str(raw)
+        _canonical(raw)
     except (ValueError, TypeError):
         return False
     return True
