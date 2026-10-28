@@ -17,13 +17,16 @@ Tools are namespaced `pinakes_*`, never `kb_*` — an agent usually has several 
 `kb_search` is a collision waiting to happen (§8).
 """
 
+import functools
 import sqlite3
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 from pinakes import __version__, store
 from pinakes import manifest as manifest_module
@@ -560,6 +563,35 @@ def _links_suggestion(result: "TraverseResult", *, filtered: bool) -> str:
     return "Read a neighbour in full with pinakes_get, or widen the walk with depth=2."
 
 
+def _refusals_as_tool_errors[**P, R](tool: Callable[P, R]) -> Callable[P, R]:
+    """Let a refusal reach the client as the reason it is.
+
+    `mcp` 2.3.0 sorts what a tool raises into two kinds. A `ToolError` is a failure the tool meant,
+    and its text goes to the client; anything else is a crash, and its text stays on the server so
+    that nothing from an unexpected exception leaks. 2.0.0 sent every exception's text. A
+    `PinakesError` is "every failure Pinakes reports to a human" — the first kind — but it is not a
+    `ToolError`, so under 2.3.0 an agent that mistyped `source_type` was told *Error executing tool
+    pinakes_search* and nothing of why (measured 20261028 22:2x; the case
+    `test_a_mistyped_source_type_over_mcp_is_refused_rather_than_answered_with_nothing` holds). That
+    is the empty answer the refusal exists to prevent, one layer down: the agent cannot tell a typo
+    from a crashed server.
+
+    The message crosses and nothing else does, which is what 2.0.0 sent: `remedy` was never part of
+    the text over MCP and is not added here. `functools.wraps` carries the signature, annotations
+    and docstring through, because `mcp` derives the tool's JSON schema and description from them —
+    `docs/VERIFICATION.md` names the test that holds the four schemas still.
+    """
+
+    @functools.wraps(tool)
+    def refusing(*args: P.args, **kwargs: P.kwargs) -> R:
+        try:
+            return tool(*args, **kwargs)
+        except PinakesError as exc:
+            raise ToolError(str(exc)) from exc
+
+    return refusing
+
+
 def build(roots: list[Path], *, offline: bool = False) -> tuple[MCPServer, Server]:
     """The MCP surface, and the `Server` behind it.
 
@@ -667,6 +699,6 @@ def build(roots: list[Path], *, offline: bool = False) -> tuple[MCPServer, Serve
     # Registered explicitly rather than by decorator: the four names are then visibly *used*, and
     # the set of tools this server exposes is one readable line instead of four annotations.
     for tool in (pinakes_search, pinakes_get, pinakes_links, pinakes_list_kbs):
-        mcp.tool()(tool)
+        mcp.tool()(_refusals_as_tool_errors(tool))
 
     return mcp, server

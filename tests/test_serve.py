@@ -917,6 +917,50 @@ def test_a_mistyped_source_type_over_mcp_is_refused_rather_than_answered_with_no
         server.close()
 
 
+@pytest.mark.parametrize(
+    ("tool", "arguments", "names"),
+    [
+        ("pinakes_search", {"query": "sourdough", "kb": "no-such-kb"}, "no-such-kb"),
+        ("pinakes_get", {"doc_id": ABSENT_DOC}, ABSENT_DOC),
+        ("pinakes_get", {"doc_id": ABSENT_DOC, "kb": "no-such-kb"}, "no-such-kb"),
+        ("pinakes_links", {"doc_id": ABSENT_DOC}, ABSENT_DOC),
+        ("pinakes_links", {"doc_id": ABSENT_DOC, "kb": "no-such-kb"}, "no-such-kb"),
+    ],
+    # Named, because `ABSENT_DOC` is minted at import and an id built from it would differ between
+    # two collections of the same file.
+    ids=[
+        "search-unknown-kb",
+        "get-unknown-doc",
+        "get-unknown-kb",
+        "links-unknown-doc",
+        "links-unknown-kb",
+    ],
+)
+def test_every_tool_says_why_it_refused_over_mcp(
+    kb: Path, tool: str, arguments: dict[str, str], names: str
+) -> None:
+    """The client must be told *what* was refused, from all four tools and not only the one case.
+
+    `mcp` 2.3.0 sends the text of a `ToolError` and withholds the text of any other exception, so a
+    refusal that is not wrapped arrives as *Error executing tool <name>* and nothing more. The case
+    above holds one tool; this holds the wrapper where it is applied, so wrapping three of the four
+    would still be caught. Each case names a value the caller sent, which the reason must repeat.
+    """
+    import asyncio
+
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    mcp, server = build([kb])
+    try:
+        with pytest.raises(ToolError) as exc_info:
+            asyncio.run(mcp.call_tool(tool, arguments))
+        said = str(exc_info.value)
+        assert names in said, said
+        assert said != f"Error executing tool {tool}"
+    finally:
+        server.close()
+
+
 def test_every_valid_source_type_still_reaches_the_index_over_mcp(kb: Path) -> None:
     """The control. A guard that refuses everything passes the test above and breaks the tool."""
     import asyncio
