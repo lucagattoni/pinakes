@@ -70,6 +70,10 @@ unmeasured is worse than one whose cost is known.
 
 ## Quickstart
 
+Run these inside a uv project: in a bare KB directory `uv add` exits `No pyproject.toml found`, and
+`uv init` makes the directory a project — or skip the project with `uvx --from "pinakes[light]" pnk …`
+([Guide § Install](docs/GUIDE.md#install)).
+
 ```bash
 uv add "pinakes[st]"                  # default backend
 uv add "pinakes[light]"               # fastembed, no torch
