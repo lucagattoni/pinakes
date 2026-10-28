@@ -563,7 +563,7 @@ def _links_suggestion(result: "TraverseResult", *, filtered: bool) -> str:
     return "Read a neighbour in full with pinakes_get, or widen the walk with depth=2."
 
 
-def _refusals_as_tool_errors[**P, R](tool: Callable[P, R]) -> Callable[P, R]:
+def _refusals_as_tool_errors(tool: Callable[..., Any]) -> Callable[..., Any]:
     """Let a refusal reach the client as the reason it is.
 
     `mcp` 2.3.0 sorts what a tool raises into two kinds. A `ToolError` is a failure the tool meant,
@@ -579,11 +579,14 @@ def _refusals_as_tool_errors[**P, R](tool: Callable[P, R]) -> Callable[P, R]:
     The message crosses and nothing else does, which is what 2.0.0 sent: `remedy` was never part of
     the text over MCP and is not added here. `functools.wraps` carries the signature, annotations
     and docstring through, because `mcp` derives the tool's JSON schema and description from them —
-    `docs/VERIFICATION.md` names the test that holds the four schemas still.
+    `docs/VERIFICATION.md` names the test that holds the four schemas still. The annotation says
+    `Callable[..., Any]` and not a `ParamSpec` because the registration loop passes four functions
+    of four signatures, which `ty` cannot solve one generic over; `mcp` reads the real signature
+    at runtime and never the annotation.
     """
 
     @functools.wraps(tool)
-    def refusing(*args: P.args, **kwargs: P.kwargs) -> R:
+    def refusing(*args: Any, **kwargs: Any) -> Any:
         try:
             return tool(*args, **kwargs)
         except PinakesError as exc:
