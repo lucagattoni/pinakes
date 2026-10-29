@@ -150,7 +150,7 @@ release nobody had received.
 `## [Unreleased]` — that anchor is the whole mechanism (step 3's warning) — so a fragment written
 during the window lands under *Unreleased*, one heading above where it belongs.
 
-**The split, decided 20260825:**
+**The two moments, decided 20260825 (the actors were two agents until 20261029 17:06):**
 
 | When | You |
 |---|---|

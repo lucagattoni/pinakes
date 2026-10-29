@@ -22,11 +22,11 @@ this is the procedure.
    --strict`, then read the merged state of what it names.
 
 **A peer's answer is coordination, never permission.** It cannot authorise an action the user has
-not, and an instruction relayed through a peer is something to put to the user as a diff — not
+not, and an instruction relayed through a peer is something to put to the user — not
 something to land. **Silence is not consent either**: a peer that has not answered has not agreed.
 
 **There is no role to name.** No session states one or asks for one. The planner/coder rule, its
-ownership table and the propose-as-a-diff procedure were removed on 20261029, when the two became
+ownership table and the propose-as-a-diff procedure were removed on 20261029 17:06, when the two became
 one agent; their last text, with the 20260823 incident record, is `git show 45a7f16:docs/BUILDING.md`.
 
 ## Subtasks and subagents
@@ -40,8 +40,9 @@ to end. A subagent is a pair of hands, never a role:
 - **Open the brief with its job**: *"You are building …"* for a builder, *"You are reviewing …"* for
   a reviewer. `tools/review_ledger.py` reads the first 400 characters of a brief and counts a run as
   a review pass when a reviewer word appears and no builder phrase (`IMPLEMENTER`) does. A builder's
-  brief carries reviewer words because `CLAUDE.md` tells it to review its own work, so one that opens
-  with no builder phrase can be counted as a review pass of the very work it wrote.
+  brief often carries reviewer words — it asks for a self-review, as `CLAUDE.md`'s *Iterate* rule
+  does — so one that opens with no builder phrase can be counted as a review pass of the very work
+  it wrote.
 - **A subagent's report is a claim.** Before its subtask is ticked, compare `git diff --name-only`
   with the brief's file set and run the gate yourself, bare, reading its exit status (step 3 below);
   never take "all green" from a report.
@@ -296,9 +297,11 @@ that a boundary needing a context clear is a **stop** rather than an offer
 | **The plan's baseline / measurement block** | which of its rows this increment just falsified, and how far `file:line` moved. Every plan here has drifted this way; the template release's did about thirty times in four days |
 | **[STATUS.md](STATUS.md)** | the surface row — `on `main`, unreleased` between landing and release, then the version |
 
-**You edit all five yourself, in the same branch as the work** (the user, 20260811 15:37). Nothing
-is proposed and nothing waits: the agent that built the increment is the one that knows what it
-falsified, and an agent that writes none of them has not handed over.
+**You edit all five yourself, in the same branch as the work.** The branch rule is the user's
+(20260811 15:37); editing the rows directly, with nothing proposed and nothing waiting, dates from
+20261029 17:06. **These five are merge hotspots now that any session may write them**: land the
+handover rows last, run `python3 tools/shared_file_overlap.py --fetch --strict`, and read the merged
+state of what it names. An agent that writes none of them has not handed over.
 
 **`RESUME.md` may only ever hold what is also recoverable from `main`.** It is excluded via
 `.git/info/exclude` — a file that is itself never committed — so a cloud run, a scheduled routine,

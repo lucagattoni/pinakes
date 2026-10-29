@@ -6,10 +6,10 @@ fact to its one home. **Status lives in `plans/`; the block below only points. T
 
 ## 🧭 One agent owns the whole task — settle who else is writing first
 
-**There are no roles: no planner, no coder, no file that is someone else's.** You plan, build,
-document, review, land, release and hand over, through **subtasks** (the task list) and
-**subagents**; every other live session is a **peer**. Records dated before 20261029 name a
-planner and a coder: read both as you, and a "ruling" awaited as yours unless marked **the user's**.
+**There are no roles: no planner, no coder.** You plan, build, document, review, land, release and
+hand over, through **subtasks** and **subagents**; every other live session is a **peer**. Records
+dated before 20261029 17:06 UTC name a planner and a coder: read both as you, and a "ruling" awaited
+as yours unless marked **the user's**. Their ownership-table and planner→coder "do not" items are void.
 
 **Before any tool call that writes:**
 
@@ -18,7 +18,7 @@ planner and a coder: read both as you, and a "ruling" awaited as yours unless ma
    permission ([BUILDING § Settle who else is writing](docs/BUILDING.md#settle-who-else-is-writing)).
 2. **Delegate by brief, never by role**: one subtask, the exact files it may write (**one writer per
    file**), the gate it must pass. A subagent's report is a claim: read its diff, run the gate
-   yourself. **You land, tag and write the handover**
+   yourself. **You land, tag and write the handover; a subagent never does**
    ([BUILDING § Subtasks and subagents](docs/BUILDING.md#subtasks-and-subagents)).
 
 ## 🛑 Land with `tools/land.py` — never `git merge` by hand
@@ -37,8 +37,9 @@ executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-br
   release when the work completes a unit, repeat; stop when the user takes control back, not at a
   boundary, **unless development is paused (below)**.
 - **A choice you can take, you take** — weigh the options in the open and say which and why; needing
-  an answer to proceed is the bar for asking. **A question a plan leaves open is yours to settle and
-  record in the plan; it is a stop only when it is the user's.**
+  an answer to proceed is the bar for asking. **A question a plan leaves open is a stop, not a guess,
+  unless it is a design choice inside the work: settle that and record it in the plan. Ask when it is
+  the user's, or you cannot tell whose.**
 - **Iterate: build → adversarially review (a fresh subagent) → fix → re-review until a pass finds
   nothing**, a commit per pass.
 - **At each increment boundary, judge whether the context should be cleared. If so, finish the
@@ -51,8 +52,7 @@ executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-br
 - **⏸ DEVELOPMENT IS PAUSED** (this overrides *Working mode*): pick up no row; resume only on the
   user's word. Releases are not held (lifted 20260904). The way back in:
   [the pause handover](plans/20260904_1027-development-paused-handover-and-evidence.md).
-- **Option A** ([its plan](plans/20261018_2354-option-a-review-coverage-and-claude-md.md)): **complete**,
-  A0–A4 landed and 0.32.7 published — the pause's one exception (§ 2 status, §§ 8, 10 and 11 handover).
+- **Option A** ([plan](plans/20261018_2354-option-a-review-coverage-and-claude-md.md)): **complete**, 0.32.7.
 - **Option B** ([plan](plans/20261019_0817-option-b-dogfooding-on-ramp.md)): designed, not built; build paused.
 - **The live build order**: [§ 3 of the live plan](plans/20260901_1148-clear-the-user-facing-list.md).
   Read a row's **body**, not its cells; **a plan's `## Build order` beats any snapshot of it.**
@@ -71,8 +71,8 @@ executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-br
 
 ## Documents change with the code
 
-**You edit every document yourself, in the commit that makes it true** — `docs/**`, `plans/**`, any
-`README.md`, `CLAUDE.md`, `CHANGELOG.md`. `main` never documents what does not exist yet; a
+**You edit every document yourself, in the commit that makes it true**, except the two fragment-fed
+files below. `main` never documents a command, flag or behaviour that does not exist yet; a
 correction to what is true today lands at once
 ([BUILDING § Documents change with the code](docs/BUILDING.md#documents-change-with-the-code)).
 

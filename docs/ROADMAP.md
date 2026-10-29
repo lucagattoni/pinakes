@@ -2098,7 +2098,7 @@ sub-doc exists:
 |---|---|
 | [`RELEASING.md` § Landing a branch](RELEASING.md#landing-a-branch) | what `land.py` refuses, and why `--cleanup` deletes both copies of a branch |
 | [`INVARIANTS.md` § The paid path's key is its own](INVARIANTS.md#the-paid-paths-key-is-its-own) | why the key rule is enforced in code rather than by machine hygiene |
-| `BUILDING.md` § *Proposing a change to a document you do not own*, removed 20261029 with the planner/coder split; its timing and same-commit rules are now [§ Documents change with the code](BUILDING.md#documents-change-with-the-code) | the propose-as-a-diff procedure, and why the cost is accepted |
+| `BUILDING.md` § *Proposing a change to a document you do not own*, removed 20261029 17:06 with the planner/coder split; its timing and same-commit rules are now [§ Documents change with the code](BUILDING.md#documents-change-with-the-code) | the propose-as-a-diff procedure, and why the cost is accepted |
 | `DESIGN.md` § 7.3 | the corpus-power numbers — `sign_test(4, 0)` = 0.0625, and why a power limit is not a mechanism limit |
 
 **The plan-status bullets were deleted as duplicates rather than moved.** `README.md`'s routing table
