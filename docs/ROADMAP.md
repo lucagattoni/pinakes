@@ -17,19 +17,34 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20261019 11:47 UTC
+## Where things stand right now — 20261029 18:57 UTC
 
-- **66 releases in 86 days** — **counted from `CHANGELOG.md`, not incremented from this
+- **67 releases in 96 days** — **counted from `CHANGELOG.md`, not incremented from this
   sentence's own previous value**, which is exactly how it drifted: it read **58** while the file
   held **59**. Across the **109** commits that have carried this sentence it agreed with the
   CHANGELOG in **70** and was wrong in **39** — all but two of them low, because a release added one
-  to the printed number instead of counting the entries. The three registers still reconcile: **67**
-  entries = **66** git tags + `0.30.3`, prepared and never tagged — **counted from
+  to the printed number instead of counting the entries. The three registers still reconcile: **68** entries = **67** git tags + `0.30.3`, prepared and never tagged — **counted from
   `git ls-remote --tags`, the CHANGELOG's headings and this file's table, never incremented**, which is
   the discipline this row exists to keep and the one it previously failed. **The index is a fourth
-  register and is deliberately lower — 59** — because seven tags predate publishing and `0.30.3`
+  register and is deliberately lower — 60** — because seven tags predate publishing and `0.30.3`
   reached no index.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725.
+  [`0.32.8`](#0328--a-fresh-install-that-resolved-newer-dependencies-than-the-lockfile-pins--20261029-1710)
+  is **on PyPI as of 20261029 18:53** — landed 17:37:06, the tag held for `minimum-python` at this
+  commit (CPython 3.13.18, 2844 passed, 126 skipped, read in its log) and then for the user's yes, so
+  the hold ran 1 hour 16 minutes and the wheel reached the index 20 seconds after the Release run
+  began. **Its control is two published wheels read side by side**: 0.32.7's `prices.toml` carries
+  `1.1253` and 0.32.8's carries `1.113`, both read out of the artifacts. Both hold 78 entries and
+  **no `tools/` entry**, and apart from the `dist-info` directory exactly five files differ —
+  `pinakes/__init__.py`, `pinakes/budget/prices.toml`, `pinakes/ids.py`, `pinakes/paid.py` and
+  `pinakes/serve.py`, which is the list the release stated. **The fix is read from a fresh install of
+  the published wheel**: it took `python-ulid` 4.1.0 and `mcp` 2.3.0, the pair a fresh resolve takes,
+  and `is_id` of a minted ID is `True` while `is_id` of its lowercase is `False`. **The release
+  workflow has a defect the PyPI check could not see:** the GitHub release's notes read *“Merge branch
+  '20261029_1710-release-0328'”*, the merge commit's subject, not the tag's annotation that
+  `--notes-from-tag` was meant to carry — and so do 0.32.7's, 0.32.6's, 0.30.0's, 0.25.0's and
+  0.22.0's, six read and six wrong, so it has been so since the workflow began creating releases.
+  Not fixed here.
   [`0.32.7`](#0327--a-price-table-that-had-run-out-and-review-tooling-that-says-who-looked--20261019-1133)
   is **on PyPI as of 20261019 11:44** — landed 11:38:05, on the index 6 minutes 32 seconds later, the tag
   held until `minimum-python` had completed at this commit and been read in its log (CPython 3.13.16,
@@ -133,7 +148,7 @@ precision nobody measured.
   rather than folded away, because the record was written honestly and deleting it would erase the
   gap instead of correcting it. The **seven** tags below `v0.2.2` are not a second exception: they
   predate publishing altogether, since `PUBLISH_TO_PYPI` became `true` on 20260728 17:15.
-- **Latest on PyPI: `0.32.7`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.32.8`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
