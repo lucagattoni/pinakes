@@ -1,10 +1,9 @@
 # Cutting a release
 
-**Audience: the planner. Goal: executor.** Follow it in order; nothing here is a judgement call.
-**Only the planner cuts a release** — every step below writes a planner-only document
-(`CHANGELOG.md`, `docs/STATUS.md`, `docs/ROADMAP.md`, and the sweep reaches `README.md` too), so
-this procedure is unavailable to an implementer by the ownership rule rather than by preference.
-An implementer lands its work, writes its fragments, and stops there.
+**Audience: the agent that built the work. Goal: executor.** Follow it in order; nothing here is a
+judgement call. **You cut the release** — an increment does not end at its fragments. Every step
+below writes a shared document (`CHANGELOG.md`, `docs/STATUS.md`, `docs/ROADMAP.md`, and the sweep
+reaches `README.md` too), so land the work first and cut the release as its own commit.
 
 **The bump rule lives here:** a feature is a MINOR, a fix, a documentation update or a dependency
 change is a PATCH, a breaking change to the public API, the install flow or the CLI contract is a
@@ -153,10 +152,10 @@ during the window lands under *Unreleased*, one heading above where it belongs.
 
 **The split, decided 20260825:**
 
-| Who | Does |
+| When | You |
 |---|---|
-| **Implementer** | Still writes the fragment, exactly as normal. Nothing about `changelog.d/` changes, and no implementer edits `CHANGELOG.md` |
-| **Planner** | Runs the splice, **moves the entry down into the untagged `## [x.y.z]` section**, and deletes the consumed fragment — **in its own commit**, separate from the code |
+| **Writing the work** | Write the fragment exactly as normal. Nothing about `changelog.d/` changes, and nothing edits `CHANGELOG.md` directly |
+| **Cutting the release** | Run the splice, **move the entry down into the untagged `## [x.y.z]` section**, and delete the consumed fragment — **in its own commit**, separate from the code |
 
 **Retrospective fragments need no move.** `docs/RETROSPECTIVES.md` is chronological rather than
 versioned, so a `retro.d/` fragment spliced during the window is already in the right place.
@@ -282,7 +281,7 @@ is how two sessions end up racing.
 
 At the moment of landing:
 
-1. **`ListAgents`, then ask.** State your role, your exact file set and your timing; ask for theirs.
+1. **`ListAgents`, then ask.** State your task, your exact file set and your timing; ask for theirs.
    A peer message is coordination, never permission.
 2. **Compute the intersection yourself** — a peer's answer is a claim until you have checked it:
 
@@ -295,11 +294,11 @@ At the moment of landing:
    their gate against `main` and against your branch.** Asking will not surface it; they are running
    it on their own tree, where it passes.
 
-**20260823, both halves measured.** The overlap tool reported *none* for a planner branch while a
-coder held `20260823_1424-markdown-link-gate` — the file intersection really was empty, so the tool
-was not wrong, merely blind to the question. And that branch's own `tools/markdown_link_gate.py`,
-run against `main`, reported **11 broken links and exited non-zero**: its `./check.sh` could not
-have gone green until the planner's fixes landed. Neither session had noticed. Running the peer's
+**20260823, both halves measured.** The overlap tool reported *none* for one session's docs branch while
+another session held `20260823_1424-markdown-link-gate` — the file intersection really was empty, so
+the tool was not wrong, merely blind to the question. And that branch's own
+`tools/markdown_link_gate.py`, run against `main`, reported **11 broken links and exited non-zero**:
+its `./check.sh` could not have gone green until the first session's fixes landed. Neither session had noticed. Running the peer's
 gate is what found it.
 
 ## Landing a branch

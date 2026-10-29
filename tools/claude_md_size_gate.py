@@ -31,8 +31,7 @@ and the two `wc` comparisons).
 
 **A red here is fixed by moving a rule, never by deleting one.** The message says where: to the
 document that already owns the fact (`docs/README.md` routes each fact to its one home) with a
-pointer left behind. `CLAUDE.md` is the planner's file, so an implementer whose branch finds it over
-the ceiling reports that and proposes the move as a diff.
+pointer left behind, in the same commit that put it over.
 
 Stdlib only, run as `python3 tools/claude_md_size_gate.py [--repo ROOT]`. Exit `0` within the
 ceilings, `1` over either, or when `CLAUDE.md` cannot be read — a missing file is a failure, never a
@@ -47,16 +46,15 @@ import argparse
 import sys
 from pathlib import Path
 
-#: D4 — the hard ceiling, not an aim (the aim is about 100 lines). Changing either number is the
-#: planner's decision, and `tests/test_claude_md_size.py` fails until `CLAUDE.md`'s own intro line
+#: D4 — the hard ceiling, not an aim (the aim is about 100 lines). Changing either number is a
+#: deliberate act, and `tests/test_claude_md_size.py` fails until `CLAUDE.md`'s own intro line
 #: states the same two numbers, so the prose and this constant cannot drift apart in silence.
 MAX_LINES = 150
 MAX_WORDS = 2700
 
 REMEDY = (
     "Move a rule to the document that owns it (docs/README.md routes each fact to its one home) "
-    "and leave a pointer behind. Do not delete the rule to make room. CLAUDE.md is the planner's "
-    "file: an implementer reports this and proposes the move as a diff."
+    "and leave a pointer behind. Do not delete the rule to make room."
 )
 
 

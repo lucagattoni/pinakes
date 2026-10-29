@@ -4,17 +4,22 @@ Rationale: [`docs/DESIGN.md`](docs/DESIGN.md); [`docs/README.md`](docs/README.md
 fact to its one home. **Status lives in `plans/`; the block below only points. This file stays under
 150 lines and 2,700 words** (`wc -l -w CLAUDE.md`) — a new rule displaces an old one.
 
-## 🧭 A cleared context does not know its own role — settle that first
+## 🧭 One agent owns the whole task — settle who else is writing first
+
+**There are no roles: no planner, no coder, no file that is someone else's.** You plan, build,
+document, review, land, release and hand over, through **subtasks** (the task list) and
+**subagents**; every other live session is a **peer**. Records dated before 20261029 name a
+planner and a coder: read both as you, and a "ruling" awaited as yours unless marked **the user's**.
 
 **Before any tool call that writes:**
 
-1. **Name your role** (coder, planner, other) from what the **user** said in *this* session — never
-   from the repo, the previous session or the work in flight. **If you cannot, ask, and do nothing
-   until they answer**; *Working mode* does **not** override this.
-2. **Ask every live peer theirs** (`ListAgents`, `SendMessage`), stating your role and file set, and
-   wait before touching a shared path. Both wrong guesses fail silently
-   ([BUILDING § Settle your role](docs/BUILDING.md#settle-your-role-before-anything-else)).
-3. **Then act inside the ownership table**, re-checking at the moment of landing.
+1. **Ask every live peer what it holds** (`ListAgents`, `SendMessage`): state your task and file set,
+   wait before touching a path either of you holds. A peer's answer is coordination, never
+   permission ([BUILDING § Settle who else is writing](docs/BUILDING.md#settle-who-else-is-writing)).
+2. **Delegate by brief, never by role**: one subtask, the exact files it may write (**one writer per
+   file**), the gate it must pass. A subagent's report is a claim: read its diff, run the gate
+   yourself. **You land, tag and write the handover**
+   ([BUILDING § Subtasks and subagents](docs/BUILDING.md#subtasks-and-subagents)).
 
 ## 🛑 Land with `tools/land.py` — never `git merge` by hand
 
@@ -28,18 +33,17 @@ executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-br
 
 ## Working mode — autonomous by default
 
-- **Run to completion** — next increment from the live plan: build, land, write fragments, repeat;
-  stop when the user takes control back, not at a boundary, **unless development is paused (below)**.
-- **Cutting the release is the planner's, and so is the handover** — the ownership table wins. An
-  implementer's increment ends at the fragments: it lands, proposes planner-owned text (the
-  handover rows included), no release.
+- **Run to completion** — next increment from the live plan: build, land, write fragments, cut the
+  release when the work completes a unit, repeat; stop when the user takes control back, not at a
+  boundary, **unless development is paused (below)**.
 - **A choice you can take, you take** — weigh the options in the open and say which and why; needing
-  an answer to proceed is the bar for asking. **An undecided question in a plan is a stop, not a
-  guess**: *how* to build what a plan specifies is yours, *what* it should have specified is not.
-- **Iterate: build → adversarially review → fix → re-review until a pass finds nothing**, a commit per pass.
+  an answer to proceed is the bar for asking. **A question a plan leaves open is yours to settle and
+  record in the plan; it is a stop only when it is the user's.**
+- **Iterate: build → adversarially review (a fresh subagent) → fix → re-review until a pass finds
+  nothing**, a commit per pass.
 - **At each increment boundary, judge whether the context should be cleared. If so, finish the
   handoff, say so, and stop** — clearing is the user's command. **Write the handover before you
-  stop, in the same branch as the work**; an implementer *proposes* its planner-owned rows as diffs
+  stop, in the same branch as the work**
   ([BUILDING § Hand over before you stop](docs/BUILDING.md#hand-over-before-you-stop)).
 
 ## What is live right now
@@ -65,20 +69,17 @@ executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-br
 - Vet every file for PII, credentials, private URLs, and anything copied from memory before staging.
 - Never commit model weights or `.pinakes/` state (both gitignored — keep it that way).
 
-## Documentation has one owner
+## Documents change with the code
 
-**The planner owns every document in this repo. No other agent edits one — it proposes.**
+**You edit every document yourself, in the commit that makes it true** — `docs/**`, `plans/**`, any
+`README.md`, `CLAUDE.md`, `CHANGELOG.md`. `main` never documents what does not exist yet; a
+correction to what is true today lands at once
+([BUILDING § Documents change with the code](docs/BUILDING.md#documents-change-with-the-code)).
 
 | | |
 |---|---|
-| **Planner-only** | `docs/**`, `plans/**`, **any `README.md`, at any depth**, `CLAUDE.md`, `CHANGELOG.md` |
-| **Yours to write** | `changelog.d/` and `retro.d/` fragments; docstrings and comments in `src/`, `tests/`, `tools/` |
-| **One narrow exception** | `docs/VERIFICATION.md`: touch **only** the row a test you wrote, renamed or removed requires — `tests/test_verification.py` hard-fails on a row naming a test that no longer exists |
-
-**Propose as `git diff <sha> -- <file>` against a named commit**, never an edit
-([BUILDING § Proposing](docs/BUILDING.md#proposing-a-change-to-a-document-you-do-not-own)). Text
-that must land in *your* commit is dictated by the planner and pasted unchanged — **ask, do not
-draft** ([§ Content mine](docs/BUILDING.md#content-mine-keystrokes-yours)).
+| **Through fragments** | `CHANGELOG.md` and `docs/RETROSPECTIVES.md` take a `changelog.d/` or `retro.d/` fragment, spliced at the release cut — sessions run at once and every increment would edit the same two files |
+| **Same commit as the code** | the `docs/VERIFICATION.md` row for a test you wrote, renamed or removed — `tests/test_verification.py` hard-fails on a row naming a test that no longer exists |
 
 **README and DESIGN.md are version-free** — no version number or "as of vX" claim in their prose.
 **Read the rules in [docs/README § Conventions](docs/README.md#conventions) before any docs
@@ -125,7 +126,7 @@ never the gate. **Core dependencies stay light**: nothing pulling torch enters `
 ## Landing work: always push, always release
 
 **Nothing is done until it is pushed to `origin/main` (then `git pull --ff-only` the primary
-checkout) and, when it completes a unit of work, tagged by the planner** ([`RELEASING`](docs/RELEASING.md)
+checkout) and, when it completes a unit of work, tagged by you** ([`RELEASING`](docs/RELEASING.md)
 holds the MINOR / PATCH / MAJOR rule):
 
 - **Before merging, run `python3 tools/shared_file_overlap.py --fetch --strict`** and *read* the
@@ -145,4 +146,4 @@ not a licensing instrument — a claimed improvement needs the RFC corpus (`tool
 or another corpus whose improvable pool has been **re-measured, not remembered**
 ([DESIGN § What a corpus can license](docs/DESIGN.md#73-what-a-corpus-can-license)).
 
-<!-- Provenance. Role rule: the user, 20260823. Working mode: the user, 20260808 04:39 (stop at a clear-context boundary 20260811 15:37). Ownership table: the user, 20260801 01:24. Pause: the user, 20260904 10:21, to review the process against the analysis "Framing, Not Roles" (artifact 2c7961ec); option A resumed 20261018 and completed 20261019 (0.32.7). Until A3 (20261019) the live block was about 250 lines of incident narrative: `git show f1804ea:CLAUDE.md`. -->
+<!-- Provenance. One agent, no planner/coder roles: the user, 20261029 17:06, replacing the role rule (the user, 20260823) and the ownership table (the user, 20260801 01:24); their last text: `git show 45a7f16:CLAUDE.md`. Working mode: the user, 20260808 04:39 (stop at a clear-context boundary 20260811 15:37). Pause: the user, 20260904 10:21, to review the process against the analysis "Framing, Not Roles" (artifact 2c7961ec); option A resumed 20261018 and completed 20261019 (0.32.7). Until A3 (20261019) the live block was about 250 lines of incident narrative: `git show f1804ea:CLAUDE.md`. -->

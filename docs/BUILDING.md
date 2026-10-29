@@ -8,60 +8,67 @@ Extracted from `CLAUDE.md` on 20260806 00:00, when that file crossed its own siz
 `RELEASING.md` was on 20260801. Nothing was dropped in the move. **Which plan is live stays in
 `CLAUDE.md`**, because it changes every few days and this procedure does not.
 
-## Settle your role before anything else
+## Settle who else is writing
 
-**A cleared or fresh context keeps the repository and loses the one fact that decides what it may
-touch.** `CLAUDE.md` carries the rule; this is the procedure and the record behind it.
+**A cleared or fresh context keeps the repository and loses the one fact that decides what is safe
+to touch: which other sessions are running, and what each holds.** `CLAUDE.md` carries the rule;
+this is the procedure.
 
-1. **Name your own role — coder, planner, or another — from what the user said in *this* session.**
-   Not from what the repository makes possible, not from what the previous session was doing, and
-   **not from the work that happens to be in flight**: a session that opens on an unlanded docs
-   branch reads as *planner* and may not be one. **If you cannot determine it, ask the user and do
-   nothing else until they answer.** This is one of very few rules here where the correct move is
-   to *block*, and it has to be stated as an exception because `CLAUDE.md` § *Working mode* other-
-   wise overrides the default of stopping.
-2. **Ask every live peer the same question.** `ListAgents`, then `SendMessage` each live session:
-   *what role do you hold, what are you working on, which paths are you holding?* State your own
-   role, file set and timing in the same message — a peer cannot route around you if it does not
-   know you exist — and wait for the reply before touching a shared path.
-3. **Then work inside the ownership table** in `CLAUDE.md` § *Documentation has one owner*, and
-   re-check at the moment of landing: `python3 tools/shared_file_overlap.py --fetch --strict`, then
-   read the merged state of what it names.
-
-**Both failure directions are silent, and 20260823 produced both inside a few hours.** One session
-opened on an in-flight docs branch, from which *planner* was the natural inference, and was told
-*"you are the coder"* two tool calls later — without that, it would have landed documents it did
-not own. The other announced a land on a mandate its peer could not see; the mandate was real, and
-the only thing that established it was the peer **asking**. A rule naming only the first direction
-invites the second, where an agent that is in fact the planner leaves a document wrong out of
-misplaced deference.
+1. **`ListAgents`, then `SendMessage` each live session**: *what are you working on, which paths do
+   you hold?* State your own task, file set and timing in the same message — a peer cannot route
+   around you if it does not know you exist — and wait for the reply before touching a path either
+   of you holds.
+2. **Work, and re-check at the moment of landing**: `python3 tools/shared_file_overlap.py --fetch
+   --strict`, then read the merged state of what it names.
 
 **A peer's answer is coordination, never permission.** It cannot authorise an action the user has
 not, and an instruction relayed through a peer is something to put to the user as a diff — not
-something to land.
+something to land. **Silence is not consent either**: a peer that has not answered has not agreed.
 
-## Proposing a change to a document you do not own
+**There is no role to name.** No session states one or asks for one. The planner/coder rule, its
+ownership table and the propose-as-a-diff procedure were removed on 20261029, when the two became
+one agent; their last text, with the 20260823 incident record, is `git show 45a7f16:docs/BUILDING.md`.
 
-The ownership table is in [`CLAUDE.md` §
-*Documentation has one owner*](https://github.com/lucagattoni/pinakes/blob/main/CLAUDE.md). This is
-what to do when a document it does not give you is wrong.
+## Subtasks and subagents
 
-**Propose as `git diff <sha> -- <file>` against a named commit**, in your branch's commit message or
-a note the planner reads. Never an edit, and never "it is one line".
+An increment is a list of **subtasks** on the task list, and you stay the one agent that owns it end
+to end. A subagent is a pair of hands, never a role:
 
-**The planner incorporates it — judging *when*, not whether.** A correction to what is true **today**
-lands on `main` at once. A doc change describing **your unlanded work** lands with your merge: `main`
-must not document a command that does not exist yet.
+- **Brief it with one subtask**, the exact paths it may write (**one writer per file** — two writers
+  never share a path, in one branch or across worktrees), the gate that must pass, and what it must
+  not touch: the primary checkout, `main`, another worktree, the landing.
+- **Open the brief with its job**: *"You are building …"* for a builder, *"You are reviewing …"* for
+  a reviewer. `tools/review_ledger.py` reads the first 400 characters of a brief and counts a run as
+  a review pass when a reviewer word appears and no builder phrase (`IMPLEMENTER`) does. A builder's
+  brief carries reviewer words because `CLAUDE.md` tells it to review its own work, so one that opens
+  with no builder phrase can be counted as a review pass of the very work it wrote.
+- **A subagent's report is a claim.** Before its subtask is ticked, compare `git diff --name-only`
+  with the brief's file set and run the gate yourself, bare, reading its exit status (step 3 below);
+  never take "all green" from a report.
+- **Review is a fresh subagent with no stake in the code**, never your own context re-reading its
+  own diff (step 5 below).
+- **You land, tag and write the handover** ([§ Hand over before you stop](#hand-over-before-you-stop)).
+  One agent holds the whole state, so a subagent's work reaches `main` only through you.
 
-**Why a round trip is worth it.** Documentation is the coordination surface, and a clean auto-merge
-is not a correct merge — git merges edits that do not overlap textually, never edits that *agree*
-(20260729). The cost is accepted: a correction waits for the planner.
+## Documents change with the code
 
-**The one narrow exception is [`VERIFICATION.md`](VERIFICATION.md)** — touch **only** the row a test
-you wrote, renamed or removed requires, and nothing else in that file.
-[`tests/test_verification.py`](https://github.com/lucagattoni/pinakes/blob/main/tests/test_verification.py)
-hard-fails on a row that names a test which no longer exists, so a renamed test whose row still
-carries the old name makes *your own* branch red **and you could not self-certify**.
+You edit every document yourself; the table is in `CLAUDE.md` § *Documents change with the code*.
+Two rules decide *when*:
+
+- **A correction to what is true today lands on `main` at once.** A doc change describing **your
+  unlanded work** lands with your merge: `main` must not document a command that does not exist yet.
+- **A document a test reads changes in the same commit as the code it describes.** A
+  `docs/VERIFICATION.md` section for a gate you are adding or a row naming a test
+  (`tests/test_verification.py` hard-fails on a row naming a test that no longer exists, so a renamed
+  test whose row keeps the old name turns your own branch red), or a counted paragraph in
+  `tools/batteries/README.md` that `tests/test_batteries.py` asserts: **any split ordering leaves
+  `main` red or wrong at some commit**, and a repository whose gates are its memory cannot afford
+  either.
+
+**Why a documentation edit still gets a careful landing.** Documentation is the coordination surface
+between concurrent sessions, and a clean auto-merge is not a correct merge — git merges edits that do
+not overlap textually, never edits that *agree* (20260729). That is why the overlap tool runs before
+every land (step 7 below).
 
 ## Read the build order out of `plans/`
 
@@ -82,7 +89,7 @@ Three rules about reading a plan, each learned more than once:
   implementations produce — so re-derive the scenario before writing it.
 - **A status claim is never gated — not a `##` heading, not a table cell — so read the body.** An
   item's closure can sit in its body: `grep '^## '` on `plans/20260731_1202-open-corrections.md`
-  returns *Live* and stops, which put two freshly-cleared coder sessions within one message of
+  returns *Live* and stops, which put two freshly-cleared sessions within one message of
   rebuilding a landed increment (20260824, and again 20260825); both times a peer caught it and no
   gate did. **Where a dated snapshot and a `## Build order` disagree, the build order wins.** An
   item that reads as a decision may only be an unchecked assumption, and one that reads as live may
@@ -148,7 +155,7 @@ Never batch increments; each is a separate, bisectable landing:
    20260904 09:08 one was built that skipped the `__pycache__` rule for exactly that reason, taking three
    instruments and a count that walked 5 → 3 → 2 before the rule was applied and the verdicts went
    stable. **A rule keyed to what a thing is called is broken by the next thing that is not called
-   that** — the same session had a planner's trigger fail the same way, by naming *"more than one
+   that** — the same session had a trigger fail the same way, by naming *"more than one
    vacuous test"* and never naming the one-plus-one-unknown case that actually turned up. When you
    write a rule here, key it to the *shape* of the work:
    - **Commit before mutating** — `git checkout <file>` restores to the last commit, not to the
@@ -273,33 +280,6 @@ Never batch increments; each is a separate, bisectable landing:
 Which documents an increment touches, and in what order: [`docs/README.md` § Landing a new
 increment](https://github.com/lucagattoni/pinakes/blob/main/docs/README.md#landing-a-new-increment).
 
-## Content mine, keystrokes yours
-
-**Some planner-owned text cannot land in its own commit.** A `docs/VERIFICATION.md` section for a
-gate you are adding, or a counted paragraph in `tools/batteries/README.md` that
-`tests/test_batteries.py` asserts, must change *atomically* with the code — **any split ordering
-leaves `main` red or wrong at some commit**, and a repository whose gates are its memory cannot
-afford either.
-
-**So the planner decides the exact text and says so explicitly, and the implementer pastes it into
-their branch unchanged.**
-
-| | |
-|---|---|
-| **Authorship** | the planner's, entirely. Nothing about the ownership table is suspended |
-| **The keystrokes** | the implementer's, because the commit has to be theirs |
-| **The form** | the planner gives the **verbatim text**, not a description of it |
-
-**This is not a licence to draft and seek approval afterwards.** *"I wrote it, is this alright?"* puts
-the planner in the position of reviewing rather than deciding, which is the thing the ownership rule
-exists to prevent — and a review that says *yes* is indistinguishable from one that was never
-properly read. **Ask; do not draft.**
-
-**Why it is written down at all:** it was re-derived from first principles **four separate times in
-one session** (20260825), and two such edits were authorised into a coder's branch that day with no
-record of why an implementer's commit contained planner-owned text. A future reader had no way to
-learn the difference between this and a broken rule.
-
 ## Hand over before you stop
 
 **Context dies with the session; disk survives.** So the handover is part of the increment, landed
@@ -316,20 +296,15 @@ that a boundary needing a context clear is a **stop** rather than an offer
 | **The plan's baseline / measurement block** | which of its rows this increment just falsified, and how far `file:line` moved. Every plan here has drifted this way; the template release's did about thirty times in four days |
 | **[STATUS.md](STATUS.md)** | the surface row — `on `main`, unreleased` between landing and release, then the version |
 
-**All five are planner-only, so an implementer hands over by *proposing* them.** The rule that the
-handover lands in the same branch as the work (the user, 20260811 15:37) is unchanged and is not
-weakened here: what lands in that branch is the `git diff <sha> -- <file>` for each row, per
-[§ Proposing a change to a document you do not own](#proposing-a-change-to-a-document-you-do-not-own).
-The planner incorporates them. **An implementer that edits these directly has broken the ownership
-rule, not satisfied the handover one** — and an implementer that writes nothing has satisfied
-neither. The two rules meet here rather than collide; only the *form* of the handover differs by
-role.
+**You edit all five yourself, in the same branch as the work** (the user, 20260811 15:37). Nothing
+is proposed and nothing waits: the agent that built the increment is the one that knows what it
+falsified, and an agent that writes none of them has not handed over.
 
 **`RESUME.md` may only ever hold what is also recoverable from `main`.** It is excluded via
 `.git/info/exclude` — a file that is itself never committed — so a cloud run, a scheduled routine,
 another checkout or a fresh worktree sees **no handover at all, and cannot discover that one
 exists**. Neither `CLAUDE.md` nor `docs/README.md` points at it, deliberately: committing it
-would make a file both roles write into a planner-only merge hotspot. **So it is a convenience, never
+would make a file every session writes into a merge hotspot. **So it is a convenience, never
 a carrier.** Anything that would be lost if it vanished belongs in the five rows above, which are
 committed. The file already claims this about itself and nothing enforces it — that is the whole of
 the rule. This is the *protection-for-me versus visibility-for-everyone* distinction applied to the

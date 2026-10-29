@@ -31,8 +31,8 @@ status alone cannot tell a gate that measured and refused from one that crashed 
 
 Exercised as a subprocess, argument parsing included, for the reason
 `tests/test_markdown_link_gate.py` gives: the thing under test is the artifact that runs, not an
-import of it. `CLAUDE.md` is the planner's file and this module never writes to it; every oversized
-case lives in a `tmp_path` repository.
+import of it. `CLAUDE.md` is the real file under test and this module never writes to it; every
+oversized case lives in a `tmp_path` repository.
 """
 
 import os
@@ -341,15 +341,14 @@ def test_words_are_split_on_any_run_of_whitespace(tmp_path: Path, separator: str
 
 def test_the_failure_says_to_move_a_rule_not_to_delete_it(tmp_path: Path) -> None:
     """Three passes grew back because trimming without a destination is how the file got to 473
-    lines: the remedy has to name the destination, say what to leave behind, say what not to do,
-    and say whose file it is."""
+    lines: the remedy has to name the destination, say what to leave behind and say what not to
+    do."""
     result = _run(_repo_with(tmp_path, _text(151, 151)))
     assert result.returncode == 1
     assert "Move a rule to the document that owns it" in result.stderr, result.stderr
     assert "docs/README.md" in result.stderr, "the routing table is where the owner is found"
     assert "leave a pointer behind" in result.stderr, result.stderr
     assert "Do not delete the rule" in result.stderr, result.stderr
-    assert "the planner's file" in result.stderr, "an implementer must know to propose, not edit"
 
 
 def test_a_missing_claude_md_fails_rather_than_passing(tmp_path: Path) -> None:
@@ -419,7 +418,7 @@ def _ceiling_problem(text: str) -> str | None:
         return (
             f"The first 'under N lines and M words' in CLAUDE.md's first {INTRO_LINES} lines "
             f"states a ceiling of {stated}, but tools/claude_md_size_gate.py and its tests "
-            "enforce (150, 2700). A ceiling change is the planner's decision: change the prose, "
+            "enforce (150, 2700). A ceiling change is deliberate: change the prose, "
             "the gate's MAX_LINES / MAX_WORDS and the literals in this file in one commit."
         )
     return None
