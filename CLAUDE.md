@@ -8,8 +8,8 @@ fact to its one home. **Status lives in `plans/`; the block below only points. T
 
 **There are no roles: no planner, no coder.** You plan, build, document, review, land, release and
 hand over, through **subtasks** and **subagents**; every other live session is a **peer**. Records
-dated before 20261029 17:06 UTC name a planner and a coder: read both as you, and a "ruling" awaited
-as yours unless marked **the user's**. Their ownership-table and planner→coder "do not" items are void.
+written under the old rule (dated before 20261029 17:06 UTC, or by a session still on it) name a
+planner and a coder: read both as you. Their ownership-table and planner→coder "do not" items are void.
 
 **Before any tool call that writes:**
 
@@ -17,8 +17,9 @@ as yours unless marked **the user's**. Their ownership-table and planner→coder
    wait before touching a path either of you holds. A peer's answer is coordination, never
    permission ([BUILDING § Settle who else is writing](docs/BUILDING.md#settle-who-else-is-writing)).
 2. **Delegate by brief, never by role**: one subtask, the exact files it may write (**one writer per
-   file**), the gate it must pass. A subagent's report is a claim: read its diff, run the gate
-   yourself. **You land, tag and write the handover; a subagent never does**
+   file**), the gate it must pass. A subagent's brief is its whole coordination: it edits only those
+   files, asks no peer, never lands, tags, pushes or releases, and stops at its report. Read its
+   diff, run the gate yourself. **You land, tag and write the handover**
    ([BUILDING § Subtasks and subagents](docs/BUILDING.md#subtasks-and-subagents)).
 
 ## 🛑 Land with `tools/land.py` — never `git merge` by hand
@@ -37,9 +38,9 @@ executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-br
   release when the work completes a unit, repeat; stop when the user takes control back, not at a
   boundary, **unless development is paused (below)**.
 - **A choice you can take, you take** — weigh the options in the open and say which and why; needing
-  an answer to proceed is the bar for asking. **A question a plan leaves open is a stop, not a guess,
-  unless it is a design choice inside the work: settle that and record it in the plan. Ask when it is
-  the user's, or you cannot tell whose.**
+  an answer to proceed is the bar for asking. **An open question in a plan is a stop, not a guess,
+  unless it is how to build what the plan specifies; surface, names and anything irreversible or
+  outward-facing are the user's** ([BUILDING § Open questions](docs/BUILDING.md#open-questions)).
 - **Iterate: build → adversarially review (a fresh subagent) → fix → re-review until a pass finds
   nothing**, a commit per pass.
 - **At each increment boundary, judge whether the context should be cleared. If so, finish the
@@ -50,9 +51,10 @@ executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-br
 ## What is live right now
 
 - **⏸ DEVELOPMENT IS PAUSED** (this overrides *Working mode*): pick up no row; resume only on the
-  user's word. Releases are not held (lifted 20260904). The way back in:
-  [the pause handover](plans/20260904_1027-development-paused-handover-and-evidence.md).
-- **Option A** ([plan](plans/20261018_2354-option-a-review-coverage-and-claude-md.md)): **complete**, 0.32.7.
+  user's word (a bare "continue" names no row: ask). Releases are not held (lifted 20260904). The way
+  back in: [the pause handover](plans/20260904_1027-development-paused-handover-and-evidence.md).
+- **Option A** ([its plan](plans/20261018_2354-option-a-review-coverage-and-claude-md.md)): **complete**,
+  A0–A4 landed and 0.32.7 published — the pause's one exception (§ 2 status, §§ 8, 10 and 11 handover).
 - **Option B** ([plan](plans/20261019_0817-option-b-dogfooding-on-ramp.md)): designed, not built; build paused.
 - **The live build order**: [§ 3 of the live plan](plans/20260901_1148-clear-the-user-facing-list.md).
   Read a row's **body**, not its cells; **a plan's `## Build order` beats any snapshot of it.**
@@ -71,15 +73,11 @@ executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-br
 
 ## Documents change with the code
 
-**You edit every document yourself, in the commit that makes it true**, except the two fragment-fed
-files below. `main` never documents a command, flag or behaviour that does not exist yet; a
-correction to what is true today lands at once
-([BUILDING § Documents change with the code](docs/BUILDING.md#documents-change-with-the-code)).
-
-| | |
-|---|---|
-| **Through fragments** | `CHANGELOG.md` and `docs/RETROSPECTIVES.md` take a `changelog.d/` or `retro.d/` fragment, spliced at the release cut — sessions run at once and every increment would edit the same two files |
-| **Same commit as the code** | the `docs/VERIFICATION.md` row for a test you wrote, renamed or removed — `tests/test_verification.py` hard-fails on a row naming a test that no longer exists |
+**You edit every document yourself, in the commit that makes it true**, except `CHANGELOG.md` and
+`docs/RETROSPECTIVES.md`: those take a `changelog.d/` or `retro.d/` fragment, spliced at the release
+cut, because sessions run at once and every increment would edit the same two files. `main` never
+documents a command, flag or behaviour that does not exist yet; a correction to what is true today
+lands at once ([BUILDING § Documents change with the code](docs/BUILDING.md#documents-change-with-the-code)).
 
 **README and DESIGN.md are version-free** — no version number or "as of vX" claim in their prose.
 **Read the rules in [docs/README § Conventions](docs/README.md#conventions) before any docs

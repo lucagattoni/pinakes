@@ -7,11 +7,12 @@
   `changelog.d/` and `retro.d/` fragments instead of edits to the two files every increment would
   touch, and a `docs/VERIFICATION.md` row or counted paragraph changing in the commit that makes it
   true. `docs/BUILDING.md` lost its role, propose-a-diff and dictated-text sections and gained
-  *Subtasks and subagents*, whose one non-obvious rule is that a builder's brief must open with its
-  job: `tools/review_ledger.py` reads the first 400 characters of a brief and otherwise counts a
+  *Subtasks and subagents* and *Open questions* (an open question in a plan stays a stop; how to
+  build what it specifies is the agent's, permanent surface and anything irreversible is the
+  user's). The non-obvious rule in the first is that a builder's brief must open with its job: `tools/review_ledger.py` reads the first 400 characters of a brief and otherwise counts a
   builder's own brief as a review pass of the work it wrote. `docs/RELEASING.md` is addressed to the
   agent that built the work, which now cuts the release. The `CLAUDE.md` size gate's failure message
   no longer says whose file it is; its test and one of its mutants changed with it. Plans,
   retrospectives and release records keep the words they were written with, and `CLAUDE.md` says to
   read "planner" and "coder" in them as the one agent. Developer process only: no `pnk` behaviour
-  changes. `CLAUDE.md` was reviewed against the hygiene rules on 20261029 17:08.
+  changes. `CLAUDE.md` was reviewed against the hygiene rules on 20261029 18:53.
