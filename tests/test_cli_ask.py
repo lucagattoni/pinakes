@@ -340,9 +340,19 @@ def test_a_price_it_cannot_compute_leaves_the_free_command_working(
 
 
 def test_json_carries_a_null_answer_and_an_escalation_block(
-    confident_kb: Path, capsys: pytest.CaptureFixture[str]
+    confident_kb: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """One schema whether or not the loop ran: `search`'s payload plus `answer` and `escalation`."""
+    from dataclasses import replace
+    from decimal import Decimal
+
+    from pinakes.budget import prices as prices_module
+
+    # Chained on `prices_never_age`'s wrapper, so `as_of` stays aged while the rate is held (below).
+    aged = prices_module.load_prices
+    monkeypatch.setattr(
+        prices_module, "load_prices", lambda: replace(aged(), usd_per_eur=Decimal("1.1253"))
+    )
     assert main(["ask", "sourdough", "--kb", str(confident_kb), "--json"]) == 0
     payload = json.loads(capsys.readouterr().out)
 
@@ -374,29 +384,18 @@ def test_json_carries_a_null_answer_and_an_escalation_block(
     # the old FX rate and re-deriving it means re-measuring a counterfactual, so it is stated as a
     # direction rather than restamped with a number nobody checked.)
     #
-    # **It is also the only assertion in this suite that reads the committed `usd_per_eur`** --
-    # measured over every EUR literal under `tests/` at `3cf9858`, seven candidates, each opened:
-    # the other six pin the rate where the test controls the input (a local constructor default, a
-    # module `RATE`, a per-call `rate=`, a fixture at `1.00`, a value put in and read back), so they
-    # cannot see the shipped one. `conftest.py`'s `prices_never_age` replaces `as_of` alone and
-    # keeps the real rate, which is how this line reaches it at all.
-    #
-    # **That makes this literal the shipped rate's accidental alarm, and the only one there is.**
-    # `test_budget_core.py` asserts the committed rate is a string that parses as a `Decimal` --
-    # never its value -- and `check.sh`'s prices gate checks only that `as_of` parses. So nothing
-    # here was watching the number: `usd_per_eur` sat at its seed `1.08` from 20260728 to 20260831
-    # while `as_of` was re-stamped over it, and this line is what went red when a release finally
-    # re-verified the rate (`0.21` -> `0.20`). It fires when the rate *moves*, never when it is
-    # *stale*, which is the wrong half -- and `docs/RELEASING.md` step 3 now moves the rate at every
-    # release, so it goes red at every release until this is fixed rather than restamped.
-    #
-    # **Do not simply decouple it.** Removing the coupling without replacing the guard deletes the
-    # only alarm the shipped rate has ever had. Rowed as two parts: pin the rate *here* via the
-    # `monkeypatch.setattr` route `prices_never_age`'s docstring already documents -- not by
-    # widening that fixture, which promises the rate stays real -- and separately assert the
-    # committed rate is *plausible*, a bound rather than a value. A bound is wrong at this call site
-    # (it would admit `0.26` and kill the discrimination above) and right on the rate, where the
-    # property is "somebody refreshed this". It still cannot catch stale-but-plausible, and `1.08`
+    # **The rate is pinned above, to `1.1253` -- the rate `0.20` was measured under.** Until 0.32.8
+    # this was the one assertion in the suite that read the committed `usd_per_eur`, which made it
+    # the shipped rate's accidental alarm: it went red when a release re-verified the rate
+    # (`0.21` -> `0.20`) and again when 0.32.8 moved it (`1.1253` -> `1.113`, `0.20` -> `0.21`),
+    # and `docs/RELEASING.md` step 3 moves the rate at every release. Restamping the literal each
+    # time would have made the alarm noise; decoupling it alone would have deleted the only watch
+    # the shipped rate had (`usd_per_eur` sat at its seed `1.08` from 20260728 to 20260831 while
+    # `as_of` was re-stamped over it). So the two halves are separate: the pin is here, through the
+    # `monkeypatch.setattr` route `prices_never_age`'s docstring documents -- not by widening that
+    # fixture, which promises the rate stays real -- and
+    # `test_the_committed_usd_per_eur_is_a_plausible_rate` in `test_budget_core.py` holds the
+    # committed rate to a bound. A bound cannot catch a rate that is stale but plausible, and `1.08`
     # was plausible for a month; step 3 is the mechanism, the bound is a backstop against a typo.
     assert payload["escalation"]["cost_eur"] == "0.20"
     assert payload["escalation"]["remedy"] is None

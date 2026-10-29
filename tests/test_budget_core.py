@@ -70,6 +70,19 @@ def test_prices_are_installed_package_data() -> None:
     assert "claude-opus-5" in data["models"]
 
 
+def test_the_committed_usd_per_eur_is_a_plausible_rate() -> None:
+    """A bound, not a value: the shipped rate moves at every release and this must not go red then.
+
+    It catches a slipped decimal point (`11.13`, `0.1113`), zero and a negative rate, any of which
+    would turn every EUR figure into nonsense or raise. It does not catch a stale rate, or an
+    inverted one (`0.898` for `1.113`): `docs/RELEASING.md` step 3 is the mechanism against
+    staleness, and this is the backstop against a typo. Wide on purpose -- a bound a currency move
+    could trip would turn a release red for a reason no code change caused, which is what pinning
+    the rate in `test_cli_ask.py` removed.
+    """
+    assert Decimal("0.5") < load_prices().usd_per_eur < Decimal("2")
+
+
 def test_the_committed_prices_toml_loads_and_is_not_stale_against_its_own_as_of() -> None:
     committed = load_prices()
     assert committed.for_model("claude-opus-5").input_per_mtok_usd == Decimal("5.00")
