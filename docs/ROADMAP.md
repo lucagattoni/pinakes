@@ -327,7 +327,7 @@ number belongs to a release only when it is cut
 | **[0.32.5](#0325--a-permission-problem-reported-as-three-other-things--20260904-0849)** | 20260904 08:49 | a permission problem reported as three other things | • `pnk link` blamed the user's path — *“is not a document in this KB”*, remedy about spelling — for a source under a directory it could not read<br>• `pnk doctor` dropped an unreadable paid document from **both** lists, reporting `stale: none` about a document nothing could read<br>• A linked partner KB that was present but unreadable came back **absent**, indistinguishable from one never created, on `doctor`, `link` and the cross-KB scan<br>• **All three were the same dead `except OSError`** — the probe raises on 3.13 and returns `False` on 3.14, so every guard fired on the floor and nowhere else<br>• `paths.unreachable_through_links` follows the link, unlike `unreachable`, whose `lstat` is load-bearing on the delete-on-absence path and was left alone<br>• **The planner's first ruling here was wrong and would have regressed 3.13** — it named `unreachable`, which answers `False` for the very shape behind the ULID bug<br>• `why_not_a_kb` is total now, so three call-site guards that could not fire were **removed**, not left as comments justifying dead code<br>• `tools/land.py` refuses a **merged** tree no `./check.sh` certified — no override, `--cleanup-only` exempt — after two sessions landed over red gates in one day<br>• `tools/mutate.py` names the interpreter its counts came from; neither tool ships in the wheel<br>• no `schema_version`, no rebuild |
 | **[0.32.6](#0326--instruments-that-could-report-success-while-measuring-nothing--20260904-1455)** | 20260904 14:55 | instruments that could report success while measuring nothing | • The vacuous-injection audit refuses an empty site list rather than printing `0 sites · 0 vacuous · 0 not ruled` (`--min-sites`, default 10)<br>• A probe run in which nothing passed is `INCONCLUSIVE`, not a verdict — an all-skipped selector is no longer reported as a vacuous fake<br>• A run whose environment changed between first and last probe is `UNATTRIBUTABLE` and exits non-zero; a `VACUOUS` row still exits 0, being a finding for a person rather than a build to fail<br>• The audit runs on **Linux** under the declared floor, naming interpreter, platform and `NAME_MAX` — whether an injected `ENAMETOOLONG` is redundant is a property of the filesystem<br>• A `pnk doctor` test asserted only that the diagnosis *finished*, and **passed with its own injection disabled**<br>• `tools/register_gate.py` compares documented row counts to the files they name — the harvest `README.md` held **three counts for one dataset**, the steered one withdrawn twice and 4.4x high<br>• `prices.toml` carries the 2026-09-04 fixing, `1.1615` → `1.1622`; **this is the one thing here a user can observe**<br>• Two `pathlib` holdouts converted in `sync.py` and `upgrade.py` — **hygiene, not a fix**: no production call reaches them, measured before the change<br>• no `schema_version`, no rebuild |
 | **[0.32.7](#0327--a-price-table-that-had-run-out-and-review-tooling-that-says-who-looked--20261019-1133)** | 20261019 11:33 | a price table that had run out, and review tooling that says who looked | • `prices.toml` re-stamped after 44 days — `usd_per_eur` `1.1622` → `1.1253` (ECB fixing 2026-10-16), `claude-opus-5` unchanged at `5.00`/`25.00`; **this is the one thing here a user can observe**<br>• A committed review workflow returns `VACUOUS`/`PARTIAL`/`CLEAN`/`FINDINGS` — a dead lens is counted before anything is filtered<br>• A Stop hook refuses to end a turn over a fan-out that lost agents until the user has been told<br>• `.python-version` pins local development to 3.13 and CI pins its interpreters, after CPython 3.15.0 turned `main` red<br>• `CLAUDE.md` rebuilt from 473 lines to 148, as pointers rather than summaries<br>• none of it ships in a wheel; no `schema_version`, no rebuild |
-| **[0.32.8](#0328--a-fresh-install-that-resolved-newer-dependencies-than-the-lockfile-pins--20261029-1710)** | 20261029 17:10 | a fresh install that resolved newer dependencies than the lockfile pins | • `python-ulid` 4.1.0 reads lowercase ULIDs and `ids.py` relied on the library refusing them — **a fresh install accepted one**; it now requires the canonical spelling to equal its input<br>• `mcp` 2.3.0 keeps non-`ToolError` text on the server, so a mistyped `source_type` came back as `Error executing tool pinakes_search`; `ServeError` and `TraversalError` — and only those — now cross as a `ToolError`<br>• both were green on the lockfile (4.0.1, 2.0.0) and red on a fresh resolve<br>• the README Quickstart says where `uv add` runs; `prices.toml` re-stamped (`usd_per_eur` `1.1253` → `1.113`, `claude-opus-5` unchanged at `5.00`/`25.00`)<br>• the `CLAUDE.md` size guard and a test fix (a test that read the committed FX rate went red at every release that moved it) are developer tooling and ship in no wheel; no `schema_version`, no rebuild |
+| **[0.32.8](#0328--a-fresh-install-that-resolved-newer-dependencies-than-the-lockfile-pins--20261029-1710)** | 20261029 17:10 | a fresh install that resolved newer dependencies than the lockfile pins | • `python-ulid` 4.1.0 reads lowercase ULIDs and `ids.py` relied on the library refusing them — **a fresh install accepted one**; it now requires the canonical spelling to equal its input<br>• `mcp` 2.3.0 keeps non-`ToolError` text on the server, so a mistyped `source_type` came back as `Error executing tool pinakes_search`; `ServeError` and `TraversalError` — and only those — now cross as a `ToolError`<br>• both were green on the lockfile (4.0.1, 2.0.0) and red on a fresh resolve<br>• the README Quickstart says where `uv add` runs; `prices.toml` re-stamped (`usd_per_eur` `1.1253` → `1.113`, `claude-opus-5` unchanged at `5.00`/`25.00`)<br>• the `CLAUDE.md` size guard and a test fix (a test that read the committed FX rate went red when a re-verified rate crossed a rounding step) are developer tooling and ship in no wheel; no `schema_version`, no rebuild |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
 
@@ -3003,7 +3003,7 @@ within days.
 
 ## 0.32.8 — a fresh install that resolved newer dependencies than the lockfile pins · 20261029 17:10
 
-**Two things here reach a user, and both showed up only on a fresh resolve.** `python-ulid` and `mcp` are
+**Two fixes here reach a user, and both showed up only on a fresh resolve.** `python-ulid` and `mcp` are
 declared `>=` and uncapped, the lockfile pins 4.0.1 and 2.0.0, and the suite runs on the lockfile — so it
 was green while `uvx --from "pinakes[light]==0.32.7"` resolved `python-ulid` 4.1.0 and `mcp` 2.3.0, which
 PyPI still served as the latest of each on 20261029.
@@ -3020,10 +3020,14 @@ table pin it on 4.0.1 and 4.1.0 alike.
 every other exception's text on the server; 2.0.0 sent them all. `ServeError` is the first kind of failure
 but is not a `ToolError`, so an agent that mistyped `source_type` was told only `Error executing tool
 pinakes_search` and could not tell a typo from a crashed server. The four tools are now registered through a
-wrapper that re-raises a `ServeError` or a `TraversalError` — the refusals about what the caller asked — as a
-`ToolError` with the same message. **Only those two cross:** `StoreError`, `IndexSchemaError` and
-`EmbeddingError` carry the absolute path of the index or the model cache, and the failures that depend on
-the index's state rather than the request stay withheld too. Whether to tell an agent that the index is
+wrapper that re-raises a `ServeError` or a `TraversalError` — the refusals the tools build
+themselves from the caller's selector, a KB's name or a path inside a KB — as a `ToolError` with the
+same message. **Only those two cross:** `StoreError`, `IndexSchemaError` and
+`EmbeddingError` carry the absolute path of the index or the model cache, and the failures that
+depend on the index's state rather than the request (`CoherenceError`, `IncompleteIndexError` and
+the like) stay withheld too. Two `ServeError` sites do describe a KB's state, `<kb> has no index`
+and an extraction missing from the cache, and cross with a KB name or a path inside the KB and no
+absolute path. Whether to tell an agent that the index is
 stale is a decision about the boundary, and is one line in `CALLER_FACING`. On the locked 2.0.0 nothing
 changes.
 
@@ -3031,13 +3035,15 @@ changes.
 on-ramp's first measurement; the README is also the PyPI description). `prices.toml` is re-stamped at
 20261029 17:10: `usd_per_eur` `1.1253` → `1.113` (the ECB fixing of 2026-10-29, read twice from
 `api.frankfurter.dev`), so EUR figures for the same USD cost are about 1.1% higher, and `claude-opus-5` is
-unchanged at `5.00`/`25.00`, listed by its own page as legacy; that moves the 30-day window from 20261118
-to 20261128. A test holds `CLAUDE.md` to the 150 lines and 2,700 words it states, and a test that read the
-committed FX rate, so went red at every release that moved it, now pins the rate it was measured
+unchanged at `5.00`/`25.00`, listed by its own page as legacy; that moves the day it would first be
+refused (`(now - as_of).days > 30`, true from the 31st day) from 20261119 to 20261129. A test holds
+`CLAUDE.md` to the 150 lines and 2,700 words it states, and a test that read the committed FX rate,
+which went red when a re-verified rate crossed a rounding step, now pins the rate it was measured
 under while the committed rate gets a plausibility bound of its own; neither ships in a wheel.
 
-**The wheel's changes** are `ids.py`, `serve.py`, a docstring pointer in `paid.py`, `__version__` and the
-price table. **No `schema_version` bump and no rebuild.**
+**The wheel's changes** are `ids.py`, `serve.py`, a docstring pointer in `paid.py`, `__version__`,
+the price table and the README, which is the wheel's description on PyPI. **No `schema_version` bump
+and no rebuild.**
 
 # Part 5 · What is not built
 

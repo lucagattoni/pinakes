@@ -63,7 +63,8 @@
 # whether it should price the current model is a question this release records and does not take.
 #
 # 0.32.8, at 20261029 17:10, is ten days after 0.32.7 and is cut for the window and not for the table:
-# only a release moves `as_of`, and 0.32.7's would have run out on 20261118. The ECB had already
+# only a release moves `as_of`, and 0.32.7's would have stopped pricing on 20261119 (the check is
+# `(now - as_of).days > 30`, true from the 31st day). The ECB had already
 # published 2026-10-29 (it posts around 16:00 CET; this is 17:10 UTC), read from api.frankfurter.dev
 # twice in the same session with identical results: 1.1253 -> 1.113, down 1.1%, so EUR figures for the
 # same USD cost are 1.1% higher. claude-opus-5 re-checked the same minute against

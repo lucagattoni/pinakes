@@ -237,7 +237,7 @@ had no procedure home (now `docs/BUILDING.md` step 3).
 **Not done, and recommended.** (a) **A size guard.** Three passes grew back; the new file says it
 stays under 150 lines and 2,700 words and nothing enforces it. A test that counts both, excluding
 own-line comments as the hygiene rule does, is a small implementer increment — and a new row, so it
-waits for the pause. (b) The leftovers above.
+waits for the pause. *(Closed 20261019 13:10 UTC: the guard landed in 123bff2 and counts own-line comments, which this paragraph said to exclude; § 10 item 1.)* (b) The leftovers above.
 
 ## 6. Decisions — taken by the user 20261018, with the recommendations
 
@@ -438,8 +438,7 @@ stays paused except for this plan; option B is designed and its build is not res
 **Open, none blocking A4.**
 
 1. **The size is unguarded.** § 5.1: nothing enforces 150 lines and 2,700 words, which is how three
-   earlier passes grew back. A test is a small implementer increment and a new row, so it waits for
-   the pause.
+   earlier passes grew back. A test is a small implementer increment and a new row, so it waits for the pause. *(Closed 20261019 13:10 UTC in 123bff2: `tools/claude_md_size_gate.py` and `tests/test_claude_md_size.py` count own-line comments, where this item recommended excluding them.)*
 2. **Twelve citations of moved or global text** in `tools/`, `src/`, `tests/`, `.github/`, `Makefile`,
    `.gitignore` and `.paid-path-allowlist` were dangling before A3 and still are (§ 5.1 lists each). Code comments
    are the implementer's; they were not touched.

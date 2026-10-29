@@ -32,6 +32,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   fresh reviewers' own mutants, which earlier versions of the tests did not kill. Developer
   tooling — it ships in no wheel.
 
+- **A page for starting a KB you will actually use, measured against the published release.**
+  `docs/DOGFOODING.md` ("Starting a KB you will use": 4.7 in the docs menu, with a row in the docs
+  index) takes someone from nothing to a KB holding their own documents. Every claim in it was run
+  against the published 0.32.7 on 20261019 on CPython 3.13.16, or is marked *from the source* or *not
+  run*. It carries the install route that worked on a machine whose newest Python is 3.15 (`--python
+  3.13`), what a healthy `pnk doctor` prints and which WARNs are expected, and what not to paste
+  anywhere public — `doctor` prints the model-cache path, the sync lock's hostname and up to three
+  document paths. The evidence, row by row, is § 5.1 of the option B plan.
+
 ### Changed
 
 - **The README's Quickstart now says where its `uv add` lines can be run.** It opened with four bare
@@ -41,12 +50,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   skip the project with `uvx --from "pinakes[light]" pnk …`. Found by the dogfooding on-ramp's first
   measurement (finding F1, 20261019, against the published 0.32.7). `README.md` is also the package's
   description on PyPI, so the page changes only with a release, which is why this is here. **Not
-  fixed here:** that `uvx` form still needs `--python 3.13` on a machine whose newest Python is 3.15,
-  because `onnxruntime` ships no `cp315` wheel (finding F5; the latest `onnxruntime`, 1.31.1, still
-  had none on PyPI on 20261029).
+  fixed here:** both routes it now offers, `uv init` then `uv add` and the `uvx` form, still need
+  `--python 3.13` on a machine whose newest Python is 3.15 — there `uv init` writes
+  `requires-python = ">=3.15"` and the `uv add` after it does not resolve — because `onnxruntime`
+  ships no `cp315` wheel (finding F5; the latest `onnxruntime`, 1.31.1, still had none on PyPI on
+  20261029).
 
-- **The bundled price table is re-stamped, which moves its 30-day window from 20261118 to 20261128.**
-  `as_of` goes from `20261019 11:33` to `20261029 17:10`, and only a release can move it: on 20261118
+- **The bundled price table is re-stamped, which moves the day it would first be refused from
+20261119 to 20261129.**
+  `as_of` goes from `20261019 11:33` to `20261029 17:10`, and only a release can move it: on 20261119
   an installed 0.32.7 would have started to WARN in `pnk doctor` and to refuse to price `pnk ask
   --deep`. Two sources, each read in the session that stamped it. `usd_per_eur` moves `1.1253` →
   `1.113`: the ECB fixing of 2026-10-29, which `api.frankfurter.dev` had published by 17:10 UTC and
@@ -56,6 +68,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `5.00` / `25.00` per Mtok. That page lists the model as legacy ("Active (legacy)", retirement "not
   sooner than July 24, 2027"); the table still prices only `claude-opus-5`, and whether it should price
   the current Opus is recorded in the file and not taken here.
+
+- **The docs site's left menu now lists the Guide's sections.** "1. Guide" is one page, so unlike
+  "2. Reference" and "3. Concepts", which open onto their pages, it had nothing to expand and its
+  sections appeared only in the right-hand column. `docs/stylesheets/chapter-sections.css` shows
+  the section list that Material already renders inside that menu entry, for a single-page chapter
+  other than Home, from 76.25em upward where the left menu is a permanent column. Only the
+  top-level sections are listed; the right-hand column is kept and still holds the whole tree, and
+  narrower screens keep Material's drawer as it was. It is a stylesheet and no script, and
+  `GUIDE.md` is untouched, so its anchors and its GitHub rendering do not move. Checked in a
+  browser at 1741, 1300, 1219, 1000 and 520 px (dark, and light at 1300) and across instant
+  navigation; `mkdocs build --strict` exits 0.
 
 ### Fixed
 
@@ -75,7 +98,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   in a library which normalises case are the point of the change: they fail on the old code even
   under 4.0.1, which the old tests could not — those tested the installed version, not this module
   (the control case and the mixed-case row pass on the old code under 4.0.1, which refuses mixed
-  case; the old code fails five tests on 4.1.0). Every ID `pnk` mints is uppercase; a hand-edited
+  case; the old code fails five tests in `tests/test_ids.py` on 4.1.0). Every ID `pnk` mints is
+  uppercase; a hand-edited
   lowercase one that a 4.1.0 install had been accepting is refused, as it always was on 4.0.1.
 
 - **An MCP refusal says why again under `mcp` 2.3.0, and still says nothing about the machine.**
@@ -90,7 +114,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   four tools are now registered through a wrapper that re-raises a `ServeError` or a
   `TraversalError` — the refusals about what the caller asked, built from its own selector, a KB's
   name or a path inside a KB — as a `ToolError` with the same message, which is the text 2.0.0 sent;
-  `remedy` was never part of it and is not added. **Only those two cross.** `StoreError`,
+  `remedy` was never part of it and is not added. Two `ServeError` sites describe a KB's state
+  rather than the request — `<kb> has no index`, and an extraction that is no longer in the cache
+  — and cross with the rest; they carry a KB name or a path inside the KB, never an absolute path.
+  **Only those two cross.** `StoreError`,
   `IndexSchemaError` and `EmbeddingError` carry the absolute path of the index or the model cache,
   so a wrapper over all of `PinakesError` would have handed an agent a user name and a directory
   layout whenever an index was stale; they stay crashes, and 2.3.0 keeps their text on the server.
@@ -110,17 +137,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   raises is still a crash to `mcp`: that is its rule, read from its source, and no test here pins
   it.
 
-- **A release no longer turns the suite red for moving the FX rate.**
+- **A release can no longer turn the suite red for moving the FX rate.**
   `test_json_carries_a_null_answer_and_an_escalation_block` asserted a EUR figure computed from the
-  committed `usd_per_eur`, the one assertion in the suite that read it, so every release that
-  re-verified the rate (`docs/RELEASING.md` step 3) failed it: 0.32.8's `1.1253` → `1.113` moved
-  `0.20` to `0.21`, and the full gate reported 1 failed, 2964 passed. The test now pins the rate it was
-  measured under, `1.1253`, through the `monkeypatch.setattr` route `tests/conftest.py` documents, and
-  the committed rate has a guard of its own, `test_the_committed_usd_per_eur_is_a_plausible_rate`: a
-  bound (`0.5 < rate < 2`), not a value. It catches a slipped decimal point, zero and a negative rate;
-  it does not catch a stale or an inverted rate, which step 3 is the mechanism against. Setting the
-  committed rate to `11.13`, `0.1113`, `0` or `-1.1` fails the new test and leaves the pinned one
-  green; `1.113` passes both. Developer tooling — it ships in no wheel.
+  committed `usd_per_eur`, the one assertion in the suite that read it, so it failed whenever a
+  re-verified rate (`docs/RELEASING.md` step 3) moved that figure across a rounding step: at 0.31.1,
+  and again at 0.32.8, whose `1.1253` → `1.113` moved `0.20` to `0.21` (the full gate reported 1
+  failed, 2964 passed). The releases between that moved the rate (0.32.1, 0.32.3, 0.32.6 and 0.32.7)
+  did not cross one. The test now pins the rate it was measured under, `1.1253`, through the
+  `monkeypatch.setattr` route `tests/conftest.py` documents, and the committed rate has a guard of its
+  own, `test_the_committed_usd_per_eur_is_a_plausible_rate`: a bound (`0.5 < rate < 2`), not a value.
+  It catches a slipped decimal point, zero and a negative rate; it does not catch a stale or an
+  inverted rate, which step 3 is the mechanism against. Setting the committed rate to `11.13`,
+  `0.1113`, `0` or `-1.1` fails the new test and leaves the pinned one green; `1.113` passes both.
+  Developer tooling — it ships in no wheel.
 
 ## [0.32.7] — 20261019 11:33
 
