@@ -10,6 +10,118 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.32.8] — 20261029 17:10
+
+### Added
+
+- **A test holds `CLAUDE.md` to the 150 lines and 2,700 words it states.** Three slimming passes
+  each grew the file back within days, and the regenerated file states a ceiling that nothing
+  enforced. `tools/claude_md_size_gate.py` counts the way `wc -l -w` does — the file's own intro
+  names that command as the measure, so own-line HTML comments are counted — and
+  `tests/test_claude_md_size.py` runs it on the real file, so a push that takes the file past
+  either ceiling turns the suite red. The failure says to move a rule to the document that owns it
+  and not to delete it; a file that cannot be read fails rather than passes; and a second test
+  holds the gate's two numbers to the ones the intro states, so neither can change alone. Run
+  against the file as it was before its regeneration it reports 473 lines and 6,033 words, the
+  figures `wc` prints. **`wc` is not a portable oracle for the word count:** GNU `wc` up to at least
+  9.1 counts a word only if it holds a printable character, so in the C locale `wc -w CLAUDE.md`
+  prints 1450 where macOS and newer GNU print 1497 (measured on coreutils 8.32, 9.1, 9.7 and 9.12).
+  The gate counts by the POSIX definition and the tests pin it with figures worked out by hand,
+  comparing with `wc` only where `wc` agrees. A 29-mutant battery,
+  `tools/batteries/tools-claude_md_size_gate.toml`, kills all 29; sixteen of those came from two
+  fresh reviewers' own mutants, which earlier versions of the tests did not kill. Developer
+  tooling — it ships in no wheel.
+
+### Changed
+
+- **The README's Quickstart now says where its `uv add` lines can be run.** It opened with four bare
+  `uv add` lines, and in a bare KB directory `uv add` exits 2 with `No pyproject.toml found in
+  current directory or any parent directory` — a warning the Guide already carried and the README did
+  not. Three lines now come first: run them inside a uv project, `uv init` makes the directory one, or
+  skip the project with `uvx --from "pinakes[light]" pnk …`. Found by the dogfooding on-ramp's first
+  measurement (finding F1, 20261019, against the published 0.32.7). `README.md` is also the package's
+  description on PyPI, so the page changes only with a release, which is why this is here. **Not
+  fixed here:** that `uvx` form still needs `--python 3.13` on a machine whose newest Python is 3.15,
+  because `onnxruntime` ships no `cp315` wheel (finding F5; the latest `onnxruntime`, 1.31.1, still
+  had none on PyPI on 20261029).
+
+- **The bundled price table is re-stamped, which moves its 30-day window from 20261118 to 20261128.**
+  `as_of` goes from `20261019 11:33` to `20261029 17:10`, and only a release can move it: on 20261118
+  an installed 0.32.7 would have started to WARN in `pnk doctor` and to refuse to price `pnk ask
+  --deep`. Two sources, each read in the session that stamped it. `usd_per_eur` moves `1.1253` →
+  `1.113`: the ECB fixing of 2026-10-29, which `api.frankfurter.dev` had published by 17:10 UTC and
+  returned twice with identical results, so **EUR figures for the same USD cost are about 1.1%
+  higher**; ledger lines already written keep the rate they were written with. `claude-opus-5` was
+  re-read on the model's own page, which states the API id and the price together, and is unchanged at
+  `5.00` / `25.00` per Mtok. That page lists the model as legacy ("Active (legacy)", retirement "not
+  sooner than July 24, 2027"); the table still prices only `claude-opus-5`, and whether it should price
+  the current Opus is recorded in the file and not taken here.
+
+### Fixed
+
+- **A lowercase or mixed-case ID is refused on every `python-ulid`, not only the one the lockfile pins.**
+  `ids.parse_kb_id`, `parse_doc_id` and `is_id` relied on the library refusing lowercase.
+  `python-ulid` 4.1.0 reads lowercase and mixed case and returns the uppercase form. The dependency
+  is `python-ulid>=3.0` and uncapped, so a fresh install of 0.32.7 resolved 4.1.0 and *normalised*
+  `01kycj8zvmbjdb4fkrjrnys5dt` where `ids.py` says it must reject it. Measured 20261028 22:24:
+  `is_id(minted.lower())` was `True` on `uvx --from "pinakes[light]==0.32.7"`, and four tests failed
+  against the newest dependency set (`tests/test_ids.py` twice, `tests/test_uri.py`,
+  `tests/test_deep_transcript.py`) while the full suite was green on the lockfile. One place it
+  reaches: `transcript_path` checks `is_id` and then files the transcript under the raw string, so a
+  lowercase operation id would have been filed under a second spelling. The module now requires the
+  library's canonical spelling to equal its input, so the answer no longer depends on the version.
+  The four tests that failed were right and are kept; they pass on 4.0.1 and 4.1.0 alike. Two new
+  tests (three cases) and one new row in the malformed-ID table are added. The two cases that stand
+  in a library which normalises case are the point of the change: they fail on the old code even
+  under 4.0.1, which the old tests could not — those tested the installed version, not this module
+  (the control case and the mixed-case row pass on the old code under 4.0.1, which refuses mixed
+  case; the old code fails five tests on 4.1.0). Every ID `pnk` mints is uppercase; a hand-edited
+  lowercase one that a 4.1.0 install had been accepting is refused, as it always was on 4.0.1.
+
+- **An MCP refusal says why again under `mcp` 2.3.0, and still says nothing about the machine.**
+  2.3.0 sorts what a tool raises into two kinds: a `ToolError` is a failure the tool meant and its
+  text goes to the client; anything else is a crash and its text stays on the server. 2.0.0 sent
+  every exception's text. A `ServeError` is the first kind but is not a `ToolError`, so on a fresh
+  install (`mcp>=2`, uncapped, resolves 2.3.0) an agent that mistyped `source_type` was told `Error
+  executing tool pinakes_search` and nothing else — the empty answer the refusal was added to
+  prevent, one layer down, since the agent cannot tell a typo from a crashed server. Measured
+  20261028: over a real stdio session the client saw only that line on the published 0.32.7 with a
+  fresh resolve, and the full reason on this build, identically under `mcp` 2.0.0 and 2.3.0. The
+  four tools are now registered through a wrapper that re-raises a `ServeError` or a
+  `TraversalError` — the refusals about what the caller asked, built from its own selector, a KB's
+  name or a path inside a KB — as a `ToolError` with the same message, which is the text 2.0.0 sent;
+  `remedy` was never part of it and is not added. **Only those two cross.** `StoreError`,
+  `IndexSchemaError` and `EmbeddingError` carry the absolute path of the index or the model cache,
+  so a wrapper over all of `PinakesError` would have handed an agent a user name and a directory
+  layout whenever an index was stale; they stay crashes, and 2.3.0 keeps their text on the server.
+  Failures that depend on the KB's state and not on the request — `CoherenceError`,
+  `IncompleteIndexError`, `ExtractionCoherenceError`, the backend errors — carry no absolute path
+  (checked 20261028) but are not about what the caller asked either, so they stay withheld too:
+  an agent on 2.3.0 is told only that the tool failed, as it was on 0.32.7. Whether to tell it that
+  the index is stale is a decision about the boundary and is one line in `CALLER_FACING`. On the
+  locked 2.0.0 the library still sends every exception's text, as 0.32.7 did, and nothing here
+  changes that. The tool schemas are unchanged (the snapshot test still passes). The tests read
+  what the tool itself raised, which is why they fail with the wrapper removed on 2.0.0 — the
+  version CI runs, where the message alone is sent either way — as well as on 2.3.0, and a test
+  pins the allowlist's exact membership. A mutation pass (wrapper off, one tool left out, a blanket
+  `PinakesError`, the wrong class, each member dropped, `IndexSchemaError` or `CoherenceError`
+  added) was killed on both versions; the one survivor, `pinakes_list_kbs` left unwrapped, is
+  equivalent, since it swallows `PinakesError` and has no refusal to carry. Anything else a tool
+  raises is still a crash to `mcp`: that is its rule, read from its source, and no test here pins
+  it.
+
+- **A release no longer turns the suite red for moving the FX rate.**
+  `test_json_carries_a_null_answer_and_an_escalation_block` asserted a EUR figure computed from the
+  committed `usd_per_eur`, the one assertion in the suite that read it, so every release that
+  re-verified the rate (`docs/RELEASING.md` step 3) failed it: 0.32.8's `1.1253` → `1.113` moved
+  `0.20` to `0.21`, and the full gate reported 1 failed, 2964 passed. The test now pins the rate it was
+  measured under, `1.1253`, through the `monkeypatch.setattr` route `tests/conftest.py` documents, and
+  the committed rate has a guard of its own, `test_the_committed_usd_per_eur_is_a_plausible_rate`: a
+  bound (`0.5 < rate < 2`), not a value. It catches a slipped decimal point, zero and a negative rate;
+  it does not catch a stale or an inverted rate, which step 3 is the mechanism against. Setting the
+  committed rate to `11.13`, `0.1113`, `0` or `-1.1` fails the new test and leaves the pinned one
+  green; `1.113` passes both. Developer tooling — it ships in no wheel.
+
 ## [0.32.7] — 20261019 11:33
 
 ### Added
@@ -5031,7 +5143,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.7...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.8...HEAD
+[0.32.8]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.8
 [0.32.7]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.7
 [0.32.6]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.6
 [0.32.5]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.5

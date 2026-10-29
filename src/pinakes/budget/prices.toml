@@ -61,8 +61,17 @@
 # claude-opus-5 unchanged at 5.00 / 25.00 per Mtok. That model is a legacy one now (Claude Opus 5.5,
 # id claude-opus-5-5, is the current Opus, at 4.00 / 20.00); this table prices only claude-opus-5, and
 # whether it should price the current model is a question this release records and does not take.
-as_of = "20261019 11:33"
-usd_per_eur = "1.1253"
+#
+# 0.32.8, at 20261029 17:10, is ten days after 0.32.7 and is cut for the window and not for the table:
+# only a release moves `as_of`, and 0.32.7's would have run out on 20261118. The ECB had already
+# published 2026-10-29 (it posts around 16:00 CET; this is 17:10 UTC), read from api.frankfurter.dev
+# twice in the same session with identical results: 1.1253 -> 1.113, down 1.1%, so EUR figures for the
+# same USD cost are 1.1% higher. claude-opus-5 re-checked the same minute against
+# platform.claude.com/docs/en/models/opus-5/overview, which states the API id and the price together:
+# unchanged at 5.00 / 25.00 per Mtok. That page lists the model as legacy ("Active (legacy)",
+# retirement "not sooner than July 24, 2027"); the question above is still recorded and still not taken.
+as_of = "20261029 17:10"
+usd_per_eur = "1.113"
 
 # Measured against the live API on 20260729 03:17 with claude-opus-5, over the synthetic corpus
 # (docs/MEASUREMENT-RUN.md). Recorded here rather than only in a retrospective because the next
