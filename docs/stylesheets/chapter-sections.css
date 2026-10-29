@@ -1,0 +1,23 @@
+/* A chapter that is a single page ("1. Guide") lists its sections in the left menu while it is the
+   current page, the way a chapter of several pages ("2. Reference") lists its pages.
+
+   Material already renders every page's table of contents inside that page's left-menu entry and
+   hides it behind `.md-nav--primary .md-nav__link[for=__toc] ~ .md-nav`, which the selectors below
+   outrank. `toc.integrate` would show it for every page and drop the right-hand column, which
+   mkdocs.yml keeps on purpose; this shows it for single-page chapters only and keeps both.
+
+   Only the top-level sections are listed — the right-hand column keeps the whole tree. It applies
+   from 76.25em, where the left menu is a permanent column; below that it is a drawer, which stays
+   as Material has it. Home is the first entry and not a chapter, so it is left out. */
+@media screen and (min-width: 76.25em) {
+  .md-nav--primary > .md-nav__list > .md-nav__item--active:not(.md-nav__item--nested):not(:first-child) > .md-nav--secondary {
+    display: block;
+    margin-bottom: 1.25em;
+    visibility: visible;
+    opacity: 1;
+  }
+  .md-nav--primary > .md-nav__list > .md-nav__item--active:not(.md-nav__item--nested):not(:first-child) > .md-nav--secondary > .md-nav__title,
+  .md-nav--primary > .md-nav__list > .md-nav__item--active:not(.md-nav__item--nested):not(:first-child) > .md-nav--secondary .md-nav__item > .md-nav {
+    display: none;
+  }
+}

@@ -98,6 +98,7 @@ hooks:
 
 extra_css:
   - stylesheets/external-links.css
+  - stylesheets/chapter-sections.css
 
 extra_javascript:
   - javascripts/external-links.js
