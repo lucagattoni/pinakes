@@ -22,7 +22,8 @@ says how each command works.
       did not resolve — *`onnxruntime>=1.24.2` has no wheels with a matching Python ABI tag (e.g.,
       `cp315`)* — and worked in 1.6 s with the pin.
     - **Not `uv add`, in a KB directory.** `uv add "pinakes[light]"` exits 2 there (*No `pyproject.toml`
-      found*), and the README's Quickstart still opens with it. The Guide's route, `uv init && uv add …`
+      found*), and the README's Quickstart opened with it when this was measured; it has since
+      been changed to say where `uv add` can be run. The Guide's route, `uv init && uv add …`
       ([Guide § Install](GUIDE.md#install)), **failed on that same machine**: `uv init` wrote
       `requires-python = ">=3.15"`, and `uv add "pinakes[light]"` then did not resolve. **`uv init --python
       3.13` is the route that works:** it wrote `requires-python = ">=3.13"` and a `.python-version` of 3.13
