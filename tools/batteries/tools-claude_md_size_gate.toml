@@ -23,7 +23,7 @@
 #
 # **What the battery cannot reach.** The test that holds the gate's ceiling to the sentence in
 # `CLAUDE.md`'s intro (`test_the_ceilings_are_the_ones_claude_md_states`) is not mutated from here:
-# its failing input is the planner's file, which a battery must not edit, so it is shown able to fail
+# its failing input is `CLAUDE.md` itself, which a battery must not edit, so it is shown able to fail
 # by `test_a_ceiling_that_disagrees_with_the_gate_is_a_problem` and
 # `test_the_stated_ceiling_is_read_wrapped_and_absent_when_unstated`, which feed the comparison and
 # its reader text that states other numbers and text that states none.
@@ -268,8 +268,8 @@ name = "the remedy no longer says to leave a pointer behind"
 file = "tools/claude_md_size_gate.py"
 # The move-not-delete message has three parts — where it goes, what stays, what not to do — and the
 # middle one is what keeps a moved rule findable from the file it left.
-old = '''"and leave a pointer behind. Do not delete the rule to make room. CLAUDE.md is the planner's "'''
-new = '''"and remember it. Do not delete the rule to make room. CLAUDE.md is the planner's "'''
+old = '''"and leave a pointer behind. Do not delete the rule to make room."'''
+new = '''"and remember it. Do not delete the rule to make room."'''
 kills = "tests/test_claude_md_size.py::test_the_failure_says_to_move_a_rule_not_to_delete_it"
 
 [[mutant]]
