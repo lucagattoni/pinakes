@@ -715,9 +715,9 @@ def _restore_cannot_be_skipped_or_run_late(steps: list[dict[str, Any]]) -> None:
 def test_the_release_workflow_restores_the_tag_annotation_in_front_of_the_upload() -> None:
     """`actions/checkout` stores the tag's *commit* under the tag's name for a tag push, so the
     clone holds a lightweight tag and `gh release create --notes-from-tag` falls back to the
-    commit's message — the merge subject. Six releases read (0.32.8, 0.32.7, 0.32.6, 0.30.0,
-    0.25.0, 0.22.0), six wrong, and nothing said so for the thirty-one releases since 0.22.0
-    because the job's `success` was honest and the release existed.
+    commit's message — the merge subject. Six releases were read (0.32.8, 0.32.7, 0.32.6, 0.30.0,
+    0.25.0, 0.22.0) and all six were wrong; the other 29 of the 35 tags from 0.22.0 to 0.32.8 were
+    not read. Nothing said so because the job's `success` was honest and the release existed.
 
     The step has to be in front of `uv publish` — a failure there costs a deleted tag, one after it
     costs the version number — and has to be unskippable; `test_the_restore_check_fails_...` below
