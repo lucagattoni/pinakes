@@ -280,10 +280,10 @@ def test_real_reranker_orders_by_relevance() -> None:
 
 _FASTEMBED_MODEL = {"embedding": "BAAI/bge-small-en-v1.5", "reranker": "BAAI/bge-reranker-base"}
 _OFFLINE_REMEDY = "Run once without --offline to populate the cache."
-# For everything that is not "the library says the model is absent". Going online fetches an absent
-# model but does not repair a truncated one (fastembed tries the local snapshot first online too),
-# and the class cannot tell them apart (transformers raises a plain OSError for both), so the
-# remedy names both readings.
+# For everything that is not "fastembed could not find a usable local copy (usually: absent)".
+# Going online fetches an absent model but does not repair a truncated one (fastembed tries the
+# local snapshot first online too), and the class cannot tell them apart (transformers raises a
+# plain OSError for a miss and for other failures), so the remedy names both readings.
 _UNLOADABLE_REMEDY = (
     "Fix the cause named above. If the model is not in the cache, run once without --offline to "
     "populate it; if its files are damaged, delete its folder under {cache} first."
@@ -677,15 +677,67 @@ def _failing_loader(
     return (lambda: _load_st_kind(kind, offline=True)), _FASTEMBED_MODEL[kind]
 
 
-# (what the library raises, the reason `doctor` shows, whether the library says the model is absent)
-# "Absent" is a FileNotFoundError, or a ValueError whose first non-empty line starts with
-# fastembed's "Could not load model". Everything else is a different problem with its own remedy.
+# (what the library raises, the reason `doctor` shows, whether it is class (a))
+# Class (a), "fastembed could not find a usable local copy (usually: absent)", is a
+# FileNotFoundError (a subclass counts), or a ValueError whose first non-empty line *starts with*
+# fastembed's "Could not load model" — the one message matched by its text. Everything else is a
+# different problem with its own remedy, and each near-miss below is a way to get this wrong.
 _OFFLINE_CAUSES = [
     pytest.param(
         lambda: ValueError("Could not load model m from any source."),
         "ValueError: Could not load model m from any source.",
         True,
-        id="fastembed-says-absent",
+        id="fastembed-could-not-load-model",
+    ),
+    pytest.param(
+        lambda: pytest.importorskip("huggingface_hub.errors").LocalEntryNotFoundError(
+            "Cannot find the requested files in the disk cache."
+        ),
+        "LocalEntryNotFoundError: Cannot find the requested files in the disk cache.",
+        True,
+        id="huggingface-hub-LocalEntryNotFoundError-a-subclass",
+    ),
+    pytest.param(
+        lambda: ValueError("Could not find tokenizer.json in /x"),
+        "ValueError: Could not find tokenizer.json in /x",
+        False,
+        id="ValueError-that-shares-only-a-prefix-with-fastembeds",
+    ),
+    pytest.param(
+        lambda: ValueError("see: Could not load model x from any source."),
+        "ValueError: see: Could not load model x from any source.",
+        False,
+        id="fastembeds-words-not-at-the-start",
+    ),
+    pytest.param(
+        lambda: ValueError("irrelevant\nCould not load model x from any source."),
+        "ValueError: irrelevant",
+        False,
+        id="fastembeds-words-on-a-later-line",
+    ),
+    pytest.param(
+        lambda: RuntimeError("Could not load model x from any source."),
+        "RuntimeError: Could not load model x from any source.",
+        False,
+        id="fastembeds-words-but-not-a-ValueError",
+    ),
+    pytest.param(
+        lambda: RuntimeError("a" * 450),
+        "RuntimeError: " + "a" * 199 + "…",
+        False,
+        id="line-of-450-characters-is-cut-to-200-with-an-ellipsis",
+    ),
+    pytest.param(
+        lambda: RuntimeError("b" * 201),
+        "RuntimeError: " + "b" * 199 + "…",
+        False,
+        id="line-one-over-the-cap-is-cut",
+    ),
+    pytest.param(
+        lambda: RuntimeError("c" * 200),
+        "RuntimeError: " + "c" * 200,
+        False,
+        id="line-exactly-at-the-cap-is-left-whole",
     ),
     pytest.param(
         lambda: ValueError("\n\nCould not load model m from any source."),
@@ -771,35 +823,48 @@ def test_every_loader_reports_an_offline_failure_by_its_cause(
     assert exc_info.value.__cause__ is cause
 
 
-# The two messages transformers 5.14.1 (the pinned version) raises, as a plain `OSError` with no
-# errno, when a model is missing from the cache under `local_files_only=True`: copied from
-# `configuration_utils.py:798-803` and `utils/hub.py:513-516`. Read, not run — no test here has
-# seen the real package raise either.
-_TRANSFORMERS_MISSES = {
-    "configuration": (
+# Plain `OSError`s (no errno) that transformers 5.14.1 (the pinned version) raises while loading a
+# config under `local_files_only=True`, copied from the source. Read, not run — no test here has
+# seen the real package raise any of them. Only the first is a model missing from the cache
+# (`utils/hub.py:513-516`); the others are *other* plain `OSError`s from the same call:
+# `configuration_utils.py:798-803` is raised only when `cached_file` raised a non-`OSError` (an
+# `OSError` is re-raised before it, `:792-795`), `:813-814` is a config that is not valid JSON,
+# `utils/hub.py:481-486` a `PermissionError`.
+_TRANSFORMERS_OSERRORS = {
+    "cache-miss": (
+        "We couldn't connect to 'https://huggingface.co' to load the files, and couldn't find them "
+        "in the cached files.\nCheck your internet connection or see how to run the library in "
+        "offline mode at 'https://huggingface.co/docs/transformers/installation#offline-mode'."
+    ),
+    "generic-configuration-error": (
         "Can't load the configuration of '{model}'. If you were trying to load it from "
         "'https://huggingface.co/models', make sure you don't have a local directory with the same "
         "name. Otherwise, make sure '{model}' is the correct path to a directory containing a "
         "config.json file"
     ),
-    "offline-mode": (
-        "We couldn't connect to 'https://huggingface.co' to load the files, and couldn't find them "
-        "in the cached files.\nCheck your internet connection or see how to run the library in "
-        "offline mode at 'https://huggingface.co/docs/transformers/installation#offline-mode'."
+    "config-is-not-valid-json": (
+        "It looks like the config file at '/cache/models--x/snapshots/abc/config.json' is not a "
+        "valid JSON file."
+    ),
+    "permission-error": (
+        "PermissionError at /cache/models--x/.locks/lock when downloading {model}. Check cache "
+        "directory permissions. Common causes: 1) another user is downloading the same model "
+        "(please wait); 2) a previous download was canceled and the lock file needs manual removal."
     ),
 }
 
 
 @pytest.mark.parametrize("kind", ["embedding", "reranker"])
-@pytest.mark.parametrize("which", list(_TRANSFORMERS_MISSES))
-def test_st_offline_a_model_transformers_cannot_find_names_both_remedies(
+@pytest.mark.parametrize("which", list(_TRANSFORMERS_OSERRORS))
+def test_st_offline_plain_oserrors_from_transformers_name_both_remedies(
     shared_cache: Path, monkeypatch: pytest.MonkeyPatch, kind: str, which: str
 ) -> None:
-    """A plain `OSError` is what transformers raises for an absent model, and also for a config
-    that is not valid JSON, so its class cannot tell "absent" from "damaged" and nothing sniffs the
-    text: the message makes no claim about the cache, and the remedy covers both readings."""
+    """Transformers raises a plain `OSError` for a model missing from the cache and also for other
+    failures (a config that is not valid JSON among them), so the class cannot tell "absent" from
+    "damaged": the message makes no claim about the cache, and the remedy covers both readings.
+    Only fastembed's one `ValueError` is classed by reading its text; these are not."""
     model = _FASTEMBED_MODEL[kind]
-    text = _TRANSFORMERS_MISSES[which].format(model=model)
+    text = _TRANSFORMERS_OSERRORS[which].format(model=model)
     cause = OSError(text)
     assert cause.errno is None and type(cause) is OSError
     _stub_sentence_transformers(monkeypatch, error=cause)
@@ -807,9 +872,11 @@ def test_st_offline_a_model_transformers_cannot_find_names_both_remedies(
     with pytest.raises(EmbeddingError) as exc_info:
         _load_st_kind(kind, offline=True)
 
+    first_line = text.splitlines()[0]
+    if len(first_line) > 200:  # the cap, written out here rather than imported: it is a spec
+        first_line = first_line[:199] + "…"
     assert exc_info.value.message == (
-        f"--offline was requested but {model} could not be loaded "
-        f"(OSError: {text.splitlines()[0]})."
+        f"--offline was requested but {model} could not be loaded (OSError: {first_line})."
     )
     assert "model cache at" not in exc_info.value.message
     assert exc_info.value.remedy == _UNLOADABLE_REMEDY.format(cache=shared_cache)
@@ -1016,12 +1083,20 @@ def test_a_cached_model_loads_offline_through_the_real_fastembed_exactly_as_onli
     sealed_cache: _Sealed, kind: str
 ) -> None:
     """The success path with nothing stubbed but the network: the real fastembed, the real
-    onnxruntime, a model in a Hugging Face layout cache. Offline and online must agree, nothing may
-    be fetched, and loading must not write to the cache.
+    onnxruntime, a model in a Hugging Face layout cache.
 
-    The cached model is a hand-encoded one-node ONNX graph, so this proves the *loading* path
-    (`local_files_only=True` reaching a snapshot and a session being built from it), not that real
-    weights embed well; the `model`-marked tests above cover real weights, online only.
+    What is real, per kind. **Both:** the model loads offline and online (an ONNX session is built
+    from the planted file), nothing is fetched, and the cache tree is unchanged afterwards.
+    **The embedder only:** `max_seq_length` and the token count come out of the planted tokenizer,
+    so they prove it was read from the cache; `dim` is looked up in fastembed's registry and proves
+    nothing about the planted files. **The reranker's `info()` returns constants**, so the
+    equality of its offline and online `info()` is vacuous; only "loads, reaches nothing, cache
+    unchanged" is real for it.
+
+    This **passes on the code before the fix too** (fastembed tries the local snapshot first, flag
+    or no flag): it is a regression guard on the success path, not proof of the fix. The cached
+    model is a hand-encoded one-node ONNX graph, so it says nothing about real weights; the
+    `model`-marked tests above cover real weights, online only.
     """
     _plant_loadable_model(sealed_cache.hub, kind)
     before = _tree(sealed_cache.hub)
@@ -1033,6 +1108,7 @@ def test_a_cached_model_loads_offline_through_the_real_fastembed_exactly_as_onli
     assert offline.info().model == _FASTEMBED_MODEL[kind]
     if kind == "embedding":
         assert offline.info().dim == 384
+        assert offline.info().max_seq_length == 64  # the planted tokenizer_config's, not a default
         # The tokenizer came out of the cache too: "hello" is the planted vocabulary's one word.
         assert offline.count_tokens("hello hello") == online.count_tokens("hello hello") == 2
     assert sealed_cache.reached == []

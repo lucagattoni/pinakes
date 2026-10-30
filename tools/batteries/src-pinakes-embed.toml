@@ -31,7 +31,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 46
+mutants = 55
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20261030 · offline means the cache holds this model, or the load fails typed
@@ -472,13 +472,16 @@ kills = "tests/test_embed.py::test_st_offline_passes_revision_local_files_only_a
 # unreleased, 20261030 · a failure is classed by its cause; the cleanup and the guard have teeth
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 #
-# Rounds 3 and 4 of review. Every row below is one a fresh reviewer's own mutants or probes found
+# Rounds 3 to 5 of review. Every row below is one a fresh reviewer's own mutants or probes found
 # alive, or a branch the classing added: a truncated model is not repaired by going online
-# (fastembed tries the local snapshot first online too), so "the library says the model is absent"
-# and "anything else" are told apart, in all four loaders, by one helper. **The second class's
-# remedy names both readings** ("not in the cache" and "files damaged"), because transformers 5.14.1
-# raises one plain `OSError` for a model missing from the cache and for an unreadable config alike
-# (read, not run), and the class is all the helper looks at.
+# (fastembed tries the local snapshot first online too), so "fastembed could not find a usable
+# local copy (usually: absent)" and "anything else" are told apart, in all four loaders, by one
+# helper. Class (a) is a `FileNotFoundError` or fastembed's one `ValueError`, matched by the start
+# of its text (the only message read to classify). **The second class's remedy names both readings**
+# ("not in the cache" and "files damaged"), because transformers 5.14.1 raises plain `OSError`s
+# both for a model missing from the cache (`utils/hub.py:513-516`) and for other failures such as a
+# config that is not valid JSON (`configuration_utils.py:813-814`), and the class is all the helper
+# looks at (read, not run). The quoted line is capped at 200 characters; the cap rows are below.
 
 [[mutant]]
 name = "the two classes are swapped: a missing model is told to delete its folder, a broken one to go online"
@@ -536,7 +539,7 @@ new = '''        remedy=(
             "Fix the cause named above; if the model's files are damaged, delete its folder "
             f"under {cache} and run once without --offline."
         ),'''
-kills = "tests/test_embed.py::test_st_offline_a_model_transformers_cannot_find_names_both_remedies"
+kills = "tests/test_embed.py::test_st_offline_plain_oserrors_from_transformers_name_both_remedies"
 
 [[mutant]]
 name = "a failure that is not 'absent' still claims it is the cache's fault"
@@ -584,8 +587,80 @@ kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_it
 [[mutant]]
 name = "an exception with no message is shown as 'ClassName: ' with nothing after it"
 file = "src/pinakes/embed.py"
-old = '''    reason = f"{type(exc).__name__}: {first_line}" if first_line else type(exc).__name__'''
-new = '''    reason = f"{type(exc).__name__}: {first_line}"'''
+old = '''    reason = f"{type(exc).__name__}: {shown}" if first_line else type(exc).__name__'''
+new = '''    reason = f"{type(exc).__name__}: {shown}"'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "the class (a) test reads fastembed's words anywhere in the first line, not at its start"
+file = "src/pinakes/embed.py"
+# The one place a message is read to classify. `in` is the natural loosening, and it calls
+# `ValueError("see: Could not load model …")` — somebody else's text — a missing model.
+old = '''first_line.startswith("Could not load model")'''
+new = '''"Could not load model" in first_line'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "the class (a) test reads fastembed's words anywhere in the whole message"
+file = "src/pinakes/embed.py"
+# Looser still, and what splitting by line was for: the words on a *later* line of a message that
+# starts with something else.
+old = '''first_line.startswith("Could not load model")'''
+new = '''"Could not load model" in str(exc)'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "the class (a) prefix is shortened to 'Could not', which fastembed's other ValueErrors share"
+file = "src/pinakes/embed.py"
+# `ValueError("Could not find tokenizer.json in …")` is a different problem with a different remedy.
+old = '''first_line.startswith("Could not load model")'''
+new = '''first_line.startswith("Could not")'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "class (a) takes only an exact FileNotFoundError, so huggingface_hub's subclass is not 'absent'"
+file = "src/pinakes/embed.py"
+# `LocalEntryNotFoundError` is a `FileNotFoundError` subclass (huggingface_hub 1.24.0) and what
+# `hf_hub_download` raises for a file that is not in the cache.
+old = '''isinstance(exc, FileNotFoundError) or ('''
+new = '''type(exc) is FileNotFoundError or ('''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "class (a) no longer requires a ValueError: any exception that says the words is 'absent'"
+file = "src/pinakes/embed.py"
+old = '''isinstance(exc, ValueError) and first_line.startswith("Could not load model")'''
+new = '''first_line.startswith("Could not load model")'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "the quoted line has no length cap"
+file = "src/pinakes/embed.py"
+# An onnxruntime `Fail` line runs to ~450 characters with a build path, and a `doctor` check is a
+# line.
+old = '''    if len(first_line) > _REASON_LIMIT:'''
+new = '''    if False:'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "a line of exactly the cap is cut too (> becomes >=)"
+file = "src/pinakes/embed.py"
+old = '''    if len(first_line) > _REASON_LIMIT:'''
+new = '''    if len(first_line) >= _REASON_LIMIT:'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "a cut line keeps one character too many, so the ellipsis makes it 201"
+file = "src/pinakes/embed.py"
+old = '''first_line[: _REASON_LIMIT - 1] + "…"'''
+new = '''first_line[:_REASON_LIMIT] + "…"'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "a cut line carries no ellipsis, so nothing says it was cut"
+file = "src/pinakes/embed.py"
+old = '''first_line[: _REASON_LIMIT - 1] + "…"'''
+new = '''first_line[: _REASON_LIMIT - 1] + ""'''
 kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
 
 [[mutant]]
