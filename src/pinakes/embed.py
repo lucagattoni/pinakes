@@ -16,6 +16,7 @@ what is loaded now, and §4.2's confidence thresholds are only valid for the rer
 fitted against.
 """
 
+import contextlib
 import os
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -147,27 +148,119 @@ def _import(module: str, extra: str, what: str, *, siblings: Sequence[str]) -> A
         raise BackendMissingError(what, extra=extra, alternative=alternative) from exc
 
 
+_OFFLINE_REMEDY = "Run once without --offline to populate the cache."
+
+
+_REASON_LIMIT = 200  # characters of the quoted line, the ellipsis included
+
+
+def _offline_load_error(model: str, exc: Exception) -> EmbeddingError:
+    """What `--offline` reports when `model` could not be loaded: one rule for every loader.
+
+    `exc` is whatever the library raised, and it is not a `PinakesError` (a `ValueError` from
+    fastembed, an `OSError` or onnxruntime's `InvalidProtobuf` from the others), so left alone
+    `pnk doctor` ends in a traceback instead of a FAIL line. Two classes, because the remedy
+    differs:
+
+    * **fastembed could not find a usable local copy (usually: absent)** — a `FileNotFoundError`
+      (including huggingface_hub's `LocalEntryNotFoundError`), or fastembed's one `ValueError`,
+      `"Could not load model … from any source"`, which is **matched by the start of its text**
+      (the only place this helper reads a message to classify). "Usually absent" is the honest
+      reading: fastembed swallows every failure of its local lookup (`model_management.py:424`,
+      `:461`) and raises that `ValueError` at `:475`, so an unreadable snapshots directory or a
+      truncated `files_metadata.json` reach it too (by reading, not run), and going online would
+      not fix those. The text and remedy are kept as they were.
+    * **Anything else** — a truncated download (onnxruntime's `InvalidProtobuf`), a
+      `PermissionError`, a `MemoryError`, a `TypeError` from a changed signature, and the plain
+      `OSError` transformers raises. No claim is made about the cache, and the remedy names both
+      readings: going online fetches a model that is absent, but does not help a damaged one
+      (fastembed tries the local snapshot first online too, and fails the same way). It has to name
+      both because the class cannot tell them apart — transformers 5.14.1 raises one plain
+      `OSError` class for a model missing from the cache (`utils/hub.py:513-516`) and for other
+      failures: a generic "Can't load the configuration" when `cached_file` raised a non-`OSError`
+      (`configuration_utils.py:796-803`; an `OSError` is re-raised untouched before it, `:792-795`),
+      a config that is not valid JSON (`:813-814`), a `PermissionError` (`utils/hub.py:481-486`).
+      Nothing is classified by reading those messages.
+
+    The reason quotes the class and the first non-empty line of `str(exc)` (`splitlines`, so
+    `"\\nreal message"` and CRLF work), cut to `_REASON_LIMIT` characters with an ellipsis, so a
+    `doctor` check stays a line: an onnxruntime `Fail` line runs to ~450 characters with a build
+    path. That is for length, not for privacy — onnxruntime's first line also carries the absolute
+    path of the model file, which lies under the cache directory the remedy prints anyway.
+    """
+    first_line = next((line.strip() for line in str(exc).splitlines() if line.strip()), "")
+    shown = first_line
+    if len(first_line) > _REASON_LIMIT:
+        shown = first_line[: _REASON_LIMIT - 1] + "…"
+    reason = f"{type(exc).__name__}: {shown}" if first_line else type(exc).__name__
+    cache = hf_cache_dir()
+    model_is_absent = isinstance(exc, FileNotFoundError) or (
+        isinstance(exc, ValueError) and first_line.startswith("Could not load model")
+    )
+    if model_is_absent:
+        return EmbeddingError(
+            f"--offline was requested but {model} could not be loaded from the model cache at "
+            f"{cache} ({reason}).",
+            remedy=_OFFLINE_REMEDY,
+        )
+    return EmbeddingError(
+        f"--offline was requested but {model} could not be loaded ({reason}).",
+        remedy=(
+            "Fix the cause named above. If the model is not in the cache, run once without "
+            "--offline to populate it; if its files are damaged, delete its folder under "
+            f"{cache} first."
+        ),
+    )
+
+
 def _sentence_transformers_backend(section: EmbeddingSection, offline: bool) -> EmbeddingBackend:
+    """`local_files_only=offline` is meant to keep this from downloading; it did not keep it typed.
+
+    The first half is read, not run: from the 5.6.1 wheel (read 20261030 20:02 UTC, never
+    installed) and from the keyword's name — no test here has seen a download refused. What the
+    wheel does show: for a model absent from the cache, its `load_file_path` swallows the Hub's
+    `LocalEntryNotFoundError` and falls back to `_load_default_modules`, whose
+    `AutoConfig.from_pretrained(..., local_files_only=True)` is transformers' to fail. Read in
+    transformers 5.14.1 (the pinned version; 20261030 20:42 UTC, never installed): a model missing
+    from the cache raises a **plain `OSError`**, never a `FileNotFoundError` — "We couldn't connect
+    to … and couldn't find them in the cached files" (`utils/hub.py:513-516`). Other plain
+    `OSError`s come from the same call: the generic "Can't load the configuration of …"
+    (`configuration_utils.py:798-803`, only for a non-`OSError` from `cached_file`; an `OSError` is
+    re-raised before it, `:792-795`), a config that is not valid JSON (`:813-814`), a
+    `PermissionError` (`utils/hub.py:481-486`). So a missing model lands in the second class of
+    `_offline_load_error`, whose remedy names both "not in the cache" and "files damaged".
+    Nothing of sentence-transformers or transformers was *run*.
+    """
     module = _import(
         "sentence_transformers", "st", section.provider, siblings=registered_embedding_providers()
     )
-    model = module.SentenceTransformer(
-        section.model,
-        revision=section.revision,
-        local_files_only=offline,
-        cache_folder=str(hf_cache_dir()),
-    )
+    try:
+        model = module.SentenceTransformer(
+            section.model,
+            revision=section.revision,
+            local_files_only=offline,
+            cache_folder=str(hf_cache_dir()),
+        )
+    except Exception as exc:
+        if not offline:
+            raise
+        raise _offline_load_error(section.model, exc) from exc
     return _SentenceTransformersBackend(section, model)
 
 
 def _sentence_transformers_reranker(section: RerankSection, offline: bool) -> Reranker:
     module = _import("sentence_transformers", "st", section.provider, siblings=sorted(_RERANKERS))
-    model = module.CrossEncoder(
-        section.model,
-        revision=section.revision,
-        local_files_only=offline,
-        cache_folder=str(hf_cache_dir()),
-    )
+    try:
+        model = module.CrossEncoder(
+            section.model,
+            revision=section.revision,
+            local_files_only=offline,
+            cache_folder=str(hf_cache_dir()),
+        )
+    except Exception as exc:
+        if not offline:
+            raise
+        raise _offline_load_error(section.model, exc) from exc
     return _SentenceTransformersReranker(section, model)
 
 
@@ -176,7 +269,7 @@ def _fastembed_backend(section: EmbeddingSection, offline: bool) -> EmbeddingBac
         "fastembed", "light", section.provider, siblings=registered_embedding_providers()
     )
     _require_online_or_cached(offline)
-    model = module.TextEmbedding(model_name=section.model, cache_dir=str(hf_cache_dir()))
+    model = _load_fastembed(module.TextEmbedding, section.model, offline)
     return _FastembedBackend(section, model)
 
 
@@ -185,17 +278,62 @@ def _fastembed_reranker(section: RerankSection, offline: bool) -> Reranker:
         "fastembed.rerank.cross_encoder", "light", section.provider, siblings=sorted(_RERANKERS)
     )
     _require_online_or_cached(offline)
-    model = module.TextCrossEncoder(model_name=section.model, cache_dir=str(hf_cache_dir()))
+    model = _load_fastembed(module.TextCrossEncoder, section.model, offline)
     return _FastembedReranker(section, model)
 
 
 def _require_online_or_cached(offline: bool) -> None:
-    """fastembed has no `local_files_only`; `--offline` is honoured by refusing to reach out."""
+    """`--offline` against a cache directory that does not exist: refuse before fastembed runs.
+
+    This is the cheap half of the guard and no more than that: it says nothing about *which* models
+    the directory holds. `_load_fastembed` is the half that does, and it also keeps fastembed from
+    creating the directory (its `define_cache_dir` does `mkdir`).
+    """
     if offline and not hf_cache_dir().exists():
         raise EmbeddingError(
             f"--offline was requested but no model cache exists at {hf_cache_dir()}.",
-            remedy="Run once without --offline to populate the cache.",
+            remedy=_OFFLINE_REMEDY,
         )
+
+
+def _load_fastembed(model_class: Any, model: str, offline: bool) -> Any:
+    """Construct a fastembed model; offline, from the cache or not at all.
+
+    fastembed 0.8 *does* take `local_files_only` — through `**kwargs` into its download step
+    (`common/model_management.py`, read 20261030 19:51 UTC against 0.8.0; the comment that said
+    otherwise predated it).
+    With it, a model missing from `cache_dir` raises `ValueError("Could not load model … from any
+    source")` instead of being fetched, and a model that is there loads exactly as it did online
+    (fastembed's first move online is the same local-only lookup). So a directory that exists but
+    lacks *this* model no longer reaches the network, which is what the directory check alone let
+    through (measured 20261019: `pnk doctor` fetched a 1.1 GB reranker).
+
+    Every failure offline becomes an `EmbeddingError`: a missing model is a `ValueError` from
+    fastembed, a cached but broken one is whatever onnxruntime raises, and neither is a
+    `PinakesError`, so `pnk doctor` would crash with a traceback instead of printing a FAIL line.
+    `except Exception` is deliberate and narrow in effect — it only re-raises, as the typed error —
+    and `KeyboardInterrupt` still passes through. Online, nothing changes: the call is the one
+    that was always made.
+    """
+    cache = hf_cache_dir()
+    if not offline:
+        return model_class(model_name=model, cache_dir=str(cache))
+
+    # fastembed's local-only path makes `<cache>/tmp` before it finds nothing. An empty `tmp` in
+    # the Hugging Face cache is not a repo, and `hf cache scan` warns about it; clean up our own.
+    scratch = cache / "tmp"
+    scratch_existed = scratch.exists()
+    try:
+        return model_class(model_name=model, cache_dir=str(cache), local_files_only=True)
+    except Exception as exc:
+        if not scratch_existed:
+            _remove_if_empty(scratch)
+        raise _offline_load_error(model, exc) from exc
+
+
+def _remove_if_empty(directory: Path) -> None:
+    with contextlib.suppress(OSError):  # absent, not empty, or not ours to remove: leave it
+        directory.rmdir()
 
 
 class _SentenceTransformersBackend:

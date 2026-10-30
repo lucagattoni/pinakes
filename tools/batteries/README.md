@@ -33,7 +33,7 @@ survives — never for a number. **That clause read *"checks anchors and `kills`
 prose"* until 20260831**, which would send a session that had just tripped the gate to debug the
 wrong thing. It said
 *"Nine … Seven"* from 20260826, when three batteries landed in one day and one was never added to
-the total, until 20260830. **Five batteries are named for a module under `src/`** — `src-pinakes-init.toml`, over the check
+the total, until 20260830. **Six batteries are named for a module under `src/`** — `src-pinakes-init.toml`, over the check
 that decides whether a KB's `.pinakes/` can reach a remote, and spanning **three** files as of
 20260903: `src/pinakes/init.py`, `src/pinakes/cli.py` and `src/pinakes/chunk.py`, the last two
 because refusing a `--source-type` typo is one guarantee held in two places — the closed set
@@ -50,7 +50,7 @@ the ledger rather than at either end of it, and **it is the first battery over t
 all**, added 20260902 after a money assertion that had never held by construction went red on a
 refreshed exchange rate; `src-pinakes-template.toml`, over `src/pinakes/template.py` alone; and
 `src-pinakes-search.toml`, over `src/pinakes/search.py` alone, added 20260903 with sweep row 8's
-Low classes. **Those two are the single-file batteries**, and the search one is single-file for the
+Low classes. **Those two, and `src-pinakes-embed.toml` (over `src/pinakes/embed.py` alone, added 20261030 with finding F2: what `--offline` means for the fastembed loaders), are the single-file batteries**, and the search one is single-file for the
 reason the rule wants stated: `Filters.any_set()` is one predicate in one module, and what its
 mutants separate is *the filters excluded everything* from *this KB has no active documents* — two
 states the confidence reason had been conflating, so a user who passed no filters at all was told

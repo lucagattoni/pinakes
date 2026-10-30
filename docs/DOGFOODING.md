@@ -35,15 +35,19 @@ says how each command works.
     - **Tell `pnk init` which extra you installed** (`--backend light`). A KB stamped for the default
       backend, with only `[light]` installed, stops on the first sync and names the two-line manifest
       edit that fixes it.
-2. **Weights come down on first use, and you do not choose the moment.** Measured with an empty
+2. **Weights come down on first use, and you do not choose the moment.** Measured on 0.32.7 with an empty
    Hugging Face cache: the first `pnk sync` fetched the embedder (67 MB, 2 s by its progress bar); a later
-   `pnk doctor` — which is meant to be offline — fetched the **reranker (1.1 GB, 11 s)**. Be online for
-   the first `sync` and for the first command that loads the reranker: `doctor` was measured; by the
-   source so do `search`, `ask` and an agent's first `serve` tool call (not run). A `doctor` on a cache
-   that does not exist yet prints two FAILs ending *“Run once without --offline to populate the cache”*.
-   `doctor` is hard-wired offline and has no such flag; `sync`, `search`, `ask`, `links` and `serve` take
-   `--offline`, off by default, so the line means *go online once*: `sync` brings the embedder, and the
-   reranker comes with the first `doctor`, `search` or `ask`. The cache
+   `pnk doctor` — which is meant to be offline — fetched the **reranker (1.1 GB, 11 s)**. **That is
+   fixed on `main` and is in no published release yet:** an offline load now asks fastembed for local
+   files only, so `doctor` prints a FAIL line for a model that is not cached and downloads nothing
+   (reproduced against an empty temporary cache with the network forbidden; not run against real
+   weights). Until that is released, be online for the first `sync` and for the first command that loads
+   the reranker: `doctor` was measured; by the source so do `search`, `ask` and an agent's first `serve`
+   tool call (not run). A `doctor` on a cache that does not exist yet prints two FAILs ending *“Run once
+   without --offline to populate the cache”*. `doctor` is hard-wired offline and has no such flag; `sync`,
+   `search`, `ask`, `links` and `serve` take `--offline`, off by default, so the line means *go online
+   once*: `sync` brings the embedder, and the reranker comes with the first `search` or `ask` (and, on
+   every published release up to 0.32.8, with `doctor`). The cache
    lives where `doctor`'s `model cache` line says; budget about **1.2 GB** for the light pair (the
    Guide's ~1.4 GB is the default backend's).
 
