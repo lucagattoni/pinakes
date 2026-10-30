@@ -280,11 +280,13 @@ def test_real_reranker_orders_by_relevance() -> None:
 
 _FASTEMBED_MODEL = {"embedding": "BAAI/bge-small-en-v1.5", "reranker": "BAAI/bge-reranker-base"}
 _OFFLINE_REMEDY = "Run once without --offline to populate the cache."
-# For everything that is not "the library says the model is absent": going online will not repair
-# a truncated download (fastembed tries the local snapshot first online too), so say what will.
-_DAMAGED_REMEDY = (
-    "Fix the cause named above; if the model's files are damaged, delete its folder under "
-    "{cache} and run once without --offline."
+# For everything that is not "the library says the model is absent". Going online fetches an absent
+# model but does not repair a truncated one (fastembed tries the local snapshot first online too),
+# and the class cannot tell them apart (transformers raises a plain OSError for both), so the
+# remedy names both readings.
+_UNLOADABLE_REMEDY = (
+    "Fix the cause named above. If the model is not in the cache, run once without --offline to "
+    "populate it; if its files are damaged, delete its folder under {cache} first."
 )
 
 
@@ -438,7 +440,7 @@ def test_a_cached_model_that_cannot_be_read_fails_typed_too(sealed_cache: _Seale
     # the remedy says what will, and the message makes no claim about the cache.
     assert "model cache" not in exc_info.value.message
     assert "InvalidProtobuf" in exc_info.value.message
-    assert exc_info.value.remedy == _DAMAGED_REMEDY.format(cache=sealed_cache.hub)
+    assert exc_info.value.remedy == _UNLOADABLE_REMEDY.format(cache=sealed_cache.hub)
 
 
 def test_a_failed_offline_load_removes_the_scratch_directory_fastembed_made(
@@ -552,7 +554,7 @@ def test_a_failure_that_is_not_a_pinakes_error_becomes_one_offline(
     assert exc_info.value.__cause__ is cause
     assert "RuntimeError: boom)" in exc_info.value.message
     assert "second line" not in exc_info.value.message
-    assert exc_info.value.remedy == _DAMAGED_REMEDY.format(cache=sealed_cache.hub)
+    assert exc_info.value.remedy == _UNLOADABLE_REMEDY.format(cache=sealed_cache.hub)
 
 
 def test_online_failures_are_not_rewrapped(
@@ -763,9 +765,56 @@ def test_every_loader_reports_an_offline_failure_by_its_cause(
         remedy = _OFFLINE_REMEDY
     else:
         message = f"--offline was requested but {model} could not be loaded ({reason})."
-        remedy = _DAMAGED_REMEDY.format(cache=shared_cache)
+        remedy = _UNLOADABLE_REMEDY.format(cache=shared_cache)
     assert exc_info.value.message == message
     assert exc_info.value.remedy == remedy
+    assert exc_info.value.__cause__ is cause
+
+
+# The two messages transformers 5.14.1 (the pinned version) raises, as a plain `OSError` with no
+# errno, when a model is missing from the cache under `local_files_only=True`: copied from
+# `configuration_utils.py:798-803` and `utils/hub.py:513-516`. Read, not run — no test here has
+# seen the real package raise either.
+_TRANSFORMERS_MISSES = {
+    "configuration": (
+        "Can't load the configuration of '{model}'. If you were trying to load it from "
+        "'https://huggingface.co/models', make sure you don't have a local directory with the same "
+        "name. Otherwise, make sure '{model}' is the correct path to a directory containing a "
+        "config.json file"
+    ),
+    "offline-mode": (
+        "We couldn't connect to 'https://huggingface.co' to load the files, and couldn't find them "
+        "in the cached files.\nCheck your internet connection or see how to run the library in "
+        "offline mode at 'https://huggingface.co/docs/transformers/installation#offline-mode'."
+    ),
+}
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+@pytest.mark.parametrize("which", list(_TRANSFORMERS_MISSES))
+def test_st_offline_a_model_transformers_cannot_find_names_both_remedies(
+    shared_cache: Path, monkeypatch: pytest.MonkeyPatch, kind: str, which: str
+) -> None:
+    """A plain `OSError` is what transformers raises for an absent model, and also for a config
+    that is not valid JSON, so its class cannot tell "absent" from "damaged" and nothing sniffs the
+    text: the message makes no claim about the cache, and the remedy covers both readings."""
+    model = _FASTEMBED_MODEL[kind]
+    text = _TRANSFORMERS_MISSES[which].format(model=model)
+    cause = OSError(text)
+    assert cause.errno is None and type(cause) is OSError
+    _stub_sentence_transformers(monkeypatch, error=cause)
+
+    with pytest.raises(EmbeddingError) as exc_info:
+        _load_st_kind(kind, offline=True)
+
+    assert exc_info.value.message == (
+        f"--offline was requested but {model} could not be loaded "
+        f"(OSError: {text.splitlines()[0]})."
+    )
+    assert "model cache at" not in exc_info.value.message
+    assert exc_info.value.remedy == _UNLOADABLE_REMEDY.format(cache=shared_cache)
+    assert "run once without --offline to populate it" in exc_info.value.remedy
+    assert "delete its folder" in exc_info.value.remedy
     assert exc_info.value.__cause__ is cause
 
 

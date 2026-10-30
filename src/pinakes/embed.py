@@ -162,9 +162,13 @@ def _offline_load_error(model: str, exc: Exception) -> EmbeddingError:
     * **The library says the model is absent** — a `FileNotFoundError`, or fastembed's own
       `ValueError("Could not load model … from any source")`. Going online fetches it.
     * **Anything else** — a truncated download (onnxruntime's `InvalidProtobuf`), a
-      `PermissionError`, a `MemoryError`, a `TypeError` from a changed signature. No claim is made
-      about the cache, and going online does not help a damaged model: fastembed tries the local
-      snapshot first online too, and fails the same way.
+      `PermissionError`, a `MemoryError`, a `TypeError` from a changed signature, and the plain
+      `OSError` transformers raises. No claim is made about the cache, and the remedy names both
+      readings: going online fetches a model that is absent, but does not help a damaged one
+      (fastembed tries the local snapshot first online too, and fails the same way). It has to name
+      both because the class cannot tell them apart — transformers 5.14.1 raises a plain `OSError`
+      for an absent model *and* for an unreadable config (`configuration_utils.py:798-803`,
+      `813-814`; `utils/hub.py:513-516`), and nothing here sniffs message text.
 
     The reason quotes the class and the first non-empty line of `str(exc)` (`splitlines`, so
     `"\\nreal message"` and CRLF work) to keep a `doctor` check on one line. That is for length,
@@ -186,8 +190,9 @@ def _offline_load_error(model: str, exc: Exception) -> EmbeddingError:
     return EmbeddingError(
         f"--offline was requested but {model} could not be loaded ({reason}).",
         remedy=(
-            "Fix the cause named above; if the model's files are damaged, delete its folder "
-            f"under {cache} and run once without --offline."
+            "Fix the cause named above. If the model is not in the cache, run once without "
+            "--offline to populate it; if its files are damaged, delete its folder under "
+            f"{cache} first."
         ),
     )
 
@@ -199,10 +204,14 @@ def _sentence_transformers_backend(section: EmbeddingSection, offline: bool) -> 
     installed) and from the keyword's name — no test here has seen a download refused. What the
     wheel does show: for a model absent from the cache, its `load_file_path` swallows the Hub's
     `LocalEntryNotFoundError` and falls back to `_load_default_modules`, whose
-    `AutoConfig.from_pretrained(..., local_files_only=True)` is transformers' to fail — a class
-    nobody here has read, hence `Exception` and not a guess. **Which class transformers raises
-    decides which message `_offline_load_error` gives**: a `FileNotFoundError` reads as "absent"
-    (go online), anything else as "could not be loaded" (see its docstring).
+    `AutoConfig.from_pretrained(..., local_files_only=True)` is transformers' to fail. Read in
+    transformers 5.14.1 (the pinned version; 20261030 20:42 UTC, never installed): it raises a
+    **plain `OSError`**, never a `FileNotFoundError` — "Can't load the configuration of …"
+    (`configuration_utils.py:798-803`) or "We couldn't connect to … and couldn't find them in the
+    cached files" (`utils/hub.py:513-516`) — and the same class for a config that is not valid JSON
+    (`configuration_utils.py:813-814`). So a missing model lands in the second class of
+    `_offline_load_error`, whose remedy names both "not in the cache" and "files damaged".
+    Nothing of sentence-transformers or transformers was *run*.
     """
     module = _import(
         "sentence_transformers", "st", section.provider, siblings=registered_embedding_providers()
