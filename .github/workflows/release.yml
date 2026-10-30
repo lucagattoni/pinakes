@@ -5,8 +5,8 @@ name: Release
 # cannot be automated from here (plans/20260725_1317-v0.1.md, I15).
 #
 # Until that human step happens, the PyPI upload is *skipped rather than attempted*, gated on the
-# repository variable PUBLISH_TO_PYPI. Everything before it still runs on every tag — version/tag
-# agreement, build, and the isolated wheel smoke test — so a tag is fully validated even when
+# repository variable PUBLISH_TO_PYPI. Everything before it still runs on every tag — the tag's
+# annotation, version/tag agreement, build, and the isolated wheel smoke test — so a tag is fully validated even when
 # nothing is uploaded, and pushing one never produces a red run for a reason the maintainer
 # already knows about. To start publishing: configure trusted publishing on PyPI, then set the
 # variable (`gh variable set PUBLISH_TO_PYPI --body true`). Nothing else here changes.
@@ -31,15 +31,20 @@ jobs:
       # --no-tags --depth=1 origin +<commit sha>:refs/tags/<tag>`, which stores the *commit* under
       # the tag's name: the tag in this clone is lightweight, and `gh release create
       # --notes-from-tag` finds no annotation and falls back to the commit's message, which for a
-      # release is the merge subject. Every GitHub release from 0.22.0 to 0.32.8 reads "Merge branch
-      # '...'" for that reason (six read, six wrong, 20261029; the Release run's log shows the fetch).
+      # release is the merge subject. Every GitHub release from 0.22.0 to 0.32.7 read "Merge branch
+      # '...'" for that reason (all 34 read, 20261030; the Release run's log shows the fetch), and
+      # 0.32.8's notes were backfilled by hand.
       #
       # This fetches the tag object itself over the flattened ref (`--force` is needed: without it git
       # refuses with "would clobber existing tag") and refuses to go on unless what is there is an
-      # annotated tag with a subject. **In front of the upload, not beside the release step**, because
-      # a failure here costs a deleted tag and nothing else, and a failure after `uv publish` would cost
-      # the version number — and because a lightweight tag pushed by mistake is the same defect from
-      # the other side, which `make release-check` refuses locally and this refuses again here.
+      # annotated tag with a non-blank subject that still points at the commit this run checked out.
+      # **In front of the upload, not beside the release step**, because a failure here costs a deleted
+      # tag and nothing else, and a failure after `uv publish` would cost the version number — and
+      # because a lightweight or empty tag pushed by mistake is the same defect from the other side,
+      # which `make release-check` refuses locally and this refuses again here. The tag is compared
+      # with GITHUB_SHA because the fetch asks the remote *now*: a tag deleted and recreated on another
+      # commit while the run was going would otherwise publish a wheel built from one commit under a
+      # tag that names another.
       - name: Restore the tag's annotation
         run: |
           set -e
@@ -50,9 +55,13 @@ jobs:
             echo "::error::${GITHUB_REF_NAME} is a ${kind} here, not an annotated tag, so the release notes would be the commit message"
             exit 1
           fi
-          subject="$(git tag -l --format='%(contents:subject)' "${GITHUB_REF_NAME}")"
+          subject="$(git tag -l --format='%(contents:subject)' "${GITHUB_REF_NAME}" | tr -d '[:space:]')"
           if [ -z "$subject" ]; then
             echo "::error::${GITHUB_REF_NAME} has an empty annotation, so the release notes would be empty"
+            exit 1
+          fi
+          if [ "$(git rev-parse "${ref}^{commit}")" != "${GITHUB_SHA}" ]; then
+            echo "::error::${GITHUB_REF_NAME} now names a different commit than the ${GITHUB_SHA} this run checked out, so it was moved while the workflow ran"
             exit 1
           fi
 
