@@ -4,8 +4,8 @@
 #
 # The guarantee is one thing — *a published wheel still answers `initialize` with Pinakes' own
 # name, Pinakes' own version and Pinakes' own tool list* — and it is spread across seven files:
-# the gate (8 mutants), `.github/workflows/ci.yml` (9), `.github/workflows/release.yml` (4),
-# the `Makefile` (3), `src/pinakes/serve.py` (2), `check.sh` (1) and `pyproject.toml`'s
+# the gate (8 mutants), `.github/workflows/ci.yml` (9), `.github/workflows/release.yml` (17),
+# the `Makefile` (5), `src/pinakes/serve.py` (7), `check.sh` (1) and `pyproject.toml`'s
 # dependency floor (1). **The mutants live together because the guarantee does**, and because
 # four of them are one idea in three files — a gate is only a gate when its exit status is what
 # the next command reads: `| tee` and `|| true` in ci.yml, `set +e` in release.yml, and a
@@ -18,7 +18,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 35
+mutants = 48
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.28.0 · the mcp 2.x port, and the handshake that proves a wheel still speaks
@@ -367,3 +367,134 @@ file = "src/pinakes/serve.py"
 old = '''            if held is not None and held.signature == signature:'''
 new = '''            if held is not None:'''
 kills = "tests/test_serve.py::test_an_index_swapped_underneath_is_picked_up"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20261030 · the tag's annotation reaches the GitHub release
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# This file claims `release.yml`, so the step that restores the tag annotation is mutated here and
+# not in a battery of its own (a file belongs to exactly one). The idea is the one the other
+# release.yml rows carry — *a check in front of an upload PyPI will not take back is only a check
+# when it cannot be skipped, ignored or answered with exit 0* — plus the one this step adds: it
+# has to do its job, which `actions/checkout` undoes (it stores the commit under the tag's name, so
+# `--notes-from-tag` read the merge subject for every release from 0.22.0 to 0.32.7).
+#
+# **Rows 1, 2, 4, 5, 6 and 7 are killed by running the workflow's own `run` text** against a clone
+# made the way `actions/checkout` makes one; rows 3 and 8 to 12 by reading the parsed workflow.
+# Rows 5, 6, 7 and 10 to 12 were not in the first six. A fresh reviewer's own mutants survived
+# rows 6 and 10 to 12 (a subject check that read the body, and a step that kept its body and
+# changed where or how it ran), and rows 5 and 7 answer two things the same review found the
+# step let through (a message of blanks, a tag moved while the run was going).
+#
+# **Not mutated: the step's position.** It is one move, not one edit, so a text mutant cannot make
+# it; `test_the_restore_check_fails_when_the_step_is_late_or_switched_off` moves the step in memory,
+# behind the upload and in front of the checkout, and watches the check fail instead.
+
+[[mutant]]
+name = "the re-fetch loses --force, so git refuses to replace the flattened tag and the step dies on a good tag"
+file = ".github/workflows/release.yml"
+old = '''          git fetch --force --no-tags origin "${ref}:${ref}"'''
+new = '''          git fetch --no-tags origin "${ref}:${ref}"'''
+kills = "tests/test_check_script.py::test_the_restore_step_turns_the_flattened_tag_back_into_the_annotation"
+
+[[mutant]]
+name = "the object-type check stops asking, so a tag that is still a commit goes on to the upload"
+file = ".github/workflows/release.yml"
+old = '''          if [ "$kind" != "tag" ]; then'''
+new = '''          if [ -z "$kind" ]; then'''
+kills = "tests/test_check_script.py::test_the_restore_step_refuses_a_tag_that_is_lightweight_on_the_remote"
+
+[[mutant]]
+name = "the object-type refusal exits 0, so it prints an error and the job carries on to the upload"
+file = ".github/workflows/release.yml"
+old = '''so the release notes would be the commit message"
+            exit 1'''
+new = '''so the release notes would be the commit message"
+            exit 0'''
+kills = "tests/test_check_script.py::test_the_release_workflow_restores_the_tag_annotation_in_front_of_the_upload"
+
+[[mutant]]
+name = "the empty-annotation check is gone, so a tag with no message publishes a release with no notes"
+file = ".github/workflows/release.yml"
+old = '''          if [ -z "$message" ]; then'''
+new = '''          if false; then'''
+kills = "tests/test_check_script.py::test_the_restore_step_refuses_an_annotation_with_no_message"
+
+[[mutant]]
+name = "the subject is no longer stripped of blanks, so a message of spaces counts as a message"
+file = ".github/workflows/release.yml"
+old = '''"${GITHUB_REF_NAME}" | tr -d '[:space:]')"'''
+new = '''"${GITHUB_REF_NAME}")"'''
+kills = "tests/test_check_script.py::test_the_restore_step_refuses_an_annotation_with_no_message"
+
+[[mutant]]
+name = "the message check reads only the body, so the six one-line annotations already published would be refused"
+file = ".github/workflows/release.yml"
+old = '''--format='%(contents:subject)%(contents:body)''''
+new = '''--format='%(contents:body)''''
+kills = "tests/test_check_script.py::test_the_restore_step_turns_the_flattened_tag_back_into_the_annotation"
+
+[[mutant]]
+name = "the tag is no longer compared with the commit the run checked out, so a moved tag publishes a mismatch"
+file = ".github/workflows/release.yml"
+old = '''          if [ "$(git rev-parse "${ref}^{commit}")" != "${GITHUB_SHA}" ]; then'''
+new = '''          if false; then'''
+kills = "tests/test_check_script.py::test_the_restore_step_refuses_a_tag_moved_while_the_run_was_going"
+
+[[mutant]]
+name = "the annotation step is skipped whenever the repository variable is not set"
+file = ".github/workflows/release.yml"
+old = '''      - name: Restore the tag's annotation
+        run: |'''
+new = '''      - name: Restore the tag's annotation
+        if: vars.PUBLISH_TO_PYPI == 'true'
+        run: |'''
+kills = "tests/test_check_script.py::test_the_release_workflow_restores_the_tag_annotation_in_front_of_the_upload"
+
+[[mutant]]
+name = "the annotation step fails and the job carries on to the upload anyway"
+file = ".github/workflows/release.yml"
+old = '''      - name: Restore the tag's annotation
+        run: |'''
+new = '''      - name: Restore the tag's annotation
+        continue-on-error: true
+        run: |'''
+kills = "tests/test_check_script.py::test_the_release_workflow_restores_the_tag_annotation_in_front_of_the_upload"
+
+[[mutant]]
+name = "the annotation step fetches into another directory, so the clone the release reads is untouched"
+file = ".github/workflows/release.yml"
+old = '''      - name: Restore the tag's annotation
+        run: |'''
+new = '''      - name: Restore the tag's annotation
+        working-directory: /tmp
+        run: |'''
+kills = "tests/test_check_script.py::test_the_release_workflow_restores_the_tag_annotation_in_front_of_the_upload"
+
+[[mutant]]
+name = "the annotation step reads another tag name from its own environment"
+file = ".github/workflows/release.yml"
+old = '''      - name: Restore the tag's annotation
+        run: |'''
+new = '''      - name: Restore the tag's annotation
+        env:
+          GITHUB_REF_NAME: v0.0.0
+        run: |'''
+kills = "tests/test_check_script.py::test_the_release_workflow_restores_the_tag_annotation_in_front_of_the_upload"
+
+[[mutant]]
+name = "the annotation step runs its body under another interpreter"
+file = ".github/workflows/release.yml"
+old = '''      - name: Restore the tag's annotation
+        run: |'''
+new = '''      - name: Restore the tag's annotation
+        shell: python {0}
+        run: |'''
+kills = "tests/test_check_script.py::test_the_release_workflow_restores_the_tag_annotation_in_front_of_the_upload"
+
+[[mutant]]
+name = "the blanks that are stripped are only spaces, so a message of a tab counts as a message"
+file = ".github/workflows/release.yml"
+old = '''"${GITHUB_REF_NAME}" | tr -d '[:space:]')"'''
+new = '''"${GITHUB_REF_NAME}" | tr -d ' ')"'''
+kills = "tests/test_check_script.py::test_the_restore_step_refuses_an_annotation_with_no_message"

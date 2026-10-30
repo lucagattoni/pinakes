@@ -139,6 +139,20 @@ extended on 20260823 when it crossed it again. Nothing was dropped in either mov
    `git log -S` confirms it. If a release is missing after a green run now, that is new
    information rather than the old pattern: read the step's log.
 
+   **The notes are the tag's annotation only because a workflow step puts it back.**
+   `actions/checkout` stores the tag's *commit* under the tag's name for a tag push, so the runner
+   held a lightweight tag and `--notes-from-tag` fell back to the commit's message: every release
+   from 0.22.0 to 0.32.7 read `Merge branch '…'` (all 34 read). 0.32.8's notes were
+   backfilled from its annotation with `gh release edit`; the 34 older ones were not. The step
+   `Restore the tag's
+   annotation` now re-fetches the tag object right after the checkout and exits 1 unless it is an
+   annotated tag with a message that is not blank and that still names the commit the run checked
+   out, in front of `uv publish`. The comparison with the run's commit narrows the window between
+   the checkout and the upload to the seconds the step takes; it does not close it. **That step
+   has been run against a
+   local reproduction of the checkout and not yet in Actions**: the first release cut after it is
+   its first real run, so read that release's body (below) before believing it.
+
 ### A fragment that arrives after the release commit but before the tag
 
 **This is not an edge case any more. It recurs by design**, because landing and publishing are
@@ -169,6 +183,13 @@ anchor, and 0.20.0 destroyed it exactly that way. Move the entry; never move the
 `git tag -l`, `gh release list`, and `git merge-base --is-ancestor vx.y.z main`, **before** writing
 release notes. A CHANGELOG entry and a `__version__` are only claims: v0.1.0 had both for two days
 with no tag, no release and nothing published (`RETROSPECTIVES.md`, 20260727).
+
+**And read the release's notes, not only that it exists.** `gh release view vx.y.z --json body
+--jq .body | head -1` must print the first line of the tag's annotation. The 34 releases from 0.22.0
+to 0.32.7 all existed, were neither draft nor prerelease, and carried `Merge branch '…'` as their
+notes
+because `actions/checkout` had flattened the tag (step 8): a check that asked only whether the
+release was there passed every time.
 
 **When a release's subject is not in the wheel, verify its absence.** 0.25.1's rule is to read the
 release's own subject out of the published artifact rather than trust a matching version string. A
