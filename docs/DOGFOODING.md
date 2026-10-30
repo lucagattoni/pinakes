@@ -23,8 +23,9 @@ says how each command works.
       `cp315`)* — and worked in 1.6 s with the pin.
     - **Not `uv add`, in a KB directory.** `uv add "pinakes[light]"` exits 2 there (*No `pyproject.toml`
       found*), and the README's Quickstart opened with it when this was measured; it has since
-      been changed to say where `uv add` can be run. The Guide's route, `uv init && uv add …`
-      ([Guide § Install](GUIDE.md#install)), **failed on that same machine**: `uv init` wrote
+      been changed to say where `uv add` can be run. The Guide's route then was `uv init && uv
+      add …`, and it **failed on that same machine** (the Guide and the README now say `uv
+      init --python 3.13`, [Guide § Install](GUIDE.md#install)): `uv init` wrote
       `requires-python = ">=3.15"`, and `uv add "pinakes[light]"` then did not resolve. **`uv init --python
       3.13` is the route that works:** it wrote `requires-python = ">=3.13"` and a `.python-version` of 3.13
       (and, being plain `uv init`, a git repository, a `README.md` and `src/`), and the same `uv add`
@@ -138,8 +139,9 @@ Attaching the KB to an agent (§ 6) belongs to “started” in the option B pla
     }
     ```
 
-    `command -v pnk` prints the path. [The Guide's snippet](GUIDE.md#using-it-from-an-agent) says
-    `"command": "pnk"`; before `pnk` was installed with `uv tool`, a bare `pnk` was not found on the
+    `command -v pnk` prints the path. [The Guide's snippet](GUIDE.md#using-it-from-an-agent) now
+    shows the absolute path too; it used to say `"command": "pnk"`, and before `pnk` was
+    installed with `uv tool`, a bare `pnk` was not found on the
     `PATH` of any shell tried. After `uv tool install` it is on the `PATH` only if uv's tool directory is
     (`uv tool install` printed a warning that its directory was not on the `PATH` and named `uv tool
     update-shell` as the fix — the fix itself not run). The absolute path is a

@@ -71,8 +71,10 @@ unmeasured is worse than one whose cost is known.
 ## Quickstart
 
 Run these inside a uv project: in a bare KB directory `uv add` exits `No pyproject.toml found`, and
-`uv init` makes the directory a project — or skip the project with `uvx --from "pinakes[light]" pnk …`
-([Guide § Install](docs/GUIDE.md#install)).
+`uv init --python 3.13` makes the directory a project — or skip the project with `uvx --python 3.13
+--from "pinakes[light]" pnk …` ([Guide § Install](docs/GUIDE.md#install)). Pin `--python 3.13`, the
+declared minimum, wherever `uv` might choose CPython 3.15: as long as `onnxruntime`, which `[light]`
+needs, ships no wheel for it, the install does not resolve there.
 
 ```bash
 uv add "pinakes[st]"                  # default backend
@@ -102,7 +104,7 @@ pnk ask "…" --deep                    # ...and this one pays to answer it, und
 pnk doctor                            # environment, coherence, orphans, link coverage
 pnk upgrade                           # what your template changed; writes nothing
 
-uvx --from "pinakes[st]" pnk serve    # MCP server, nothing installed
+uvx --python 3.13 --from "pinakes[st]" pnk serve    # MCP server, nothing installed
 ```
 
 On a `[light]` install, stamp the models with the flag: `pnk init my-kb --backend light`. It is a
