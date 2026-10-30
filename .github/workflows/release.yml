@@ -27,6 +27,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # **`actions/checkout` flattens an annotated tag.** For a tag push it runs `git fetch
+      # --no-tags --depth=1 origin +<commit sha>:refs/tags/<tag>`, which stores the *commit* under
+      # the tag's name: the tag in this clone is lightweight, and `gh release create
+      # --notes-from-tag` finds no annotation and falls back to the commit's message, which for a
+      # release is the merge subject. Every GitHub release from 0.22.0 to 0.32.8 reads "Merge branch
+      # '...'" for that reason (six read, six wrong, 20261029; the Release run's log shows the fetch).
+      #
+      # This fetches the tag object itself over the flattened ref (`--force` is needed: without it git
+      # refuses with "would clobber existing tag") and refuses to go on unless what is there is an
+      # annotated tag with a subject. **In front of the upload, not beside the release step**, because
+      # a failure here costs a deleted tag and nothing else, and a failure after `uv publish` would cost
+      # the version number — and because a lightweight tag pushed by mistake is the same defect from
+      # the other side, which `make release-check` refuses locally and this refuses again here.
+      - name: Restore the tag's annotation
+        run: |
+          set -e
+          ref="refs/tags/${GITHUB_REF_NAME}"
+          git fetch --force --no-tags origin "${ref}:${ref}"
+          kind="$(git cat-file -t "${ref}")"
+          if [ "$kind" != "tag" ]; then
+            echo "::error::${GITHUB_REF_NAME} is a ${kind} here, not an annotated tag, so the release notes would be the commit message"
+            exit 1
+          fi
+          subject="$(git tag -l --format='%(contents:subject)' "${GITHUB_REF_NAME}")"
+          if [ -z "$subject" ]; then
+            echo "::error::${GITHUB_REF_NAME} has an empty annotation, so the release notes would be empty"
+            exit 1
+          fi
+
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
