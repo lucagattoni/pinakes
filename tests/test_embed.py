@@ -5,6 +5,7 @@ unless they are already cached — a clean checkout must never be blocked on a 1
 (which caches `HF_HOME`) runs them for real.
 """
 
+import json
 import socket
 import sys
 from collections.abc import Callable, Mapping, Sequence
@@ -279,6 +280,14 @@ def test_real_reranker_orders_by_relevance() -> None:
 
 _FASTEMBED_MODEL = {"embedding": "BAAI/bge-small-en-v1.5", "reranker": "BAAI/bge-reranker-base"}
 _OFFLINE_REMEDY = "Run once without --offline to populate the cache."
+# For everything that is not "the library says the model is absent". Going online fetches an absent
+# model but does not repair a truncated one (fastembed tries the local snapshot first online too),
+# and the class cannot tell them apart (transformers raises a plain OSError for both), so the
+# remedy names both readings.
+_UNLOADABLE_REMEDY = (
+    "Fix the cause named above. If the model is not in the cache, run once without --offline to "
+    "populate it; if its files are damaged, delete its folder under {cache} first."
+)
 
 
 def _load_fastembed_kind(kind: str, *, offline: bool) -> Any:
@@ -427,7 +436,11 @@ def test_a_cached_model_that_cannot_be_read_fails_typed_too(sealed_cache: _Seale
 
     assert sealed_cache.reached == []
     assert _tree(sealed_cache.hub) == before
-    assert exc_info.value.remedy == _OFFLINE_REMEDY
+    # Going online cannot repair this: fastembed looks at the local snapshot first online too. So
+    # the remedy says what will, and the message makes no claim about the cache.
+    assert "model cache" not in exc_info.value.message
+    assert "InvalidProtobuf" in exc_info.value.message
+    assert exc_info.value.remedy == _UNLOADABLE_REMEDY.format(cache=sealed_cache.hub)
 
 
 def test_a_failed_offline_load_removes_the_scratch_directory_fastembed_made(
@@ -450,9 +463,15 @@ def test_a_scratch_directory_that_was_already_there_is_left_alone(sealed_cache: 
 
 
 def _stub_fastembed(
-    monkeypatch: pytest.MonkeyPatch, *, error: BaseException | None = None
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    error: BaseException | None = None,
+    before_failing: Callable[[], None] | None = None,
 ) -> list[dict[str, Any]]:
-    """Swap fastembed's two model classes for one recorder; return what it was built with."""
+    """Swap fastembed's two model classes for one recorder; return what it was built with.
+
+    `before_failing` runs just before `error` is raised: what a half-finished load leaves behind.
+    """
     pytest.importorskip("fastembed.rerank.cross_encoder")
     calls: list[dict[str, Any]] = []
 
@@ -462,6 +481,8 @@ def _stub_fastembed(
         def __init__(self, **kwargs: Any) -> None:
             calls.append(kwargs)
             if error is not None:
+                if before_failing is not None:
+                    before_failing()
                 raise error
             self._name: str = kwargs["model_name"]
 
@@ -533,7 +554,7 @@ def test_a_failure_that_is_not_a_pinakes_error_becomes_one_offline(
     assert exc_info.value.__cause__ is cause
     assert "RuntimeError: boom)" in exc_info.value.message
     assert "second line" not in exc_info.value.message
-    assert exc_info.value.remedy == _OFFLINE_REMEDY
+    assert exc_info.value.remedy == _UNLOADABLE_REMEDY.format(cache=sealed_cache.hub)
 
 
 def test_online_failures_are_not_rewrapped(
@@ -575,9 +596,10 @@ def test_offline_with_no_cache_directory_is_refused_before_fastembed_can_make_on
 
 # ── the same promise for the default provider ─────────────────────────────────────────────────────
 #
-# `[st]` is the default backend, and it already passed `local_files_only=offline`, so it never
-# downloaded; what it lacked was a typed failure. For a model absent from the cache
-# sentence-transformers 5.6.1 swallows the Hub's `LocalEntryNotFoundError` itself (`load_file_path`)
+# `[st]` is the default backend. Its loaders pass `local_files_only=offline`, which the wheel and
+# the keyword's name say keeps them from downloading — read, not run: nothing here has seen the
+# real package refuse a download. What they lacked was a typed failure. For a model absent from the
+# cache sentence-transformers 5.6.1 swallows the Hub's `LocalEntryNotFoundError` itself
 # and the failure that reaches the caller is transformers'. Neither package is installed for these
 # tests (torch is gigabytes), so a stand-in module is put in `sys.modules` and raises whatever the
 # test says: that pins what the loader *does* with an exception, not which class the real
@@ -640,28 +662,160 @@ def _load_st_kind(kind: str, *, offline: bool) -> Any:
     )
 
 
-@pytest.mark.parametrize("kind", ["embedding", "reranker"])
-@pytest.mark.parametrize(
-    "cause",
-    [OSError("no cached copy"), ValueError("bad config"), FileNotFoundError("modules.json")],
-    ids=["OSError", "ValueError", "FileNotFoundError"],
-)
-def test_st_offline_any_failure_becomes_the_same_typed_error(
-    shared_cache: Path, monkeypatch: pytest.MonkeyPatch, kind: str, cause: Exception
+_LOADERS = ["fastembed-embedding", "fastembed-reranker", "st-embedding", "st-reranker"]
+
+
+def _failing_loader(
+    monkeypatch: pytest.MonkeyPatch, loader: str, cause: BaseException
+) -> tuple[Callable[[], Any], str]:
+    """Stub the library behind `loader` so building a model raises `cause`; return (load, model)."""
+    provider, kind = loader.split("-")
+    if provider == "fastembed":
+        _stub_fastembed(monkeypatch, error=cause)
+        return (lambda: _load_fastembed_kind(kind, offline=True)), _FASTEMBED_MODEL[kind]
+    _stub_sentence_transformers(monkeypatch, error=cause)
+    return (lambda: _load_st_kind(kind, offline=True)), _FASTEMBED_MODEL[kind]
+
+
+# (what the library raises, the reason `doctor` shows, whether the library says the model is absent)
+# "Absent" is a FileNotFoundError, or a ValueError whose first non-empty line starts with
+# fastembed's "Could not load model". Everything else is a different problem with its own remedy.
+_OFFLINE_CAUSES = [
+    pytest.param(
+        lambda: ValueError("Could not load model m from any source."),
+        "ValueError: Could not load model m from any source.",
+        True,
+        id="fastembed-says-absent",
+    ),
+    pytest.param(
+        lambda: ValueError("\n\nCould not load model m from any source."),
+        "ValueError: Could not load model m from any source.",
+        True,
+        id="absent-after-blank-lines",
+    ),
+    pytest.param(
+        lambda: FileNotFoundError("modules.json"),
+        "FileNotFoundError: modules.json",
+        True,
+        id="FileNotFoundError",
+    ),
+    pytest.param(
+        lambda: ValueError("Model m is not supported in TextEmbedding."),
+        "ValueError: Model m is not supported in TextEmbedding.",
+        False,
+        id="ValueError-that-is-not-absent",
+    ),
+    pytest.param(
+        lambda: OSError("no cached copy"), "OSError: no cached copy", False, id="plain-OSError"
+    ),
+    pytest.param(
+        lambda: PermissionError(13, "Permission denied"),
+        "PermissionError: [Errno 13] Permission denied",
+        False,
+        id="errno-style-PermissionError",
+    ),
+    pytest.param(lambda: MemoryError(), "MemoryError", False, id="MemoryError-no-message"),
+    pytest.param(lambda: AssertionError(), "AssertionError", False, id="AssertionError-no-message"),
+    pytest.param(
+        lambda: TypeError("__init__() got an unexpected keyword argument 'local_files_only'"),
+        "TypeError: __init__() got an unexpected keyword argument 'local_files_only'",
+        False,
+        id="TypeError-from-a-changed-signature",
+    ),
+    pytest.param(
+        lambda: RuntimeError("\n\nreal message\nsecond line"),
+        "RuntimeError: real message",
+        False,
+        id="leading-blank-lines",
+    ),
+    pytest.param(lambda: RuntimeError("first\r\nsecond"), "RuntimeError: first", False, id="CRLF"),
+    pytest.param(
+        lambda: RuntimeError("  \n\t real  \nsecond"),
+        "RuntimeError: real",
+        False,
+        id="whitespace-lines-and-indent",
+    ),
+    pytest.param(lambda: RuntimeError("\n \n"), "RuntimeError", False, id="only-blank-lines"),
+]
+
+
+@pytest.mark.parametrize("loader", _LOADERS)
+@pytest.mark.parametrize(("make_cause", "reason", "absent"), _OFFLINE_CAUSES)
+def test_every_loader_reports_an_offline_failure_by_its_cause(
+    shared_cache: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    loader: str,
+    make_cause: Callable[[], Exception],
+    reason: str,
+    absent: bool,
 ) -> None:
-    """The message shape and the remedy are the ones the fastembed loaders raise, word for word."""
-    calls = _stub_sentence_transformers(monkeypatch, error=cause)
+    """One rule for all four loaders. A missing model keeps the original text and its remedy; any
+    other failure makes no claim about the cache and names what will help instead of "go online"."""
+    cause = make_cause()
+    load, model = _failing_loader(monkeypatch, loader, cause)
+
+    with pytest.raises(EmbeddingError) as exc_info:
+        load()
+
+    if absent:
+        message = (
+            f"--offline was requested but {model} could not be loaded from the model cache at "
+            f"{shared_cache} ({reason})."
+        )
+        remedy = _OFFLINE_REMEDY
+    else:
+        message = f"--offline was requested but {model} could not be loaded ({reason})."
+        remedy = _UNLOADABLE_REMEDY.format(cache=shared_cache)
+    assert exc_info.value.message == message
+    assert exc_info.value.remedy == remedy
+    assert exc_info.value.__cause__ is cause
+
+
+# The two messages transformers 5.14.1 (the pinned version) raises, as a plain `OSError` with no
+# errno, when a model is missing from the cache under `local_files_only=True`: copied from
+# `configuration_utils.py:798-803` and `utils/hub.py:513-516`. Read, not run — no test here has
+# seen the real package raise either.
+_TRANSFORMERS_MISSES = {
+    "configuration": (
+        "Can't load the configuration of '{model}'. If you were trying to load it from "
+        "'https://huggingface.co/models', make sure you don't have a local directory with the same "
+        "name. Otherwise, make sure '{model}' is the correct path to a directory containing a "
+        "config.json file"
+    ),
+    "offline-mode": (
+        "We couldn't connect to 'https://huggingface.co' to load the files, and couldn't find them "
+        "in the cached files.\nCheck your internet connection or see how to run the library in "
+        "offline mode at 'https://huggingface.co/docs/transformers/installation#offline-mode'."
+    ),
+}
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+@pytest.mark.parametrize("which", list(_TRANSFORMERS_MISSES))
+def test_st_offline_a_model_transformers_cannot_find_names_both_remedies(
+    shared_cache: Path, monkeypatch: pytest.MonkeyPatch, kind: str, which: str
+) -> None:
+    """A plain `OSError` is what transformers raises for an absent model, and also for a config
+    that is not valid JSON, so its class cannot tell "absent" from "damaged" and nothing sniffs the
+    text: the message makes no claim about the cache, and the remedy covers both readings."""
+    model = _FASTEMBED_MODEL[kind]
+    text = _TRANSFORMERS_MISSES[which].format(model=model)
+    cause = OSError(text)
+    assert cause.errno is None and type(cause) is OSError
+    _stub_sentence_transformers(monkeypatch, error=cause)
 
     with pytest.raises(EmbeddingError) as exc_info:
         _load_st_kind(kind, offline=True)
 
     assert exc_info.value.message == (
-        f"--offline was requested but {_FASTEMBED_MODEL[kind]} could not be loaded from the "
-        f"model cache at {shared_cache} ({type(cause).__name__}: {cause})."
+        f"--offline was requested but {model} could not be loaded "
+        f"(OSError: {text.splitlines()[0]})."
     )
-    assert exc_info.value.remedy == _OFFLINE_REMEDY
+    assert "model cache at" not in exc_info.value.message
+    assert exc_info.value.remedy == _UNLOADABLE_REMEDY.format(cache=shared_cache)
+    assert "run once without --offline to populate it" in exc_info.value.remedy
+    assert "delete its folder" in exc_info.value.remedy
     assert exc_info.value.__cause__ is cause
-    assert len(calls) == 1
 
 
 @pytest.mark.parametrize("kind", ["embedding", "reranker"])
@@ -726,3 +880,160 @@ def test_st_ctrl_c_still_interrupts_an_offline_load(
 
     with pytest.raises(KeyboardInterrupt):
         _load_st_kind(kind, offline=True)
+
+
+# ── what the cleanup, the directory guard and a cached model do ───────────────────────────────────
+
+
+def test_a_scratch_directory_that_is_not_empty_is_left_alone_and_the_error_stays_typed(
+    sealed_cache: _Sealed, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Something else is downloading into `<cache>/tmp`: the cleanup must neither delete it nor
+    let the `rmdir` that refuses escape as an `OSError` in place of the typed error."""
+    scratch = sealed_cache.hub / "tmp"
+
+    def a_download_in_progress() -> None:
+        scratch.mkdir()
+        (scratch / "x").write_text("half a model")
+
+    _stub_fastembed(
+        monkeypatch,
+        error=ValueError("Could not load model m from any source."),
+        before_failing=a_download_in_progress,
+    )
+
+    with pytest.raises(EmbeddingError):
+        _load_fastembed_kind("reranker", offline=True)
+
+    assert (scratch / "x").read_text() == "half a model"
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+def test_online_with_no_cache_directory_is_not_refused(
+    sealed_cache: _Sealed, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    """A first `pnk sync` on a fresh machine has no cache directory and must be allowed to fetch."""
+    calls = _stub_fastembed(monkeypatch)
+    sealed_cache.hub.rmdir()
+
+    _load_fastembed_kind(kind, offline=False)
+
+    assert calls == [{"model_name": _FASTEMBED_MODEL[kind], "cache_dir": str(sealed_cache.hub)}]
+
+
+def _protobuf_varint(number: int) -> bytes:
+    out = bytearray()
+    while True:
+        low, number = number & 0x7F, number >> 7
+        out.append(low | (0x80 if number else 0))
+        if not number:
+            return bytes(out)
+
+
+def _protobuf_field(number: int, wire_type: int, payload: bytes) -> bytes:
+    key = _protobuf_varint((number << 3) | wire_type)
+    if wire_type == 2:  # length-delimited
+        return key + _protobuf_varint(len(payload)) + payload
+    return key + payload
+
+
+def _protobuf_string(number: int, text: str) -> bytes:
+    return _protobuf_field(number, 2, text.encode())
+
+
+def _protobuf_int(number: int, value: int) -> bytes:
+    return _protobuf_field(number, 0, _protobuf_varint(value))
+
+
+def _tiny_onnx_identity() -> bytes:
+    """A valid ONNX model, encoded by hand (the `onnx` package is not a dependency): `out =
+    Identity(input_ids)` on an int64 vector. It is not an embedder; it only has to *load*."""
+
+    def int64_vector(name: str) -> bytes:  # ValueInfoProto
+        shape = _protobuf_field(1, 2, _protobuf_string(2, "n"))  # TensorShapeProto.dim: dim_param
+        tensor = _protobuf_int(1, 7) + _protobuf_field(2, 2, shape)  # elem_type INT64, shape
+        return _protobuf_string(1, name) + _protobuf_field(2, 2, _protobuf_field(1, 2, tensor))
+
+    node = (
+        _protobuf_string(1, "input_ids")
+        + _protobuf_string(2, "out")
+        + _protobuf_string(3, "id")
+        + _protobuf_string(4, "Identity")
+    )
+    graph = (
+        _protobuf_field(1, 2, node)
+        + _protobuf_string(2, "g")
+        + _protobuf_field(11, 2, int64_vector("input_ids"))
+        + _protobuf_field(12, 2, int64_vector("out"))
+    )
+    opset = _protobuf_string(1, "") + _protobuf_int(2, 13)
+    return _protobuf_int(1, 8) + _protobuf_field(8, 2, opset) + _protobuf_field(7, 2, graph)
+
+
+def _plant_loadable_model(hub: Path, kind: str) -> None:
+    """Cache a minimal model that the real fastembed can load, where it will look for it.
+
+    The repository and file name come from fastembed's public `list_supported_models()`, not from
+    this file, so a registry that moves a model moves the plant with it.
+    """
+    tokenizers = pytest.importorskip("tokenizers")
+    if kind == "embedding":
+        listed = pytest.importorskip("fastembed").TextEmbedding.list_supported_models()
+    else:
+        cross_encoder = pytest.importorskip("fastembed.rerank.cross_encoder")
+        listed = cross_encoder.TextCrossEncoder.list_supported_models()
+    entry = next(entry for entry in listed if entry["model"] == _FASTEMBED_MODEL[kind])
+    repo = entry["sources"]["hf"]
+    if repo is None:
+        pytest.skip(
+            f"fastembed no longer sources {_FASTEMBED_MODEL[kind]} from the Hugging Face Hub"
+        )
+
+    vocabulary = tokenizers.models.WordLevel(
+        {"[UNK]": 0, "[PAD]": 1, "hello": 2}, unk_token="[UNK]"
+    )
+    tokenizer = tokenizers.Tokenizer(vocabulary)
+    tokenizer.pre_tokenizer = tokenizers.pre_tokenizers.Whitespace()
+    files: dict[str, bytes] = {
+        entry["model_file"]: _tiny_onnx_identity(),
+        "tokenizer.json": tokenizer.to_str().encode(),
+        "config.json": json.dumps({"pad_token_id": 1}).encode(),
+        "tokenizer_config.json": json.dumps(
+            {"model_max_length": 64, "pad_token": "[PAD]"}
+        ).encode(),
+        "special_tokens_map.json": json.dumps(
+            {"unk_token": "[UNK]", "pad_token": "[PAD]"}
+        ).encode(),
+    }
+    additional_files: list[str] = entry.get("additional_files") or []
+    for extra in additional_files:
+        files.setdefault(extra, b"")
+    _plant(hub, repo, files)
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+def test_a_cached_model_loads_offline_through_the_real_fastembed_exactly_as_online(
+    sealed_cache: _Sealed, kind: str
+) -> None:
+    """The success path with nothing stubbed but the network: the real fastembed, the real
+    onnxruntime, a model in a Hugging Face layout cache. Offline and online must agree, nothing may
+    be fetched, and loading must not write to the cache.
+
+    The cached model is a hand-encoded one-node ONNX graph, so this proves the *loading* path
+    (`local_files_only=True` reaching a snapshot and a session being built from it), not that real
+    weights embed well; the `model`-marked tests above cover real weights, online only.
+    """
+    _plant_loadable_model(sealed_cache.hub, kind)
+    before = _tree(sealed_cache.hub)
+
+    offline = _load_fastembed_kind(kind, offline=True)
+    online = _load_fastembed_kind(kind, offline=False)
+
+    assert offline.info() == online.info()
+    assert offline.info().model == _FASTEMBED_MODEL[kind]
+    if kind == "embedding":
+        assert offline.info().dim == 384
+        # The tokenizer came out of the cache too: "hello" is the planted vocabulary's one word.
+        assert offline.count_tokens("hello hello") == online.count_tokens("hello hello") == 2
+    assert sealed_cache.reached == []
+    assert _tree(sealed_cache.hub) == before

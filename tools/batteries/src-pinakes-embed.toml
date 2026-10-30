@@ -3,10 +3,10 @@
 #     python3 tools/mutate.py tools/batteries/src-pinakes-embed.toml
 #
 # **One file, and one subject: what `--offline` means for the model loaders.** The fastembed ones
-# first, then (second section) the sentence-transformers ones, which already passed
-# `local_files_only` themselves and lacked only the typed failure. Not `info()`, not the dim check
-# in `load_backend`. A reader who greps this file and finds every anchor resolving has learned
-# nothing about the rest of `embed.py`.
+# first, then (second section) the sentence-transformers ones, which pass `local_files_only`
+# themselves (read from the wheel and the keyword's name, not run) and lacked only the typed
+# failure. Not `info()`, not the dim check in `load_backend`. A reader who greps this file and finds
+# every anchor resolving has learned nothing about the rest of `embed.py`.
 #
 # **The subject is a promise `pnk doctor` makes — "free, offline" — that the code broke.** Measured
 # 20261019 against 0.32.7: the only guard was *does the cache directory exist*, so with the embedder
@@ -22,12 +22,16 @@
 # `sys.modules` raises what the test says, and they therefore pin what the *loader* does with an
 # exception — not which class the real package raises (its wheel was read, and the final class
 # comes from transformers, which was not). None reads the real Hugging Face cache — `HF_HOME` is a
-# `tmp_path` in every one — and none can say what a *real* cached model does offline, which only
-# the `model`-marked tests (CI, with the weights cached) can.
+# `tmp_path` in every one. What a cached model does offline is covered for *one* provider and a
+# *minimal* model: `test_a_cached_model_loads_offline_through_the_real_fastembed_exactly_as_online`
+# plants a hand-encoded one-node ONNX graph and a tokenizer in a Hugging Face layout and loads
+# them with the real fastembed, offline and online. The `model`-marked tests (CI, with real weights
+# cached) still call the loaders with `offline=False` only, so **no test runs real weights through
+# the offline path**, and none runs a sentence-transformers model at all.
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 32
+mutants = 46
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20261030 · offline means the cache holds this model, or the load fails typed
@@ -136,9 +140,12 @@ file = "src/pinakes/embed.py"
 # The class is chosen in `_offline_load_error`, which all three loader families share — so the
 # sentence-transformers tests kill this row too.
 old = '''    return EmbeddingError(
-        f"--offline was requested but {model} could not be loaded from the model cache at "
-        f"{hf_cache_dir()} ({reason}).",
-        remedy=_OFFLINE_REMEDY,
+        f"--offline was requested but {model} could not be loaded ({reason}).",
+        remedy=(
+            "Fix the cause named above. If the model is not in the cache, run once without "
+            "--offline to populate it; if its files are damaged, delete its folder under "
+            f"{cache} first."
+        ),
     )'''
 new = '''    return BackendMissingError(model, extra="light", alternative=None)'''
 kills = "tests/test_embed.py::test_a_failure_that_is_not_a_pinakes_error_becomes_one_offline"
@@ -160,7 +167,7 @@ name = "the library's whole message is quoted, not its first line"
 file = "src/pinakes/embed.py"
 # onnxruntime's messages run to several lines and carry the full path of the file. `doctor` prints
 # a check on one line.
-old = '''    first_line = (str(exc).splitlines() or [""])[0]'''
+old = '''    first_line = next((line.strip() for line in str(exc).splitlines() if line.strip()), "")'''
 new = '''    first_line = str(exc)'''
 kills = "tests/test_embed.py::test_a_failure_that_is_not_a_pinakes_error_becomes_one_offline"
 
@@ -168,10 +175,10 @@ kills = "tests/test_embed.py::test_a_failure_that_is_not_a_pinakes_error_becomes
 name = "the conversion's remedy is retyped inline and drifts from the guard's"
 file = "src/pinakes/embed.py"
 # The brief for this fix: one remedy string for "the model is not here", reused, not paraphrased.
-old = '''        f"{hf_cache_dir()} ({reason}).",
-        remedy=_OFFLINE_REMEDY,'''
-new = '''        f"{hf_cache_dir()} ({reason}).",
-        remedy="Try again later.",'''
+old = '''            f"{cache} ({reason}).",
+            remedy=_OFFLINE_REMEDY,'''
+new = '''            f"{cache} ({reason}).",
+            remedy="Try again later.",'''
 kills = "tests/test_embed.py::test_the_offline_refusal_keeps_its_wording_and_its_remedy"
 
 [[mutant]]
@@ -248,7 +255,8 @@ kills = "tests/test_embed.py::test_a_scratch_directory_that_was_already_there_is
 # unreleased, 20261030 · the default provider fails typed too: sentence-transformers offline
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 #
-# `[st]` is the default backend. It already passed `local_files_only=offline`, so nothing here is
+# `[st]` is the default backend. It passes `local_files_only=offline` (read from the wheel and the
+# keyword's name; no test here has seen the real package refuse a download), so nothing here is
 # about downloading; the defect was that a model missing from the cache surfaced as whatever the
 # library raised, and `pnk doctor` catches `PinakesError` only. Each handler below is one of two
 # twins (the embedder and the reranker), so most rows come in pairs: one test over both loaders
@@ -277,7 +285,7 @@ new = '''    model = module.SentenceTransformer(
         cache_folder=str(hf_cache_dir()),
     )
     return _SentenceTransformersBackend(section, model)'''
-kills = "tests/test_embed.py::test_st_offline_any_failure_becomes_the_same_typed_error"
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
 
 [[mutant]]
 name = "the offline conversion is dropped from the sentence-transformers reranker loader"
@@ -303,7 +311,7 @@ new = '''    model = module.CrossEncoder(
         cache_folder=str(hf_cache_dir()),
     )
     return _SentenceTransformersReranker(section, model)'''
-kills = "tests/test_embed.py::test_st_offline_any_failure_becomes_the_same_typed_error"
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
 
 [[mutant]]
 name = "the embedder loader converts only ValueError, so the OSError a missing model ends in escapes"
@@ -321,7 +329,7 @@ new = '''    except ValueError as exc:
             raise
         raise _offline_load_error(section.model, exc) from exc
     return _SentenceTransformersBackend(section, model)'''
-kills = "tests/test_embed.py::test_st_offline_any_failure_becomes_the_same_typed_error"
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
 
 [[mutant]]
 name = "the reranker loader converts only ValueError, so the OSError a missing model ends in escapes"
@@ -336,7 +344,7 @@ new = '''    except ValueError as exc:
             raise
         raise _offline_load_error(section.model, exc) from exc
     return _SentenceTransformersReranker(section, model)'''
-kills = "tests/test_embed.py::test_st_offline_any_failure_becomes_the_same_typed_error"
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
 
 [[mutant]]
 name = "the embedder loader's catch is widened to BaseException, so Ctrl-C becomes a FAIL line"
@@ -390,7 +398,7 @@ old = '''        raise _offline_load_error(section.model, exc) from exc
     return _SentenceTransformersBackend(section, model)'''
 new = '''        raise _offline_load_error(section.model, exc) from None
     return _SentenceTransformersBackend(section, model)'''
-kills = "tests/test_embed.py::test_st_offline_any_failure_becomes_the_same_typed_error"
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
 
 [[mutant]]
 name = "the reranker loader drops the original exception from the chain (from None)"
@@ -399,7 +407,7 @@ old = '''        raise _offline_load_error(section.model, exc) from exc
     return _SentenceTransformersReranker(section, model)'''
 new = '''        raise _offline_load_error(section.model, exc) from None
     return _SentenceTransformersReranker(section, model)'''
-kills = "tests/test_embed.py::test_st_offline_any_failure_becomes_the_same_typed_error"
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
 
 [[mutant]]
 name = "the embedder loader is always local-only, online included"
@@ -459,3 +467,149 @@ new = '''module.CrossEncoder(
             local_files_only=offline,
             cache_folder=None,'''
 kills = "tests/test_embed.py::test_st_offline_passes_revision_local_files_only_and_the_shared_cache"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20261030 · a failure is classed by its cause; the cleanup and the guard have teeth
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Rounds 3 and 4 of review. Every row below is one a fresh reviewer's own mutants or probes found
+# alive, or a branch the classing added: a truncated model is not repaired by going online
+# (fastembed tries the local snapshot first online too), so "the library says the model is absent"
+# and "anything else" are told apart, in all four loaders, by one helper. **The second class's
+# remedy names both readings** ("not in the cache" and "files damaged"), because transformers 5.14.1
+# raises one plain `OSError` for a model missing from the cache and for an unreadable config alike
+# (read, not run), and the class is all the helper looks at.
+
+[[mutant]]
+name = "the two classes are swapped: a missing model is told to delete its folder, a broken one to go online"
+file = "src/pinakes/embed.py"
+old = '''    if model_is_absent:'''
+new = '''    if not model_is_absent:'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "every ValueError counts as 'the model is absent', whatever it says"
+file = "src/pinakes/embed.py"
+# fastembed also raises `ValueError("Model … is not supported in TextEmbedding")` for a name it
+# does not know. Going online fetches nothing for that, so the 'absent' text and remedy are a lie.
+old = '''isinstance(exc, ValueError) and first_line.startswith("Could not load model")'''
+new = '''isinstance(exc, ValueError)'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "a FileNotFoundError is no longer 'the model is absent'"
+file = "src/pinakes/embed.py"
+# `LocalEntryNotFoundError` is a `FileNotFoundError` (huggingface_hub 1.24.0), and it is the one
+# class this package's own wheel swallows for an absent model; whatever transformers raises after
+# it is what actually reaches the loader.
+old = '''    model_is_absent = isinstance(exc, FileNotFoundError) or ('''
+new = '''    model_is_absent = False or ('''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "a failure that is not 'absent' is given only the go-online remedy, the damaged-files half gone"
+file = "src/pinakes/embed.py"
+# Going online cannot repair a truncated download: online, fastembed looks at the local snapshot
+# first and fails the same way. A remedy that only says "go online" sends that user in a circle.
+old = '''        remedy=(
+            "Fix the cause named above. If the model is not in the cache, run once without "
+            "--offline to populate it; if its files are damaged, delete its folder under "
+            f"{cache} first."
+        ),'''
+new = '''        remedy=_OFFLINE_REMEDY,'''
+kills = "tests/test_embed.py::test_a_cached_model_that_cannot_be_read_fails_typed_too"
+
+[[mutant]]
+name = "a failure that is not 'absent' is given only the damaged-files remedy, the go-online half gone"
+file = "src/pinakes/embed.py"
+# The remedy as it stood before transformers 5.14.1 was read. Its plain `OSError` — "Can't load the
+# configuration of …", "We couldn't connect … and couldn't find them in the cached files" — is what
+# a model missing from the cache ends in, and the class is the same one an unreadable config gets,
+# so a remedy that only says "delete its folder" tells a user whose model is simply absent to
+# delete a folder that is not there. The ST tests raise those two real messages.
+old = '''        remedy=(
+            "Fix the cause named above. If the model is not in the cache, run once without "
+            "--offline to populate it; if its files are damaged, delete its folder under "
+            f"{cache} first."
+        ),'''
+new = '''        remedy=(
+            "Fix the cause named above; if the model's files are damaged, delete its folder "
+            f"under {cache} and run once without --offline."
+        ),'''
+kills = "tests/test_embed.py::test_st_offline_a_model_transformers_cannot_find_names_both_remedies"
+
+[[mutant]]
+name = "a failure that is not 'absent' still claims it is the cache's fault"
+file = "src/pinakes/embed.py"
+# A `MemoryError` or a `TypeError` from a changed fastembed signature says nothing about the cache.
+old = '''        f"--offline was requested but {model} could not be loaded ({reason}).",'''
+new = '''        f"--offline was requested but {model} could not be loaded from the model cache at {cache} ({reason}).",'''
+kills = "tests/test_embed.py::test_a_cached_model_that_cannot_be_read_fails_typed_too"
+
+[[mutant]]
+name = "the 'absent' class raises a different typed error"
+file = "src/pinakes/embed.py"
+old = '''        return EmbeddingError(
+            f"--offline was requested but {model} could not be loaded from the model cache at "
+            f"{cache} ({reason}).",
+            remedy=_OFFLINE_REMEDY,
+        )'''
+new = '''        return BackendMissingError(model, extra="light", alternative=None)'''
+kills = "tests/test_embed.py::test_the_offline_refusal_keeps_its_wording_and_its_remedy"
+
+[[mutant]]
+name = "the reason is taken from the first line even when that line is blank (splitlines()[0])"
+file = "src/pinakes/embed.py"
+# A message that begins with a newline — onnxruntime and some wrappers do — would show as the bare
+# class name, and a `ValueError("\nCould not load model …")` would be called "not absent".
+old = '''    first_line = next((line.strip() for line in str(exc).splitlines() if line.strip()), "")'''
+new = '''    first_line = (str(exc).splitlines() or [""])[0]'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "the first non-empty line is quoted with its indentation (strip dropped)"
+file = "src/pinakes/embed.py"
+old = '''    first_line = next((line.strip() for line in str(exc).splitlines() if line.strip()), "")'''
+new = '''    first_line = next((line for line in str(exc).splitlines() if line.strip()), "")'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "exc.args[0] is quoted instead of str(exc)"
+file = "src/pinakes/embed.py"
+# `PermissionError(13, "Permission denied")` has `args[0] == 13`; the text is in `str(exc)`.
+old = '''for line in str(exc).splitlines() if line.strip()), "")'''
+new = '''for line in str(exc.args[0] if exc.args else "").splitlines() if line.strip()), "")'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "an exception with no message is shown as 'ClassName: ' with nothing after it"
+file = "src/pinakes/embed.py"
+old = '''    reason = f"{type(exc).__name__}: {first_line}" if first_line else type(exc).__name__'''
+new = '''    reason = f"{type(exc).__name__}: {first_line}"'''
+kills = "tests/test_embed.py::test_every_loader_reports_an_offline_failure_by_its_cause"
+
+[[mutant]]
+name = "the cleanup removes a non-empty scratch directory (rmdir becomes rmtree)"
+file = "src/pinakes/embed.py"
+# Something else may be downloading into `<cache>/tmp` (fastembed's GCS path does). `rmdir` is the
+# whole safety of the cleanup: it refuses unless the directory is empty.
+old = '''        directory.rmdir()'''
+new = '''        __import__("shutil").rmtree(directory)'''
+kills = "tests/test_embed.py::test_a_scratch_directory_that_is_not_empty_is_left_alone_and_the_error_stays_typed"
+
+[[mutant]]
+name = "only FileNotFoundError is suppressed around the rmdir, so 'directory not empty' escapes"
+file = "src/pinakes/embed.py"
+# The `OSError` would replace the typed error raised just after it, and `pnk doctor` would be back
+# to a traceback — from the cleanup this time.
+old = '''contextlib.suppress(OSError)'''
+new = '''contextlib.suppress(FileNotFoundError)'''
+kills = "tests/test_embed.py::test_a_scratch_directory_that_is_not_empty_is_left_alone_and_the_error_stays_typed"
+
+[[mutant]]
+name = "the directory guard also refuses online, so a fresh machine cannot fetch"
+file = "src/pinakes/embed.py"
+# `offline and` is the whole difference between 'go online once' being a remedy and being a trap.
+old = '''    if offline and not hf_cache_dir().exists():'''
+new = '''    if not hf_cache_dir().exists():'''
+kills = "tests/test_embed.py::test_online_with_no_cache_directory_is_not_refused"

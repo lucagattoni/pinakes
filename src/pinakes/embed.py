@@ -152,30 +152,66 @@ _OFFLINE_REMEDY = "Run once without --offline to populate the cache."
 
 
 def _offline_load_error(model: str, exc: Exception) -> EmbeddingError:
-    """What `--offline` reports when `model` could not be loaded: one shape for every provider.
+    """What `--offline` reports when `model` could not be loaded: one rule for every loader.
 
     `exc` is whatever the library raised, and it is not a `PinakesError` (a `ValueError` from
     fastembed, an `OSError` or onnxruntime's `InvalidProtobuf` from the others), so left alone
-    `pnk doctor` ends in a traceback instead of a FAIL line. Only its class and first line are
-    quoted: onnxruntime's messages run to several lines and carry whole file paths.
+    `pnk doctor` ends in a traceback instead of a FAIL line. Two classes, because the remedy
+    differs and only one of them is "go online":
+
+    * **The library says the model is absent** — a `FileNotFoundError`, or fastembed's own
+      `ValueError("Could not load model … from any source")`. Going online fetches it.
+    * **Anything else** — a truncated download (onnxruntime's `InvalidProtobuf`), a
+      `PermissionError`, a `MemoryError`, a `TypeError` from a changed signature, and the plain
+      `OSError` transformers raises. No claim is made about the cache, and the remedy names both
+      readings: going online fetches a model that is absent, but does not help a damaged one
+      (fastembed tries the local snapshot first online too, and fails the same way). It has to name
+      both because the class cannot tell them apart — transformers 5.14.1 raises a plain `OSError`
+      for an absent model *and* for an unreadable config (`configuration_utils.py:798-803`,
+      `813-814`; `utils/hub.py:513-516`), and nothing here sniffs message text.
+
+    The reason quotes the class and the first non-empty line of `str(exc)` (`splitlines`, so
+    `"\\nreal message"` and CRLF work) to keep a `doctor` check on one line. That is for length,
+    not for privacy: onnxruntime's first line carries the absolute path of the model file, which
+    lies under the cache directory the remedy prints anyway.
     """
-    first_line = (str(exc).splitlines() or [""])[0]
+    first_line = next((line.strip() for line in str(exc).splitlines() if line.strip()), "")
     reason = f"{type(exc).__name__}: {first_line}" if first_line else type(exc).__name__
+    cache = hf_cache_dir()
+    model_is_absent = isinstance(exc, FileNotFoundError) or (
+        isinstance(exc, ValueError) and first_line.startswith("Could not load model")
+    )
+    if model_is_absent:
+        return EmbeddingError(
+            f"--offline was requested but {model} could not be loaded from the model cache at "
+            f"{cache} ({reason}).",
+            remedy=_OFFLINE_REMEDY,
+        )
     return EmbeddingError(
-        f"--offline was requested but {model} could not be loaded from the model cache at "
-        f"{hf_cache_dir()} ({reason}).",
-        remedy=_OFFLINE_REMEDY,
+        f"--offline was requested but {model} could not be loaded ({reason}).",
+        remedy=(
+            "Fix the cause named above. If the model is not in the cache, run once without "
+            "--offline to populate it; if its files are damaged, delete its folder under "
+            f"{cache} first."
+        ),
     )
 
 
 def _sentence_transformers_backend(section: EmbeddingSection, offline: bool) -> EmbeddingBackend:
-    """`local_files_only=offline` already keeps this from downloading; it did not keep it typed.
+    """`local_files_only=offline` is meant to keep this from downloading; it did not keep it typed.
 
-    sentence-transformers 5.6.1 (wheel read 20261030 20:02 UTC, never installed): for a model
-    absent from the cache, its `load_file_path` swallows the Hub's `LocalEntryNotFoundError` and
-    falls back to `_load_default_modules`, whose `AutoConfig.from_pretrained(...,
-    local_files_only=True)` is transformers' to fail — a class nobody here has read, hence
-    `Exception` and not a guess.
+    The first half is read, not run: from the 5.6.1 wheel (read 20261030 20:02 UTC, never
+    installed) and from the keyword's name — no test here has seen a download refused. What the
+    wheel does show: for a model absent from the cache, its `load_file_path` swallows the Hub's
+    `LocalEntryNotFoundError` and falls back to `_load_default_modules`, whose
+    `AutoConfig.from_pretrained(..., local_files_only=True)` is transformers' to fail. Read in
+    transformers 5.14.1 (the pinned version; 20261030 20:42 UTC, never installed): it raises a
+    **plain `OSError`**, never a `FileNotFoundError` — "Can't load the configuration of …"
+    (`configuration_utils.py:798-803`) or "We couldn't connect to … and couldn't find them in the
+    cached files" (`utils/hub.py:513-516`) — and the same class for a config that is not valid JSON
+    (`configuration_utils.py:813-814`). So a missing model lands in the second class of
+    `_offline_load_error`, whose remedy names both "not in the cache" and "files damaged".
+    Nothing of sentence-transformers or transformers was *run*.
     """
     module = _import(
         "sentence_transformers", "st", section.provider, siblings=registered_embedding_providers()
