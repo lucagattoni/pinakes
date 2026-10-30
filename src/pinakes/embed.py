@@ -148,27 +148,65 @@ def _import(module: str, extra: str, what: str, *, siblings: Sequence[str]) -> A
         raise BackendMissingError(what, extra=extra, alternative=alternative) from exc
 
 
+_OFFLINE_REMEDY = "Run once without --offline to populate the cache."
+
+
+def _offline_load_error(model: str, exc: Exception) -> EmbeddingError:
+    """What `--offline` reports when `model` could not be loaded: one shape for every provider.
+
+    `exc` is whatever the library raised, and it is not a `PinakesError` (a `ValueError` from
+    fastembed, an `OSError` or onnxruntime's `InvalidProtobuf` from the others), so left alone
+    `pnk doctor` ends in a traceback instead of a FAIL line. Only its class and first line are
+    quoted: onnxruntime's messages run to several lines and carry whole file paths.
+    """
+    first_line = (str(exc).splitlines() or [""])[0]
+    reason = f"{type(exc).__name__}: {first_line}" if first_line else type(exc).__name__
+    return EmbeddingError(
+        f"--offline was requested but {model} could not be loaded from the model cache at "
+        f"{hf_cache_dir()} ({reason}).",
+        remedy=_OFFLINE_REMEDY,
+    )
+
+
 def _sentence_transformers_backend(section: EmbeddingSection, offline: bool) -> EmbeddingBackend:
+    """`local_files_only=offline` already keeps this from downloading; it did not keep it typed.
+
+    sentence-transformers 5.6.1 (wheel read 20261030 20:02 UTC, never installed): for a model
+    absent from the cache, its `load_file_path` swallows the Hub's `LocalEntryNotFoundError` and
+    falls back to `_load_default_modules`, whose `AutoConfig.from_pretrained(...,
+    local_files_only=True)` is transformers' to fail — a class nobody here has read, hence
+    `Exception` and not a guess.
+    """
     module = _import(
         "sentence_transformers", "st", section.provider, siblings=registered_embedding_providers()
     )
-    model = module.SentenceTransformer(
-        section.model,
-        revision=section.revision,
-        local_files_only=offline,
-        cache_folder=str(hf_cache_dir()),
-    )
+    try:
+        model = module.SentenceTransformer(
+            section.model,
+            revision=section.revision,
+            local_files_only=offline,
+            cache_folder=str(hf_cache_dir()),
+        )
+    except Exception as exc:
+        if not offline:
+            raise
+        raise _offline_load_error(section.model, exc) from exc
     return _SentenceTransformersBackend(section, model)
 
 
 def _sentence_transformers_reranker(section: RerankSection, offline: bool) -> Reranker:
     module = _import("sentence_transformers", "st", section.provider, siblings=sorted(_RERANKERS))
-    model = module.CrossEncoder(
-        section.model,
-        revision=section.revision,
-        local_files_only=offline,
-        cache_folder=str(hf_cache_dir()),
-    )
+    try:
+        model = module.CrossEncoder(
+            section.model,
+            revision=section.revision,
+            local_files_only=offline,
+            cache_folder=str(hf_cache_dir()),
+        )
+    except Exception as exc:
+        if not offline:
+            raise
+        raise _offline_load_error(section.model, exc) from exc
     return _SentenceTransformersReranker(section, model)
 
 
@@ -188,9 +226,6 @@ def _fastembed_reranker(section: RerankSection, offline: bool) -> Reranker:
     _require_online_or_cached(offline)
     model = _load_fastembed(module.TextCrossEncoder, section.model, offline)
     return _FastembedReranker(section, model)
-
-
-_OFFLINE_REMEDY = "Run once without --offline to populate the cache."
 
 
 def _require_online_or_cached(offline: bool) -> None:
@@ -239,13 +274,7 @@ def _load_fastembed(model_class: Any, model: str, offline: bool) -> Any:
     except Exception as exc:
         if not scratch_existed:
             _remove_if_empty(scratch)
-        first_line = (str(exc).splitlines() or [""])[0]
-        reason = f"{type(exc).__name__}: {first_line}" if first_line else type(exc).__name__
-        raise EmbeddingError(
-            f"--offline was requested but {model} could not be loaded from the model cache at "
-            f"{cache} ({reason}).",
-            remedy=_OFFLINE_REMEDY,
-        ) from exc
+        raise _offline_load_error(model, exc) from exc
 
 
 def _remove_if_empty(directory: Path) -> None:

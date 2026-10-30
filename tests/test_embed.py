@@ -6,6 +6,7 @@ unless they are already cached — a clean checkout must never be blocked on a 1
 """
 
 import socket
+import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from importlib.machinery import ModuleSpec
@@ -570,3 +571,158 @@ def test_offline_with_no_cache_directory_is_refused_before_fastembed_can_make_on
     assert exc_info.value.remedy == _OFFLINE_REMEDY
     assert calls == []
     assert not sealed_cache.hub.exists()
+
+
+# ── the same promise for the default provider ─────────────────────────────────────────────────────
+#
+# `[st]` is the default backend, and it already passed `local_files_only=offline`, so it never
+# downloaded; what it lacked was a typed failure. For a model absent from the cache
+# sentence-transformers 5.6.1 swallows the Hub's `LocalEntryNotFoundError` itself (`load_file_path`)
+# and the failure that reaches the caller is transformers'. Neither package is installed for these
+# tests (torch is gigabytes), so a stand-in module is put in `sys.modules` and raises whatever the
+# test says: that pins what the loader *does* with an exception, not which class the real
+# package raises — the loader converts every `Exception` for exactly that reason.
+
+
+@pytest.fixture
+def shared_cache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """`HF_HOME` in a `tmp_path`, with its (empty) cache directory in place."""
+    monkeypatch.setenv("HF_HOME", str(tmp_path / "hf"))
+    monkeypatch.delenv("HF_HUB_OFFLINE", raising=False)
+    hub = tmp_path / "hf" / "hub"
+    hub.mkdir(parents=True)
+    return hub
+
+
+def _stub_sentence_transformers(
+    monkeypatch: pytest.MonkeyPatch, *, error: BaseException | None = None
+) -> list[dict[str, Any]]:
+    """Put a `sentence_transformers` stand-in in `sys.modules`; return what it was built with."""
+    calls: list[dict[str, Any]] = []
+
+    class Recorder:
+        max_seq_length = 128
+        config = SimpleNamespace(max_position_embeddings=256)
+
+        def __init__(self, model_name: str, **kwargs: Any) -> None:
+            calls.append({"model_name": model_name, **kwargs})
+            if error is not None:
+                raise error
+
+        def get_sentence_embedding_dimension(self) -> int:
+            return 384
+
+        def predict(self, pairs: Sequence[tuple[str, str]]) -> list[float]:
+            return [float(len(passage)) for _query, passage in pairs]
+
+    stand_in = ModuleType("sentence_transformers")
+    stand_in.__dict__.update(SentenceTransformer=Recorder, CrossEncoder=Recorder)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", stand_in)
+    return calls
+
+
+def _load_st_kind(kind: str, *, offline: bool) -> Any:
+    if kind == "embedding":
+        return load_backend(
+            EmbeddingSection(
+                provider=SENTENCE_TRANSFORMERS,
+                model=_FASTEMBED_MODEL[kind],
+                dim=384,
+                revision="rev1",
+            ),
+            offline=offline,
+        )
+    return load_reranker(
+        RerankSection(
+            provider=SENTENCE_TRANSFORMERS, model=_FASTEMBED_MODEL[kind], revision="rev1"
+        ),
+        offline=offline,
+    )
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+@pytest.mark.parametrize(
+    "cause",
+    [OSError("no cached copy"), ValueError("bad config"), FileNotFoundError("modules.json")],
+    ids=["OSError", "ValueError", "FileNotFoundError"],
+)
+def test_st_offline_any_failure_becomes_the_same_typed_error(
+    shared_cache: Path, monkeypatch: pytest.MonkeyPatch, kind: str, cause: Exception
+) -> None:
+    """The message shape and the remedy are the ones the fastembed loaders raise, word for word."""
+    calls = _stub_sentence_transformers(monkeypatch, error=cause)
+
+    with pytest.raises(EmbeddingError) as exc_info:
+        _load_st_kind(kind, offline=True)
+
+    assert exc_info.value.message == (
+        f"--offline was requested but {_FASTEMBED_MODEL[kind]} could not be loaded from the "
+        f"model cache at {shared_cache} ({type(cause).__name__}: {cause})."
+    )
+    assert exc_info.value.remedy == _OFFLINE_REMEDY
+    assert exc_info.value.__cause__ is cause
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+def test_st_offline_passes_revision_local_files_only_and_the_shared_cache(
+    shared_cache: Path, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    """A cached model loads: the same call as before, and the model comes back usable."""
+    calls = _stub_sentence_transformers(monkeypatch)
+
+    loaded = _load_st_kind(kind, offline=True)
+
+    assert calls == [
+        {
+            "model_name": _FASTEMBED_MODEL[kind],
+            "revision": "rev1",
+            "local_files_only": True,
+            "cache_folder": str(shared_cache),
+        }
+    ]
+    assert loaded.info().model == _FASTEMBED_MODEL[kind]
+    assert loaded.info().revision == "rev1"
+    if kind == "reranker":
+        assert loaded.score("q", ["ab", "abcd"]) == [2.0, 4.0]
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+def test_st_online_makes_the_call_it_always_made(
+    shared_cache: Path, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    calls = _stub_sentence_transformers(monkeypatch)
+
+    _load_st_kind(kind, offline=False)
+
+    assert calls == [
+        {
+            "model_name": _FASTEMBED_MODEL[kind],
+            "revision": "rev1",
+            "local_files_only": False,
+            "cache_folder": str(shared_cache),
+        }
+    ]
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+def test_st_online_failures_are_not_rewrapped(
+    shared_cache: Path, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    cause = OSError("the Hub said no")
+    _stub_sentence_transformers(monkeypatch, error=cause)
+
+    with pytest.raises(OSError) as exc_info:
+        _load_st_kind(kind, offline=False)
+
+    assert exc_info.value is cause
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+def test_st_ctrl_c_still_interrupts_an_offline_load(
+    shared_cache: Path, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    _stub_sentence_transformers(monkeypatch, error=KeyboardInterrupt())
+
+    with pytest.raises(KeyboardInterrupt):
+        _load_st_kind(kind, offline=True)
