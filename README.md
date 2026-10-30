@@ -71,8 +71,10 @@ unmeasured is worse than one whose cost is known.
 ## Quickstart
 
 Run these inside a uv project: in a bare KB directory `uv add` exits `No pyproject.toml found`, and
-`uv init` makes the directory a project — or skip the project with `uvx --from "pinakes[light]" pnk …`
-([Guide § Install](docs/GUIDE.md#install)).
+`uv init --python 3.13` makes the directory a project — or skip the project with `uvx --python 3.13
+--from "pinakes[light]" pnk …` ([Guide § Install](docs/GUIDE.md#install)). For `[light]`, pin
+`--python 3.13`, the declared minimum, wherever `uv` might choose CPython 3.15: as long as
+`onnxruntime`, which `[light]` needs, ships no wheel for it, that install does not resolve there.
 
 ```bash
 uv add "pinakes[st]"                  # default backend
