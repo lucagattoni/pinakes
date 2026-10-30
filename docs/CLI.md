@@ -26,7 +26,7 @@ Every error carries a **remedy**, not just a message. If one doesn't, that's a b
 | Flag | On | Means |
 |---|---|---|
 | `--kb PATH` | `sync`, `search`, `ask`, `doctor`, `install-hooks`, `budget`, `link`, `links`, `upgrade` | KB root. Defaults to the nearest `pinakes.toml`, searching upwards from the cwd — git-style |
-| `--offline` | `sync`, `search`, `ask`, `links`, `serve` | On `sentence-transformers`, never reaches out for model weights and fails fast instead of downloading. On `fastembed` it only refuses when no model cache directory *at all* exists — an existing cache missing this particular model still downloads |
+| `--offline` | `sync`, `search`, `ask`, `links`, `serve` | Never reaches out for model weights: a model missing from the cache fails with an error instead of downloading. **On `fastembed` that is true on `main` and in no published release yet:** up to 0.32.8 it only refused when no model cache directory *at all* existed, and an existing cache missing this particular model still downloaded |
 
 ---
 

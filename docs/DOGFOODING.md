@@ -47,7 +47,7 @@ says how each command works.
    without --offline to populate the cache”*. `doctor` is hard-wired offline and has no such flag; `sync`,
    `search`, `ask`, `links` and `serve` take `--offline`, off by default, so the line means *go online
    once*: `sync` brings the embedder, and the reranker comes with the first `search` or `ask` (and, on
-   0.32.7 and earlier, with `doctor`). The cache
+   every published release up to 0.32.8, with `doctor`). The cache
    lives where `doctor`'s `model cache` line says; budget about **1.2 GB** for the light pair (the
    Guide's ~1.4 GB is the default backend's).
 
