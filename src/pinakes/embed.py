@@ -151,32 +151,48 @@ def _import(module: str, extra: str, what: str, *, siblings: Sequence[str]) -> A
 _OFFLINE_REMEDY = "Run once without --offline to populate the cache."
 
 
+_REASON_LIMIT = 200  # characters of the quoted line, the ellipsis included
+
+
 def _offline_load_error(model: str, exc: Exception) -> EmbeddingError:
     """What `--offline` reports when `model` could not be loaded: one rule for every loader.
 
     `exc` is whatever the library raised, and it is not a `PinakesError` (a `ValueError` from
     fastembed, an `OSError` or onnxruntime's `InvalidProtobuf` from the others), so left alone
     `pnk doctor` ends in a traceback instead of a FAIL line. Two classes, because the remedy
-    differs and only one of them is "go online":
+    differs:
 
-    * **The library says the model is absent** — a `FileNotFoundError`, or fastembed's own
-      `ValueError("Could not load model … from any source")`. Going online fetches it.
+    * **fastembed could not find a usable local copy (usually: absent)** — a `FileNotFoundError`
+      (including huggingface_hub's `LocalEntryNotFoundError`), or fastembed's one `ValueError`,
+      `"Could not load model … from any source"`, which is **matched by the start of its text**
+      (the only place this helper reads a message to classify). "Usually absent" is the honest
+      reading: fastembed swallows every failure of its local lookup (`model_management.py:424`,
+      `:461`) and raises that `ValueError` at `:475`, so an unreadable snapshots directory or a
+      truncated `files_metadata.json` reach it too (by reading, not run), and going online would
+      not fix those. The text and remedy are kept as they were.
     * **Anything else** — a truncated download (onnxruntime's `InvalidProtobuf`), a
       `PermissionError`, a `MemoryError`, a `TypeError` from a changed signature, and the plain
       `OSError` transformers raises. No claim is made about the cache, and the remedy names both
       readings: going online fetches a model that is absent, but does not help a damaged one
       (fastembed tries the local snapshot first online too, and fails the same way). It has to name
-      both because the class cannot tell them apart — transformers 5.14.1 raises a plain `OSError`
-      for an absent model *and* for an unreadable config (`configuration_utils.py:798-803`,
-      `813-814`; `utils/hub.py:513-516`), and nothing here sniffs message text.
+      both because the class cannot tell them apart — transformers 5.14.1 raises one plain
+      `OSError` class for a model missing from the cache (`utils/hub.py:513-516`) and for other
+      failures: a generic "Can't load the configuration" when `cached_file` raised a non-`OSError`
+      (`configuration_utils.py:796-803`; an `OSError` is re-raised untouched before it, `:792-795`),
+      a config that is not valid JSON (`:813-814`), a `PermissionError` (`utils/hub.py:481-486`).
+      Nothing is classified by reading those messages.
 
     The reason quotes the class and the first non-empty line of `str(exc)` (`splitlines`, so
-    `"\\nreal message"` and CRLF work) to keep a `doctor` check on one line. That is for length,
-    not for privacy: onnxruntime's first line carries the absolute path of the model file, which
-    lies under the cache directory the remedy prints anyway.
+    `"\\nreal message"` and CRLF work), cut to `_REASON_LIMIT` characters with an ellipsis, so a
+    `doctor` check stays a line: an onnxruntime `Fail` line runs to ~450 characters with a build
+    path. That is for length, not for privacy — onnxruntime's first line also carries the absolute
+    path of the model file, which lies under the cache directory the remedy prints anyway.
     """
     first_line = next((line.strip() for line in str(exc).splitlines() if line.strip()), "")
-    reason = f"{type(exc).__name__}: {first_line}" if first_line else type(exc).__name__
+    shown = first_line
+    if len(first_line) > _REASON_LIMIT:
+        shown = first_line[: _REASON_LIMIT - 1] + "…"
+    reason = f"{type(exc).__name__}: {shown}" if first_line else type(exc).__name__
     cache = hf_cache_dir()
     model_is_absent = isinstance(exc, FileNotFoundError) or (
         isinstance(exc, ValueError) and first_line.startswith("Could not load model")
@@ -205,11 +221,13 @@ def _sentence_transformers_backend(section: EmbeddingSection, offline: bool) -> 
     wheel does show: for a model absent from the cache, its `load_file_path` swallows the Hub's
     `LocalEntryNotFoundError` and falls back to `_load_default_modules`, whose
     `AutoConfig.from_pretrained(..., local_files_only=True)` is transformers' to fail. Read in
-    transformers 5.14.1 (the pinned version; 20261030 20:42 UTC, never installed): it raises a
-    **plain `OSError`**, never a `FileNotFoundError` — "Can't load the configuration of …"
-    (`configuration_utils.py:798-803`) or "We couldn't connect to … and couldn't find them in the
-    cached files" (`utils/hub.py:513-516`) — and the same class for a config that is not valid JSON
-    (`configuration_utils.py:813-814`). So a missing model lands in the second class of
+    transformers 5.14.1 (the pinned version; 20261030 20:42 UTC, never installed): a model missing
+    from the cache raises a **plain `OSError`**, never a `FileNotFoundError` — "We couldn't connect
+    to … and couldn't find them in the cached files" (`utils/hub.py:513-516`). Other plain
+    `OSError`s come from the same call: the generic "Can't load the configuration of …"
+    (`configuration_utils.py:798-803`, only for a non-`OSError` from `cached_file`; an `OSError` is
+    re-raised before it, `:792-795`), a config that is not valid JSON (`:813-814`), a
+    `PermissionError` (`utils/hub.py:481-486`). So a missing model lands in the second class of
     `_offline_load_error`, whose remedy names both "not in the cache" and "files damaged".
     Nothing of sentence-transformers or transformers was *run*.
     """
