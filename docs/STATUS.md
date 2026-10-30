@@ -46,7 +46,7 @@
 | Cross-KB links (`pnk link`, `pnk links`, `pinakes_links`) | **shipped 0.6.0** — `pnk sync` records what other KBs link into this one (`--scan-links`), `pnk links` and `pinakes_links` traverse (0.5.0), `pnk link` authors, and `pnk doctor` reports link coverage as a ratio and resolves cross-KB targets (0.6.0) | 0.5.0 · 0.6.0 |
 | Sidecar round-trip | **shipped 0.5.0** — `ruamel.yaml` in round-trip mode at YAML 1.2: comments, quoting, block scalars and blank lines survive a rewrite, and an unknown key's value is no longer reinterpreted | 0.5.0 |
 | Template ecosystem | **shipped 0.21.0** — `pnk init --template`, `pnk upgrade` and `--apply`, the archive and its drift gate, and `pnk templates` to list what is installed. A template declares the files it writes (`files = [...]`). **Both gated increments are answered as of 20260811**: a second template is a **no-go** (its gate was run — every divergence in every real KB is a manifest value, which is a preset and not a template), and the `sqlite-vec` tier is **deferred behind a written trigger** rather than abandoned | the template release |
-| `sqlite-vec` tier | **not built, and gated rather than scheduled** (T6) — `vector_tier = "sqlite-vec"` is **refused at load time** rather than accepted and ignored (T5). A KB setting it was already getting the NumPy tier; `vector_tier = "auto"` is the fix | the template release |
+| `sqlite-vec` tier | **not built, and gated rather than scheduled** (T6) — `vector_tier = "sqlite-vec"` is **refused at load time** rather than accepted and ignored (T5). A KB setting it was already getting the NumPy tier; `vector_tier = "auto"` is the fix | the `sqlite-vec` tier, staged |
 
 ⚠️ **0.3.0 is the first release that can spend money — and it will not, unless you ask it to.**
 Every earlier version had no paid code path at all. The first was the `claude-vision`
@@ -313,7 +313,7 @@ and this release can be numbered whenever it is cut.
 >
 > | Name | What it is |
 > |---|---|
-> | **the template release** | Template ecosystem, `pnk upgrade`, the `sqlite-vec` tier |
+> | **the `sqlite-vec` tier, staged** | The `sqlite-vec` vector tier — **gated behind a written trigger, never scheduled**. Not the same name as *the template release*, which left this table at its final cut, 0.22.0 |
 > | **the graph release, staged** | The PPR graph channel and the `[ner]` extra — **eval-gated, never scheduled**. Not the same name as *the graph release*, which left this table at its final cut, 0.11.0 |
 >
 > **The deep release left this table at 0.26.0**, its final cut (D-9). `--write-suggestions` is
@@ -402,7 +402,7 @@ Rationale for the ordering is in [DESIGN §8](DESIGN.md#8-delivery-plan).
 | **the graph release** ✅ **shipped 0.11.0** | Structural edges, the expansion channel (`graph_channel`, default off), `schema_version` 3 — eval-gated. All six increments landed: **G1** and **G4** in 0.6.0, **G2** in 0.7.0, **G3**, **G5** and **G6** in 0.11.0. **Its gate ran and did not pass, so `expand` ships `off`** ([the numbers](#did-the-expansion-channel-earn-its-default--no-measured-20260804-2252)) — an eval-gated feature that is built, measured and off by construction, which is the structure working rather than failing. What would change it is a corpus or a different channel design, never a more expensive one ([decision](https://github.com/lucagattoni/pinakes/blob/main/plans/20260804_1442-decision-g3-go.md)) |
 | **the deep release** ✅ **completed 0.26.0** | `pnk ask --deep` — the budgeted reasoning loop, across **0.23.0 to 0.26.0**. All seven increments landed: **E1** in 0.23.0, **E2**, **E3** and **E4** in 0.24.0, **E5** in 0.25.0, **E6** in 0.25.3 and **E7** in 0.26.0. It is the last paid entry point, so `.paid-path-allowlist` is complete at two, and its estimator is the only one measured against the live API (over-reserving 22x to 51x, with no ceiling lowered). `--write-suggestions` is the one thing D-25 deferred, and it is **not planned** |
 | *the graph release, staged* | PPR graph channel, the `[ner]` extra — each eval-gated, not scheduled |
-| *the template release* | Template ecosystem, `pnk upgrade`, the `sqlite-vec` tier |
+| *the `sqlite-vec` tier, staged* | The `sqlite-vec` vector tier — gated behind a written trigger, not scheduled |
 
 The order is a dependency order, not a schedule. Anything unreleased may be resequenced; only the
 ✅ rows are facts.

@@ -445,8 +445,7 @@ stays paused except for this plan; option B is designed and its build is not res
 3. **The template release row.** `CLAUDE.md`'s row now says what is unbuilt — the `sqlite-vec` tier —
    because the template ecosystem and `pnk upgrade` have shipped (`docs/STATUS.md`, 0.19.0 to 0.21.0). The same
    table is copied at `docs/STATUS.md:316` and described in `docs/README.md` § *Conventions* the old
-   way, and whether the name should have left the table at 0.22.0 is a planner decision this
-   increment did not take.
+   way, and whether the name should have left the table at 0.22.0 is a planner decision this increment did not take. *(Closed the user, 20261030, before 19:40 UTC: 0.22.0 was ruled the final cut; the row is now *the `sqlite-vec` tier, staged*.)*
 4. **The aim of about 100 lines was not reached** (§ 5.1). It needs a kept section moved out, which
    is the user's decision.
 

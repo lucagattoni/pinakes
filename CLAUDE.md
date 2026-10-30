@@ -94,7 +94,7 @@ release's **final** cut.
 
 | Name | What it is |
 |---|---|
-| **the template release** | The `sqlite-vec` tier (gated); the template ecosystem and `pnk upgrade` have shipped |
+| **the `sqlite-vec` tier, staged** | The `sqlite-vec` vector tier. **Gated behind a written trigger, never scheduled** — a queried KB past ~50 000 chunks *with* felt latency; no plan, increment or number until it fires. **Not *the template release***, which left this table at its final cut, 0.22.0 |
 | **the graph release, staged** | The PPR graph channel and the `[ner]` extra. **Eval-gated, never scheduled** — no plan, increment or number until its gate passes ([plan](plans/20260804_1016-staged-channel-gates.md)). **Not *the graph release***, which left this table at its final cut, 0.11.0 |
 
 ## Naming (fixed — changing any of these is a breaking change)
@@ -145,4 +145,4 @@ not a licensing instrument — a claimed improvement needs the RFC corpus (`tool
 or another corpus whose improvable pool has been **re-measured, not remembered**
 ([DESIGN § What a corpus can license](docs/DESIGN.md#73-what-a-corpus-can-license)).
 
-<!-- Provenance. One agent, no planner/coder roles: the user, 20261029 17:06, replacing the role rule (the user, 20260823) and the ownership table (the user, 20260801 01:24); their last text: `git show 45a7f16:CLAUDE.md`. Pushing a release tag only on the user's yes: the user, 20261030 00:22. Working mode: the user, 20260808 04:39 (stop at a clear-context boundary 20260811 15:37). Pause: the user, 20260904 10:21, to review the process against the analysis "Framing, Not Roles" (artifact 2c7961ec); option A resumed 20261018 and completed 20261019 (0.32.7). Until A3 (20261019) the live block was about 250 lines of incident narrative: `git show f1804ea:CLAUDE.md`. -->
+<!-- Provenance. One agent, no planner/coder roles: the user, 20261029 17:06, replacing the role rule (the user, 20260823) and the ownership table (the user, 20260801 01:24); their last text: `git show 45a7f16:CLAUDE.md`. Pushing a release tag only on the user's yes: the user, 20261030 00:22. The template release left the table at its final cut, 0.22.0: the user, 20261030, before 19:40 UTC. Working mode: the user, 20260808 04:39 (stop at a clear-context boundary 20260811 15:37). Pause: the user, 20260904 10:21, to review the process against the analysis "Framing, Not Roles" (artifact 2c7961ec); option A resumed 20261018 and completed 20261019 (0.32.7). Until A3 (20261019) the live block was about 250 lines of incident narrative: `git show f1804ea:CLAUDE.md`. -->
