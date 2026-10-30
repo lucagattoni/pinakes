@@ -15,4 +15,6 @@
   no longer says whose file it is; its test and one of its mutants changed with it. Plans,
   retrospectives and release records keep the words they were written with, and `CLAUDE.md` says to
   read "planner" and "coder" in them as the one agent. Developer process only: no `pnk` behaviour
-  changes. `CLAUDE.md` was reviewed against the hygiene rules on 20261029 18:53.
+  changes. `CLAUDE.md` now also says a release tag is pushed only on the user's yes, which the old role
+  split had left as an unwritten consequence of who cut releases. It was reviewed against the
+  hygiene rules on 20261030 07:59.

@@ -131,9 +131,10 @@ holds the MINOR / PATCH / MAJOR rule):
   merged state of the files it names — **a clean auto-merge is not a correct merge.** It compares
   you to one ref, not to peers: intersect file sets with every live branch yourself ([RELEASING § Landing beside a
   peer](docs/RELEASING.md#landing-beside-a-peer)).
-- **A tag publishes to PyPI**, which never accepts a version twice: `make release-check` runs
-  **before the push**, never after, and **before that tag read `minimum-python`'s conclusion in the
-  CI run for the commit you tag** — the one leg on the declared floor; no earlier green transfers.
+- **A tag publishes to PyPI**, which never accepts a version twice, so **push it only on the user's
+  yes**: `make release-check` runs **before the push**, never after, and **before that tag read
+  `minimum-python`'s conclusion in the CI run for the commit you tag** — the one leg on the declared
+  floor; no earlier green transfers.
 
 ## Changing retrieval
 
@@ -144,4 +145,4 @@ not a licensing instrument — a claimed improvement needs the RFC corpus (`tool
 or another corpus whose improvable pool has been **re-measured, not remembered**
 ([DESIGN § What a corpus can license](docs/DESIGN.md#73-what-a-corpus-can-license)).
 
-<!-- Provenance. One agent, no planner/coder roles: the user, 20261029 17:06, replacing the role rule (the user, 20260823) and the ownership table (the user, 20260801 01:24); their last text: `git show 45a7f16:CLAUDE.md`. Working mode: the user, 20260808 04:39 (stop at a clear-context boundary 20260811 15:37). Pause: the user, 20260904 10:21, to review the process against the analysis "Framing, Not Roles" (artifact 2c7961ec); option A resumed 20261018 and completed 20261019 (0.32.7). Until A3 (20261019) the live block was about 250 lines of incident narrative: `git show f1804ea:CLAUDE.md`. -->
+<!-- Provenance. One agent, no planner/coder roles: the user, 20261029 17:06, replacing the role rule (the user, 20260823) and the ownership table (the user, 20260801 01:24); their last text: `git show 45a7f16:CLAUDE.md`. Pushing a release tag only on the user's yes: the user, 20261030 00:22. Working mode: the user, 20260808 04:39 (stop at a clear-context boundary 20260811 15:37). Pause: the user, 20260904 10:21, to review the process against the analysis "Framing, Not Roles" (artifact 2c7961ec); option A resumed 20261018 and completed 20261019 (0.32.7). Until A3 (20261019) the live block was about 250 lines of incident narrative: `git show f1804ea:CLAUDE.md`. -->
