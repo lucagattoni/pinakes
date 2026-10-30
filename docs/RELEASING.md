@@ -274,7 +274,7 @@ upload failed.** Measured on 0.9.0 and again on 0.10.0, 20260804:
 
 So **the order that actually settles it**: read the workflow's `Publish to PyPI` step log — it
 prints `Uploading pinakes-x.y.z-py3-none-any.whl` per file and cannot be cached — then confirm with
-`uvx --no-cache --refresh --from "pinakes[light]==x.y.z" pnk --version`. Only a failed install
+`uvx --python 3.13 --no-cache --refresh --from "pinakes[light]==x.y.z" pnk --version`. Only a failed install
 after **both** of those is a failed publish (20260729 — a correct 0.4.0 upload read as missing;
 20260804 — 0.10.0 read as missing from `/simple/` while its two files were already on the index).
 

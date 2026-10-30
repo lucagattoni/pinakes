@@ -546,7 +546,7 @@ uv add "pinakes[light]"                  # fastembed (ONNX, ~100MB, no torch)
 uv add "pinakes[pdf]"                    # free PDF extraction (pypdfium2)
 uv add "pinakes[claude]"                 # + the opt-in paid Claude-vision extractor
 uv add pinakes                           # core only: parsing, FTS5, storage, MCP, CLI
-uvx --python 3.13 --from "pinakes[st]" pnk serve       # zero-install MCP server
+uvx --from "pinakes[st]" pnk serve       # zero-install MCP server
 ```
 
 A core-only install cannot embed. That is a supported state, not a broken one: any command needing

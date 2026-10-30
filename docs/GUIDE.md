@@ -50,13 +50,15 @@ uvx --python 3.13 --from "pinakes[light]" pnk …     # no project, no install, 
 
 **Why `--python 3.13`.** `[light]` needs `onnxruntime`, and `onnxruntime` publishes no wheel for
 CPython 3.15: its newest release on PyPI, 1.31.1, had none when this was read (20261030 19:49 UTC).
-Where `uv` picks 3.15 the unpinned forms fail. `uvx --from "pinakes[light]" pnk --version` exited 1
-with *`onnxruntime>=1.24.2` has no wheels with a matching Python ABI tag (e.g., `cp315`)*, and a
-plain `uv init` wrote `requires-python = ">=3.15"`, so the `uv add` after it did not resolve either
-(both measured 20261019 12:13 UTC against 0.32.7). 3.13 is the declared minimum, so the pin is safe
-everywhere — `uv` fetches 3.13 if it has none — and it is not needed everywhere: the unpinned `uvx`
-resolved on one machine measured after 20261029 18:53 UTC, so whether it fails depends on which
-interpreter `uv` picks.
+Where `uv` picks 3.15 the unpinned `[light]` forms fail. `uvx --from "pinakes[light]" pnk --version`
+exited 1 with *`onnxruntime>=1.24.2` has no wheels with a matching Python ABI tag (e.g., `cp315`)*,
+and `uv init --bare` wrote `requires-python = ">=3.15"`, so the `uv add --no-sync` after it did not
+resolve either (both measured 20261019 12:13 UTC against 0.32.7). **`pinakes[st]` does not have this
+problem:** on a 3.15 project `uv add --no-sync "pinakes[st]"` resolved (20261030 20:01 UTC), so the
+pin is for `[light]` and harmless for the other extras. 3.13 is the declared minimum, and `uv`
+downloads it if it has none (the pin fails where downloads are disabled or there is no network). It
+is not needed everywhere: the unpinned `uvx` resolved on one machine measured after 20261029 18:53
+UTC, so whether it fails depends on which interpreter `uv` picks.
 
 Python 3.13+. To try it without installing anything:
 
@@ -623,14 +625,14 @@ pnk serve /path/to/my-kb /path/to/other-kb
 ```
 
 For Claude Code, add it to `.mcp.json`, with the **absolute path** of `pnk` (`command -v pnk` prints
-it):
+it when `pnk` is on your `PATH`; a project install keeps it in the project's `.venv/bin`, and `uv
+tool dir --bin` prints where `uv tool install` puts it):
 
 ```json
 {
   "mcpServers": {
     "pinakes": {
       "command": "/absolute/path/to/pnk",
-
       "args": ["serve", "/path/to/my-kb"]
     }
   }
@@ -639,21 +641,21 @@ it):
 
 A bare `"command": "pnk"` works only if the agent starts with a `PATH` that contains it, and nothing
 here puts it there: a project install (`uv add`) leaves `pnk` in the project's `.venv/bin`, and `uv
-tool install --python 3.13 "pinakes[light]"` puts it in uv's tool directory, which is on the `PATH`
-only once `uv tool update-shell` has run (`uv` prints a warning saying so). Whether a live agent
+tool install --python 3.13 "pinakes[light]"` puts it in uv's tool directory, which may not be on
+your `PATH` (`uv tool install` prints a warning when it is not, and names `uv tool update-shell` as
+the fix). Whether a live agent
 launches the entry with your shell's `PATH` has not been tested, which is why the absolute path is
 the form shown.
 
-Or without installing anything, which needs none of that (and pins `--python 3.13` for the reason
-given under [Install](#install)):
+Or without installing anything, which needs no `pnk` on the `PATH` (the agent must still find `uvx`,
+with the same caveat about its `PATH`):
 
 ```json
 {
   "mcpServers": {
     "pinakes": {
       "command": "uvx",
-      "args": ["--python", "3.13", "--from", "pinakes[st]", "pnk", "serve", "/path/to/my-kb"]
-
+      "args": ["--from", "pinakes[st]", "pnk", "serve", "/path/to/my-kb"]
     }
   }
 }
