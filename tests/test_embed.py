@@ -5,10 +5,13 @@ unless they are already cached — a clean checkout must never be blocked on a 1
 (which caches `HF_HOME`) runs them for real.
 """
 
+import socket
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field
 from importlib.machinery import ModuleSpec
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
+from typing import Any, NoReturn
 from unittest.mock import Mock
 
 import numpy as np
@@ -260,3 +263,310 @@ def test_real_reranker_orders_by_relevance() -> None:
     assert len(scores) == 2
     assert scores[0] > scores[1]
     assert reranker.score("q", []) == []
+
+
+# ── `--offline` with fastembed: the cache must hold *this* model, or the load fails typed ─────────
+#
+# F2 (measured 20261019 against 0.32.7): `pnk doctor` is meant to be offline, yet with the embedder
+# cached and the reranker not it fetched 1.1 GB — the old guard only asked whether the cache
+# *directory* existed — and with HF_HUB_OFFLINE=1 it crashed with a bare `ValueError`.
+#
+# Two kinds of test, and the difference matters. The "sealed" ones run the real fastembed against
+# a temporary cache and forbid every way out of the process, so "nothing was fetched" is measured,
+# not inferred. The stub ones swap only the fastembed *class* for a recorder, to pin exactly what
+# the loader passes it. Neither touches the real Hugging Face cache: `HF_HOME` is a `tmp_path`.
+
+_FASTEMBED_MODEL = {"embedding": "BAAI/bge-small-en-v1.5", "reranker": "BAAI/bge-reranker-base"}
+_OFFLINE_REMEDY = "Run once without --offline to populate the cache."
+
+
+def _load_fastembed_kind(kind: str, *, offline: bool) -> Any:
+    if kind == "embedding":
+        return load_backend(
+            EmbeddingSection(
+                provider=FASTEMBED, model=_FASTEMBED_MODEL[kind], dim=384, revision=None
+            ),
+            offline=offline,
+        )
+    return load_reranker(
+        RerankSection(provider=FASTEMBED, model=_FASTEMBED_MODEL[kind], revision=None),
+        offline=offline,
+    )
+
+
+class _NetworkReached(BaseException):
+    """Not an `Exception` on purpose: fastembed retries and sleeps on those, hiding a reach."""
+
+
+@dataclass
+class _Sealed:
+    hub: Path
+    reached: list[str] = field(default_factory=list[str])
+
+
+@pytest.fixture
+def sealed_cache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> _Sealed:
+    """An empty cache directory that exists, and a process that may not reach the network."""
+    download = pytest.importorskip("fastembed.common.model_management")
+    monkeypatch.setenv("HF_HOME", str(tmp_path / "hf"))
+    # With HF_HUB_OFFLINE set fastembed goes local-only by itself, and these tests would pass on
+    # code that ignores `offline` altogether — which is the defect.
+    monkeypatch.delenv("HF_HUB_OFFLINE", raising=False)
+    sealed = _Sealed(hub=tmp_path / "hf" / "hub")
+    sealed.hub.mkdir(parents=True)
+
+    def forbid(way: str) -> Callable[..., NoReturn]:
+        def refuse(*args: object, **kwargs: object) -> NoReturn:
+            sealed.reached.append(way)
+            raise _NetworkReached(way)
+
+        return refuse
+
+    # The calls fastembed makes to learn what a repo holds and to fetch it...
+    monkeypatch.setattr(download, "model_info", forbid("model_info"))
+    monkeypatch.setattr(download, "list_repo_tree", forbid("list_repo_tree"))
+    local_snapshot_download = download.snapshot_download
+
+    def snapshot_download_local_only(*args: Any, **kwargs: Any) -> Any:
+        if kwargs.get("local_files_only") is not True:
+            sealed.reached.append("snapshot_download without local_files_only")
+            raise _NetworkReached("snapshot_download")
+        return local_snapshot_download(*args, **kwargs)
+
+    monkeypatch.setattr(download, "snapshot_download", snapshot_download_local_only)
+    # ...and, for anything else, the process cannot open a socket at all.
+    monkeypatch.setattr(socket, "getaddrinfo", forbid("getaddrinfo"))
+    monkeypatch.setattr(socket, "create_connection", forbid("create_connection"))
+    monkeypatch.setattr(socket.socket, "connect", forbid("socket.connect"))
+    return sealed
+
+
+def _plant(hub: Path, repo_id: str, files: Mapping[str, bytes]) -> None:
+    """An entry as `huggingface_hub` lays it out: `refs/main` names `snapshots/<sha>/`."""
+    repo = hub / f"models--{repo_id.replace('/', '--')}"
+    (repo / "refs").mkdir(parents=True)
+    (repo / "refs" / "main").write_text("abc123")
+    for name, data in files.items():
+        target = repo / "snapshots" / "abc123" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+
+
+def _tree(root: Path) -> dict[str, bytes | None]:
+    """Every path under `root` with its bytes (`None` for a directory) — the cache, as a value."""
+    return {
+        str(path.relative_to(root)): path.read_bytes() if path.is_file() else None
+        for path in sorted(root.rglob("*"))
+    }
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+def test_offline_a_model_missing_from_an_existing_cache_fails_typed_and_fetches_nothing(
+    sealed_cache: _Sealed, kind: str
+) -> None:
+    """The directory exists and this model is not in it: `EmbeddingError`, no traffic, no weights.
+
+    Before: the directory check passed and fastembed went to the network (reached `model_info`).
+    """
+    with pytest.raises(EmbeddingError) as exc_info:
+        _load_fastembed_kind(kind, offline=True)
+
+    assert sealed_cache.reached == []
+    assert [path for path in sealed_cache.hub.rglob("*") if path.is_file()] == []
+    assert _FASTEMBED_MODEL[kind] in exc_info.value.message
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+def test_the_offline_refusal_keeps_its_wording_and_its_remedy(
+    sealed_cache: _Sealed, kind: str
+) -> None:
+    with pytest.raises(EmbeddingError) as exc_info:
+        _load_fastembed_kind(kind, offline=True)
+
+    assert exc_info.value.message.startswith("--offline was requested but ")
+    assert str(sealed_cache.hub) in exc_info.value.message
+    assert exc_info.value.remedy == _OFFLINE_REMEDY
+
+
+def test_another_model_in_the_cache_does_not_stand_in_for_the_missing_one(
+    sealed_cache: _Sealed,
+) -> None:
+    """The measured case: the embedder cached, the reranker not; the embedder is untouched."""
+    _plant(
+        sealed_cache.hub,
+        "qdrant/bge-small-en-v1.5-onnx-q",
+        {"config.json": b"{}", "model_optimized.onnx": b"embedder weights"},
+    )
+    before = _tree(sealed_cache.hub)
+
+    with pytest.raises(EmbeddingError):
+        _load_fastembed_kind("reranker", offline=True)
+
+    assert sealed_cache.reached == []
+    assert _tree(sealed_cache.hub) == before
+
+
+def test_a_cached_model_that_cannot_be_read_fails_typed_too(sealed_cache: _Sealed) -> None:
+    """Present but broken (an interrupted download): onnxruntime raises; that must not escape."""
+    json_files = (
+        "config.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "special_tokens_map.json",
+    )
+    _plant(
+        sealed_cache.hub,
+        _FASTEMBED_MODEL["reranker"],
+        {name: b"{}" for name in json_files} | {"onnx/model.onnx": b"not an onnx file"},
+    )
+    before = _tree(sealed_cache.hub)
+
+    with pytest.raises(EmbeddingError) as exc_info:
+        _load_fastembed_kind("reranker", offline=True)
+
+    assert sealed_cache.reached == []
+    assert _tree(sealed_cache.hub) == before
+    assert exc_info.value.remedy == _OFFLINE_REMEDY
+
+
+def test_a_failed_offline_load_removes_the_scratch_directory_fastembed_made(
+    sealed_cache: _Sealed,
+) -> None:
+    """fastembed makes `<cache>/tmp` before it finds nothing; `hf cache scan` warns about it."""
+    with pytest.raises(EmbeddingError):
+        _load_fastembed_kind("reranker", offline=True)
+
+    assert list(sealed_cache.hub.iterdir()) == []
+
+
+def test_a_scratch_directory_that_was_already_there_is_left_alone(sealed_cache: _Sealed) -> None:
+    (sealed_cache.hub / "tmp").mkdir()
+
+    with pytest.raises(EmbeddingError):
+        _load_fastembed_kind("reranker", offline=True)
+
+    assert (sealed_cache.hub / "tmp").is_dir()
+
+
+def _stub_fastembed(
+    monkeypatch: pytest.MonkeyPatch, *, error: BaseException | None = None
+) -> list[dict[str, Any]]:
+    """Swap fastembed's two model classes for one recorder; return what it was built with."""
+    pytest.importorskip("fastembed.rerank.cross_encoder")
+    calls: list[dict[str, Any]] = []
+
+    class Recorder:
+        tokenizer = SimpleNamespace(truncation={"max_length": 64})
+
+        def __init__(self, **kwargs: Any) -> None:
+            calls.append(kwargs)
+            if error is not None:
+                raise error
+            self._name: str = kwargs["model_name"]
+
+        def list_supported_models(self) -> list[dict[str, Any]]:
+            return [{"model": self._name, "dim": 384}]
+
+        def rerank(self, query: str, documents: Sequence[str]) -> list[float]:
+            return [float(len(document)) for document in documents]
+
+    monkeypatch.setattr("fastembed.TextEmbedding", Recorder)
+    monkeypatch.setattr("fastembed.rerank.cross_encoder.TextCrossEncoder", Recorder)
+    return calls
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+def test_offline_asks_fastembed_for_local_files_only_in_the_shared_cache(
+    sealed_cache: _Sealed, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    calls = _stub_fastembed(monkeypatch)
+
+    _load_fastembed_kind(kind, offline=True)
+
+    assert calls == [
+        {
+            "model_name": _FASTEMBED_MODEL[kind],
+            "cache_dir": str(sealed_cache.hub),
+            "local_files_only": True,
+        }
+    ]
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+def test_online_makes_the_call_it_always_made(
+    sealed_cache: _Sealed, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    """`offline=False` is not allowed to change: no `local_files_only` key, not even `False`."""
+    calls = _stub_fastembed(monkeypatch)
+
+    _load_fastembed_kind(kind, offline=False)
+
+    assert calls == [{"model_name": _FASTEMBED_MODEL[kind], "cache_dir": str(sealed_cache.hub)}]
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+def test_a_cached_model_loads_offline_exactly_as_it_does_online(
+    sealed_cache: _Sealed, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    _stub_fastembed(monkeypatch)
+
+    offline = _load_fastembed_kind(kind, offline=True)
+    online = _load_fastembed_kind(kind, offline=False)
+
+    assert offline.info() == online.info()
+    assert offline.info().model == _FASTEMBED_MODEL[kind]
+    if kind == "reranker":
+        assert offline.score("q", ["ab", "abcd"]) == online.score("q", ["ab", "abcd"]) == [2, 4]
+
+
+def test_a_failure_that_is_not_a_pinakes_error_becomes_one_offline(
+    sealed_cache: _Sealed, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Whatever fastembed or onnxruntime raises: `pnk doctor` prints a FAIL line, no traceback."""
+    cause = RuntimeError("boom\nsecond line of a long onnxruntime message")
+    _stub_fastembed(monkeypatch, error=cause)
+
+    with pytest.raises(EmbeddingError) as exc_info:
+        _load_fastembed_kind("reranker", offline=True)
+
+    assert exc_info.value.__cause__ is cause
+    assert "RuntimeError: boom)" in exc_info.value.message
+    assert "second line" not in exc_info.value.message
+    assert exc_info.value.remedy == _OFFLINE_REMEDY
+
+
+def test_online_failures_are_not_rewrapped(
+    sealed_cache: _Sealed, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only `--offline` changes what a failed load looks like; online, fastembed's error stands."""
+    _stub_fastembed(monkeypatch, error=ValueError("Could not load model from any source"))
+
+    with pytest.raises(ValueError, match="any source"):
+        _load_fastembed_kind("reranker", offline=False)
+
+
+def test_ctrl_c_still_interrupts_an_offline_load(
+    sealed_cache: _Sealed, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stub_fastembed(monkeypatch, error=KeyboardInterrupt())
+
+    with pytest.raises(KeyboardInterrupt):
+        _load_fastembed_kind("reranker", offline=True)
+
+
+@pytest.mark.parametrize("kind", ["embedding", "reranker"])
+def test_offline_with_no_cache_directory_is_refused_before_fastembed_can_make_one(
+    sealed_cache: _Sealed, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    calls = _stub_fastembed(monkeypatch)
+    sealed_cache.hub.rmdir()
+
+    with pytest.raises(EmbeddingError) as exc_info:
+        _load_fastembed_kind(kind, offline=True)
+
+    assert exc_info.value.message == (
+        f"--offline was requested but no model cache exists at {sealed_cache.hub}."
+    )
+    assert exc_info.value.remedy == _OFFLINE_REMEDY
+    assert calls == []
+    assert not sealed_cache.hub.exists()

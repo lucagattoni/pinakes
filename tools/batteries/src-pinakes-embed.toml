@@ -1,0 +1,230 @@
+# Mutation battery — `src/pinakes/embed.py`.
+#
+#     python3 tools/mutate.py tools/batteries/src-pinakes-embed.toml
+#
+# **One file, and one subject: what `--offline` means for the fastembed loaders.** Not the
+# sentence-transformers loaders (they already pass `local_files_only` themselves), not `info()`,
+# not the dim check in `load_backend`. A reader who greps this file and finds every anchor
+# resolving has learned nothing about the rest of `embed.py`.
+#
+# **The subject is a promise `pnk doctor` makes — "free, offline" — that the code broke.** Measured
+# 20261019 against 0.32.7: the only guard was *does the cache directory exist*, so with the embedder
+# cached and the reranker not, `doctor` printed "Fetching 5 files" and grew the cache from 67 MB to
+# 1.1 GB; with `HF_HUB_OFFLINE=1` it fetched nothing and died with a bare `ValueError`. Every
+# mutant below is one way of putting that back.
+#
+# **The tests behind these rows run the real fastembed.** Two of the kills are sealed tests: the
+# process may not open a socket and `model_info` / `list_repo_tree` fail loudly, so a mutant that
+# reaches the network is caught by the reach, not by an assertion about a stub. The rest swap only
+# fastembed's *class* for a recorder. None reads the real Hugging Face cache — `HF_HOME` is a
+# `tmp_path` in every one — and none can say what a *real* cached model does offline, which only
+# the `model`-marked tests (CI, with the weights cached) can.
+#
+# No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
+
+mutants = 19
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20261030 · offline means the cache holds this model, or the load fails typed
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+
+[[mutant]]
+name = "THE SHIPPED DEFECT — offline never asks fastembed for local files only"
+file = "src/pinakes/embed.py"
+# Exactly the call as it was before: the loader reaches fastembed with an ordinary online call,
+# fastembed finds the model absent, and goes to the network. The sealed test dies on the first
+# `model_info`, not on an assertion.
+old = '''        return model_class(model_name=model, cache_dir=str(cache), local_files_only=True)'''
+new = '''        return model_class(model_name=model, cache_dir=str(cache))'''
+kills = "tests/test_embed.py::test_offline_a_model_missing_from_an_existing_cache_fails_typed_and_fetches_nothing"
+
+[[mutant]]
+name = "offline passes local_files_only=False, so the flag is there and says the opposite"
+file = "src/pinakes/embed.py"
+# A different breakage from the row above and a different test: the key is present, so a test that
+# only checked "the call mentions local_files_only" would pass. This one pins the value and the
+# other two arguments with it.
+old = '''        return model_class(model_name=model, cache_dir=str(cache), local_files_only=True)'''
+new = '''        return model_class(model_name=model, cache_dir=str(cache), local_files_only=False)'''
+kills = "tests/test_embed.py::test_offline_asks_fastembed_for_local_files_only_in_the_shared_cache"
+
+[[mutant]]
+name = "offline is handed the wrong cache directory"
+file = "src/pinakes/embed.py"
+# `cache_dir` is where fastembed looks. One level up is a directory that exists and holds no model,
+# so the load fails typed and *every* sealed test still passes — which is why this is pinned by
+# the recorder, the only test that reads the argument.
+old = '''cache_dir=str(cache), local_files_only=True)'''
+new = '''cache_dir=str(cache.parent), local_files_only=True)'''
+kills = "tests/test_embed.py::test_offline_asks_fastembed_for_local_files_only_in_the_shared_cache"
+
+[[mutant]]
+name = "the online path is sent through the offline branch (the flag ignored the other way)"
+file = "src/pinakes/embed.py"
+# `pnk sync` and a first `pnk search` must still be able to fetch. If every load is local-only, the
+# first run on a fresh machine fails with a message telling the user to run without --offline —
+# which they did.
+old = '''    if not offline:
+        return model_class(model_name=model, cache_dir=str(cache))
+'''
+new = '''    if False:
+        return model_class(model_name=model, cache_dir=str(cache))
+'''
+kills = "tests/test_embed.py::test_online_makes_the_call_it_always_made"
+
+[[mutant]]
+name = "the online call gains local_files_only=False, which 'changes nothing' and changes the call"
+file = "src/pinakes/embed.py"
+# Harmless to fastembed 0.8 today, and still a change to a path the brief says must not change:
+# any recorder, wrapper or older fastembed that treats the key's presence differently is now in
+# play online.
+old = '''        return model_class(model_name=model, cache_dir=str(cache))
+'''
+new = '''        return model_class(model_name=model, cache_dir=str(cache), local_files_only=False)
+'''
+kills = "tests/test_embed.py::test_online_makes_the_call_it_always_made"
+
+[[mutant]]
+name = "THE SECOND SHIPPED DEFECT — the ValueError for a missing model is not converted"
+file = "src/pinakes/embed.py"
+# Under HF_HUB_OFFLINE=1 (and now under every offline load) fastembed's miss is a bare
+# `ValueError`. `doctor` catches `PinakesError` only, so this is the traceback of 20261019. The
+# catch is narrowed to something a miss never raises.
+old = '''    except Exception as exc:'''
+new = '''    except OSError as exc:'''
+kills = "tests/test_embed.py::test_offline_a_model_missing_from_an_existing_cache_fails_typed_and_fetches_nothing"
+
+[[mutant]]
+name = "only ValueError is converted, so a cached-but-broken model still tracebacks"
+file = "src/pinakes/embed.py"
+# The tempting minimal fix — catch the exception the measurement showed. A half-finished download
+# leaves a snapshot that exists, `snapshot_download` returns it, and onnxruntime raises
+# `InvalidProtobuf`, which is not a ValueError. Only the real-library test reaches that class.
+old = '''    except Exception as exc:'''
+new = '''    except ValueError as exc:'''
+kills = "tests/test_embed.py::test_a_cached_model_that_cannot_be_read_fails_typed_too"
+
+[[mutant]]
+name = "the catch is widened to BaseException, so Ctrl-C during a doctor run becomes a FAIL line"
+file = "src/pinakes/embed.py"
+# Over-correcting the row above. An interrupt converted to `EmbeddingError` is reported as a
+# missing model and the run carries on to the next check.
+old = '''    except Exception as exc:'''
+new = '''    except BaseException as exc:'''
+kills = "tests/test_embed.py::test_ctrl_c_still_interrupts_an_offline_load"
+
+[[mutant]]
+name = "the conversion raises a different typed error — 'backend missing' for 'model missing'"
+file = "src/pinakes/embed.py"
+# Still a `PinakesError`, so `doctor` would still print a FAIL line and a test that only asserted
+# "no traceback" would pass. But `BackendMissingError` tells the user to install an extra they
+# already have. A class with `EmbeddingError`'s signature and already imported does not exist, and
+# a mutant that breaks on construction (`TypeError`) would be killed for the wrong reason.
+old = '''        raise EmbeddingError(
+            f"--offline was requested but {model} could not be loaded from the model cache at "
+            f"{cache} ({reason}).",
+            remedy=_OFFLINE_REMEDY,
+        ) from exc'''
+new = '''        raise BackendMissingError(model, extra="light", alternative=None) from exc'''
+kills = "tests/test_embed.py::test_a_failure_that_is_not_a_pinakes_error_becomes_one_offline"
+
+[[mutant]]
+name = "the original exception is dropped from the chain (from None)"
+file = "src/pinakes/embed.py"
+# `pnk doctor` prints only the message, so the cause is for whoever runs with a traceback — and for
+# the next maintainer, who needs onnxruntime's own words to tell a truncated download from a
+# version mismatch.
+old = '''            remedy=_OFFLINE_REMEDY,
+        ) from exc'''
+new = '''            remedy=_OFFLINE_REMEDY,
+        ) from None'''
+kills = "tests/test_embed.py::test_a_failure_that_is_not_a_pinakes_error_becomes_one_offline"
+
+[[mutant]]
+name = "the library's whole message is quoted, not its first line"
+file = "src/pinakes/embed.py"
+# onnxruntime's messages run to several lines and carry the full path of the file. `doctor` prints
+# a check on one line.
+old = '''        first_line = (str(exc).splitlines() or [""])[0]'''
+new = '''        first_line = str(exc)'''
+kills = "tests/test_embed.py::test_a_failure_that_is_not_a_pinakes_error_becomes_one_offline"
+
+[[mutant]]
+name = "the conversion's remedy is retyped inline and drifts from the guard's"
+file = "src/pinakes/embed.py"
+# The brief for this fix: one remedy string for "the model is not here", reused, not paraphrased.
+old = '''            f"{cache} ({reason}).",
+            remedy=_OFFLINE_REMEDY,'''
+new = '''            f"{cache} ({reason}).",
+            remedy="Try again later.",'''
+kills = "tests/test_embed.py::test_the_offline_refusal_keeps_its_wording_and_its_remedy"
+
+[[mutant]]
+name = "the shared remedy text itself changes"
+file = "src/pinakes/embed.py"
+# Both raises read this constant. Rewording it is finding F3's job, on purpose, with its own
+# battery row when it lands; here it must be a red test, not a quiet edit.
+old = '''_OFFLINE_REMEDY = "Run once without --offline to populate the cache."'''
+new = '''_OFFLINE_REMEDY = "Run once."'''
+kills = "tests/test_embed.py::test_offline_with_no_cache_directory_is_refused_before_fastembed_can_make_one"
+
+[[mutant]]
+name = "the directory guard is dropped from the embedder loader"
+file = "src/pinakes/embed.py"
+# Without it fastembed's `define_cache_dir` runs `mkdir` on a cache that was never there, and the
+# user's first offline command both creates `~/.cache/huggingface/hub` and tells them to go online.
+old = '''    _require_online_or_cached(offline)
+    model = _load_fastembed(module.TextEmbedding, section.model, offline)'''
+new = '''    model = _load_fastembed(module.TextEmbedding, section.model, offline)'''
+kills = "tests/test_embed.py::test_offline_with_no_cache_directory_is_refused_before_fastembed_can_make_one"
+
+[[mutant]]
+name = "the directory guard is dropped from the reranker loader"
+file = "src/pinakes/embed.py"
+# The twin of the row above, separately: the two loaders each call the guard, and one test
+# parametrised over both is what notices that only one of them lost it.
+old = '''    _require_online_or_cached(offline)
+    model = _load_fastembed(module.TextCrossEncoder, section.model, offline)'''
+new = '''    model = _load_fastembed(module.TextCrossEncoder, section.model, offline)'''
+kills = "tests/test_embed.py::test_offline_with_no_cache_directory_is_refused_before_fastembed_can_make_one"
+
+[[mutant]]
+name = "the directory guard is inverted, so it refuses exactly when the cache exists"
+file = "src/pinakes/embed.py"
+# The recorder is never reached, because the guard raises first, and `calls == [...]` is what says
+# so. Every sealed test also goes red, but for a message-text reason; this one names the cause.
+old = '''    if offline and not hf_cache_dir().exists():'''
+new = '''    if offline and hf_cache_dir().exists():'''
+kills = "tests/test_embed.py::test_offline_asks_fastembed_for_local_files_only_in_the_shared_cache"
+
+[[mutant]]
+name = "the directory guard looks at the wrong path (the cache's parent)"
+file = "src/pinakes/embed.py"
+# `HF_HOME` exists on any machine that has ever downloaded anything; `HF_HOME/hub` is the
+# directory fastembed would create. Checking the parent passes on a machine where the loader is
+# about to make `hub` from nothing.
+old = '''    if offline and not hf_cache_dir().exists():'''
+new = '''    if offline and not hf_cache_dir().parent.exists():'''
+kills = "tests/test_embed.py::test_offline_with_no_cache_directory_is_refused_before_fastembed_can_make_one"
+
+[[mutant]]
+name = "fastembed's stray tmp directory is left in the user's cache after a miss"
+file = "src/pinakes/embed.py"
+# Not a download and not a model file, so every other row passes on it. But `hf cache scan` warns
+# about `hub/tmp` ("not a valid HuggingFace cache directory", measured), and this fix makes a miss
+# the common outcome of a plain `pnk doctor` on a machine without the reranker.
+old = '''        if not scratch_existed:
+            _remove_if_empty(scratch)'''
+new = '''        if False:
+            _remove_if_empty(scratch)'''
+kills = "tests/test_embed.py::test_a_failed_offline_load_removes_the_scratch_directory_fastembed_made"
+
+[[mutant]]
+name = "a tmp directory that was already there is removed too"
+file = "src/pinakes/embed.py"
+# The other side of the cleanup: only what this call made is this call's to remove.
+old = '''        if not scratch_existed:
+            _remove_if_empty(scratch)'''
+new = '''        if True:
+            _remove_if_empty(scratch)'''
+kills = "tests/test_embed.py::test_a_scratch_directory_that_was_already_there_is_left_alone"

@@ -16,6 +16,7 @@ what is loaded now, and §4.2's confidence thresholds are only valid for the rer
 fitted against.
 """
 
+import contextlib
 import os
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -176,7 +177,7 @@ def _fastembed_backend(section: EmbeddingSection, offline: bool) -> EmbeddingBac
         "fastembed", "light", section.provider, siblings=registered_embedding_providers()
     )
     _require_online_or_cached(offline)
-    model = module.TextEmbedding(model_name=section.model, cache_dir=str(hf_cache_dir()))
+    model = _load_fastembed(module.TextEmbedding, section.model, offline)
     return _FastembedBackend(section, model)
 
 
@@ -185,17 +186,71 @@ def _fastembed_reranker(section: RerankSection, offline: bool) -> Reranker:
         "fastembed.rerank.cross_encoder", "light", section.provider, siblings=sorted(_RERANKERS)
     )
     _require_online_or_cached(offline)
-    model = module.TextCrossEncoder(model_name=section.model, cache_dir=str(hf_cache_dir()))
+    model = _load_fastembed(module.TextCrossEncoder, section.model, offline)
     return _FastembedReranker(section, model)
 
 
+_OFFLINE_REMEDY = "Run once without --offline to populate the cache."
+
+
 def _require_online_or_cached(offline: bool) -> None:
-    """fastembed has no `local_files_only`; `--offline` is honoured by refusing to reach out."""
+    """`--offline` against a cache directory that does not exist: refuse before fastembed runs.
+
+    This is the cheap half of the guard and no more than that: it says nothing about *which* models
+    the directory holds. `_load_fastembed` is the half that does, and it also keeps fastembed from
+    creating the directory (its `define_cache_dir` does `mkdir`).
+    """
     if offline and not hf_cache_dir().exists():
         raise EmbeddingError(
             f"--offline was requested but no model cache exists at {hf_cache_dir()}.",
-            remedy="Run once without --offline to populate the cache.",
+            remedy=_OFFLINE_REMEDY,
         )
+
+
+def _load_fastembed(model_class: Any, model: str, offline: bool) -> Any:
+    """Construct a fastembed model; offline, from the cache or not at all.
+
+    fastembed 0.8 *does* take `local_files_only` — through `**kwargs` into its download step
+    (`common/model_management.py`, read 20261030 19:51 UTC against 0.8.0; the comment that said
+    otherwise predated it).
+    With it, a model missing from `cache_dir` raises `ValueError("Could not load model … from any
+    source")` instead of being fetched, and a model that is there loads exactly as it did online
+    (fastembed's first move online is the same local-only lookup). So a directory that exists but
+    lacks *this* model no longer reaches the network, which is what the directory check alone let
+    through (measured 20261019: `pnk doctor` fetched a 1.1 GB reranker).
+
+    Every failure offline becomes an `EmbeddingError`: a missing model is a `ValueError` from
+    fastembed, a cached but broken one is whatever onnxruntime raises, and neither is a
+    `PinakesError`, so `pnk doctor` would crash with a traceback instead of printing a FAIL line.
+    `except Exception` is deliberate and narrow in effect — it only re-raises, as the typed error —
+    and `KeyboardInterrupt` still passes through. Online, nothing changes: the call is the one
+    that was always made.
+    """
+    cache = hf_cache_dir()
+    if not offline:
+        return model_class(model_name=model, cache_dir=str(cache))
+
+    # fastembed's local-only path makes `<cache>/tmp` before it finds nothing. An empty `tmp` in
+    # the Hugging Face cache is not a repo, and `hf cache scan` warns about it; clean up our own.
+    scratch = cache / "tmp"
+    scratch_existed = scratch.exists()
+    try:
+        return model_class(model_name=model, cache_dir=str(cache), local_files_only=True)
+    except Exception as exc:
+        if not scratch_existed:
+            _remove_if_empty(scratch)
+        first_line = (str(exc).splitlines() or [""])[0]
+        reason = f"{type(exc).__name__}: {first_line}" if first_line else type(exc).__name__
+        raise EmbeddingError(
+            f"--offline was requested but {model} could not be loaded from the model cache at "
+            f"{cache} ({reason}).",
+            remedy=_OFFLINE_REMEDY,
+        ) from exc
+
+
+def _remove_if_empty(directory: Path) -> None:
+    with contextlib.suppress(OSError):  # absent, not empty, or not ours to remove: leave it
+        directory.rmdir()
 
 
 class _SentenceTransformersBackend:
