@@ -716,12 +716,13 @@ def _restore_cannot_be_skipped_or_run_late(steps: list[dict[str, Any]]) -> None:
     # **A closed list, not a list of the keys known to be dangerous.** `if` and `continue-on-error`
     # skip or ignore the step; `working-directory`, `env` and `shell` leave its body intact and make
     # it fetch into another directory, read another tag name or run under another interpreter. A
-    # review's own mutants found the second kind surviving a ban on the first.
+    # review's own mutants found the second kind surviving a ban on the first. A legitimate key
+    # (an `id:` for a later step to read, say) is refused too, on purpose: add it by changing this.
     extra = set(steps[restore]) - {"name", "run"}
     assert not extra, (
-        f"the annotation step carries {sorted(extra)} — it can be skipped or ignored, or run "
-        f"somewhere else, while still reading correctly, and the release notes it guards are "
-        f"written once"
+        f"the annotation step carries {sorted(extra)} — only `name` and `run` are allowed, because "
+        f"any other key can skip it, ignore its failure, move it or change how it runs while its "
+        f"body still reads correctly, and the release notes it guards are written once"
     )
     _no_failure_path_exits_zero(str(steps[restore]["run"]), "release.yml's tag-annotation step")
 
@@ -729,9 +730,9 @@ def _restore_cannot_be_skipped_or_run_late(steps: list[dict[str, Any]]) -> None:
 def test_the_release_workflow_restores_the_tag_annotation_in_front_of_the_upload() -> None:
     """`actions/checkout` stores the tag's *commit* under the tag's name for a tag push, so the
     clone holds a lightweight tag and `gh release create --notes-from-tag` falls back to the
-    commit's message — the merge subject. All 35 releases from 0.22.0 to 0.32.8 were read
-    (20261030) and all 35 began with "Merge branch": nothing said so, because the job's `success`
-    was honest and the release existed.
+    commit's message — the merge subject. The 34 releases from 0.22.0 to 0.32.7 were read and every
+    one begins "Merge branch" (0.32.8's notes were backfilled by hand): nothing said so, because
+    the job's `success` was honest and the release existed.
 
     The step has to sit directly after the checkout and in front of `uv publish` — a failure there
     costs a deleted tag, one after it costs the version number — and has to carry nothing but a name
@@ -765,10 +766,11 @@ def test_the_restore_check_fails_when_the_step_is_late_or_switched_off() -> None
         ("env", {"GITHUB_REF_NAME": "v0.0.0"}),
         ("shell", "python {0}"),
         ("timeout-minutes", 0),
+        ("id", "restore"),
     ):
         switched = [dict(s) for s in steps]
         switched[restore][key] = value
-        with pytest.raises(AssertionError, match="can be skipped or ignored"):
+        with pytest.raises(AssertionError, match="only `name` and `run` are allowed"):
             _restore_cannot_be_skipped_or_run_late(switched)
 
     exiting_zero = [dict(s) for s in steps]
@@ -780,8 +782,8 @@ def test_the_restore_check_fails_when_the_step_is_late_or_switched_off() -> None
 def _clean_env(**extra: str) -> dict[str, str]:
     # Nothing named GIT_* from the surrounding process: with GIT_DIR set (a hook, a `git rebase
     # --exec`) every command below would write into *that* repository instead of the fixture — a
-    # review measured three stray commits, three tags and a remote landing in a scratch repo. And
-    # the user's own configuration (a signing key, a template) must not reach the tags below.
+    # review measured stray commits, tags and a remote landing in a scratch repo. And the user's
+    # own configuration (a signing key, a template) must not reach the tags below either.
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
     env.update(extra)
@@ -812,28 +814,26 @@ def _checkout_as_actions_does(
     """An origin holding one merge-looking commit and `tag`, and a clone of it made the way
     `actions/checkout@v4` makes one for a tag push.
 
-    The fetch is copied from the Release run's own log (run 40934965981, 20261029 18:53 UTC). The
-    two assertions after it pin what that fetch does to a tag *in git* — if a later git stops
-    flattening it, this says so rather than going on to test a repair of nothing. They cannot say
-    whether `actions/checkout` still makes that fetch: that is read from a Release run's log, and
-    the first release cut after the step landed is its first real run.
+    The fetch is copied from the Release run's own log (run 40934965981, 20261029 18:53 UTC),
+    without its leading `-c protocol.version=2`; the clone's HEAD stays unborn, which the step does
+    not read. The two assertions after it pin what that fetch does to a tag *in git* — if a later
+    git stops flattening it, this says so rather than going on to test a repair of nothing. They
+    cannot say whether `actions/checkout` still makes that fetch: that is read from a Release run's
+    log, and the first release cut after the step landed is its first real run.
+
+    `kind` is how the tag is made on the origin: `annotated` with `message` (verbatim, so a message
+    of blanks survives), `lightweight`, `empty` (`git tag -a -m ""`) or `blank` (spaces and a tab).
     """
     origin = tmp_path / "origin"
     origin.mkdir()
     _git(origin, "init", "-q", "-b", "main")
     _git(origin, "commit", "-q", "--allow-empty", "-m", "Merge branch 'release'")
     sha = _git(origin, "rev-parse", "HEAD").strip()
-    if kind == "annotated":
-        _git(origin, "tag", "-a", tag, "-m", message)
-    elif kind == "lightweight":
+    if kind == "lightweight":
         _git(origin, "tag", tag)
-    elif kind == "empty":
-        _git(origin, "tag", "-a", tag, "-m", "")
     else:
-        # A message of blanks reaches a tag object only through `mktag`; the CLI strips it to empty.
-        header = f"object {sha}\ntype commit\ntag {tag}\ntagger t <t@example.invalid> 1 +0000\n\n"
-        blank = _git(origin, "mktag", stdin=header + "   \n").strip()
-        _git(origin, "update-ref", f"refs/tags/{tag}", blank)
+        text = {"annotated": message, "empty": "", "blank": "  \t  "}[kind]
+        _git(origin, "tag", "-a", "--cleanup=verbatim", "-m", text, tag)
     clone = tmp_path / "clone"
     clone.mkdir()
     _git(clone, "init", "-q")
@@ -855,7 +855,8 @@ def _checkout_as_actions_does(
 
 def _run_restore(clone: Path, tag: str) -> subprocess.CompletedProcess[str]:
     # GITHUB_SHA is what Actions sets for a tag push: the commit the run checked out, which here is
-    # the commit the flattened tag names.
+    # the commit the flattened tag names. Every Release run so far has a headSha equal to its tag's
+    # commit and none equal to the tag object, so this is the value the real step compares against.
     sha = _git(clone, "rev-parse", f"refs/tags/{tag}^{{commit}}").strip()
     return subprocess.run(
         ["bash", "-e", "-c", _restore_step_run()],
@@ -871,10 +872,14 @@ def _run_restore(clone: Path, tag: str) -> subprocess.CompletedProcess[str]:
     [
         ("the real subject\n\nthe body", "the real subject", "the body"),
         # Six of the annotations already published are a single line with no body (v0.22.2, v0.25.2,
-        # v0.25.4, v0.29.2, v0.30.0, v0.31.1): a step that read the body would refuse them.
+        # v0.25.4, v0.29.2, v0.30.0, v0.31.1): a step that read the body alone would refuse them.
         ("only a subject", "only a subject", ""),
+        # The other way round: `tools/release_tag_gate.py` judges the whole message, so a message
+        # that is blank up to a body is a message, and a step that judged the subject alone would
+        # refuse a tag the local gate let through.
+        ("   \n\nthe body only", "", "the body only"),
     ],
-    ids=["subject-and-body", "subject-only"],
+    ids=["subject-and-body", "subject-only", "body-only"],
 )
 def test_the_restore_step_turns_the_flattened_tag_back_into_the_annotation(
     tmp_path: Path, message: str, subject: str, body: str
@@ -909,8 +914,8 @@ def test_the_restore_step_refuses_a_tag_that_is_lightweight_on_the_remote(tmp_pa
 def test_the_restore_step_refuses_an_annotation_with_no_message(tmp_path: Path, kind: str) -> None:
     """The tag object is real and the notes would be empty: `make release-check` refuses it
     locally, and this refuses it again in the one place a skipped local check cannot reach. `empty`
-    is what `git tag -a -m ""` writes; `blank` is a message of spaces, which only `mktag` can write
-    and which `tools/release_tag_gate.py` also strips before it judges."""
+    is what `git tag -a -m ""` writes; `blank` is a message of spaces and a tab, written with
+    `--cleanup=verbatim`, which `tools/release_tag_gate.py` also strips before it judges."""
     tag = "v9.9.7"
     clone = _checkout_as_actions_does(tmp_path, tag, kind=kind)
 
@@ -931,6 +936,36 @@ def test_the_restore_step_refuses_a_tag_moved_while_the_run_was_going(tmp_path: 
 
     assert done.returncode != 0, "a tag that moved went through to the upload"
     assert "different commit" in done.stdout + done.stderr
+
+
+def test_the_fixtures_ignore_a_git_dir_from_the_surrounding_process(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Under a hook or `git rebase --exec`, GIT_DIR names the repository being worked on. Without
+    `_clean_env`'s filter every fixture command would write its commits, tags and remote into that
+    repository; here it is a bystander and must come out byte-for-byte as it went in."""
+    bystander = tmp_path / "bystander"
+    bystander.mkdir()
+    _git(bystander, "init", "-q", "-b", "main")
+    before = (
+        _git(bystander, "for-each-ref"),
+        _git(bystander, "remote"),
+        (bystander / ".git" / "config").read_text(),
+    )
+    monkeypatch.setenv("GIT_DIR", str(bystander / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(bystander))
+    fixture = tmp_path / "fixture"
+    fixture.mkdir()
+
+    clone = _checkout_as_actions_does(fixture, "v9.9.5", kind="annotated")
+    assert _run_restore(clone, "v9.9.5").returncode == 0
+
+    after = (
+        _git(bystander, "for-each-ref"),
+        _git(bystander, "remote"),
+        (bystander / ".git" / "config").read_text(),
+    )
+    assert after == before
 
 
 def test_the_extras_not_core_gate_reads_requirements_and_not_the_comments_around_them() -> None:

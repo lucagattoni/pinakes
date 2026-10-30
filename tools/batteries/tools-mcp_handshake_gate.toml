@@ -4,7 +4,7 @@
 #
 # The guarantee is one thing — *a published wheel still answers `initialize` with Pinakes' own
 # name, Pinakes' own version and Pinakes' own tool list* — and it is spread across seven files:
-# the gate (8 mutants), `.github/workflows/ci.yml` (9), `.github/workflows/release.yml` (16),
+# the gate (8 mutants), `.github/workflows/ci.yml` (9), `.github/workflows/release.yml` (17),
 # the `Makefile` (5), `src/pinakes/serve.py` (7), `check.sh` (1) and `pyproject.toml`'s
 # dependency floor (1). **The mutants live together because the guarantee does**, and because
 # four of them are one idea in three files — a gate is only a gate when its exit status is what
@@ -18,7 +18,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 47
+mutants = 48
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # 0.28.0 · the mcp 2.x port, and the handshake that proves a wheel still speaks
@@ -416,7 +416,7 @@ kills = "tests/test_check_script.py::test_the_release_workflow_restores_the_tag_
 [[mutant]]
 name = "the empty-annotation check is gone, so a tag with no message publishes a release with no notes"
 file = ".github/workflows/release.yml"
-old = '''          if [ -z "$subject" ]; then'''
+old = '''          if [ -z "$message" ]; then'''
 new = '''          if false; then'''
 kills = "tests/test_check_script.py::test_the_restore_step_refuses_an_annotation_with_no_message"
 
@@ -428,9 +428,9 @@ new = '''"${GITHUB_REF_NAME}")"'''
 kills = "tests/test_check_script.py::test_the_restore_step_refuses_an_annotation_with_no_message"
 
 [[mutant]]
-name = "the subject check reads the body, so the six one-line annotations already published would be refused"
+name = "the message check reads only the body, so the six one-line annotations already published would be refused"
 file = ".github/workflows/release.yml"
-old = '''--format='%(contents:subject)''''
+old = '''--format='%(contents:subject)%(contents:body)''''
 new = '''--format='%(contents:body)''''
 kills = "tests/test_check_script.py::test_the_restore_step_turns_the_flattened_tag_back_into_the_annotation"
 
@@ -491,3 +491,10 @@ new = '''      - name: Restore the tag's annotation
         shell: python {0}
         run: |'''
 kills = "tests/test_check_script.py::test_the_release_workflow_restores_the_tag_annotation_in_front_of_the_upload"
+
+[[mutant]]
+name = "the blanks that are stripped are only spaces, so a message of a tab counts as a message"
+file = ".github/workflows/release.yml"
+old = '''"${GITHUB_REF_NAME}" | tr -d '[:space:]')"'''
+new = '''"${GITHUB_REF_NAME}" | tr -d ' ')"'''
+kills = "tests/test_check_script.py::test_the_restore_step_refuses_an_annotation_with_no_message"

@@ -142,12 +142,14 @@ extended on 20260823 when it crossed it again. Nothing was dropped in either mov
    **The notes are the tag's annotation only because a workflow step puts it back.**
    `actions/checkout` stores the tag's *commit* under the tag's name for a tag push, so the runner
    held a lightweight tag and `--notes-from-tag` fell back to the commit's message: every release
-   from 0.22.0 to 0.32.7 read `Merge branch '…'` (all 34 read, 20261030). 0.32.8's notes were
+   from 0.22.0 to 0.32.7 read `Merge branch '…'` (all 34 read). 0.32.8's notes were
    backfilled from its annotation with `gh release edit`; the 34 older ones were not. The step
    `Restore the tag's
    annotation` now re-fetches the tag object right after the checkout and exits 1 unless it is an
-   annotated tag with a non-blank subject that still names the commit the run checked out, in
-   front of `uv publish`. **That step has been run against a
+   annotated tag with a message that is not blank and that still names the commit the run checked
+   out, in front of `uv publish`. The comparison with the run's commit narrows the window between
+   the checkout and the upload to the seconds the step takes; it does not close it. **That step
+   has been run against a
    local reproduction of the checkout and not yet in Actions**: the first release cut after it is
    its first real run, so read that release's body (below) before believing it.
 
@@ -183,8 +185,9 @@ release notes. A CHANGELOG entry and a `__version__` are only claims: v0.1.0 had
 with no tag, no release and nothing published (`RETROSPECTIVES.md`, 20260727).
 
 **And read the release's notes, not only that it exists.** `gh release view vx.y.z --json body
---jq .body | head -1` must print the first line of the tag's annotation. All 35 releases from 0.22.0
-to 0.32.8 existed, were neither draft nor prerelease, and carried `Merge branch '…'` as their notes
+--jq .body | head -1` must print the first line of the tag's annotation. The 34 releases from 0.22.0
+to 0.32.7 all existed, were neither draft nor prerelease, and carried `Merge branch '…'` as their
+notes
 because `actions/checkout` had flattened the tag (step 8): a check that asked only whether the
 release was there passed every time.
 

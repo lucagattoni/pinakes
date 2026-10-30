@@ -42,8 +42,8 @@ precision nobody measured.
   and `is_id` of a minted ID is `True` while `is_id` of its lowercase is `False`. **The release
   workflow has a defect the PyPI check could not see:** the GitHub release's notes read *“Merge branch
   '20261029_1710-release-0328'”*, the merge commit's subject, not the tag's annotation that
-  `--notes-from-tag` was meant to carry — and so do all 34 older releases' (every one read,
-  20261030), so it has been so since the workflow began creating releases. **Fixed 20261030** by a
+  `--notes-from-tag` was meant to carry — and so do all 34 older releases' (every one read), so it
+  has been so since the workflow began creating releases. **Addressed after this release** by a
   step that restores the tag object right after the checkout, in front of the upload; 0.32.8's
   notes were backfilled by hand and the 34 older ones were left. The step has not yet run in
   Actions.
