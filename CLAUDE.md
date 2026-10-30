@@ -94,7 +94,7 @@ release's **final** cut.
 
 | Name | What it is |
 |---|---|
-| **the `sqlite-vec` tier, staged** | The `sqlite-vec` vector tier. **Gated behind a written trigger, never scheduled** — a queried KB past ~50 000 chunks *with* felt latency; no plan, increment or number until it fires. **Not *the template release***, which left this table at its final cut, 0.22.0 |
+| **the `sqlite-vec` tier, staged** | The `sqlite-vec` vector tier. **Gated behind a written trigger, never scheduled** — a queried KB past ~50 000 chunks *with* felt latency; start nothing until it fires ([the spec is T6](plans/20260804_1016-template-release.md)). **Not *the template release***, which left this table at its final cut, 0.22.0 |
 | **the graph release, staged** | The PPR graph channel and the `[ner]` extra. **Eval-gated, never scheduled** — no plan, increment or number until its gate passes ([plan](plans/20260804_1016-staged-channel-gates.md)). **Not *the graph release***, which left this table at its final cut, 0.11.0 |
 
 ## Naming (fixed — changing any of these is a breaking change)

@@ -177,7 +177,7 @@ precision nobody measured.
   [`0.5.0`](#050--links-you-can-walk--20260731-1127)–[`0.6.0`](#060--links-you-can-write--20260801-1051),
   the graph release in [`0.11.0`](#the-graph-release--shipped-0110). **The template release has
   shipped every increment it scheduled** — T1 to T5 and T7 across 0.17.0–0.21.0, cutting more than
-  once by D-9 — **and both of its gated increments are now answered**, so what was left is a trigger rather than a queue — and since 20261030 (the user, 20261030, before 19:40 UTC) it has a name of its own, *the `sqlite-vec` tier, staged*, the template release having left the table at its final cut, 0.22.0. **The deep release is complete as of
+  once by D-9 — **and both of its gated increments are now answered**, so what was left is a trigger rather than a queue — and since 20261030 (the user, before 19:40 UTC) it has a name of its own, *the `sqlite-vec` tier, staged*, the template release having left the table at its final cut, 0.22.0. **The deep release is complete as of
   [`0.26.0`](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)**: its plan
   landed 20260811 with all eight decisions taken the same day, two more followed at E3's boundary,
   and **all seven increments are built** — the free question surface, the estimator, the paid
@@ -3329,7 +3329,7 @@ T6 deferred behind a written trigger**, both in
 [`0.22.0`](#0220--eight-decisions-and-two-of-them-were-never-decisions--20260811-0826). Per D-9 the release cut more than once; **its final cut was ruled to be 0.22.0** (the user, 20261030, before 19:40 UTC), so the name left the unbuilt-work table and T6 is *the `sqlite-vec` tier, staged*. *(The heading above still says T1 because renaming it would move this section's anchor, which
 three links and the published site resolve.)*
 
-**What it adds:** the template ecosystem, `pnk upgrade`, and the `sqlite-vec` tier.
+**What it added:** the template ecosystem and `pnk upgrade`; the `sqlite-vec` tier was deferred and is now *the `sqlite-vec` tier, staged*.
 
 **The problem it solves:** a template change reaches **new KBs only**. The PDF-glob explanation
 shipped in [`0.2.2`](#022--the-silent-skip-named--20260728-1849) appears in no KB created before it
@@ -3367,8 +3367,7 @@ interpreter loads extensions). But performance is measured on an unlabelled ≥1
 the two tiers agree at 100k** — a pass would license the tier on half the evidence. Its trigger,
 written before the fact so it is a trigger and not a mood: **a KB that is actually queried crosses
 ~50 000 chunks *and* its search latency is a felt problem.** A corpus above the threshold is not
-enough; one exists and nobody searches it interactively. So the release name stays in the
-unbuilt-work table.
+enough; one exists and nobody searches it interactively. So the release name stayed in the unbuilt-work table — until the user, 20261030, before 19:40 UTC, ruled that 0.22.0 was the final cut.
 T4 in turn left two things behind: it **created** an open correction — `--apply` writes nothing on
 the *same manifest* outcome, so that KB can never record the new reference — and it found two of the
 plan's own test specifications unable to measure what they named. T5 found an eighth: the plan asks
