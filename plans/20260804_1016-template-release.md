@@ -525,6 +525,8 @@ leaving two documents disagreeing is the condition this note exists to end.
 
 ### D-9 — Does the template release cut once or more than once?
 
+**Ruled the user, 20261030, before 19:40 UTC: 0.22.0 was the final cut.** The name left the unbuilt-work table and T6 is named *the `sqlite-vec` tier, staged*; what follows is the record of the question.
+
 T1–T4 and T7 are one coherent MINOR. **T5 is a PATCH — D-12, taken 20260804** — which is a fact this
 row now records rather than defers, and it must not be restated as anything else anywhere. T6 bumps `schema_version` and forces every KB in existence to rebuild — a MINOR of
 its own, and one that should not be tied to a release about templates. T8 is gated and may never

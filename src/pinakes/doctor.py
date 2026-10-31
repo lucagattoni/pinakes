@@ -201,8 +201,7 @@ def _environment() -> Iterator[Check]:
         None
         if can_load_extensions
         else (
-            "Only needed for the sqlite-vec tier (the template release); "
-            "the NumPy tier is unaffected."
+            "Only needed for the sqlite-vec tier, which is not built; the NumPy tier is unaffected."
         ),
     )
 
@@ -791,8 +790,8 @@ def _index(manifest: Manifest, sidecars: Mapping[Path, Sidecar]) -> Iterator[Che
                 "scale",
                 Status.WARN,
                 f"{counts['chunks']} chunks is past the {LARGE_CORPUS_CHUNKS} NumPy-tier threshold",
-                "Every tier is a linear scan; the sqlite-vec tier (the template release) "
-                "bounds memory, and splitting the KB is the documented answer past ~2M chunks.",
+                "Every tier is a linear scan; the sqlite-vec tier, which is not built, would "
+                "bound memory, and splitting the KB is the documented answer past ~2M chunks.",
             )
         else:
             yield Check("scale", Status.OK, f"{counts['chunks']} chunks, within the NumPy tier")

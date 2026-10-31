@@ -271,4 +271,4 @@ would close the live gap in §3, neither is assigned"* — was wrong twice over:
 not two, and it shipped in 0.19.0 and 0.20.0. **What §3 still describes is closed by none of
 them.** Case 1's missing PDF *comment* and case 2's budget keys both reach new KBs only, and
 adoption cannot help a KB whose recorded template version has no archived content to adopt
-against. **That is a baseline problem, and it is the one the template release still owns.**
+against. **That is a baseline problem, and no release owns it any more:** the template release closed at 0.22.0 without one for `notes@1.0`, whose content was never archived and will not be (`pnk upgrade` says so and exits `3`).

@@ -173,12 +173,11 @@ precision nobody measured.
   developer tools, so each published wheel was opened to confirm the `tools/` entries are **absent**
   from its 78 files, which is exactly what *"it ships in no wheel"* claims. Reading
   `pinakes/deep/suggest.py` out of the wheel was 0.26.0's check, whose subject did ship in it.
-- **Three of the four named releases have shipped; the fourth is a trigger rather than a queue.** The links release across
+- **All four named releases have shipped; what remains is a trigger rather than a queue.** The links release across
   [`0.5.0`](#050--links-you-can-walk--20260731-1127)–[`0.6.0`](#060--links-you-can-write--20260801-1051),
   the graph release in [`0.11.0`](#the-graph-release--shipped-0110). **The template release has
   shipped every increment it scheduled** — T1 to T5 and T7 across 0.17.0–0.21.0, cutting more than
-  once by D-9 — **and both of its gated increments are now answered**, so what is left under that
-  name is a trigger rather than a queue. **The deep release is complete as of
+  once by D-9 — **and both of its gated increments are now answered**, so what was left is a trigger rather than a queue — and since 20261030 (the user, before 19:40 UTC) it has a name of its own, *the `sqlite-vec` tier, staged*, the template release having left the table at its final cut, 0.22.0. **The deep release is complete as of
   [`0.26.0`](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)**: its plan
   landed 20260811 with all eight decisions taken the same day, two more followed at E3's boundary,
   and **all seven increments are built** — the free question surface, the estimator, the paid
@@ -346,7 +345,7 @@ number belongs to a release only when it is cut
 | **[0.32.7](#0327--a-price-table-that-had-run-out-and-review-tooling-that-says-who-looked--20261019-1133)** | 20261019 11:33 | a price table that had run out, and review tooling that says who looked | • `prices.toml` re-stamped after 44 days — `usd_per_eur` `1.1622` → `1.1253` (ECB fixing 2026-10-16), `claude-opus-5` unchanged at `5.00`/`25.00`; **this is the one thing here a user can observe**<br>• A committed review workflow returns `VACUOUS`/`PARTIAL`/`CLEAN`/`FINDINGS` — a dead lens is counted before anything is filtered<br>• A Stop hook refuses to end a turn over a fan-out that lost agents until the user has been told<br>• `.python-version` pins local development to 3.13 and CI pins its interpreters, after CPython 3.15.0 turned `main` red<br>• `CLAUDE.md` rebuilt from 473 lines to 148, as pointers rather than summaries<br>• none of it ships in a wheel; no `schema_version`, no rebuild |
 | **[0.32.8](#0328--a-fresh-install-that-resolved-newer-dependencies-than-the-lockfile-pins--20261029-1710)** | 20261029 17:10 | a fresh install that resolved newer dependencies than the lockfile pins | • `python-ulid` 4.1.0 reads lowercase ULIDs and `ids.py` relied on the library refusing them — **a fresh install accepted one**; it now requires the canonical spelling to equal its input<br>• `mcp` 2.3.0 keeps non-`ToolError` text on the server, so a mistyped `source_type` came back as `Error executing tool pinakes_search`; `ServeError` and `TraversalError` — and only those — now cross as a `ToolError`<br>• both were green on the lockfile (4.0.1, 2.0.0) and red on a fresh resolve<br>• the README Quickstart says where `uv add` runs; `prices.toml` re-stamped (`usd_per_eur` `1.1253` → `1.113`, `claude-opus-5` unchanged at `5.00`/`25.00`)<br>• the `CLAUDE.md` size guard and a test fix (a test that read the committed FX rate went red when a re-verified rate crossed a rounding step) are developer tooling and ship in no wheel; no `schema_version`, no rebuild |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
-| | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• The name stays here (D-9): T6 can still return |
+| | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• **Final cut 0.22.0** (the user, 20261030, before 19:40 UTC): T6 is now *the `sqlite-vec` tier, staged*, and the template release's name left the unbuilt-work table |
 
 ---
 
@@ -3327,12 +3326,10 @@ command does: [CLI § `pnk ask --deep`](CLI.md#pnk-ask---deep).
 [`0.20.1`](#0201--a-tier-that-is-not-built-stops-being-accepted--20260808-0641) and T7 as
 [`0.21.0`](#0210--a-template-says-what-it-installs--20260808-1015) — then **T8 closed as a no-go and
 T6 deferred behind a written trigger**, both in
-[`0.22.0`](#0220--eight-decisions-and-two-of-them-were-never-decisions--20260811-0826). Per D-9 the
-release cuts more than once, so the name stays here until the final cut — **which T6 could still
-be.** *(The heading above still says T1 because renaming it would move this section's anchor, which
+[`0.22.0`](#0220--eight-decisions-and-two-of-them-were-never-decisions--20260811-0826). Per D-9 the release cut more than once; **its final cut was ruled to be 0.22.0** (the user, 20261030, before 19:40 UTC), so the name left the unbuilt-work table and T6 is *the `sqlite-vec` tier, staged*. *(The heading above still says T1 because renaming it would move this section's anchor, which
 three links and the published site resolve.)*
 
-**What it adds:** the template ecosystem, `pnk upgrade`, and the `sqlite-vec` tier.
+**What it added:** the template ecosystem and `pnk upgrade`; the `sqlite-vec` tier was deferred and is now *the `sqlite-vec` tier, staged*.
 
 **The problem it solves:** a template change reaches **new KBs only**. The PDF-glob explanation
 shipped in [`0.2.2`](#022--the-silent-skip-named--20260728-1849) appears in no KB created before it
@@ -3370,8 +3367,7 @@ interpreter loads extensions). But performance is measured on an unlabelled ≥1
 the two tiers agree at 100k** — a pass would license the tier on half the evidence. Its trigger,
 written before the fact so it is a trigger and not a mood: **a KB that is actually queried crosses
 ~50 000 chunks *and* its search latency is a felt problem.** A corpus above the threshold is not
-enough; one exists and nobody searches it interactively. So the release name stays in the
-unbuilt-work table.
+enough; one exists and nobody searches it interactively. So the release name stayed in the unbuilt-work table — until the user, 20261030, before 19:40 UTC, ruled that 0.22.0 was the final cut.
 T4 in turn left two things behind: it **created** an open correction — `--apply` writes nothing on
 the *same manifest* outcome, so that KB can never record the new reference — and it found two of the
 plan's own test specifications unable to measure what they named. T5 found an eighth: the plan asks
