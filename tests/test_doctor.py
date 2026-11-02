@@ -625,6 +625,8 @@ def test_thresholds_fitted_under_another_provider_fail_and_name_both(kb: Path) -
     assert found.remedy is not None
     assert "python -m pinakes.calibrate <kb>" in found.remedy
     assert "between the two providers of one reranker" in found.remedy
+    # calibrate prints a table to paste, and a KB at this point already has one
+    assert "replace `[retrieval.confidence]` with the table it prints" in found.remedy
 
 
 def test_a_fitted_for_with_no_provider_fails_with_the_one_line_that_fixes_it(kb: Path) -> None:
@@ -640,6 +642,8 @@ def test_a_fitted_for_with_no_provider_fails_with_the_one_line_that_fixes_it(kb:
     assert 'fitted_for = "fake:fake-reranker@v1"' in found.remedy
     assert "If they were fitted under fake, set `fitted_for" in found.remedy
     assert "python -m pinakes.calibrate <kb>" in found.remedy
+    # calibrate prints a table to paste, and a KB at this point already has one
+    assert "replace that table with the one it prints" in found.remedy
 
 
 def test_a_stored_value_that_names_another_model_is_not_offered_the_one_line_fix(kb: Path) -> None:

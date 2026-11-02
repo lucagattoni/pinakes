@@ -258,11 +258,16 @@ max_tokens = {max_tokens}
 # text is the only difference between them.
 
 [retrieval.confidence]
-fitted_for = "fastembed:Xenova/ms-marco-MiniLM-L-6-v2"
+fitted_for = "{fitted_for}"
 low_below  = {low_below}
 high_above = {high_above}
 """
 
+
+FITTED_FOR = "fastembed:Xenova/ms-marco-MiniLM-L-6-v2"
+"""`ModelInfo.fingerprint()` of this manifest's own `[rerank]` block: the provider, then the model.
+A corpus built before the provider was recorded holds the model alone, which this Pinakes refuses
+(`unknown` on every question), and `main` says so when it leaves such a manifest alone."""
 
 CONFIDENCE_LOW_BELOW = -4.3841
 CONFIDENCE_HIGH_ABOVE = -0.5586
@@ -316,6 +321,7 @@ def write_manifest(out: Path, *, kb_id: str) -> bool:
             window=EMBEDDING_WINDOW_TOKENS,
             special=SPECIAL_TOKENS,
             reserve=PREFIX_RESERVE_TOKENS,
+            fitted_for=FITTED_FOR,
             low_below=CONFIDENCE_LOW_BELOW,
             high_above=CONFIDENCE_HIGH_ABOVE,
         ),
@@ -341,6 +347,28 @@ def stamped_max_tokens(out: Path) -> int | None:
         return None
     found: object = cast("dict[str, object]", chunking).get("max_tokens")
     return found if isinstance(found, int) and not isinstance(found, bool) else None
+
+
+def stamped_fitted_for(out: Path) -> str | None:
+    """`[retrieval.confidence] fitted_for` in the manifest already there, or `None` if it has none.
+
+    Read like `stamped_max_tokens`, for the same reason: this runs against whatever an earlier
+    release wrote, and the diagnostic must not become a gate. `None` covers an unreadable
+    manifest and an absent table alike.
+    """
+    path = out / "pinakes.toml"
+    try:
+        parsed = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError, UnicodeDecodeError):
+        return None
+    retrieval: object = parsed.get("retrieval")
+    if not isinstance(retrieval, dict):
+        return None
+    confidence: object = cast("dict[str, object]", retrieval).get("confidence")
+    if not isinstance(confidence, dict):
+        return None
+    found: object = cast("dict[str, object]", confidence).get("fitted_for")
+    return found if isinstance(found, str) else None
 
 
 def mint_sidecars(out: Path, titles: Mapping[int, str | None]) -> tuple[list[int], list[int]]:
@@ -518,6 +546,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(
                 f"  this build stamps {CHUNK_MAX_TOKENS}. To adopt it, build into a fresh --out: "
                 "editing max_tokens in place rechunks the KB and invalidates any captured baseline."
+            )
+        fitted = stamped_fitted_for(out)
+        if fitted != FITTED_FOR:
+            found = "is absent or could not be read" if fitted is None else f"is {fitted}"
+            print(
+                f"  its [retrieval.confidence] fitted_for {found}; this build stamps {FITTED_FOR}. "
+                "A value that is not the reranker's provider and model reads `unknown` on every "
+                "question: edit that line, or build into a fresh --out."
             )
     if missing:
         # Named, not just counted: a silent gap is how a corpus quietly becomes something other

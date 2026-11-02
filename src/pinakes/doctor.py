@@ -1131,7 +1131,8 @@ def _calibration(manifest: Manifest) -> Check:
             "on its provider's own scale, so these thresholds read `unknown` until it is named. "
             f'If they were fitted under {info.provider}, set `fitted_for = "{active}"` in '
             "`[retrieval.confidence]`; if you do not know, or it was the other provider, re-fit "
-            "with `python -m pinakes.calibrate <kb>`.",
+            "with `python -m pinakes.calibrate <kb>` and replace that table with the one it "
+            "prints (a second table of the same name is not valid TOML).",
         )
     return Check(
         "calibration",
@@ -1139,8 +1140,9 @@ def _calibration(manifest: Manifest) -> Check:
         f"fitted for {thresholds.fitted_for}, but {active} is configured",
         "Thresholds do not transfer between rerankers, nor between the two providers of one "
         "reranker: their scores sit on different scales. Re-fit with `python -m "
-        "pinakes.calibrate <kb>`, or confidence reports `unknown` rather than a number it cannot "
-        "justify.",
+        "pinakes.calibrate <kb>` and replace `[retrieval.confidence]` with the table it prints (a "
+        "second one is not valid TOML), or confidence reports `unknown` rather than a number it "
+        "cannot justify.",
     )
 
 

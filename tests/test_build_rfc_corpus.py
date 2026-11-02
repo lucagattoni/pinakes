@@ -348,6 +348,38 @@ def test_a_rerun_onto_an_older_manifest_names_the_chunking_it_did_not_change(
     assert "fresh --out" in proc.stdout
 
 
+def test_a_rerun_onto_a_manifest_without_the_provider_names_the_fitted_for_it_did_not_change(
+    tmp_path: Path,
+) -> None:
+    """The sibling of the `max_tokens` diagnostic above, for the one field the provider change
+    invalidated. A corpus built before `fitted_for` named the provider keeps `model` alone, and
+    this Pinakes reads `unknown` on every question of it, which is what the eval then scores as a
+    vacuous 0.0 `false_abstain`. A re-run does not touch the manifest, so it says so instead.
+    The control is the same re-run onto a manifest this build wrote: silent about `fitted_for`."""
+    cache = tmp_path / "cache"
+    cache_entry(cache, 99991, title="HTTP Semantics")
+    out = tmp_path / "kb"
+
+    build(out, cache, [99991])
+    assert "fitted_for" not in build(out, cache, [99991]).stdout
+
+    manifest = out / "pinakes.toml"
+    edited, count = re.subn(
+        r'^fitted_for = "fastembed:(.+)"$',
+        r'fitted_for = "\1"',
+        manifest.read_text(encoding="utf-8"),
+        count=1,
+        flags=re.MULTILINE,
+    )
+    assert count == 1, "the manifest no longer stamps fitted_for where this test expects it"
+    manifest.write_text(edited, encoding="utf-8")
+
+    proc = build(out, cache, [99991])
+
+    assert "fitted_for is Xenova/ms-marco-MiniLM-L-6-v2;" in proc.stdout
+    assert "this build stamps fastembed:Xenova/ms-marco-MiniLM-L-6-v2" in proc.stdout
+
+
 def test_it_refuses_to_build_inside_this_repository(tmp_path: Path) -> None:
     """This repository is public and commits no harvested content (`CLAUDE.md`). The refusal is
     older than this file; it is tested here because a corpus builder whose one safety rule is

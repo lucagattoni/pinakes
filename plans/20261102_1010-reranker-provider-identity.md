@@ -59,9 +59,9 @@ Scope: say what is true, today, without adding surface. No new check name, flag 
   docstring at `tests/test_eval.py:1752`, "real cross-encoders emit logits", which is true of
   fastembed only.
 
-## P2: the provider in the threshold identity (built; D-1, D-2 and D-4 ruled by the user, 20261102)
+## P2: the provider in the threshold identity (built; D-1, D-2 and D-4 ruled by the user, 20261102 19:58 UTC)
 
-**The user ruled on 20261102 ("Take my lean"): D-1 strict, D-4 the provider inside the `fitted_for`
+**The user ruled on 20261102 19:58 UTC ("Take my lean"): D-1 strict, D-4 the provider inside the `fitted_for`
 string (`provider:model@revision`), D-2 a MINOR release with a "Breaking" entry that names the
 one-line fix; D-3 is yes.** The table is kept as the record of what was weighed, and of what each
 cost, measured on `dee3f04`:

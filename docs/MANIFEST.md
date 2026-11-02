@@ -198,7 +198,7 @@ one. It is a module entry point, not a `pnk` subcommand.
 
 **Thresholds do not carry from one reranker provider to the other, and `fitted_for` says so.**
 Scores sit on the provider's own scale: sentence-transformers' lie between 0 and 1, fastembed's are
-raw logits (-9.28 to 10.31 over the same 2,556 questions, 20261031 20:40 UTC). So `fitted_for`
+raw logits (a question's top-1 score ran from -9.28 to 10.31 over the same 2,556 questions, 20261031 20:40 UTC). So `fitted_for`
 records the provider with the model, and thresholds fitted under one provider are refused under the
 other: `unknown`, never a number. Before the provider was recorded, the same `model@revision` matched
 under both, which for a manifest that names no revision (`pnk init` stamps none) meant that changing
@@ -213,7 +213,8 @@ no warning, and the same after the `pnk sync --rebuild` that an embedding-provid
 the other provider, so it is refused rather than guessed from the current `[rerank] provider`, the
 very thing that may have changed. `pnk doctor` reports a `FAIL` and prints the line that fixes it
 when you know which provider you fitted under: `fitted_for = "<provider>:<model>"`. If you do not
-know, re-fit.
+know, re-fit, and replace the `[retrieval.confidence]` table you have with the one it prints: a
+second table of that name is not valid TOML.
 
 ## `[rerank]`
 

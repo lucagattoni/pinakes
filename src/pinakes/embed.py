@@ -64,9 +64,9 @@ class ModelInfo:
 def fitted_for_mismatch(fitted_for: str, info: ModelInfo) -> str | None:
     """Why thresholds stamped `fitted_for` do not apply to the reranker `info`; `None` if they do.
 
-    **One reading for `search` and `doctor`**, because two copies of this comparison are free to
-    disagree about the same manifest: `search` reports `unknown` with this sentence, `doctor`
-    reports a `FAIL` with it.
+    **One verdict for `search` and `doctor`**, because two copies of this comparison are free to
+    disagree about the same manifest: `search` reports `unknown` with this sentence as its reason,
+    and `doctor` reports a `FAIL` whenever it is not `None`, with a detail and a remedy of its own.
 
     A value that is exactly `info.model_ref()` is the form `fitted_for` had before it recorded the
     provider. It is refused like any other mismatch (it cannot be told from thresholds fitted under

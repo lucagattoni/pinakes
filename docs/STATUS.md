@@ -133,7 +133,7 @@ same reason `pnk doctor` does, and exits `3`. **`--apply` (T4) closes the last p
 caveat**: it adopts the hunks that fit, after printing them, refusing the whole run if any
 conflicts. **It changes nothing for a KB recording `notes@1.0`** — there is still no baseline to
 apply against, so that KB gets `cannot compare` and exit `3` under `--apply` too. Adoption started
-working at the next template bump, which **E4 made**: `notes` is now `1.2`, so a KB stamped
+working at the next template bump, which **E4 made**: `notes` went to `1.2`, so a KB stamped
 `notes@1.1` has a real baseline and a real diff — the raised `[budget]` caps and the commented
 `[deep]` block. It is also the first bump where `--apply` has something a user might genuinely
 decline, since a cap is a value they may have chosen.

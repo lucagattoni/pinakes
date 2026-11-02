@@ -345,7 +345,9 @@ for you to paste and never writes one. Until you paste it, every result reports 
 **If you calibrated before `fitted_for` named the reranker's provider**, it holds `model@revision`
 with no provider, and it reads `unknown` too: `confidence_reason` says it "names no provider", and
 `pnk doctor` fails and prints the line to write when you know which provider you fitted under
-([MANIFEST](MANIFEST.md#retrievalconfidence)). If you do not know, re-fit.
+([MANIFEST](MANIFEST.md#retrievalconfidence)). If you do not know, re-fit, and replace the
+`[retrieval.confidence]` table you have with the one `python -m pinakes.calibrate` prints: a
+second table of that name is not valid TOML.
 
 The cost of the heuristic once calibrated is published rather than hidden: measured false-confidence
 on the demo corpus is **0.25** ([STATUS](STATUS.md#measured-numbers)).
@@ -785,9 +787,10 @@ run `pnk init` on a throwaway directory and diff its pinakes.toml against yours.
 stamped from notes@1.1 or later is compared automatically.
 ```
 
-**The archive list in that message grows with each template version**, which is why it now reads
-`notes@1.1, notes@1.2` where it once read `notes@1.1` alone (a build that archives `notes@1.3` lists
-that too) — the message enumerates what this build actually ships rather than naming a latest.
+**The archive list in that message grows with each template version**: it read `notes@1.1` alone
+while one version was archived, reads `notes@1.1, notes@1.2` in the 0.28.1 run above, and lists all
+three in a build that archives `notes@1.1`, `notes@1.2` and `notes@1.3` — the message enumerates
+what the build in your hands actually ships rather than naming a latest.
 
 That is not a fault in your KB and there is nothing to fix. A manifest records `notes@1.0` — a
 *name*. The content behind that name changed ten times while the name stayed the same, so no
@@ -836,7 +839,7 @@ them and `pnk links` traverses them: see [Following links between two KBs](#foll
 | Index refuses to open, naming `schema_version` | The index was built by a Pinakes with a different schema. `3` is current; every index built before the graph release is a `2` or lower | `pnk sync --rebuild`. There are no migrations, by design |
 | `this KB requires pinakes >=X (this build is Y)` | The KB was written by a newer Pinakes and declares a floor | Upgrade: `uv add --upgrade pinakes`. Downgrading a KB is not supported — nothing rewrites a manifest you own |
 | `unknown key(s)` in a KB you did not edit | The same cause, on a KB that declares **no** floor, so the refusal can only report the symptom | Upgrade Pinakes. Unknown keys stay a hard error by design ([MANIFEST](MANIFEST.md#requires_pinakes--the-compatibility-floor)) |
-| `confidence: unknown` on every search | No fitted `[retrieval.confidence]` | Expected. Calibrate against your own golden set ([above](#about-that-confidence-unknown)) |
+| `confidence: unknown` on every search | No fitted `[retrieval.confidence]`; or one whose `fitted_for` names no provider (fitted before the provider was recorded) or another reranker. `confidence_reason` says which | No table: expected, calibrate against your own golden set. A `fitted_for` that does not match: `pnk doctor` prints the line to write when the provider is known ([above](#about-that-confidence-unknown)) |
 | Sync exits non-zero listing documents | Per-document failures, isolated by design | `pnk doctor` lists them with the error; the rest of the corpus indexed fine |
 | A sync seems stuck behind a lock | A killed sync, or another machine | **A lock left by a dead process on this host is reclaimed automatically** — re-run `pnk sync` and it continues incrementally, re-embedding nothing. `--force-unlock` is for a lock held by *another* host, and is the destructive one: `pnk doctor` reports the holder and the time the lock was taken, never a computed age. **Check the process, not the clock** — every stamp Pinakes writes is now UTC, but a KB last synced by an older build carries local stamps, so a fresh lock can read as hours old beside them |
 | `` `vector_tier` must be one of 'auto', 'numpy' `` | The manifest says `vector_tier = "sqlite-vec"` — a tier that is **not built**. It used to be accepted and ignored; the KB now refuses to load on **every** command rather than pretend | `vector_tier = "auto"`. It changes nothing about how that KB behaves: it was already getting the NumPy tier ([MANIFEST](MANIFEST.md)) |

@@ -146,7 +146,8 @@ def corpus(tmp_path: Path) -> Iterator[Path]:
         # The planted value must be the fake's whole fingerprint, `fake:coarse-reranker@v1`. A value
         # that is not still passes the `before in text` check above and the replacement still
         # happens, but every question then reads `unknown` and nothing else here goes red: observed
-        # 20261102 with the provider left off, where the other eight tests in this file passed.
+        # by 20261102 20:34 UTC with the provider left off, where the other eight tests in this
+        # file passed.
         # `test_the_confidence_label_is_able_to_move` is the one that watches for it.
         (
             'fitted_for = "fastembed:BAAI/bge-reranker-base"',

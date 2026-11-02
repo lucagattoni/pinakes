@@ -2,10 +2,13 @@
 #
 #     python3 tools/mutate.py tools/batteries/src-pinakes-embed.toml
 #
-# **One file, and one subject: what `--offline` means for the model loaders.** The fastembed ones
-# first, then (second section) the sentence-transformers ones, which pass `local_files_only`
-# themselves (read from the wheel and the keyword's name, not run) and lacked only the typed
-# failure. Not `info()`, not the dim check in `load_backend`. A reader who greps this file and finds
+# **Two subjects, one file and one row outside it.** The first: what `--offline` means for the model
+# loaders. The fastembed ones first, then (second section) the sentence-transformers ones, which
+# pass `local_files_only` themselves (read from the wheel and the keyword's name, not run) and
+# lacked only the typed failure. The second, added 20261102 21:33 UTC: the provider in the threshold
+# identity: `ModelInfo.fingerprint`, `fitted_for_mismatch` and the `info()` of both built-in
+# rerankers, with one row on the notes template's commented `fitted_for`, which has to stay a value
+# that cannot match. Not the dim check in `load_backend`. A reader who greps this file and finds
 # every anchor resolving has learned nothing about the rest of `embed.py`.
 #
 # **The subject is a promise `pnk doctor` makes — "free, offline" — that the code broke.** Measured
@@ -31,7 +34,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 67
+mutants = 68
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20261030 · offline means the cache holds this model, or the load fails typed
@@ -792,7 +795,8 @@ new = '''    if fitted_for.lower() == active.lower():
 kills = "tests/test_embed.py::test_fitted_for_naming_anything_else_is_a_plain_mismatch"
 
 # The seam the fakes cannot see: the two built-in rerankers copy their provider from the manifest
-# section, and `fitted_for` now depends on that string. Every fake in the suite says `fake`.
+# section, and `fitted_for` now depends on that string. A fake reports whatever provider its test
+# hands it, so none of them asks the real classes whether they copy it.
 [[mutant]]
 name = "the fastembed reranker reports sentence-transformers as its provider"
 file = "src/pinakes/embed.py"
@@ -820,3 +824,14 @@ new = '''            provider=FASTEMBED,
             revision=self._section.revision,
             dim=0,  # a cross-encoder emits a score, not a vector'''
 kills = "tests/test_embed.py::test_the_sentence_transformers_reranker_reports_its_provider_in_its_fingerprint"
+
+# Found by the second review pass (the `adversarial-review` workflow, 20261102): the first draft of
+# notes@1.3 shipped a commented `fitted_for` that was the reranker's exact fingerprint. Uncommented
+# unedited it passed `fitted_for_mismatch`, so `pnk doctor` said OK beside thresholds nobody had
+# fitted. The base template's hint ended in `@<revision>`, which can never match.
+[[mutant]]
+name = "the template's commented fitted_for is the reranker's exact fingerprint, so an unedited uncomment passes the check"
+file = "src/pinakes/templates/notes/pinakes.toml.j2"
+old = '''# fitted_for = "{{ rerank_provider }}:{{ rerank_model }}@<revision>"'''
+new = '''# fitted_for = "{{ rerank_provider }}:{{ rerank_model }}"'''
+kills = "tests/test_init.py::test_the_commented_confidence_block_is_refused_when_uncommented_as_shipped"
