@@ -361,6 +361,7 @@ number belongs to a release only when it is cut
 | **[0.32.7](#0327--a-price-table-that-had-run-out-and-review-tooling-that-says-who-looked--20261019-1133)** | 20261019 11:33 | a price table that had run out, and review tooling that says who looked | • `prices.toml` re-stamped after 44 days — `usd_per_eur` `1.1622` → `1.1253` (ECB fixing 2026-10-16), `claude-opus-5` unchanged at `5.00`/`25.00`; **this is the one thing here a user can observe**<br>• A committed review workflow returns `VACUOUS`/`PARTIAL`/`CLEAN`/`FINDINGS` — a dead lens is counted before anything is filtered<br>• A Stop hook refuses to end a turn over a fan-out that lost agents until the user has been told<br>• `.python-version` pins local development to 3.13 and CI pins its interpreters, after CPython 3.15.0 turned `main` red<br>• `CLAUDE.md` rebuilt from 473 lines to 148, as pointers rather than summaries<br>• none of it ships in a wheel; no `schema_version`, no rebuild |
 | **[0.32.8](#0328--a-fresh-install-that-resolved-newer-dependencies-than-the-lockfile-pins--20261029-1710)** | 20261029 17:10 | a fresh install that resolved newer dependencies than the lockfile pins | • `python-ulid` 4.1.0 reads lowercase ULIDs and `ids.py` relied on the library refusing them — **a fresh install accepted one**; it now requires the canonical spelling to equal its input<br>• `mcp` 2.3.0 keeps non-`ToolError` text on the server, so a mistyped `source_type` came back as `Error executing tool pinakes_search`; `ServeError` and `TraversalError` — and only those — now cross as a `ToolError`<br>• both were green on the lockfile (4.0.1, 2.0.0) and red on a fresh resolve<br>• the README Quickstart says where `uv add` runs; `prices.toml` re-stamped (`usd_per_eur` `1.1253` → `1.113`, `claude-opus-5` unchanged at `5.00`/`25.00`)<br>• the `CLAUDE.md` size guard and a test fix (a test that read the committed FX rate went red when a re-verified rate crossed a rounding step) are developer tooling and ship in no wheel; no `schema_version`, no rebuild |
 | **[0.32.9](#0329--an-offline-load-that-stops-downloading-and-a-revision-that-is-called-a-label--20261102-1445)** | 20261102 14:45 | an offline load that stops downloading, and a revision that is called a label | • `--offline` on `fastembed` no longer downloads a missing model: `pnk doctor` printed *Fetching 5 files* and grew the cache from 67 MB to 1.1 GB while claiming to be offline; it now fails with exit 1 and fetches nothing<br>• `pnk doctor` no longer tells a `fastembed` user to pin a `revision` — Pinakes hands `fastembed` none — and reports one that is set as a label (`WARN`), not `OK`<br>• the manifest reference, the Guide and the CLI reference say what `revision` and `fitted_for` do not pin; thresholds fitted under one reranker provider are applied under the other — **documented, not fixed**<br>• the README Quickstart pins `--python 3.13`; two `doctor` remedies no longer call the unbuilt `sqlite-vec` tier "the template release"; `prices.toml` re-stamped (`usd_per_eur` `1.113` → `1.1172`, `claude-opus-5` unchanged at `5.00`/`25.00`)<br>• release notes now come from the tag's annotation — **this release is the first real run of that step in Actions**; two bytecode tests, the moved graph files, one agent instead of two roles, and the resumption of development are not in a wheel; no `schema_version`, no rebuild |
+| **[0.33.0](#0330--thresholds-that-name-their-rerankers-provider-and-a-drift-gate-that-counts-landings--20261102-2236)** | 20261102 22:36 | thresholds that name their reranker's provider, and a drift gate that counts landings | • `fitted_for` is now `provider:model@revision`: thresholds fitted on `sentence-transformers` (scores 0 to 1) were applied to `fastembed` (raw logits) whenever the model matched, and a `high` turned `low` with no warning<br>• **Breaking, deliberately in a minor:** a `fitted_for` without a provider reads `unknown`; `pnk doctor` fails and prints the one line that fixes it when you know the provider<br>• `python -m pinakes.calibrate` says to replace the `[retrieval.confidence]` table you have, not to add a second one<br>• `notes@1.3`: comments in the manifest and one prose line in the stamped README<br>• the template drift gate counts landings, after failing `main` on the first real one<br>• `prices.toml` re-stamped (`usd_per_eur` `1.1172` → `1.1216`, `claude-opus-5` unchanged at `5.00`/`25.00`); no `schema_version` bump and no rebuild |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• **Final cut 0.22.0** (the user, 20261030, before 19:40 UTC): T6 is now *the `sqlite-vec` tier, staged*, and the template release's name left the unbuilt-work table |
 
@@ -3124,6 +3125,50 @@ planner and a coder; and development has resumed after the pause of 20260904.
 **The wheel's changes** are `embed.py`, `doctor.py`, a docstring in `calibrate.py`, `__version__`, the
 price table and the README, which is the wheel's description on PyPI. **No `schema_version` bump and no
 rebuild.**
+
+## 0.33.0 — thresholds that name their reranker's provider, and a drift gate that counts landings · 20261102 22:36
+
+**One change reaches a user, and it breaks a manifest on purpose.** A reranker's scores sit on its provider's
+own scale: `sentence-transformers` passes a cross-encoder through a sigmoid, so they lie between 0 and 1, and
+`fastembed` returns raw logits (a question's top-1 score ran from -9.28 to 10.31 over 2,556 MultiHop-RAG
+questions, 20261031 20:40 UTC). `fitted_for` held `model@revision` alone, which is the same string under both
+providers for a manifest that names no revision, so changing `[rerank] provider` kept applying the other
+scale's thresholds: a `high` became `low` with no warning (20261031 23:43 UTC, and again after the `pnk sync
+--rebuild` an embedding-provider change requires, 20261102 09:08 UTC), and on the 1,140 answerable held-out
+questions the `sentence-transformers` thresholds labelled 26.7% of `fastembed`'s scores low-confidence where
+its own labelled 1.3%. `ModelInfo.fingerprint()` is now `provider:model@revision`, which `calibrate` prints and
+`search` and `doctor` compare by equality, never by parsing.
+
+**Who it breaks, and the one line that fixes it.** Every manifest that carries `[retrieval.confidence]` fitted
+before the provider was recorded: its `fitted_for` has no provider, so it is refused, not guessed (the only
+provider to guess from is the current `[rerank] provider`, which is what may have changed). `search` answers
+`unknown` with the two fingerprints in its reason, `pnk doctor` fails with exit 1 (once an index is built and
+the reranker loads offline) and prints `fitted_for = "<provider>:<model>"` for the user who knows which
+provider they fitted under; anyone else re-fits with `python -m pinakes.calibrate`, which now says to replace
+the `[retrieval.confidence]` table already in the manifest, where it said only "paste this" and a second table
+is not valid TOML. On this repository's demo KB the change on its unchanged manifest answered `unknown` for all
+74 golden questions (`confidence_coverage` 0.0 against 1.0); with the new form it agrees with the published
+0.32.9 on all 74, every field of every row. `unknown` has a price on the paid path too: `pnk ask --deep` runs
+to its caps instead of one synthesis call.
+
+**The template and the tools.** `notes` is `1.3`: comments in the manifest (the `fitted_for` hint is a
+placeholder ending in `@<revision>`, so uncommenting the block unedited fails `pnk doctor` rather than passing
+beside thresholds nobody fitted, which a review of the first draft found) and one prose line in the stamped
+README. `tools/build_rfc_corpus.py` stamps the provider and says when a re-run leaves an older manifest alone.
+**The drift gate failed `main` on this release's own first landing:** leg (vii) counted every commit
+`origin/main` could reach that touched an archive, so `notes@1.3`, added and corrected in review on one
+branch, was "edited after it shipped" the moment `tools/land.py` merged it (the other 15 jobs of that run
+passed). It now counts steps along `origin/main`'s first-parent chain, which is what it always called
+"landed", with a limit recorded in the gate's header. `prices.toml` is re-stamped at 20261102 22:36:
+`usd_per_eur` `1.1172` → `1.1216` (the ECB fixing of 2026-11-02, read twice from `api.frankfurter.dev`; the
+same source returns 2026-10-30 as the `1.1172` the file carried), so EUR figures for the same USD cost are
+about 0.4% lower, and `claude-opus-5` is unchanged at `5.00`/`25.00`, still listed as legacy.
+
+**Not run:** a provider switch at real size with thresholds fitted by `calibrate`; the real
+`sentence-transformers` reranker end to end (the repository's stand-ins and the `fastembed` path were run).
+**The wheel's changes** are `embed.py`, `doctor.py`, `search.py`, `calibrate.py`, docstrings in `manifest.py`
+and `template.py`, the `notes@1.3` template and its archive, `__version__` and the price table. **No
+`schema_version` bump and no rebuild.**
 
 # Part 5 · What is not built
 
