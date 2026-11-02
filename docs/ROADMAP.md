@@ -3142,7 +3142,7 @@ its own labelled 1.3%. `ModelInfo.fingerprint()` is now `provider:model@revision
 **Who it breaks, and the one line that fixes it.** Every manifest that carries `[retrieval.confidence]` fitted
 before the provider was recorded: its `fitted_for` has no provider, so it is refused, not guessed (the only
 provider to guess from is the current `[rerank] provider`, which is what may have changed). `search` answers
-`unknown` with the two fingerprints in its reason, `pnk doctor` fails with exit 1 (once an index is built and
+`unknown` with what the thresholds were fitted for and what is in use in its reason, `pnk doctor` fails with exit 1 (once an index is built and
 the reranker loads offline) and prints `fitted_for = "<provider>:<model>"` for the user who knows which
 provider they fitted under; anyone else re-fits with `python -m pinakes.calibrate`, which now says to replace
 the `[retrieval.confidence]` table already in the manifest, where it said only "paste this" and a second table
