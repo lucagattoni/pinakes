@@ -50,6 +50,18 @@ by construction, so "a version bumped with no content change" could never be det
     `git filter-repo` adds a second landed commit to an untouched archive directory. The remedy is
     that the failure names the directory and every commit, so a human can see it was not a content
     edit — not to weaken the leg.
+(e) **Leg (vii) counts landings by reading which parent was `main`'s old tip, and the graph does
+    not always say.** A landing the way `tools/land.py` makes one keeps `main`'s old tip as the
+    first parent, so a branch is one entry however many commits it carried. A `git pull`-style
+    merge (the *local* commit as first parent), pushed over a `main` that already carried two
+    commits on an archive, puts the whole origin side behind one merge commit: the count falls to
+    one and a `main` that was red goes green, with no fix. Found by a fresh reviewer's 31 history
+    shapes (20261102) and reproduced; no graph-only rule closes it, because that merge and a
+    `land.py` merge of an add-plus-fix branch differ only in which parent was the old tip. The
+    gate run *before* that push still reports `differs from origin/main`, so it bites only on a
+    push past a red local gate. Three further shapes behave as they did before the counting
+    changed: a revert of a revert leaves `main` red with the shipped bytes restored, a directory
+    move carries an edit inside it, and a withdrawn and re-added archive counts as new.
 """
 
 from __future__ import annotations
@@ -395,7 +407,8 @@ def commits_touching(repo: Path, path: Path, ref: str) -> list[str]:
     called three commits "an edit after it shipped". Along the first-parent chain the same landing
     is one entry, a later branch that edits the directory is a second, and a branch fast-forwarded
     onto `ref` (which `tools/land.py` never does) leaves no merge commit, so each of its commits
-    counts, the conservative direction.
+    counts. **That holds while `ref`'s first parent is the old tip of the branch it was landed on;**
+    a pull-style merge pushed over a red `main` breaks it, limit (e) in the module header.
 
     A relative pathspec is resolved against `cwd`, not against the caller's working directory, so
     passing one here matched nothing and the leg reported the strong mode having checked nothing.
