@@ -17,7 +17,7 @@ exclude = ["**/drafts/**"]
 provider = "{{ embedding_provider }}"
 model    = "{{ embedding_model }}"
 dim      = {{ embedding_dim }}
-# revision = "…"   # pin the HF commit sha once you are settled; `pnk doctor` reports the current one
+# revision = "…"   # an HF commit sha: honoured by sentence-transformers only, a label under fastembed
 
 [chunking]
 strategy   = "structural"
@@ -36,7 +36,10 @@ vector_tier           = "auto"
 # Thresholds are fitted against *your* golden set, not shipped with the template: numbers fitted on
 # someone else's corpus are not a calibration. Until then `pnk search` reports `confidence: unknown`,
 # which is the honest answer. See eval/questions.yaml to start one.
-# fitted_for = "{{ rerank_model }}@<revision>"
+# `python -m pinakes.calibrate <kb>` prints this block for you to paste. `fitted_for` names the
+# reranker's provider too, because its scores sit on the provider's own scale: thresholds fitted
+# under one provider are refused under the other. It ends in "@<revision>" only if [rerank] sets one.
+# fitted_for = "{{ rerank_provider }}:{{ rerank_model }}"
 # low_below  = 0.31
 # high_above = 0.62
 

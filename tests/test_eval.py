@@ -1709,11 +1709,11 @@ def test_calibration_fits_thresholds_and_prints_a_manifest_block(demo: Path) -> 
     finally:
         connection.close()
 
-    assert calibration.fitted_for == "overlap-reranker@v1"
+    assert calibration.fitted_for == "fake:overlap-reranker@v1"
     assert calibration.low_below <= calibration.high_above
     block = calibration.as_manifest_block()
     assert "[retrieval.confidence]" in block
-    assert 'fitted_for = "overlap-reranker@v1"' in block
+    assert 'fitted_for = "fake:overlap-reranker@v1"' in block
 
 
 def test_calibration_refuses_a_golden_set_with_no_unanswerable_questions(demo: Path) -> None:

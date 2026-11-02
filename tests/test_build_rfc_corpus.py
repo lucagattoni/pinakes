@@ -401,9 +401,10 @@ def test_the_manifest_stamps_confidence_thresholds_fitted_for_its_own_reranker(
     moved `confidence_coverage` from 0.0 to 1.0 and the two error rates from 0.0 to 0.0104 and
     0.1429.
 
-    `fitted_for` is asserted against the manifest's *own* reranker because cross-encoder scores are
-    raw logits on no common scale: thresholds fitted for one model are meaningless under another,
-    and nothing at runtime would say so.
+    `fitted_for` is asserted against the manifest's *own* reranker, provider and model, because
+    cross-encoder scores are raw logits on no common scale: thresholds fitted for one model, or for
+    the same model under the other provider, are meaningless under another. Before the provider
+    was recorded nothing at runtime said so; now the mismatch reads `unknown`.
     """
     cache = tmp_path / "cache"
     cache_entry(cache, 99991, title="HTTP Semantics")
@@ -413,7 +414,8 @@ def test_the_manifest_stamps_confidence_thresholds_fitted_for_its_own_reranker(
 
     manifest = dict(tomllib.loads((out / "pinakes.toml").read_text(encoding="utf-8")))
     confidence = section(section(manifest, "retrieval"), "confidence")
-    assert confidence["fitted_for"] == section(manifest, "rerank")["model"]
+    rerank = section(manifest, "rerank")
+    assert confidence["fitted_for"] == f"{rerank['provider']}:{rerank['model']}"
     assert float(cast(float, confidence["low_below"])) < float(
         cast(float, confidence["high_above"])
     )

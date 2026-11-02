@@ -110,7 +110,7 @@ pnk templates
 ```
 
 ```
-notes  1.2  Plain Markdown notes: the smallest useful knowledge base.
+notes  1.3  Plain Markdown notes: the smallest useful knowledge base.
 ```
 
 It takes no `--kb` — the answer is a property of the install, not of a KB. Once you have one,
@@ -118,7 +118,7 @@ It takes no `--kb` — the answer is a property of the install, not of a KB. Onc
 changed since.
 
 ```
-created /path/to/my-kb from notes@1.2
+created /path/to/my-kb from notes@1.3
   kb id: 01KYMJMH8ECH945D5056CJD72V  (permanent — never edit it)
 
 Next:
@@ -155,7 +155,7 @@ pnk init . --name "Team notes"
 ```
 
 ```
-created /path/to/team-notes from notes@1.2
+created /path/to/team-notes from notes@1.3
   kb id: 01KZ9ZEX1A4RYP0BSZFSSBATQG  (permanent — never edit it)
   left as they were: .gitignore, README.md
 
@@ -774,14 +774,14 @@ cannot compare: notes@1.0 is not in this build's archive
 
 Nothing is wrong with your KB and nothing needs changing. A manifest records a version
 string, never the content that version meant, and this build ships the content of notes@1.1,
-notes@1.2 — so there is no baseline to diff against, and there will not be a later one: an
+notes@1.2, notes@1.3 — so there is no baseline to diff against, and there will not be a later one: an
 unarchived version's content is gone, not pending. To see what moved, compare it by hand:
 run `pnk init` on a throwaway directory and diff its pinakes.toml against yours. A KB
 stamped from notes@1.1 or later is compared automatically.
 ```
 
 **The archive list in that message grows with each template version**, which is why it now reads
-`notes@1.1, notes@1.2` where it once read `notes@1.1` alone — the message enumerates what this
+`notes@1.1, notes@1.2, notes@1.3` where it once read `notes@1.1` alone — the message enumerates what this
 build actually ships rather than naming a latest.
 
 That is not a fault in your KB and there is nothing to fix. A manifest records `notes@1.0` — a

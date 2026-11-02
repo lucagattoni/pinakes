@@ -10,7 +10,8 @@ Three things here are load-bearing beyond "it returns results":
   confident nonsense. Queries refuse to run and instruct a rebuild (§4.4).
 * **Confidence is a calibrated heuristic or it is `unknown`.** Reranker scores are not comparable
   across queries, so thresholds are only meaningful for the reranker they were fitted against.
-  Absent block, or `fitted_for` naming a different model, means `unknown` — never a guess (§4.2).
+  Absent block, or `fitted_for` naming a different model or another provider of it (or none, as
+  before the provider was recorded), means `unknown` — never a guess (§4.2).
 * **Query-term coverage is a tiebreak, never a gate.** As a filter it would penalise exactly the
   paraphrase queries vector search exists to serve.
 """
@@ -24,7 +25,7 @@ from typing import Any
 import numpy as np
 
 from pinakes import store
-from pinakes.embed import EmbeddingBackend, Reranker
+from pinakes.embed import EmbeddingBackend, Reranker, fitted_for_mismatch
 from pinakes.errors import CoherenceError, ExtractionCoherenceError, IncompleteIndexError
 from pinakes.extract import fingerprint as extraction_fingerprint
 from pinakes.extract import is_paid_backend, registered_extractors
@@ -653,12 +654,9 @@ def confidence_of(
     if manifest.retrieval.rerank != "local" or reranker is None:
         return UNKNOWN, "thresholds are fitted on reranker scores, and reranking is off"
 
-    active = reranker.info().fingerprint()
-    if thresholds.fitted_for != active:
-        return (
-            UNKNOWN,
-            f"thresholds were fitted for {thresholds.fitted_for}, but {active} is in use",
-        )
+    mismatch = fitted_for_mismatch(thresholds.fitted_for, reranker.info())
+    if mismatch is not None:
+        return UNKNOWN, mismatch
 
     best = passages[0].rerank_score
     if best is None:  # pragma: no cover — reranking ran, so a score exists

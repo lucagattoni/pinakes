@@ -53,8 +53,9 @@ VOCABULARY = ("retrieval", "ranking", "sourdough")
 RERANK_SCORE = 0.5
 """What the fake reranker gives every passage. The thresholds below are placed around it."""
 
-FINGERPRINT = "fake-reranker@e1"
-"""`ModelInfo.fingerprint()` for the reranker registered here — what `fitted_for` must name.
+FINGERPRINT = "fake:fake-reranker@e1"
+"""`ModelInfo.fingerprint()` (`provider:model@revision`) for the reranker registered here — what
+`fitted_for` must name.
 
 Spelled out rather than computed from `info()`: a test that derives the expected value from the
 same object it checks would still pass if `fingerprint()` started returning the empty string, and

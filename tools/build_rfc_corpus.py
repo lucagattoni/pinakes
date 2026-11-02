@@ -258,7 +258,7 @@ max_tokens = {max_tokens}
 # text is the only difference between them.
 
 [retrieval.confidence]
-fitted_for = "Xenova/ms-marco-MiniLM-L-6-v2"
+fitted_for = "fastembed:Xenova/ms-marco-MiniLM-L-6-v2"
 low_below  = {low_below}
 high_above = {high_above}
 """

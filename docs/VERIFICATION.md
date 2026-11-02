@@ -695,6 +695,10 @@ which is the section above; this is what a module that *may* import a client the
 | **a fastembed model is never told to pin a revision** (Pinakes passes it none), and **a revision set under fastembed is reported as a label, not `OK`** — each model judged by its own revision **and its own provider**, so a KB with one model on each is not given the other's lines | P1 | `tests/test_doctor.py::test_an_unpinned_fastembed_model_is_not_told_to_pin_a_revision`, `tests/test_doctor.py::test_a_revision_set_under_fastembed_is_reported_as_a_label_and_not_ok`, `tests/test_doctor.py::test_each_fastembed_model_is_judged_by_its_own_revision`, `tests/test_doctor.py::test_each_section_is_judged_by_its_own_provider`, `tests/test_doctor.py::test_an_unset_fastembed_revision_stays_unset_whatever_the_backend_reports` |
 | the other providers keep the advice to pin an unpinned model and the `OK` for a pinned one — **including the production shape**, where a built-in backend reports no revision for an unpinned model and the remedy offers the placeholder | P1 | `tests/test_doctor.py::test_the_other_providers_keep_the_advice_to_pin_and_the_ok_for_a_pin`, `tests/test_doctor.py::test_a_built_in_backend_that_knows_no_revision_gets_the_placeholder`, `tests/test_doctor.py::test_a_pinned_sentence_transformers_model_is_ok`, `tests/test_doctor.py::test_a_fastembed_label_is_printed_from_the_manifest_and_not_the_backend`, `tests/test_doctor.py::test_a_pinned_sentence_transformers_line_is_printed_from_the_manifest_and_not_the_backend` |
 | the `model cache` line is reported once, after the loop over the two models, not once per model | P1 | `tests/test_doctor.py::test_the_model_cache_line_appears_once` |
+| **the same model under two reranker providers has two fingerprints, and thresholds stamped with one are refused under the other** — `unknown` in `search`, a `FAIL` in `doctor`, never a number (their scores sit on different scales) | P2 | `tests/test_embed.py::test_the_same_model_under_two_providers_has_two_fingerprints`, `tests/test_search.py::test_confidence_is_unknown_when_fitted_under_another_provider_of_the_same_model`, `tests/test_doctor.py::test_thresholds_fitted_under_another_provider_fail_and_name_both` |
+| a `fitted_for` with **no provider** (every manifest calibrated before the provider was recorded) is refused rather than guessed, named as such, and `doctor` prints the exact line that fixes it when the provider is known | P2 | `tests/test_embed.py::test_fitted_for_with_no_provider_is_refused_and_named_as_such`, `tests/test_search.py::test_confidence_is_unknown_when_fitted_for_names_no_provider`, `tests/test_doctor.py::test_a_fitted_for_with_no_provider_fails_with_the_one_line_that_fixes_it` |
+| the matching value is accepted, and anything that is not the exact fingerprint is a plain mismatch | P2 | `tests/test_embed.py::test_fitted_for_that_equals_the_fingerprint_matches`, `tests/test_embed.py::test_fitted_for_naming_anything_else_is_a_plain_mismatch`, `tests/test_doctor.py::test_thresholds_fitted_for_this_reranker_and_provider_are_ok` |
+| the reproducibility fixture's planted `fitted_for` still matches the fake reranker, so the confidence label can move — a mismatch would read `unknown` on every question while nothing else went red | P2 | `tests/test_search_reproducibility.py::test_the_confidence_label_is_able_to_move` |
 | the `[kb]` identity block never produces a hunk, so T4's `--apply` cannot refuse for everyone | T2 | `tests/test_doctor.py::test_the_kb_identity_block_never_produces_a_hunk` |
 | an unarchived recorded version says *cannot compare*, with a remedy naming the manual comparison | T2 | `tests/test_doctor.py::test_an_unarchived_recorded_version_says_it_cannot_compare_rather_than_ok` |
 | a version bump that leaves the manifest alone says *same manifest*, never `0 lines differ` | T2 | `tests/test_doctor.py::test_a_version_bump_that_leaves_the_manifest_alone_does_not_report_zero_lines` |
@@ -1499,20 +1503,21 @@ review pass and not by the corpus: every value the corpus holds was chosen by so
 for a hard character to escape, so all eleven are representable by construction. Escaping
 cannot make a value safe inside a literal string (`'...'` has no escapes at all), or bare into
 a key or a number, either. Every variable this build supplies lands in a basic string except
-two: `embedding_dim`, which is bare and is never user text, and `rerank_model`, which the
-shipped template *also* interpolates **inside a comment** (`pinakes.toml.j2:39`,
-`# fitted_for = "{{ rerank_model }}@<revision>"`, and identically in `_versions/1.1` and
-`1.2`) — a third position, and one this paragraph did not name until 20260903. TOML never
+three: `embedding_dim`, which is bare and is never user text, and `rerank_provider` and
+`rerank_model`, which the shipped template *also* interpolates **inside a comment**
+(`pinakes.toml.j2:42`, `# fitted_for = "{{ rerank_provider }}:{{ rerank_model }}"`; `_versions/1.1`
+and `1.2` carry `rerank_model` alone, at line 39) — a third position, and one this paragraph did
+not name until 20260903 (then `rerank_model` alone, at line 39). TOML never
 parses that line, so the quotes around it are decorative. It is safe there only because
 newline escaping stops a value reaching a live line, and that is a guarantee carried by a
 single entry of `_TOML_ESCAPES` — an entry that was itself unobservable until this pass,
 because the `\uXXXX` fallback shadows it. So the promise holds for this build, and holds
 because of what the shipped template happens to look like rather than because of anything
-asserted here. **The shipped template already interpolates outside a parsed string** — line 39 —
+asserted here. **The shipped template already interpolates outside a parsed string** — line 42 —
 so this is not a hypothetical about some third-party template: the case is in the wheel, and
 thirteen of the fourteen rows are blind to it. The fourteenth is not, and it does not cover
 the position either: it pins the one escape entry the position rests on, so that entry can no
-longer be deleted in silence. **The escape is what holds at line 39, and the fourteenth row
+longer be deleted in silence. **The escape is what holds at line 42, and the fourteenth row
 guards the escape rather than the position** — nothing here asserts that a value reaching
-line 39 is safe. Closing that region needs a check that does not go through the escaper, and is its own
+line 42 is safe. Closing that region needs a check that does not go through the escaper, and is its own
 increment.

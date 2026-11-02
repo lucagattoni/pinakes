@@ -387,6 +387,58 @@ def test_confidence_is_unknown_when_fitted_for_a_different_reranker(kb: Path) ->
         connection.close()
 
 
+def test_confidence_is_unknown_when_fitted_for_names_no_provider(kb: Path) -> None:
+    """`fitted_for` held `model@revision` alone until it recorded the provider. That value cannot
+    be told from thresholds fitted under the other provider, whose scores sit on another scale, so
+    it reads `unknown` and says why, rather than being accepted as it used to be."""
+    manifest = _with_confidence(
+        kb,
+        '\n[retrieval.confidence]\nfitted_for = "fake-reranker@v1"\nlow_below = 0.3\n'
+        "high_above = 0.7\n",
+    )
+    connection = connect(kb)
+    try:
+        result = search(
+            connection,
+            manifest,
+            "retrieval",
+            backend=KeywordBackend(),
+            reranker=ScriptedReranker({"Hybrid": 0.9}),
+        )
+        assert result.confidence == UNKNOWN
+        assert "names no provider" in result.confidence_reason
+        assert "fake:fake-reranker@v1 is in use" in result.confidence_reason
+    finally:
+        connection.close()
+
+
+def test_confidence_is_unknown_when_fitted_under_another_provider_of_the_same_model(
+    kb: Path,
+) -> None:
+    """The defect the provider was added to close: the same `model@revision`, another provider.
+    Thresholds fitted on sigmoid scores and applied to raw logits turned a `high` into a `low`."""
+    manifest = _with_confidence(
+        kb,
+        '\n[retrieval.confidence]\nfitted_for = "other:fake-reranker@v1"\nlow_below = 0.3\n'
+        "high_above = 0.7\n",
+    )
+    connection = connect(kb)
+    try:
+        result = search(
+            connection,
+            manifest,
+            "retrieval",
+            backend=KeywordBackend(),
+            reranker=ScriptedReranker({"Hybrid": 0.9}),
+        )
+        assert result.confidence == UNKNOWN
+        assert "fitted for other:fake-reranker@v1" in result.confidence_reason
+        assert "fake:fake-reranker@v1 is in use" in result.confidence_reason
+        assert "names no provider" not in result.confidence_reason
+    finally:
+        connection.close()
+
+
 @pytest.mark.parametrize(
     ("score", "expected"),
     [(0.1, LOW), (0.5, MEDIUM), (0.95, HIGH)],
@@ -394,7 +446,7 @@ def test_confidence_is_unknown_when_fitted_for_a_different_reranker(kb: Path) ->
 def test_calibrated_thresholds_produce_a_signal(kb: Path, score: float, expected: str) -> None:
     manifest = _with_confidence(
         kb,
-        '\n[retrieval.confidence]\nfitted_for = "fake-reranker@v1"\nlow_below = 0.3\n'
+        '\n[retrieval.confidence]\nfitted_for = "fake:fake-reranker@v1"\nlow_below = 0.3\n'
         "high_above = 0.7\n",
     )
     connection = connect(kb)

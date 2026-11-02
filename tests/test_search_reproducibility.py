@@ -143,7 +143,14 @@ def corpus(tmp_path: Path) -> Iterator[Path]:
         # use, so all 41 questions scored `unknown` and the confidence label — the outcome field
         # most sensitive to a tie, being one float against a threshold — could not move whatever
         # the ordering did.
-        ('fitted_for = "BAAI/bge-reranker-base"', 'fitted_for = "coarse-reranker@v1"'),
+        # The planted value must be the fake's whole fingerprint, `fake:coarse-reranker@v1`. A value
+        # that is not still passes the `before in text` check above and the replacement still
+        # happens, but every question then reads `unknown` and nothing here goes red. That is read,
+        # not observed: `test_the_confidence_label_is_able_to_move` watches for it.
+        (
+            'fitted_for = "fastembed:BAAI/bge-reranker-base"',
+            'fitted_for = "fake:coarse-reranker@v1"',
+        ),
         # ...and thresholds that sit *inside* the fake reranker's range. The committed pair was
         # fitted on a real cross-encoder's logits and lies below every score this one can emit, so
         # naming the reranker alone bought a label that was constantly `high` instead of constantly
@@ -171,6 +178,16 @@ def _evaluate(root: Path) -> list[Outcome]:
     finally:
         connection.close()
     return outcomes
+
+
+def test_the_confidence_label_is_able_to_move(corpus: Path) -> None:
+    """The fixture plants a `fitted_for` that must equal the fake reranker's fingerprint, and
+    thresholds inside its range. If the planted value stops matching (the fingerprint's format
+    changed, the fake was renamed), `confidence_of` answers `unknown` for every question and the
+    tests below keep passing while comparing a field that cannot move. This one goes red instead."""
+    labels = {outcome.confidence for outcome in _evaluate(corpus)}
+    assert "unknown" not in labels, "the planted `fitted_for` no longer names the fake reranker"
+    assert len(labels) > 1, f"the confidence label is constant ({labels}): it cannot witness a tie"
 
 
 def test_outcomes_are_identical_across_repeated_runs(corpus: Path) -> None:

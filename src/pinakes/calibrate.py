@@ -22,9 +22,10 @@ one (measured 20260725 15:35; the provider was not recorded, but a negative scor
 the sigmoid below). sentence-transformers passes a single-label cross-encoder through a sigmoid, so
 its scores lie between 0 and 1 (measured 20261031 20:40 UTC over the 2,556 base questions of
 MultiHop-RAG, in the pinakes-datasets-benchmark repository: 0.00 to 1.00, against -9.28 to 10.31
-for fastembed on the same questions). Nothing here assumes a 0-to-1 range. But `fitted_for` records
-neither the provider nor the scale, so thresholds fitted under one provider are accepted under the
-other when `model@revision` matches (`docs/MANIFEST.md`).
+for fastembed on the same questions). Nothing here assumes a 0-to-1 range. Which is why `fitted_for`
+records the provider with the model (`provider:model@revision`): thresholds fitted under one
+provider are refused under the other, and a value written before the provider was recorded reads
+`unknown` until it is named (`docs/MANIFEST.md`).
 """
 
 import sqlite3

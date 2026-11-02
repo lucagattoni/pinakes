@@ -24,6 +24,8 @@ from pinakes.embed import (
     SENTENCE_TRANSFORMERS,
     ModelInfo,
     Vectors,
+    fitted_for_mismatch,
+    fitted_for_names_no_provider,
     hf_cache_dir,
     load_backend,
     load_reranker,
@@ -199,8 +201,54 @@ def test_reranker_registry_rejects_unknown_providers() -> None:
 
 
 def test_model_fingerprint_matches_what_fitted_for_records() -> None:
-    assert ModelInfo("p", "m", "abc", 4, 512).fingerprint() == "m@abc"
-    assert ModelInfo("p", "m", None, 4, 512).fingerprint() == "m"
+    assert ModelInfo("p", "m", "abc", 4, 512).fingerprint() == "p:m@abc"
+    assert ModelInfo("p", "m", None, 4, 512).fingerprint() == "p:m"
+    # `model_ref` is the fingerprint without its provider: all that `fitted_for` held before it
+    # recorded one.
+    assert ModelInfo("p", "m", "abc", 4, 512).model_ref() == "m@abc"
+    assert ModelInfo("p", "m", None, 4, 512).model_ref() == "m"
+
+
+def test_the_same_model_under_two_providers_has_two_fingerprints() -> None:
+    """The point of recording the provider: `model@revision` is the same string under both, and
+    their reranker scores are not on the same scale (0 to 1 against raw logits)."""
+    st = ModelInfo(SENTENCE_TRANSFORMERS, "BAAI/bge-reranker-base", None, 0, 512)
+    fe = ModelInfo(FASTEMBED, "BAAI/bge-reranker-base", None, 0, 512)
+    assert st.model_ref() == fe.model_ref()
+    assert st.fingerprint() == "sentence-transformers:BAAI/bge-reranker-base"
+    assert fe.fingerprint() == "fastembed:BAAI/bge-reranker-base"
+    assert fitted_for_mismatch(st.fingerprint(), fe) is not None
+
+
+def test_fitted_for_that_equals_the_fingerprint_matches() -> None:
+    info = ModelInfo("fake", "m", "abc", 0, 512)
+    assert fitted_for_mismatch("fake:m@abc", info) is None
+    assert fitted_for_names_no_provider("fake:m@abc", info) is False
+
+
+@pytest.mark.parametrize("revision", ["abc", None])
+def test_fitted_for_with_no_provider_is_refused_and_named_as_such(revision: str | None) -> None:
+    """The form `fitted_for` had before it recorded the provider: refused, because it cannot be told
+    from thresholds fitted under the other provider, but named, because the remedy differs."""
+    info = ModelInfo("fake", "m", revision, 0, 512)
+    old = info.model_ref()
+    message = fitted_for_mismatch(old, info)
+    assert message is not None
+    assert old in message
+    assert "names no provider" in message
+    assert info.fingerprint() in message
+    assert fitted_for_names_no_provider(old, info) is True
+
+
+@pytest.mark.parametrize(
+    "fitted_for",
+    ["other:m@abc", "fake:other@abc", "fake:m@xyz", "fake:m", "m@xyz", "", "fake:m@abc "],
+)
+def test_fitted_for_naming_anything_else_is_a_plain_mismatch(fitted_for: str) -> None:
+    info = ModelInfo("fake", "m", "abc", 0, 512)
+    message = fitted_for_mismatch(fitted_for, info)
+    assert message == f"thresholds were fitted for {fitted_for}, but fake:m@abc is in use"
+    assert fitted_for_names_no_provider(fitted_for, info) is False
 
 
 def test_weights_resolve_under_the_shared_cache(

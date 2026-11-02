@@ -272,11 +272,11 @@ def _toml_basic(value: object) -> object:
     which TOML gives no escapes at all), nor bare into a key or a number — a template doing either
     with user text is broken in a way no escape function can repair. **This build's own template
     uses three positions, not two, and the third went unnoticed until 20260903**: every variable
-    lands inside a basic string except `embedding_dim`, which is bare, and `rerank_model`, which
-    `notes/pinakes.toml.j2:39` *also* interpolates inside a **comment** —
-    `# fitted_for = "{{ rerank_model }}@<revision>"`, where the quotes are decorative and TOML
-    parses nothing at all. A value is safe there only because a newline is escaped and so cannot
-    reach a live line: the guarantee at that position is carried by one entry of
+    lands inside a basic string except `embedding_dim`, which is bare, and `rerank_provider` and
+    `rerank_model`, which `notes/pinakes.toml.j2:42` *also* interpolates inside a **comment** —
+    `# fitted_for = "{{ rerank_provider }}:{{ rerank_model }}"`, where the quotes are decorative
+    and TOML parses nothing at all. A value is safe there only because a newline is escaped and so
+    cannot reach a live line: the guarantee at that position is carried by one entry of
     `_TOML_ESCAPES`, not by the position. A third-party template that arranges otherwise is
     outside what this can promise.
     """

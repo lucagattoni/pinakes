@@ -215,7 +215,11 @@ class ChunkingSection:
 
 @dataclass(frozen=True, slots=True)
 class ConfidenceSection:
-    """Thresholds fitted against a golden set, and the reranker they were fitted for (§4.2)."""
+    """Thresholds fitted against a golden set, and the reranker they were fitted for (§4.2).
+
+    `fitted_for` is `provider:model@revision` (`ModelInfo.fingerprint`). It is read here as an
+    opaque string and compared by equality in `embed.fitted_for_mismatch`; nothing parses it.
+    """
 
     fitted_for: str
     low_below: float
