@@ -17,18 +17,34 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20261029 18:57 UTC
+## Where things stand right now — 20261102 15:19 UTC
 
-- **67 releases in 96 days** — **counted from `CHANGELOG.md`, not incremented from this
+- **68 releases in 100 days** — **counted from `CHANGELOG.md`, not incremented from this
   sentence's own previous value**, which is exactly how it drifted: it read **58** while the file
   held **59**. Across the **109** commits that have carried this sentence it agreed with the
   CHANGELOG in **70** and was wrong in **39** — all but two of them low, because a release added one
-  to the printed number instead of counting the entries. The three registers still reconcile: **68** entries = **67** git tags + `0.30.3`, prepared and never tagged — **counted from
+  to the printed number instead of counting the entries. The three registers still reconcile: **69** entries = **68** git tags + `0.30.3`, prepared and never tagged — **counted from
   `git ls-remote --tags`, the CHANGELOG's headings and this file's table, never incremented**, which is
   the discipline this row exists to keep and the one it previously failed. **The index is a fourth
-  register and is deliberately lower — 60** — because seven tags predate publishing and `0.30.3`
+  register and is deliberately lower — 61** — because seven tags predate publishing and `0.30.3`
   reached no index.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725.
+  [`0.32.9`](#0329--an-offline-load-that-stops-downloading-and-a-revision-that-is-called-a-label--20261102-1445)
+  is **on PyPI as of 20261102 15:15** — landed 15:01:27, the tag held for `minimum-python` at this
+  commit (CPython 3.13.18, 2991 passed, 126 skipped, read in its job's log) and then for the user's
+  yes, so the hold ran 13 minutes 33 seconds and the wheel reached the index 20 seconds after the
+  Release run began. **Its control is two published wheels read side by side**, each hashing to the
+  value the index lists: 0.32.8's `prices.toml` carries `1.113` and 0.32.9's carries `1.1172`. Both
+  hold 78 entries and **no `tools/` entry**, and apart from the `dist-info` directory exactly five
+  files differ — `pinakes/__init__.py`, `pinakes/budget/prices.toml`, `pinakes/calibrate.py`,
+  `pinakes/doctor.py` and `pinakes/embed.py`, which is the list the release stated. **The fixes are
+  read in the published code**: 0.32.9's `doctor.py` carries *a label, not a pin* and no longer
+  carries *(the template release)*, both the other way round in 0.32.8's, and its `embed.py`
+  mentions `local_files_only` 6 times against 3. **The step the last release left unrun ran for
+  real:** `Restore the tag's annotation` passed in Actions, and the GitHub release's notes begin
+  with the tag's annotation, *“0.32.9 — an offline load that stops downloading, and a revision that
+  is called a label”*, where the 34 releases from 0.22.0 to 0.32.7 begin *“Merge branch '…'”*; those
+  were left as they were. **Not run:** real weights offline, which is what the offline fix is about.
   [`0.32.8`](#0328--a-fresh-install-that-resolved-newer-dependencies-than-the-lockfile-pins--20261029-1710)
   is **on PyPI as of 20261029 18:53** — landed 17:37:06, the tag held for `minimum-python` at this
   commit (CPython 3.13.18, 2844 passed, 126 skipped, read in its log) and then for the user's yes, so
@@ -45,8 +61,8 @@ precision nobody measured.
   `--notes-from-tag` was meant to carry — and so do all 34 older releases' (every one read), so it
   has been so since the workflow began creating releases. **Addressed after this release** by a
   step that restores the tag object right after the checkout, in front of the upload; 0.32.8's
-  notes were backfilled by hand and the 34 older ones were left. The step has not yet run in
-  Actions.
+  notes were backfilled by hand and the 34 older ones were left. The step ran in Actions for the
+  first time with 0.32.9, above.
   [`0.32.7`](#0327--a-price-table-that-had-run-out-and-review-tooling-that-says-who-looked--20261019-1133)
   is **on PyPI as of 20261019 11:44** — landed 11:38:05, on the index 6 minutes 32 seconds later, the tag
   held until `minimum-python` had completed at this commit and been read in its log (CPython 3.13.16,
@@ -150,7 +166,7 @@ precision nobody measured.
   rather than folded away, because the record was written honestly and deleting it would erase the
   gap instead of correcting it. The **seven** tags below `v0.2.2` are not a second exception: they
   predate publishing altogether, since `PUBLISH_TO_PYPI` became `true` on 20260728 17:15.
-- **Latest on PyPI: `0.32.8`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.32.9`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
