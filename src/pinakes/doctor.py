@@ -31,7 +31,7 @@ from pinakes.budget.ledger import resolve as ledger_resolve
 from pinakes.budget.prices import load_prices
 from pinakes.budget.summary import euros
 from pinakes.budget.window import in_window
-from pinakes.embed import hf_cache_dir, load_backend, load_reranker
+from pinakes.embed import FASTEMBED, ModelInfo, hf_cache_dir, load_backend, load_reranker
 from pinakes.errors import (
     CoherenceError,
     ExtractionCoherenceError,
@@ -68,7 +68,7 @@ from pinakes.linkscan import (
     why_unresolvable,
 )
 from pinakes.lock import LOCK_NAME, read_holder
-from pinakes.manifest import Manifest
+from pinakes.manifest import EmbeddingSection, Manifest, RerankSection
 from pinakes.paths import is_directory, is_regular_file, unreachable_through_links
 from pinakes.search import check_coherence
 from pinakes.sidecar import (
@@ -333,19 +333,63 @@ def _backends(manifest: Manifest) -> Iterator[Check]:
             yield Check(label, Status.FAIL, message, remedy)
             continue
 
-        detail = f"{info.model} ({info.provider})"
+        yield _revision_check(label, section, info)
+
+    yield Check("model cache", Status.OK, f"weights resolve under {hf_cache_dir()}")
+
+
+def _revision_check(
+    label: str, section: EmbeddingSection | RerankSection, info: ModelInfo
+) -> Check:
+    """The model's line: what loaded, and whether its `revision` decides which files.
+
+    `sentence-transformers` is given the revision. **fastembed is not**: `embed.py` builds it from a
+    model name and a cache directory (plus `local_files_only` offline), never a revision, so under
+    it the manifest's revision selects no file. It is a label, which the index (embedding) or
+    `fitted_for` (reranker) records and later compares with itself. Advising a fastembed user to pin
+    one would be advice that cannot work, and reporting a revision they set as `OK` would call a
+    label a pin.
+    """
+    detail = f"{info.model} ({info.provider})"
+    if section.provider != FASTEMBED:
         if section.revision is None:
-            yield Check(
+            return Check(
                 label,
                 Status.WARN,
                 f"{detail}, revision unpinned",
                 f"Pin it in the manifest to make rebuilds reproducible: revision = "
                 f'"{info.revision or "<hf commit sha>"}".',
             )
-        else:
-            yield Check(label, Status.OK, f"{detail}@{section.revision}")
+        return Check(label, Status.OK, f"{detail}@{section.revision}")
 
-    yield Check("model cache", Status.OK, f"weights resolve under {hf_cache_dir()}")
+    table = "[embedding]" if label == "embedding" else "[rerank]"
+    switch = (
+        "For weights pinned to a commit, set "
+        f'`provider = "sentence-transformers"` in {table} (it needs the `[st]` extra, and a '
+        "`revision` there must be a commit of the model's own repository)"
+    )
+    if label == "embedding":
+        switch += ", then run `pnk sync --rebuild`."
+        records = "the index records it, so setting or changing it asks for a rebuild"
+    else:
+        switch += "; thresholds fitted under another provider must then be re-fitted."
+        records = (
+            "any fitted thresholds record it in `fitted_for`, so changing or removing it makes "
+            "them read `unknown`"
+        )
+    if section.revision is None:
+        return Check(
+            label,
+            Status.WARN,
+            f"{detail}, files not pinned (Pinakes passes fastembed no revision)",
+            switch,
+        )
+    return Check(
+        label,
+        Status.WARN,
+        f"{detail}@{section.revision}, a label, not a pin (Pinakes passes fastembed no revision)",
+        f"It selects no file, but {records}. {switch}",
+    )
 
 
 def _could_match_pdf(include: Sequence[str]) -> bool:

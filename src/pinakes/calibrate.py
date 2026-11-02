@@ -16,9 +16,15 @@ rate it reports is partly a measurement of the fit. A held-out split is the corr
 larger question set than v0.1 ships. Until then, treat calibration as a floor on quality, not a
 measurement of it.
 
-Real reranker scores are raw logits, not probabilities: `BAAI/bge-reranker-base` returned about
--0.28 for a relevant passage and -7.85 for an irrelevant one (measured 20260725 15:35). Nothing
-assumes a 0-to-1 range.
+Reranker scores sit on their provider's own scale. fastembed returns raw logits, not probabilities:
+`BAAI/bge-reranker-base` returned about -0.28 for a relevant passage and -7.85 for an irrelevant
+one (measured 20260725 15:35; the provider was not recorded, but a negative score cannot come from
+the sigmoid below). sentence-transformers passes a single-label cross-encoder through a sigmoid, so
+its scores lie between 0 and 1 (measured 20261031 20:40 UTC over the 2,556 base questions of
+MultiHop-RAG, in the pinakes-datasets-benchmark repository: 0.00 to 1.00, against -9.28 to 10.31
+for fastembed on the same questions). Nothing here assumes a 0-to-1 range. But `fitted_for` records
+neither the provider nor the scale, so thresholds fitted under one provider are accepted under the
+other when `model@revision` matches (`docs/MANIFEST.md`).
 """
 
 import sqlite3

@@ -79,7 +79,7 @@ uv add "pinakes[light] @ git+https://github.com/lucagattoni/pinakes"
 |---|---|---|
 | *(none)* | — | Parsing, FTS5, storage, MCP, CLI. **Cannot embed** — a supported state, not a broken one |
 | `[st]` | `sentence-transformers` (~2 GB, torch) | Default backend; widest model choice |
-| `[light]` | `fastembed` (~100 MB, ONNX) | Same default models, no torch |
+| `[light]` | `fastembed` (~100 MB, ONNX) | Same default model ids (not the same files: [MANIFEST](MANIFEST.md#embedding)), no torch |
 | `[pdf]` | `pypdfium2` | Free PDF text extraction |
 | `[claude]` | Anthropic SDK — **requires `[pdf]`** | The opt-in paid extractor ([shipped in 0.3.0](STATUS.md)) |
 
@@ -229,7 +229,8 @@ provider = "fastembed"                 # this one too
 model    = "BAAI/bge-reranker-base"
 ```
 
-The model **ids are identical on both backends**, so only `provider` changes. Skip this and the
+The model **ids are identical on both backends**, so only `provider` changes in the manifest (the
+files behind an id are not the same: [MANIFEST](MANIFEST.md#embedding)). Skip this and the
 first sync stops — but on a `[light]` install the error is not the core-only one above. Because
 `fastembed` *is* installed, it names the alternative and the edit rather than an install:
 

@@ -103,10 +103,30 @@ defaulted.
 | `provider` | ✅ | `sentence-transformers` or `fastembed`. `init` always stamps the former ([GUIDE](GUIDE.md#choosing-a-backend)) |
 | `model` | ✅ | e.g. `BAAI/bge-small-en-v1.5`. **The default model ids are identical on both providers** |
 | `dim` | ✅ | Must match the model's real width, or it is a hard error at sync |
-| `revision` | | HF commit sha. Pin it once settled; the index refuses to load on a mismatch |
+| `revision` | | HF commit sha. Pin it once settled; the index refuses to load on a mismatch. **Honoured by `sentence-transformers` only** (below) |
 
-Changing any of these invalidates the index: queries refuse to run and name the remedy. Rebuilding
-is free, so this is a stop rather than a cost.
+Changing `provider`, `model` or `dim`, or setting or changing a `revision`, invalidates the index:
+queries refuse to run and name the remedy. **Removing a `revision` does not**: the index expects one
+only while the manifest names one. Rebuilding is free, so this is a stop rather than a cost.
+
+**`revision` selects files under `sentence-transformers` and under nothing else.** Pinakes passes
+the revision to sentence-transformers and none to fastembed (`embed.py` builds a fastembed model from
+a model name and a cache directory, plus `local_files_only` offline, never a revision). Asked for the
+oldest of 31 commits of the repository it reads, fastembed 0.9.1 raised nothing and loaded the
+newest (measured 20261031 23:44 UTC). Under fastembed a `revision` is therefore a label: the index
+records it and, where thresholds are fitted, `fitted_for` contains it, and Pinakes compares each with
+the manifest, but it selects no file. "Refuses to load on a mismatch" compares the manifest with the
+manifest as it stood at build time, never with the files that loaded. **`pnk doctor` says so on
+`main` and in no published release yet:** up to 0.32.8 it told a fastembed user to pin a revision.
+For weights pinned to a commit, use `sentence-transformers`.
+
+**The default model ids are identical on both providers; the files are not.** fastembed loads its
+own ONNX export. For `BAAI/bge-small-en-v1.5` that is a float16, operator-fused export from another
+Hub repository (`Qdrant/bge-small-en-v1.5-onnx-Q`: 149 float16 tensors and no quantization
+operators, read with the `onnx` package, 20261031 16:23 UTC), where sentence-transformers loads the
+float32 BAAI weights. On one benchmark the two ranked alike (the same articles in the same order in
+2,424 of 2,556 searches: `pinakes-datasets-benchmark` at commit `deb2329`), so this is a fact to
+know, not a defect.
 
 ## `[extraction]`
 
@@ -168,12 +188,22 @@ against someone else's corpus are not a calibration. While absent, every result 
 
 | Key | Notes |
 |---|---|
-| `fitted_for` | `model@revision` of the **reranker** the thresholds were fitted against. On mismatch, `unknown` is reported rather than a wrong number |
+| `fitted_for` | `model@revision` of the **reranker** the thresholds were fitted against. On mismatch, `unknown` is reported rather than a wrong number. **It names neither the provider nor the scale of the scores** (below) |
 | `low_below` | Below this, low confidence |
 | `high_above` | Above this, high confidence |
 
 Fit them with `python -m pinakes.calibrate <kb>`, which *prints* a block to paste and never writes
 one. It is a module entry point, not a `pnk` subcommand.
+
+**Thresholds do not carry from one reranker provider to the other, and `fitted_for` cannot tell.**
+Scores sit on the provider's own scale: sentence-transformers' lie between 0 and 1, fastembed's are
+raw logits (-9.28 to 10.31 over the same 2,556 questions, 20261031 20:40 UTC). Changing
+`[rerank] provider` in a manifest that carries thresholds fitted under the other keeps applying them
+whenever `model@revision` still matches, which it does for any manifest that names no revision
+(`pnk init` stamps none). Measured 20261031 23:43 UTC on a small knowledge base: a result that was
+`high` under sentence-transformers was `low` under fastembed, with no warning, and the same after
+the `pnk sync --rebuild` that an embedding-provider change requires (20261102 09:08 UTC).
+**Re-fit with `python -m pinakes.calibrate` after changing the reranker's provider.**
 
 ## `[rerank]`
 
@@ -183,7 +213,7 @@ Consumed only when `[retrieval] rerank = "local"`. Mirrors `[embedding]`.
 |---|---|---|
 | `provider` | `sentence-transformers` | `sentence-transformers` or `fastembed` — set this too on a `[light]` install |
 | `model` | `BAAI/bge-reranker-base` | ~1.04 GB of weights. Same id on both providers |
-| `revision` | | HF commit sha |
+| `revision` | | HF commit sha. Honoured by `sentence-transformers` only; under fastembed it selects no file, and is a label that goes into `fitted_for` where thresholds are fitted ([`[embedding]`](#embedding)) |
 
 ## `[budget]`
 
