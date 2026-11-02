@@ -229,11 +229,25 @@ def clamp_mutant(**overrides: str | list[str]) -> dict[str, str | list[str]]:
     return mutant
 
 
+def bytecode_environment() -> dict[str, str]:
+    """This process's environment, minus the one variable that stops a scratch run leaving a `.pyc`.
+
+    `PYTHONDONTWRITEBYTECODE` makes the interpreter write none — Claude Code's shell exports it, and
+    many container images do. The bytecode tests need a `.pyc` to exist, so a run meant to leave one
+    is not given it, instead of the suite going red on *"nothing warmed the cache"* in whichever
+    shell happens to export it. `PYTHONPYCACHEPREFIX` is deliberately **not** stripped: the tool
+    refuses it by design (`tools/mutate.py`), so a shell that exports it fails most of this file
+    whatever these three runs are given, and hiding it here would only make two tests look green.
+    """
+    return {name: value for name, value in os.environ.items() if name != "PYTHONDONTWRITEBYTECODE"}
+
+
 def warm(root: Path, selector: str = "tests/test_pkg.py") -> None:
     """Run the scratch suite once, so a `.pyc` for `pkg/mod.py` exists."""
     _ = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", selector],
         cwd=root,
+        env=bytecode_environment(),
         capture_output=True,
         check=False,
     )
@@ -842,6 +856,23 @@ def pyc_of(source: Path) -> Path:
     return matches[0]
 
 
+def test_the_scratch_run_leaves_a_pyc_whatever_the_shell_exports(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pins `bytecode_environment()` where CI can see it.
+
+    CI exports no `PYTHONDONTWRITEBYTECODE`, so the two tests below passed there whether or not the
+    helper did anything; only a shell that sets it caught a helper that had stopped working. This
+    sets it here instead of waiting for such a shell.
+    """
+    monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")
+    assert "PYTHONDONTWRITEBYTECODE" not in bytecode_environment()
+    assert os.environ["PYTHONDONTWRITEBYTECODE"] == "1", "the helper must not edit this process"
+    warm(repo)
+    source = repo / "pkg" / "mod.py"
+    assert tool_module().pycache_entries(source), "the scratch run left no .pyc to find"
+
+
 def test_the_bytecode_cache_is_cleared_after_the_write_and_after_the_restore(repo: Path) -> None:
     """The invalidation, pinned directly rather than through its consequence.
 
@@ -894,6 +925,7 @@ def test_a_stale_pyc_really_does_report_a_same_length_mutant_as_survived(repo: P
     stale = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests/test_pkg.py"],
         cwd=repo,
+        env=bytecode_environment(),
         capture_output=True,
         text=True,
         check=False,
@@ -907,6 +939,7 @@ def test_a_stale_pyc_really_does_report_a_same_length_mutant_as_survived(repo: P
     fresh = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests/test_pkg.py"],
         cwd=repo,
+        env=bytecode_environment(),
         capture_output=True,
         text=True,
         check=False,
