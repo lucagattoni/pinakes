@@ -10,6 +10,12 @@ user lifted the pause for B0, a measurement, and B1, a checklist document, and f
 B2, B3 and B4 start only when the user lifts it for them (§ 9). **Do not pick one up because this
 file exists.**
 
+> **Update 20261102 11:49 UTC.** The user lifted the general pause for everything ("Pinakes
+> development officially resume from now") and named no row. The holds above on B2, B3 and B4 are the
+> user's own ruling of 20261019 (§ 5.2: *"Keep B2, B3 and B4 paused until a real run of the checklist
+> says what hurt"*), not the general pause, and nothing the user has said since releases them. They
+> stay held until the user releases them by name.
+
 ## 1. The instruction, and what it left open
 
 Row 21 of [`plans/20260901_1148-clear-the-user-facing-list.md`](20260901_1148-clear-the-user-facing-list.md)
