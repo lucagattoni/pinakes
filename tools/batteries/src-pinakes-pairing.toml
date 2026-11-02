@@ -33,7 +33,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 85
+mutants = 88
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -1435,3 +1435,31 @@ old = '''        Status.FAIL,
 new = '''        Status.WARN,
         f"fitted for {thresholds.fitted_for}, but {active} is configured",'''
 kills = "tests/test_doctor.py::test_thresholds_fitted_under_another_provider_fail_and_name_both"
+
+# Three more from the same fresh reviewer's own mutants. Each survived this battery's first four
+# rows and the tests behind them, and each is a way the *remedy* can be wrong while a status check
+# still passes.
+[[mutant]]
+name = "an unloadable reranker no longer leaves a WARN: doctor says OK about thresholds it could not judge"
+file = "src/pinakes/doctor.py"
+old = '''        return Check("calibration", Status.WARN, f"fitted for {thresholds.fitted_for}", None)'''
+new = '''        return Check("calibration", Status.OK, f"fitted for {thresholds.fitted_for}", None)'''
+kills = "tests/test_doctor.py::test_an_unloadable_reranker_leaves_the_calibration_a_warning_that_judges_nothing"
+
+[[mutant]]
+name = "the remedy names the model where it says which provider the thresholds were fitted under"
+file = "src/pinakes/doctor.py"
+# The old assertion matched a prefix: `fitted under fake` is also the start of `fitted under
+# fake-reranker`, so the wrong word passed. The test now ends the match at the comma.
+old = '''If they were fitted under {info.provider}, set'''
+new = '''If they were fitted under {info.model}, set'''
+kills = "tests/test_doctor.py::test_a_fitted_for_with_no_provider_fails_with_the_one_line_that_fixes_it"
+
+[[mutant]]
+name = "doctor decides 'no provider' by the absence of a colon, so a value naming another model gets the one-line fix"
+file = "src/pinakes/doctor.py"
+# The one-line remedy is only right for the pre-provider form of THIS reranker. A value with no
+# colon that names a different model would be told to write the active fingerprint: a wrong line.
+old = '''    if fitted_for_names_no_provider(thresholds.fitted_for, info):'''
+new = '''    if ":" not in thresholds.fitted_for:'''
+kills = "tests/test_doctor.py::test_a_stored_value_that_names_another_model_is_not_offered_the_one_line_fix"

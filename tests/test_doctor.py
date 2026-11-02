@@ -16,6 +16,7 @@ import sqlite3
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from types import ModuleType
+from typing import NoReturn
 
 import numpy as np
 import pytest
@@ -32,7 +33,7 @@ from pinakes.embed import (
     register_embedding_backend,
     register_reranker,
 )
-from pinakes.errors import TemplateError
+from pinakes.errors import EmbeddingError, TemplateError
 from pinakes.ids import mint_doc_id, mint_kb_id
 from pinakes.init import init
 from pinakes.manifest import EmbeddingSection, RerankSection, load
@@ -637,8 +638,38 @@ def test_a_fitted_for_with_no_provider_fails_with_the_one_line_that_fixes_it(kb:
     )
     assert found.remedy is not None
     assert 'fitted_for = "fake:fake-reranker@v1"' in found.remedy
-    assert "If they were fitted under fake" in found.remedy
+    assert "If they were fitted under fake, set `fitted_for" in found.remedy
     assert "python -m pinakes.calibrate <kb>" in found.remedy
+
+
+def test_a_stored_value_that_names_another_model_is_not_offered_the_one_line_fix(kb: Path) -> None:
+    """The one-line remedy is for the pre-provider form of *this* reranker: `model@revision` that
+    equals the configured one. A value naming another model, with or without a colon, is a plain
+    mismatch, and telling it to write the active fingerprint would hand the user a wrong line."""
+    found = _calibration_check_with(kb, "someone-else@v9")
+    assert found.status is Status.FAIL
+    assert found.detail == "fitted for someone-else@v9, but fake:fake-reranker@v1 is configured"
+    assert found.remedy is not None
+    assert "names no provider" not in found.detail
+    assert "set `fitted_for" not in found.remedy
+    assert "between the two providers of one reranker" in found.remedy
+
+
+def test_an_unloadable_reranker_leaves_the_calibration_a_warning_that_judges_nothing(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When the reranker cannot be loaded offline there is no fingerprint to compare with, so the
+    check says what the thresholds claim and decides nothing: a WARN, with no remedy, even for a
+    value that would FAIL if the reranker could be read."""
+
+    def cannot_load(section: RerankSection, *, offline: bool) -> NoReturn:
+        raise EmbeddingError("the reranker is not cached", remedy="Run once without --offline.")
+
+    monkeypatch.setattr("pinakes.doctor.load_reranker", cannot_load)
+    found = _calibration_check_with(kb, "fake-reranker@v1")
+    assert found.status is Status.WARN
+    assert found.detail == "fitted for fake-reranker@v1"
+    assert found.remedy is None
 
 
 def test_an_unpinned_revision_is_a_warning_with_the_value_to_pin(kb: Path) -> None:

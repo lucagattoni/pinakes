@@ -31,7 +31,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 64
+mutants = 65
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20261030 · offline means the cache holds this model, or the load fails typed
@@ -777,4 +777,16 @@ name = "the plain mismatch loses the value that was stored"
 file = "src/pinakes/embed.py"
 old = '''    return f"thresholds were fitted for {fitted_for}, but {active} is in use"'''
 new = '''    return f"thresholds were fitted for another reranker, but {active} is in use"'''
+kills = "tests/test_embed.py::test_fitted_for_naming_anything_else_is_a_plain_mismatch"
+
+# A fresh reviewer's own mutants found the next row survived this battery's first nine, which
+# were all killed. Written after the test that kills it, with the survivor named so the row's
+# provenance is not mistaken for the author's.
+[[mutant]]
+name = "the comparison folds case, so a provider or a model that differs only in case is accepted"
+file = "src/pinakes/embed.py"
+old = '''    if fitted_for == active:
+        return None'''
+new = '''    if fitted_for.lower() == active.lower():
+        return None'''
 kills = "tests/test_embed.py::test_fitted_for_naming_anything_else_is_a_plain_mismatch"

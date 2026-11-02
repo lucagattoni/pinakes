@@ -342,6 +342,11 @@ python -m pinakes.calibrate my-kb
 It is a module entry point, not a `pnk` subcommand. It *prints* a `[retrieval.confidence]` block
 for you to paste and never writes one. Until you paste it, every result reports `unknown`.
 
+**If you calibrated before `fitted_for` named the reranker's provider**, it holds `model@revision`
+with no provider, and it reads `unknown` too: `confidence_reason` says it "names no provider", and
+`pnk doctor` fails and prints the line to write when you know which provider you fitted under
+([MANIFEST](MANIFEST.md#retrievalconfidence)). If you do not know, re-fit.
+
 The cost of the heuristic once calibrated is published rather than hidden: measured false-confidence
 on the demo corpus is **0.25** ([STATUS](STATUS.md#measured-numbers)).
 
@@ -774,15 +779,15 @@ cannot compare: notes@1.0 is not in this build's archive
 
 Nothing is wrong with your KB and nothing needs changing. A manifest records a version
 string, never the content that version meant, and this build ships the content of notes@1.1,
-notes@1.2, notes@1.3 — so there is no baseline to diff against, and there will not be a later one: an
+notes@1.2 — so there is no baseline to diff against, and there will not be a later one: an
 unarchived version's content is gone, not pending. To see what moved, compare it by hand:
 run `pnk init` on a throwaway directory and diff its pinakes.toml against yours. A KB
 stamped from notes@1.1 or later is compared automatically.
 ```
 
 **The archive list in that message grows with each template version**, which is why it now reads
-`notes@1.1, notes@1.2, notes@1.3` where it once read `notes@1.1` alone — the message enumerates what this
-build actually ships rather than naming a latest.
+`notes@1.1, notes@1.2` where it once read `notes@1.1` alone (a build that archives `notes@1.3` lists
+that too) — the message enumerates what this build actually ships rather than naming a latest.
 
 That is not a fault in your KB and there is nothing to fix. A manifest records `notes@1.0` — a
 *name*. The content behind that name changed ten times while the name stayed the same, so no

@@ -1,4 +1,4 @@
-# The provider is part of what a model is: P1 (built) and P2 (stopped, the user's)
+# The provider is part of what a model is: P1 and P2 (both built, P2 on the user's rulings)
 
 **Audience: the agent building it. Goal: executor.** Written 20261102 10:10 UTC, the day the user
 resumed development ("officially resume from now") and chose to start with P1.

@@ -242,7 +242,18 @@ def test_fitted_for_with_no_provider_is_refused_and_named_as_such(revision: str 
 
 @pytest.mark.parametrize(
     "fitted_for",
-    ["other:m@abc", "fake:other@abc", "fake:m@xyz", "fake:m", "m@xyz", "", "fake:m@abc "],
+    [
+        "other:m@abc",
+        "fake:other@abc",
+        "fake:m@xyz",
+        "fake:m",
+        "m@xyz",
+        "",
+        "fake:m@abc ",
+        # Equality is exact: a provider or a model that differs only in case is another one.
+        "FAKE:m@abc",
+        "fake:M@abc",
+    ],
 )
 def test_fitted_for_naming_anything_else_is_a_plain_mismatch(fitted_for: str) -> None:
     info = ModelInfo("fake", "m", "abc", 0, 512)
