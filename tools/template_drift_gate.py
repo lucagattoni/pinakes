@@ -50,6 +50,18 @@ by construction, so "a version bumped with no content change" could never be det
     `git filter-repo` adds a second landed commit to an untouched archive directory. The remedy is
     that the failure names the directory and every commit, so a human can see it was not a content
     edit — not to weaken the leg.
+(e) **Leg (vii) counts landings by reading which parent was `main`'s old tip, and the graph does
+    not always say.** A landing the way `tools/land.py` makes one keeps `main`'s old tip as the
+    first parent, so a branch is one entry however many commits it carried. A `git pull`-style
+    merge (the *local* commit as first parent), pushed over a `main` that already carried two
+    commits on an archive, puts the whole origin side behind one merge commit: the count falls to
+    one and a `main` that was red goes green, with no fix. Found by a fresh reviewer's 31 history
+    shapes (20261102) and reproduced; no graph-only rule closes it, because that merge and a
+    `land.py` merge of an add-plus-fix branch differ only in which parent was the old tip. The
+    gate run *before* that push still reports `differs from origin/main`, so it bites only on a
+    push past a red local gate. Three further shapes behave as they did before the counting
+    changed: a revert of a revert leaves `main` red with the shipped bytes restored, a directory
+    move carries an edit inside it, and a withdrawn and re-added archive counts as new.
 """
 
 from __future__ import annotations
@@ -386,13 +398,23 @@ def differs_from(repo: Path, ref: str, path: Path) -> bool:
 
 
 def commits_touching(repo: Path, path: Path, ref: str) -> list[str]:
-    """Commits reachable from `ref` that touched `path`. Absolute `path`, always.
+    """Landings on `ref` that touched `path`: steps along its first-parent chain. Absolute `path`.
+
+    **First-parent, because "landed" is the leg's own unit.** A branch that adds an archive and
+    corrects it in review (the sequence `docs/BUILDING.md` requires) reaches `ref` through one
+    merge commit, and `git log ref` would list every branch commit behind it: `notes@1.3` was
+    added and amended on one branch, landed by `tools/land.py` on 20261102, and the next CI run
+    called three commits "an edit after it shipped". Along the first-parent chain the same landing
+    is one entry, a later branch that edits the directory is a second, and a branch fast-forwarded
+    onto `ref` (which `tools/land.py` never does) leaves no merge commit, so each of its commits
+    counts. **That holds while `ref`'s first parent is the old tip of the branch it was landed on;**
+    a pull-style merge pushed over a red `main` breaks it, limit (e) in the module header.
 
     A relative pathspec is resolved against `cwd`, not against the caller's working directory, so
     passing one here matched nothing and the leg reported the strong mode having checked nothing.
     """
     result = subprocess.run(
-        ["git", "log", "--format=%H", ref, "--", str(path)],
+        ["git", "log", "--first-parent", "--format=%H", ref, "--", str(path)],
         cwd=repo,
         capture_output=True,
         text=True,
@@ -560,7 +582,8 @@ def _history_leg(templates: Path, names: Sequence[Path], *, repo: Path | None) -
     that already *shipped* has been edited, and an archive can be wronged from either side of the
     publication line:
 
-    * **landed history** — at most one commit *reachable from the published ref* may touch an
+    * **landed history** — at most one *landing* (one step along the published ref's first-parent
+      chain, so a merged branch counts once however many commits it carried) may touch an
       archived directory. Catches an add and a later edit that both landed.
     * **in-flight content** — if the published ref carries the directory at all, the working tree's
       copy must be byte-identical to it. Catches the coordinated three-file edit **before** it
@@ -569,7 +592,10 @@ def _history_leg(templates: Path, names: Sequence[Path], *, repo: Path | None) -
     Counting every commit instead — the first version of this leg — failed a branch that adds an
     archive and then corrects it during review, which is the sequence `docs/BUILDING.md` requires
     (green `./check.sh` before review, review fixes in their own commit). An archive the published
-    ref does not carry is **new**, and neither half constrains it.
+    ref does not carry is **new**, and neither half constrains it. Counting every commit
+    *reachable from* the ref — the second version — fixed that and then failed the same branch one
+    step later, once it had merged: `notes@1.3`, 20261102, red on `main` right after `tools/land.py`
+    (`commits_touching` has the account).
     """
     where = (repo if repo is not None else templates).resolve()
     reason = git_history_reason(where)
