@@ -362,15 +362,21 @@ def _revision_check(
             )
         return Check(label, Status.OK, f"{detail}@{section.revision}")
 
+    table = "[embedding]" if label == "embedding" else "[rerank]"
     switch = (
-        'For weights pinned to a commit, set `provider = "sentence-transformers"` in this section'
+        "For weights pinned to a commit, set "
+        f'`provider = "sentence-transformers"` in {table} (it needs the `[st]` extra, and a '
+        "`revision` there must be a commit of the model's own repository)"
     )
     if label == "embedding":
-        switch += " and run `pnk sync --rebuild`."
-        records = "the index records it, so changing it asks for a rebuild"
+        switch += ", then run `pnk sync --rebuild`."
+        records = "the index records it, so setting or changing it asks for a rebuild"
     else:
-        switch += "; thresholds fitted under another provider must be re-fitted."
-        records = "`fitted_for` records it, so changing it makes the thresholds read `unknown`"
+        switch += "; thresholds fitted under another provider must then be re-fitted."
+        records = (
+            "any fitted thresholds record it in `fitted_for`, so changing or removing it makes "
+            "them read `unknown`"
+        )
     if section.revision is None:
         return Check(
             label,

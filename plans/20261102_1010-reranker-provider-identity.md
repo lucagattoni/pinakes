@@ -21,8 +21,9 @@ provider](https://github.com/lucagattoni/pinakes-datasets-benchmark/blob/deb2329
 2. **fastembed ignores `revision`.** `embed.py` passes sentence-transformers the revision and passes
    fastembed none; `_FastembedBackend.info` and `_FastembedReranker.info` still return the
    manifest's. Measured 20261031 23:44 UTC: asked for the oldest of 31 commits, fastembed 0.9.1
-   loaded the newest. So `docs/MANIFEST.md`'s "the index refuses to load on a mismatch" is true of
-   sentence-transformers only.
+   loaded the newest. So `docs/MANIFEST.md`'s "pin it once settled" pins files under
+   sentence-transformers only. The index's mismatch check runs under both providers and compares the
+   manifest with the manifest as recorded at build time, never the files that loaded.
 
 ## P1: a revision under fastembed is a label (built in this branch)
 
@@ -36,13 +37,24 @@ Scope: say what is true, today, without adding surface. No new check name, flag 
   neither.
 - `docs/MANIFEST.md` (`[embedding]`, `[retrieval.confidence]`, `[rerank]`) and `docs/DOGFOODING.md`
   (the WARN row): the same facts, dated.
+- `docs/GUIDE.md` and `docs/CLI.md`: "same default models" and "ids identical" now say the files
+  behind an id are not the same. `docs/README.md`: this plan's row.
 - Tests: `tests/test_doctor.py::test_an_unpinned_fastembed_model_is_not_told_to_pin_a_revision`,
   `::test_a_revision_set_under_fastembed_is_reported_as_a_label_and_not_ok`,
   `::test_each_fastembed_model_is_judged_by_its_own_revision`,
+  `::test_each_section_is_judged_by_its_own_provider`,
   `::test_the_other_providers_keep_the_advice_to_pin_and_the_ok_for_a_pin`,
-  `::test_a_pinned_sentence_transformers_model_is_ok`; rows in `docs/VERIFICATION.md`; mutants
-  appended to `tools/batteries/src-pinakes-pairing.toml` (which already claims `doctor.py`).
-- Out of scope, deliberately: the threshold identity. That is P2.
+  `::test_a_built_in_backend_that_knows_no_revision_gets_the_placeholder`,
+  `::test_a_pinned_sentence_transformers_model_is_ok` and
+  `::test_the_model_cache_line_appears_once`; rows in `docs/VERIFICATION.md`; mutants appended to
+  `tools/batteries/src-pinakes-pairing.toml` (which already claims `doctor.py`).
+- Out of scope, deliberately, and left for a later row: the threshold identity (P2); the template
+  line `# revision = "…" # pin the HF commit sha once you are settled; pnk doctor reports the current
+  one` in `src/pinakes/templates/notes/pinakes.toml.j2` and `_versions/1.1`, `_versions/1.2`, which
+  gives the same futile advice at its source and says "reports the current one" where `pnk doctor`
+  prints a placeholder for a built-in backend (changing a template needs a version bump); and the
+  docstring at `tests/test_eval.py:1752`, "real cross-encoders emit logits", which is true of
+  fastembed only.
 
 ## P2: the provider in the threshold identity (**STOP: D-1, D-2 and D-4 are the user's**)
 

@@ -33,7 +33,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 75
+mutants = 78
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -1269,9 +1269,9 @@ file = "src/pinakes/doctor.py"
 # rebuild; the reranker's goes into `fitted_for` and turns the thresholds `unknown`. Told the wrong
 # one, a user rebuilds an index that was fine, or re-fits thresholds that never moved.
 old = '''    if label == "embedding":
-        switch += " and run `pnk sync --rebuild`."'''
+        switch += ", then run `pnk sync --rebuild`."'''
 new = '''    if label == "reranker":
-        switch += " and run `pnk sync --rebuild`."'''
+        switch += ", then run `pnk sync --rebuild`."'''
 kills = "tests/test_doctor.py::test_a_revision_set_under_fastembed_is_reported_as_a_label_and_not_ok"
 
 [[mutant]]
@@ -1310,3 +1310,41 @@ file = "src/pinakes/doctor.py"
 old = '''        return Check(label, Status.OK, f"{detail}@{section.revision}")'''
 new = '''        return Check(label, Status.WARN, f"{detail}@{section.revision}")'''
 kills = "tests/test_doctor.py::test_a_pinned_sentence_transformers_model_is_ok"
+
+# ──────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20261102 · P1, after its independent review (three survivors the author's rows missed)
+# ──────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# A fresh reviewer wrote 25 mutants of `_revision_check` and `_backends` of its own; five survived
+# the author's tests and three were real. These rows are those three, each now killed by a test
+# written for it. The shapes they share: the author's fakes always knew a revision (so the line that
+# builds the placeholder was never reached by a built-in backend's shape), and the author's tests
+# gave both models the same provider (so reading the other section's provider was invisible).
+
+[[mutant]]
+name = "the placeholder is dropped, so an unpinned built-in model is told to pin revision = \"None\""
+file = "src/pinakes/doctor.py"
+# **The production shape.** A built-in backend reports the manifest's own revision, so an unpinned
+# one reports `None`; only then is `<hf commit sha>` offered. A fake that always knows a revision
+# never reaches this, which is how it survived the first round of tests.
+old = '''                f'"{info.revision or "<hf commit sha>"}".','''
+new = '''                f'"{info.revision}".','''
+kills = "tests/test_doctor.py::test_a_built_in_backend_that_knows_no_revision_gets_the_placeholder"
+
+[[mutant]]
+name = "the embedding line is judged by the reranker's section, so a KB with one model on each provider gets the wrong lines"
+file = "src/pinakes/doctor.py"
+# The mirror of the row that passes the embedding section to the reranker. Only a manifest whose
+# two sections disagree about the provider tells them apart, and the first tests never built one.
+old = '''        yield _revision_check(label, section, info)'''
+new = '''        yield _revision_check(label, manifest.rerank, info)'''
+kills = "tests/test_doctor.py::test_each_section_is_judged_by_its_own_provider"
+
+[[mutant]]
+name = "the model cache line moves into the loop, so it is printed once per model"
+file = "src/pinakes/doctor.py"
+# Pre-existing behaviour the review found unpinned: the other checks are looked up by name in a
+# dict, which hides a line that appears twice. The test counts names in the list.
+old = '''    yield Check("model cache", Status.OK, f"weights resolve under {hf_cache_dir()}")'''
+new = '''        yield Check("model cache", Status.OK, f"weights resolve under {hf_cache_dir()}")'''
+kills = "tests/test_doctor.py::test_the_model_cache_line_appears_once"
