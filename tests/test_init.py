@@ -12,6 +12,7 @@ import pytest
 from pinakes import template
 from pinakes.ci import WORKFLOW_PATH
 from pinakes.cli import main
+from pinakes.embed import ModelInfo, fitted_for_mismatch
 from pinakes.errors import InitError, TemplateError
 from pinakes.ids import parse_kb_id
 from pinakes.init import (
@@ -54,6 +55,45 @@ def test_confidence_thresholds_are_commented_out(tmp_path: Path) -> None:
     manifest_text = (result.root / "pinakes.toml").read_text(encoding="utf-8")
     assert "# [retrieval.confidence]" in manifest_text
     assert load(result.root).retrieval.confidence is None
+
+
+@pytest.mark.parametrize("backend", ["st", "light"])
+def test_the_commented_confidence_block_is_refused_when_uncommented_as_shipped(
+    tmp_path: Path, backend: str
+) -> None:
+    """The block is a shape, not a fit, and its `fitted_for` has to stay one that cannot match.
+
+    A hint that is the reranker's exact fingerprint passes the comparison, so a user who only
+    uncomments the block gets `pnk doctor` OK beside `low_below`/`high_above` nobody fitted, and
+    labels from the wrong scale: the notes@1.3 draft did that, and a review of it found it by
+    uncommenting the block unedited. Uncommenting is done here as the user would, every other line
+    of the manifest left alone.
+    """
+    root = init(tmp_path / "kb", backend=backend).root
+    manifest_path = root / "pinakes.toml"
+    block = [
+        line.removeprefix("# ")
+        for line in manifest_path.read_text(encoding="utf-8").splitlines()
+        if line.startswith(
+            ("# [retrieval.confidence]", "# fitted_for", "# low_below", "# high_above")
+        )
+    ]
+    assert len(block) == 4, "the template no longer ships the four lines this test uncomments"
+    manifest_path.write_text(
+        manifest_path.read_text(encoding="utf-8") + "\n" + "\n".join(block) + "\n", encoding="utf-8"
+    )
+
+    manifest = load(root)
+    assert manifest.retrieval.confidence is not None
+    active = ModelInfo(
+        provider=manifest.rerank.provider,
+        model=manifest.rerank.model,
+        revision=manifest.rerank.revision,
+        dim=0,
+        max_seq_length=512,
+    )
+
+    assert fitted_for_mismatch(manifest.retrieval.confidence.fitted_for, active) is not None
 
 
 def test_pdfs_are_off_by_default_but_the_manifest_says_how_to_turn_them_on(tmp_path: Path) -> None:
