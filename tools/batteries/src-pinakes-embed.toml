@@ -31,7 +31,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 65
+mutants = 67
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20261030 · offline means the cache holds this model, or the load fails typed
@@ -790,3 +790,33 @@ old = '''    if fitted_for == active:
 new = '''    if fitted_for.lower() == active.lower():
         return None'''
 kills = "tests/test_embed.py::test_fitted_for_naming_anything_else_is_a_plain_mismatch"
+
+# The seam the fakes cannot see: the two built-in rerankers copy their provider from the manifest
+# section, and `fitted_for` now depends on that string. Every fake in the suite says `fake`.
+[[mutant]]
+name = "the fastembed reranker reports sentence-transformers as its provider"
+file = "src/pinakes/embed.py"
+old = '''            provider=self._section.provider,
+            model=self._section.model,
+            revision=self._section.revision,
+            dim=0,
+            max_seq_length=512,'''
+new = '''            provider=SENTENCE_TRANSFORMERS,
+            model=self._section.model,
+            revision=self._section.revision,
+            dim=0,
+            max_seq_length=512,'''
+kills = "tests/test_embed.py::test_the_fastembed_reranker_reports_its_provider_in_its_fingerprint"
+
+[[mutant]]
+name = "the sentence-transformers reranker reports fastembed as its provider"
+file = "src/pinakes/embed.py"
+old = '''            provider=self._section.provider,
+            model=self._section.model,
+            revision=self._section.revision,
+            dim=0,  # a cross-encoder emits a score, not a vector'''
+new = '''            provider=FASTEMBED,
+            model=self._section.model,
+            revision=self._section.revision,
+            dim=0,  # a cross-encoder emits a score, not a vector'''
+kills = "tests/test_embed.py::test_the_sentence_transformers_reranker_reports_its_provider_in_its_fingerprint"

@@ -721,6 +721,28 @@ def _load_st_kind(kind: str, *, offline: bool) -> Any:
     )
 
 
+def test_the_sentence_transformers_reranker_reports_its_provider_in_its_fingerprint(
+    shared_cache: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`fitted_for` is this fingerprint. A built-in reranker that reported another provider than
+    the one it was loaded for would silently accept thresholds fitted for that other one. Every
+    fake in the rest of the suite says `fake`, so this is the place the real class is asked."""
+    _stub_sentence_transformers(monkeypatch)
+    info = _load_st_kind("reranker", offline=False).info()
+    assert info.provider == SENTENCE_TRANSFORMERS
+    assert info.fingerprint() == f"sentence-transformers:{_FASTEMBED_MODEL['reranker']}@rev1"
+
+
+def test_the_fastembed_reranker_reports_its_provider_in_its_fingerprint(
+    sealed_cache: _Sealed, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same promise for the other provider, through fastembed's stand-in class."""
+    _stub_fastembed(monkeypatch)
+    info = _load_fastembed_kind("reranker", offline=False).info()
+    assert info.provider == FASTEMBED
+    assert info.fingerprint() == f"fastembed:{_FASTEMBED_MODEL['reranker']}"
+
+
 _LOADERS = ["fastembed-embedding", "fastembed-reranker", "st-embedding", "st-reranker"]
 
 
