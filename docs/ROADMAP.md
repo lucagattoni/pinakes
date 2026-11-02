@@ -17,18 +17,40 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20261102 15:19 UTC
+## Where things stand right now — 20261102 23:12 UTC
 
-- **68 releases in 100 days** — **counted from `CHANGELOG.md`, not incremented from this
+- **69 releases in 100 days** — **counted from `CHANGELOG.md`, not incremented from this
   sentence's own previous value**, which is exactly how it drifted: it read **58** while the file
   held **59**. Across the **109** commits that have carried this sentence it agreed with the
   CHANGELOG in **70** and was wrong in **39** — all but two of them low, because a release added one
-  to the printed number instead of counting the entries. The three registers still reconcile: **69** entries = **68** git tags + `0.30.3`, prepared and never tagged — **counted from
+  to the printed number instead of counting the entries. The three registers still reconcile: **70** entries = **69** git tags + `0.30.3`, prepared and never tagged — **counted from
   `git ls-remote --tags`, the CHANGELOG's headings and this file's table, never incremented**, which is
   the discipline this row exists to keep and the one it previously failed. **The index is a fourth
-  register and is deliberately lower — 61** — because seven tags predate publishing and `0.30.3`
+  register and is deliberately lower — 62** — because seven tags predate publishing and `0.30.3`
   reached no index.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725.
+  [`0.33.0`](#0330--thresholds-that-name-their-rerankers-provider-and-a-drift-gate-that-counts-landings--20261102-2236)
+  is **on PyPI as of 20261102 23:09** — landed 22:48:56, the tag held for `minimum-python` at this
+  commit (CPython 3.13.18, 3024 passed, 126 skipped, read in its job's log) and then for the user's
+  yes, so the hold ran 20 minutes 12 seconds and the wheel reached the index 17 seconds after the
+  Release run began. **Its control is two published wheels read side by side**, each hashing to the
+  value the index lists: 0.32.9's `prices.toml` carries `1.1172` and 0.33.0's carries `1.1216`. They
+  hold 78 and 82 entries, **no `tools/` entry** in either, and apart from the `dist-info` directory
+  the only additions are the four files of the `notes/_versions/1.3` archive and exactly twelve
+  files differ — `pinakes/__init__.py`, `pinakes/budget/prices.toml`, `pinakes/calibrate.py`,
+  `pinakes/doctor.py`, `pinakes/embed.py`, `pinakes/manifest.py`, `pinakes/search.py`,
+  `pinakes/template.py`, `pinakes/templates/_versions.toml` and the three `notes` template files —
+  which is the list the release stated. **The subject is read in the published code**: 0.33.0's
+  `ModelInfo.fingerprint()` returns `fastembed:m@r1` for a fastembed reranker where 0.32.9's returns
+  the bare `m@r1`, `fitted_for_mismatch` exists in 0.33.0 and not in 0.32.9, `notes` is `1.3` with
+  archives `1.1`, `1.2` and `1.3` against `1.2` with `1.1` and `1.2`, and the template's
+  `fitted_for` hint ends in `@<revision>` in 0.33.0 and carries no provider in 0.32.9. The GitHub
+  release's notes begin with the tag's annotation, *“0.33.0 — thresholds that name their reranker's
+  provider, and a drift gate that counts landings”*, and `Restore the tag's annotation` passed
+  again. **Main was red for a time on the way here:** the landing of the work itself (`a1de590`,
+  22:17 UTC) failed `template-drift` in CI, the other 15 jobs passing, and `9358c53` repaired it.
+  **Not run:** a provider switch at real size with thresholds fitted by `calibrate`, and the real
+  `sentence-transformers` reranker end to end.
   [`0.32.9`](#0329--an-offline-load-that-stops-downloading-and-a-revision-that-is-called-a-label--20261102-1445)
   is **on PyPI as of 20261102 15:15** — landed 15:01:27, the tag held for `minimum-python` at this
   commit (CPython 3.13.18, 2991 passed, 126 skipped, read in its job's log) and then for the user's
@@ -166,7 +188,7 @@ precision nobody measured.
   rather than folded away, because the record was written honestly and deleting it would erase the
   gap instead of correcting it. The **seven** tags below `v0.2.2` are not a second exception: they
   predate publishing altogether, since `PUBLISH_TO_PYPI` became `true` on 20260728 17:15.
-- **Latest on PyPI: `0.32.9`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.33.0`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
