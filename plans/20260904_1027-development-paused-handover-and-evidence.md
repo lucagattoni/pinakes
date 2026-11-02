@@ -11,6 +11,13 @@ time. No ambiguities. So the development can restart anytime from where you both
 
 **This file is the entry point for whoever resumes.** `CLAUDE.md` points here.
 
+> **Update 20261102 11:40 UTC: development has resumed.** The user said "Pinakes
+> development officially resume from now", before 10:10 UTC, and named no row. `CLAUDE.md` no longer
+> says paused (the "⏸ DEVELOPMENT IS PAUSED" bullet this file points at was replaced by a "Development
+> resumed" bullet); the work opened since is
+> [the reranker provider identity plan](20261102_1010-reranker-provider-identity.md). Read the rest of
+> this file as the record of the pause and its evidence, not as the state of the project.
+
 > **Update 20261019 (option A's A3), carrying what `CLAUDE.md`'s pre-A3 status block held and no
 > other document did.**
 > - **The release half of this pause was lifted by the user, 20260904 14:5x** — *"I would like you

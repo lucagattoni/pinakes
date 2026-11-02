@@ -36,7 +36,7 @@ executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-br
 
 - **Run to completion** — next increment from the live plan: build, land, write fragments, cut the
   release when the work completes a unit, repeat; stop when the user takes control back, not at a
-  boundary, **unless development is paused (below)**.
+  boundary.
 - **A choice you can take, you take** — weigh the options in the open and say which and why; needing
   an answer to proceed is the bar for asking. **An open question in a plan is a stop, not a guess,
   unless it is how to build what the plan specifies; surface, names and anything irreversible or
@@ -50,12 +50,12 @@ executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-br
 
 ## What is live right now
 
-- **⏸ DEVELOPMENT IS PAUSED** (this overrides *Working mode*): pick up no row; resume only on the
-  user's word (a bare "continue" names no row: ask). Releases are not held (lifted 20260904). The way
-  back in: [the pause handover](plans/20260904_1027-development-paused-handover-and-evidence.md).
-- **Option A** ([its plan](plans/20261018_2354-option-a-review-coverage-and-claude-md.md)): **complete**,
-  A0–A4 landed and 0.32.7 published — the pause's one exception (§ 2 status, §§ 8, 10 and 11 handover).
-- **Option B** ([plan](plans/20261019_0817-option-b-dogfooding-on-ramp.md)): designed, not built; build paused.
+- **Development resumed** by the user's word (20261102, before 10:10 UTC); it named no row, and
+  a bare "continue" still names none: ask. Opened since:
+  [the reranker provider identity](plans/20261102_1010-reranker-provider-identity.md). The pause:
+  [its handover](plans/20260904_1027-development-paused-handover-and-evidence.md).
+- **Option B** ([plan](plans/20261019_0817-option-b-dogfooding-on-ramp.md)): designed, not built. The user's
+  20261019 ruling holds B2, B3 and B4 until a real run of the checklist; the resumption names none of them and no release is recorded: ask.
 - **The live build order**: [§ 3 of the live plan](plans/20260901_1148-clear-the-user-facing-list.md).
   Read a row's **body**, not its cells; **a plan's `## Build order` beats any snapshot of it.**
 
@@ -145,4 +145,4 @@ not a licensing instrument — a claimed improvement needs the RFC corpus (`tool
 or another corpus whose improvable pool has been **re-measured, not remembered**
 ([DESIGN § What a corpus can license](docs/DESIGN.md#73-what-a-corpus-can-license)).
 
-<!-- Provenance. One agent, no planner/coder roles: the user, 20261029 17:06, replacing the role rule (the user, 20260823) and the ownership table (the user, 20260801 01:24); their last text: `git show 45a7f16:CLAUDE.md`. Pushing a release tag only on the user's yes: the user, 20261030 00:22. The template release left the table at its final cut, 0.22.0: the user, 20261030, before 19:40 UTC. Working mode: the user, 20260808 04:39 (stop at a clear-context boundary 20260811 15:37). Pause: the user, 20260904 10:21, to review the process against the analysis "Framing, Not Roles" (artifact 2c7961ec); option A resumed 20261018 and completed 20261019 (0.32.7). Until A3 (20261019) the live block was about 250 lines of incident narrative: `git show f1804ea:CLAUDE.md`. -->
+<!-- Provenance. One agent, no planner/coder roles: the user, 20261029 17:06, replacing the role rule (the user, 20260823) and the ownership table (the user, 20260801 01:24); their last text: `git show 45a7f16:CLAUDE.md`. Pushing a release tag only on the user's yes: the user, 20261030 00:22. The template release left the table at its final cut, 0.22.0: the user, 20261030, before 19:40 UTC. Working mode: the user, 20260808 04:39 (stop at a clear-context boundary 20260811 15:37). Pause: the user, 20260904 10:21, to review the process against the analysis "Framing, Not Roles" (artifact 2c7961ec); option A resumed 20261018 and completed 20261019 (0.32.7). Resumed: the user, 20261102, before 10:10 UTC ("Pinakes development officially resume from now"), no scope or row stated. Until A3 (20261019) the live block was about 250 lines of incident narrative: `git show f1804ea:CLAUDE.md`. -->

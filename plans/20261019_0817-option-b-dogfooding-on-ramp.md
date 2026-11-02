@@ -10,6 +10,13 @@ user lifted the pause for B0, a measurement, and B1, a checklist document, and f
 B2, B3 and B4 start only when the user lifts it for them (§ 9). **Do not pick one up because this
 file exists.**
 
+> **Update 20261102 11:49 UTC.** The user said "Pinakes development officially resume from now",
+> stating no scope and naming no row. The repository does not record whether that releases B2, B3 and
+> B4, which the user held on 20261019 (D-B7 below; § 5.2: *"Keep B2, B3 and B4 paused until a real run
+> of the checklist says what hurt"*). Ask the user before picking one up
+> ([`BUILDING.md` § Open questions](../docs/BUILDING.md#open-questions): when it is unclear whose, it
+> is the user's).
+
 ## 1. The instruction, and what it left open
 
 Row 21 of [`plans/20260901_1148-clear-the-user-facing-list.md`](20260901_1148-clear-the-user-facing-list.md)

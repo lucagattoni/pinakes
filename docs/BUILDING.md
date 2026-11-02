@@ -92,7 +92,7 @@ changes is that a question the old *planner* would have ruled is yours whenever 
 |---|---|---|
 | How to build what the plan specifies — where a helper lives, which of two equivalent shapes | **Yours** | Settle it, say which and why, record the ruling in the plan |
 | A ruling a plan awaits from "the planner", of that kind | **Yours** | The same |
-| Permanent surface (a command, flag, name, exit code, schema key); anything irreversible or outward-facing (a tag, a publish, a deletion); anything the plan or the pause marks the user's | **The user's** | Stop and put the options to them, as `CLAUDE.md` § *Working mode* sets the bar for asking |
+| Permanent surface (a command, flag, name, exit code, schema key); anything irreversible or outward-facing (a tag, a publish, a deletion); anything the plan, or a pause the user has declared, marks the user's | **The user's** | Stop and put the options to them, as `CLAUDE.md` § *Working mode* sets the bar for asking |
 | You cannot tell whose | **The user's**, until shown otherwise | Ask |
 
 ## Read the build order out of `plans/`
