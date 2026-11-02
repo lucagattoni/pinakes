@@ -10,6 +10,119 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.32.9] — 20261102 14:45
+
+### Changed
+
+- **One agent replaces the planner/coder split.** `CLAUDE.md` no longer makes a session name a role
+  and block until the user answers, and the ownership table that made every document the planner's
+  and every change to one a proposed `git diff` is gone. One agent plans, builds, documents,
+  reviews, lands, releases and hands over, through subtasks and subagents, and a subagent's work
+  reaches `main` only through it. **What the split carried that is not about roles stays:** ask
+  live peers for their task and file set before writing, one writer per file in every brief,
+  `changelog.d/` and `retro.d/` fragments instead of edits to the two files every increment would
+  touch, and a `docs/VERIFICATION.md` row or counted paragraph changing in the commit that makes it
+  true. `docs/BUILDING.md` lost its role, propose-a-diff and dictated-text sections and gained
+  *Subtasks and subagents* and *Open questions* (an open question in a plan stays a stop; how to
+  build what it specifies is the agent's, permanent surface and anything irreversible is the
+  user's). The non-obvious rule in the first is that a builder's brief must open with its job: `tools/review_ledger.py` reads the first 400 characters of a brief and otherwise counts a
+  builder's own brief as a review pass of the work it wrote. `docs/RELEASING.md` is addressed to the
+  agent that built the work, which now cuts the release. The `CLAUDE.md` size gate's failure message
+  no longer says whose file it is; its test and one of its mutants changed with it. Plans,
+  retrospectives and release records keep the words they were written with, and `CLAUDE.md` says to
+  read "planner" and "coder" in them as the one agent. Developer process only: no `pnk` behaviour
+  changes. `CLAUDE.md` now also says a release tag is pushed only on the user's yes, which the old role
+  split had left as an unwritten consequence of who cut releases. It was reviewed against the
+  hygiene rules on 20261030 07:59.
+
+- **The README and the Guide pin `--python 3.13` on their `[light]` lines where `uv` might choose
+  CPython 3.15, and the Guide's `.mcp.json` snippet names the absolute path of `pnk`.** Both were
+  found by the dogfooding on-ramp's first measurement (findings F5 and F4, 20261019 12:13 UTC,
+  against 0.32.7, on a machine whose newest Python was 3.15). `uvx --from "pinakes[light]" pnk
+  --version` exited 1 with *`onnxruntime>=1.24.2` has no wheels with a matching Python ABI tag
+  (e.g., `cp315`)*, and `uv init --bare` wrote `requires-python = ">=3.15"`, so the `uv add
+  --no-sync` after it did not resolve; with `--python 3.13`, the declared minimum, both worked. The
+  newest `onnxruntime` on PyPI, 1.31.1, still had no `cp315` wheel when it was read (20261030 19:49
+  UTC), and `pinakes[st]` resolved on a 3.15 project (20261030 20:01 UTC), so the `[st]` examples
+  stay unpinned. It is not universal: the unpinned `uvx` resolved on one machine measured after
+  20261029 18:53 UTC, so it depends on which interpreter `uv` picks. The post-publish check in
+  `docs/RELEASING.md` carries the pin too, as the 0.32.7 and 0.32.8 sweeps ran it. For F4, a bare
+  `"command": "pnk"` was found on no `PATH` tried (a project install keeps `pnk` in `.venv/bin`, and
+  `uv tool install`'s directory may not be on the `PATH`), so the first snippet shows
+  `/absolute/path/to/pnk` and says how to find it; whether a live agent launches the entry with your
+  `PATH` was not tested. `README.md` is also the package's description on PyPI, so that page changes
+  only with a release. **Not done:** capping `requires-python` below 3.15, and the unpinned `uvx`
+  line in the workflow `pnk init --ci` writes (`src/pinakes/ci.py`) — a packaging decision and a
+  code change, both left open.
+
+- **The 16 files in `docs/graph/` now open with a "Historical copy, moved" banner that links to their maintained
+  copies.** At the owner's request the research moved to the public
+  [knowledge-graph reference](https://github.com/lucagattoni/knowledge-graph-tutorial), which updates it: the
+  field-neutral material is under `kb-kg/` and Pinakes' own reading of it under `pinakes/`. Each banner names the
+  file's counterparts (`GRAPH_RAG.md` became a literature review and the R1 to R7 recommendations; each of the twelve
+  investigation notes became a neutral entry and a Pinakes reading), and `docs/graph/README.md` lists where every
+  file went. **The banner is the only change:** the files keep the wording, dates and version numbers they were
+  written with, as `docs/README.md` § Conventions requires of historical records, and the existing header note that
+  points at `STATUS.md` stays. The `graph/` row of `docs/README.md` says the same in one sentence. Nothing here
+  changes a command, a flag or a behaviour.
+
+- **The manifest reference now says what `revision` and `fitted_for` do and do not pin.** `revision` selects files under `sentence-transformers` only; under `fastembed` it is a label that the index records and, where thresholds are fitted, `fitted_for` contains. The default model ids are identical on the two providers and the files are not: for `BAAI/bge-small-en-v1.5`, `fastembed` loads a float16 ONNX export from another Hub repository (149 float16 tensors, read 20261031 16:23 UTC), where `sentence-transformers` loads the float32 BAAI weights; on one benchmark the two ranked alike. Removing a `revision` does not make the index ask for a rebuild; setting or changing one does. **Documented, not fixed:** `fitted_for` names neither the provider nor the scale of the reranker's scores (`sentence-transformers`: 0 to 1; `fastembed`: raw logits, -9.28 to 10.31 on 2,556 questions, 20261031 20:40 UTC), so thresholds fitted under one provider are applied under the other when `model@revision` matches, which it does for a manifest that names no revision: a `high` turned `low` with no warning (measured 20261031 23:43 UTC), and again after the `pnk sync --rebuild` an embedding-provider change requires (20261102 09:08 UTC). **Re-fit after changing the reranker's provider.** The fix waits on the user (`plans/20261102_1010-reranker-provider-identity.md`, P2). The Guide and the CLI reference stop calling the two providers' models "the same", and the `calibrate.py` docstring no longer calls every reranker's scores raw logits.
+
+- **Development has resumed after the pause that began 20260904.** On 20261102 (before 10:10 UTC) the user said "Pinakes development officially resume from now", stating no scope and naming no row. `CLAUDE.md`'s live-status block now says development resumed and keeps the rule that a bare "continue" names no row (ask); its *Working mode* bullet no longer carries the clause "unless development is paused"; the finished Option A pointer left it, since [the option-A plan](https://github.com/lucagattoni/pinakes/blob/main/plans/20261018_2354-option-a-review-coverage-and-claude-md.md) is still routed from `docs/README.md`; its Option B bullet now says what holds B2, B3 and B4; and its provenance comment records the resumption. The sentence in `docs/README.md` that the option-A plan was "the only work the user resumed" and the option-A row's "stays paused" are now dated (as of 20261018 and 20261019) and point at `CLAUDE.md` for what happened since. The pause handover's row says it was the entry point for resuming, its opening carries a dated note that it is the record of the pause and not the state of the project, and the option-A plan's opening carries one saying its sentences about the pause are the record of 20261018. **Nothing here releases option B's B2, B3 or B4.** The user held them on 20261019 ("Keep B2, B3 and B4 paused until a real run of the checklist says what hurt"); the resumption stated no scope and named no row, the repository records no release of those three, and the option-B row of `docs/README.md`, a dated note on the option-B plan and `CLAUDE.md` say to ask before picking one up. Row 44 of the live plan now records that development has resumed since it was filed and that the resumption named no row, and `docs/README.md` counts the reranker provider-identity plan as a fifth file that proposes work. `docs/BUILDING.md`'s list of what is the user's no longer names "the pause" as a standing marker, only a pause the user has declared. `CLAUDE.md` stays inside the size its own intro states, which `tools/claude_md_size_gate.py` holds it to. Documentation only: no `pnk` behaviour changes.
+
+- **Two `pnk doctor` remedies stop calling the sqlite-vec tier "the template release".** The name *the template release* left `CLAUDE.md`'s table of unbuilt work at that release's final cut, 0.22.0 (the user, 20261030), and the tier is not built. The remedy of the environment check that finds SQLite cannot load extensions now reads *Only needed for the sqlite-vec tier, which is not built; the NumPy tier is unaffected.*, and the `scale` WARN's reads *Every tier is a linear scan; the sqlite-vec tier, which is not built, would bound memory, …*, where each said *(the template release)*. Wording only: no check changed and no test pinned either string. The same change relabelled the 0.22.0 row of `docs/STATUS.md` as the template release's final cut, split the what-ships-when row of `docs/DESIGN.md` in two, and made `CLAUDE.md`'s row say to start nothing until the tier's trigger fires. It reached `main` without a fragment, and this entry was added at the cut.
+
+### Fixed
+
+- **A GitHub release's notes are the tag's annotation, not the merge commit's subject.** `release.yml`
+  creates the release with `gh release create --notes-from-tag`, and `actions/checkout` had stored the
+  tag's *commit* under the tag's name for a tag push (`git fetch --no-tags --depth=1 origin
+  +<sha>:refs/tags/<tag>`, in the Release run's log), so the runner held a lightweight tag and the
+  notes fell back to the commit message. The 34 releases from 0.22.0 to 0.32.7 were all read and
+  every one begins `Merge branch '…'`. A new step, `Restore the tag's annotation`,
+  right after the checkout fetches the tag
+  object over the flattened ref (`--force`, or git refuses with *would clobber existing tag*) and
+  exits 1 unless the object is an annotated tag with a message that is not blank and that still
+  names the commit the run checked out. It runs in front of `uv publish`, where a
+  failure costs a deleted tag and not the version number, and it refuses a lightweight tag and an empty
+  annotation a second time after `make release-check` did. **0.32.8's own notes were backfilled** from
+  its annotation with `gh release edit`; the 34 older ones were left as they were. Tests run the
+  workflow's own `run` text against a clone made the way `actions/checkout` makes one, pin that
+  premise first, refuse a lightweight tag, an empty or blank annotation and a tag moved while the
+  run was going, and hold the parsed workflow to *directly after the checkout, before the upload,
+  carrying only a name and a body, no `exit 0`*; thirteen mutants joined the battery that claims
+  `release.yml` (seven of them added because a fresh reviewer's own mutants and probes got past
+  the first six), and the
+  placement check is watched failing for a step moved behind the upload or in front of the
+  checkout. **The
+  fix has not run in Actions**: the first release cut after this lands is its first real run, and
+  `docs/RELEASING.md` now says to read that release's body. Developer tooling — it ships in no wheel.
+
+- **`pnk doctor`, and every other `--offline` model load, no longer downloads a model or ends in a traceback when one is missing from the cache.** For the `fastembed` provider, measured 20261019 against the published 0.32.7: with the embedder cached and the reranker not, `pnk doctor` printed *Fetching 5 files*, took 11 s and grew the cache from 67 MB to 1.1 GB, because the only guard (`_require_online_or_cached`) asked whether the cache *directory* existed; with `HF_HUB_OFFLINE=1` it fetched nothing and exited 1 on `ValueError: Could not load model BAAI/bge-reranker-base from any source`, which `doctor`'s `except PinakesError` does not catch. The comment that said fastembed has no `local_files_only` was stale: 0.8.0 (the floor in `pyproject.toml`) takes it through `**kwargs` into its download step, so an offline load now passes `local_files_only=True` and any failure of that load becomes an `EmbeddingError`, whether fastembed's `ValueError` for a model it cannot find or onnxruntime's `InvalidProtobuf` for one that is cached but truncated. Reproduced 20261030 with the real fastembed against an empty temporary cache directory, the network forbidden: both loaders reached `model_info` before, and raise `EmbeddingError` with nothing reached and no file written after; the real `pnk doctor` on a KB stamped `--backend light`, same setup, reached the network on its first model load before, and after it printed two `FAIL` lines, exited 1, made no network attempt and left the cache holding only its empty `hub`. **The error is classed by its cause.** Class (a), *fastembed could not find a usable local copy (usually: absent)*, is a `FileNotFoundError` (a subclass such as huggingface_hub's `LocalEntryNotFoundError` counts) or fastembed's one `ValueError: Could not load model …`, matched by the start of its text; it keeps its old wording and remedy (*Run once without --offline to populate the cache.*). It means less than "absent": fastembed swallows every failure of its local lookup (`model_management.py:424`, `:461`) and raises that `ValueError` at `:475`, so an unreadable snapshots directory or a truncated `files_metadata.json` reach it too (by reading, not run), and going online would not fix those; the wording is kept as it was. Every other failure (onnxruntime's `InvalidProtobuf` for a truncated download, a `PermissionError`, a `MemoryError`, a `TypeError` from a changed signature) reads `--offline was requested but <model> could not be loaded (<Class>: <first non-empty line>).`, claims nothing about the cache, and gives the remedy *Fix the cause named above. If the model is not in the cache, run once without --offline to populate it; if its files are damaged, delete its folder under <cache> first.* It names both readings because going online fetches an absent model but cannot repair a damaged one (fastembed looks at the local snapshot first online too, and fails the same way), and the exception class often cannot say which this is (below). Apart from fastembed's one `ValueError`, matched by the start of its text, nothing reads a message to classify. The quoted line is cut at 200 characters, ellipsis included, because an onnxruntime `Fail` line runs to about 450 with a build path. **A known limit of that remedy:** for fastembed, *delete its folder under <cache>* is not actionable by model name, since the folder is named after the Hugging Face source repository (`BAAI/bge-small-en-v1.5` is stored as `models--qdrant--bge-small-en-v1.5-onnx-q`); the remedy is unchanged. The missing-directory message is unchanged, and the online path of every loader makes the same call it always did. The same loaders serve `search`, `ask`, `sync`, `links` and `serve` with `--offline`, so they change together. Also fixed: fastembed's local-only path leaves an empty `<cache>/tmp` that `hf cache scan` warns about, and the loader now removes it when it made it and it is still empty. **Measured, for a minimal model:** a test plants a hand-encoded one-node ONNX graph and a tokenizer in a Hugging Face layout cache and loads them with the real fastembed and onnxruntime, offline and online, the network sealed. For both the embedder and the reranker it shows the model loads, nothing is reached and the cache tree is unchanged; for the embedder, `max_seq_length` and the token count come out of the planted tokenizer (`dim` is looked up in fastembed's registry and proves nothing about the files); the reranker's `info()` returns constants, so its offline and online equality is vacuous. That test **passes on the code before this fix too**, so it is a regression guard on the success path, not proof of the fix. **Not measured:** real weights offline. The `model`-marked tests, which run in CI, call the loaders with `offline=False` only. **The default provider, `sentence-transformers` (`[st]`), gets the same classed failure, and for it only reading and stand-in tests back the claim.** Its two loaders pass `local_files_only=offline`, which the wheel and the keyword's name say keeps them from downloading; that is read, not run, and no test has seen the real package refuse a download. What they lacked was a `PinakesError`. **Read, never run:** the 5.6.1 wheel (the version `uv.lock` pins) was fetched alone, with no dependencies, unzipped and read, and neither it nor torch was installed. In it, `load_file_path` catches the Hub's `LocalEntryNotFoundError` and returns `None`, so a model absent from the cache falls through to `_load_default_modules`, whose `AutoConfig.from_pretrained(..., local_files_only=True)` is transformers' to fail. **Also read, never run:** the transformers 5.14.1 wheel (the pinned version, extracted and read; neither it nor sentence-transformers was installed or executed). Under `local_files_only=True` a model missing from the cache raises a **plain `OSError` with no errno, never a `FileNotFoundError`**: *We couldn't connect to 'https://huggingface.co' to load the files, and couldn't find them in the cached files.* (`utils/hub.py:513-516`). Other plain `OSError`s come out of the same call: the generic *Can't load the configuration of '<model>' …* (`configuration_utils.py:798-803`), raised only when `cached_file` raised a non-`OSError` (an `OSError` is re-raised untouched before it, `:792-795`), a config that is not valid JSON (`:813-814`) and a `PermissionError` (`utils/hub.py:481-486`). A plain `OSError` can therefore mean absent or damaged, which is why the second class's remedy names both readings and the loaders convert any `Exception` rather than guess one. **Measured:** nothing about the real package. Its tests put a stand-in `sentence_transformers` module in `sys.modules` that raises those four messages, copied from the source, as plain `OSError`s (only the first is a miss); they pin what the loader does with them and say nothing about what sentence-transformers or transformers does when run; they also pin the call, unchanged, online (`local_files_only=False`) and offline (`revision`, `local_files_only=True`, `cache_folder`). One shared helper builds the message for all four loaders. The words `doctor` uses to tell a user what to do next are unchanged (finding F3), and on a fastembed miss the library itself still logs two `ERROR` lines to stderr. A new battery, `tools/batteries/src-pinakes-embed.toml`, carries fifty-five mutants of this change, all fifty-five killed in one run (0 survived, 0 errored), the first of them by the sealed test's own `_NetworkReached: model_info`.
+
+- **`pnk doctor` no longer tells a `fastembed` user to pin a revision, and no longer reports one they set as `OK`.** Pinakes hands `sentence-transformers` the manifest's `revision` and hands `fastembed` none (`embed.py`), so under `fastembed` the line selects no file: asked for the oldest of 31 commits of the repository it reads, fastembed 0.9.1 loaded the newest (measured 20261031 23:44 UTC). Until now the `embedding` and `reranker` checks advised pinning one anyway, which cannot work, and reported a revision set there as `OK`, which called a label a pin. They now say the files are not pinned, or that the revision is a label, what changing it would cost (setting or changing the embedding's asks for `pnk sync --rebuild`; removing it does not; fitted thresholds read `unknown` if the reranker's changes or goes), and how to get a real pin: the `sentence-transformers` provider, which needs the `[st]` extra and a commit of the model's own repository. Every other provider's lines are unchanged. Through 0.32.8 both providers read "revision unpinned".
+
+- **Two bytecode tests no longer go red in a shell that exports `PYTHONDONTWRITEBYTECODE`.**
+  `test_the_bytecode_cache_is_cleared_after_the_write_and_after_the_restore` and
+  `test_a_stale_pyc_really_does_report_a_same_length_mutant_as_survived` run a scratch pytest to
+  leave a `.pyc` behind and then look for it. Under `PYTHONDONTWRITEBYTECODE=1`, which Claude
+  Code's shell exports, none is written: the first failed on *nothing warmed the cache*, the second
+  on *expected one cached bytecode file, found []*, and `./check.sh` stopped on a tool that was not
+  at fault. It was recorded as a workaround (`env -u PYTHONDONTWRITEBYTECODE ./check.sh`) on
+  20261014–15 and is met by any session whose shell exports the variable. `tests/test_mutate.py`
+  now builds the environment of the three runs that need a `.pyc` without it. A new test pins that
+  where CI can see it: CI exports no such variable, so the two tests passed there whether or not the
+  helper worked. Checked by removing each of the tool's two `clear_pycache` calls in turn: the first
+  test fails for the reason it states — *the cache survived the write*, *the cache survived the
+  restore* — with the variable set or not, where under it the test used to fail on the fixture
+  whatever the tool did. The second test is a control on the interpreter and never calls the tool,
+  so it does not move. **Not changed, so not claimed:** `test_a_same_length_mutant_is_killed_end_to_end`
+  is not a pin on the clearing — with the clearing removed it failed 5 runs of 8 with the variable
+  unset (a race on the clock) and 0 of 8 with it set, because the tool's own child runs then write no
+  `.pyc` at all — and a shell that exports `PYTHONPYCACHEPREFIX` fails 40 of the file's 74
+  tests, as it did before this change, because the tool refuses it by design. A change to the tests only;
+  `tools/mutate.py` is untouched. Developer tooling — it ships in no wheel.
+
 ## [0.32.8] — 20261029 17:10
 
 ### Added
@@ -5172,7 +5285,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.8...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.32.9...HEAD
+[0.32.9]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.9
 [0.32.8]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.8
 [0.32.7]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.7
 [0.32.6]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.6

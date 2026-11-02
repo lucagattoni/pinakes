@@ -71,8 +71,17 @@
 # platform.claude.com/docs/en/models/opus-5/overview, which states the API id and the price together:
 # unchanged at 5.00 / 25.00 per Mtok. That page lists the model as legacy ("Active (legacy)",
 # retirement "not sooner than July 24, 2027"); the question above is still recorded and still not taken.
-as_of = "20261029 17:10"
-usd_per_eur = "1.113"
+#
+# 0.32.9, at 20261102 14:45, is four days after 0.32.8 and is cut for the work it carries and not for the
+# window. It is a Monday afternoon, before the ECB's 16:00 CET posting (15:00 UTC), so the newest fixing
+# is Friday 2026-10-30, read from api.frankfurter.dev twice in the same session with identical results:
+# 1.113 -> 1.1172, up 0.38%, so EUR figures for the same USD cost are about 0.4% lower. claude-opus-5
+# re-checked the same minute against platform.claude.com/docs/en/models/opus-5/overview: unchanged at
+# 5.00 / 25.00 per Mtok, still "Active (legacy)", retirement "not sooner than July 24, 2027". That moves
+# the day the table would first be refused (`(now - as_of).days > 30`, true from the 31st day) from
+# 20261129 to 20261203.
+as_of = "20261102 14:45"
+usd_per_eur = "1.1172"
 
 # Measured against the live API on 20260729 03:17 with claude-opus-5, over the synthetic corpus
 # (docs/MEASUREMENT-RUN.md). Recorded here rather than only in a retrospective because the next

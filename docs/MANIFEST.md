@@ -116,8 +116,8 @@ oldest of 31 commits of the repository it reads, fastembed 0.9.1 raised nothing 
 newest (measured 20261031 23:44 UTC). Under fastembed a `revision` is therefore a label: the index
 records it and, where thresholds are fitted, `fitted_for` contains it, and Pinakes compares each with
 the manifest, but it selects no file. "Refuses to load on a mismatch" compares the manifest with the
-manifest as it stood at build time, never with the files that loaded. **`pnk doctor` says so on
-`main` and in no published release yet:** up to 0.32.8 it told a fastembed user to pin a revision.
+manifest as it stood at build time, never with the files that loaded. **`pnk doctor` says so
+from 0.32.9:** up to 0.32.8 it told a fastembed user to pin a revision.
 For weights pinned to a commit, use `sentence-transformers`.
 
 **The default model ids are identical on both providers; the files are not.** fastembed loads its

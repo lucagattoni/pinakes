@@ -38,10 +38,10 @@ says how each command works.
 2. **Weights come down on first use, and you do not choose the moment.** Measured on 0.32.7 with an empty
    Hugging Face cache: the first `pnk sync` fetched the embedder (67 MB, 2 s by its progress bar); a later
    `pnk doctor` — which is meant to be offline — fetched the **reranker (1.1 GB, 11 s)**. **That is
-   fixed on `main` and is in no published release yet:** an offline load now asks fastembed for local
+   fixed from 0.32.9:** an offline load now asks fastembed for local
    files only, so `doctor` prints a FAIL line for a model that is not cached and downloads nothing
    (reproduced against an empty temporary cache with the network forbidden; not run against real
-   weights). Until that is released, be online for the first `sync` and for the first command that loads
+   weights). On 0.32.8 and earlier, be online for the first `sync` and for the first command that loads
    the reranker: `doctor` was measured; by the source so do `search`, `ask` and an agent's first `serve`
    tool call (not run). A `doctor` on a cache that does not exist yet prints two FAILs ending *“Run once
    without --offline to populate the cache”*. `doctor` is hard-wired offline and has no such flag; `sync`,
@@ -101,7 +101,7 @@ check showed five and six — the extra one is the last row.)
 
 | WARN | When | What to do |
 |---|---|---|
-| `embedding` and `reranker`: revision unpinned | whenever the revision is unset (on `main`, in no published release yet, a `fastembed` KB reads "files not pinned" instead) | pin `revision` in `pinakes.toml` once you are settled. **That pins files under `sentence-transformers` only.** Nothing pins them under `fastembed`: Pinakes passes it no revision, and a revision you set there is reported as a label: see [MANIFEST](MANIFEST.md#embedding) |
+| `embedding` and `reranker`: revision unpinned | whenever the revision is unset (from 0.32.9 a `fastembed` KB reads "files not pinned" instead) | pin `revision` in `pinakes.toml` once you are settled. **That pins files under `sentence-transformers` only.** Nothing pins them under `fastembed`: Pinakes passes it no revision, and a revision you set there is reported as a label: see [MANIFEST](MANIFEST.md#embedding) |
 | `index: not built yet` | before the first sync only | `pnk sync` |
 | `git hooks: not a git repository` | until the KB is one **and** `pnk install-hooks` has run — *from the source:* after `git init` alone it reads `0 of 3 installed` | `doctor` says freshness is git-triggered and a loose folder needs a manual or cron `pnk sync`; `pnk install-hooks` installs the hooks ([Guide](GUIDE.md)) — not run here |
 | `calibration: no fitted thresholds` | after the first sync | honest, not a fault: `confidence` reports `unknown` until you fit thresholds against a golden set |
