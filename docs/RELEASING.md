@@ -149,9 +149,10 @@ extended on 20260823 when it crossed it again. Nothing was dropped in either mov
    annotated tag with a message that is not blank and that still names the commit the run checked
    out, in front of `uv publish`. The comparison with the run's commit narrows the window between
    the checkout and the upload to the seconds the step takes; it does not close it. **That step
-   has been run against a
-   local reproduction of the checkout and not yet in Actions**: the first release cut after it is
-   its first real run, so read that release's body (below) before believing it.
+   ran in Actions for the first time with 0.32.9**: `Restore the tag's annotation` passed and the
+   GitHub release's notes begin with the tag's annotation (read with the command below). Before that
+   it had been run only against a local reproduction of the checkout. One run is one run, so read
+   each release's body all the same.
 
 ### A fragment that arrives after the release commit but before the tag
 
@@ -189,7 +190,7 @@ with no tag, no release and nothing published (`RETROSPECTIVES.md`, 20260727).
 to 0.32.7 all existed, were neither draft nor prerelease, and carried `Merge branch '…'` as their
 notes
 because `actions/checkout` had flattened the tag (step 8): a check that asked only whether the
-release was there passed every time.
+release was there passed every time. 0.32.9's, read the same way, begins with its annotation.
 
 **When a release's subject is not in the wheel, verify its absence.** 0.25.1's rule is to read the
 release's own subject out of the published artifact rather than trust a matching version string. A
