@@ -35,7 +35,7 @@ from pinakes.embed import (
 from pinakes.errors import TemplateError
 from pinakes.ids import mint_doc_id, mint_kb_id
 from pinakes.init import init
-from pinakes.manifest import load
+from pinakes.manifest import EmbeddingSection, RerankSection, load
 from pinakes.sidecar import SIDECAR_SUFFIX, minted_title
 from pinakes.sync import SyncOptions, sync
 
@@ -597,6 +597,156 @@ def test_an_unpinned_revision_is_a_warning_with_the_value_to_pin(kb: Path) -> No
     status, detail = checks(kb)["embedding"]
     assert status is Status.WARN
     assert "revision unpinned" in detail
+
+
+# --- a revision under fastembed is a label, not a pin ---------------------------------------------
+#
+# `embed.py` hands sentence-transformers the manifest's revision and hands fastembed none, so under
+# fastembed the line selects no file. Until this was reported, `pnk doctor` told a fastembed user to
+# pin one (advice that cannot work) and called a revision they had set `OK` (a label read as a pin).
+# The fixture's fake backends are made to say `fastembed` by patching the two loaders `_backends`
+# calls, so no fastembed install or model cache is involved.
+
+
+class _NamedBackend(FakeBackend):
+    def __init__(self, provider: str) -> None:
+        self._provider = provider
+
+    def info(self) -> ModelInfo:
+        return ModelInfo(self._provider, "fake-model", "rev-from-info", DIM, 512)
+
+
+class _NamedReranker(FakeReranker):
+    def __init__(self, provider: str) -> None:
+        self._provider = provider
+
+    def info(self) -> ModelInfo:
+        return ModelInfo(self._provider, "fake-reranker", "rev-from-info", 0, 512)
+
+
+def _model_checks(
+    kb: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    provider: str,
+    *,
+    embedding_revision: str | None = None,
+    rerank_revision: str | None = None,
+) -> dict[str, Check]:
+    """The embedding and reranker checks of the fixture KB, as if both came from `provider`."""
+    from pinakes import doctor as doctor_module
+
+    def backend(section: EmbeddingSection, offline: bool = False) -> _NamedBackend:
+        return _NamedBackend(provider)
+
+    def reranker(section: RerankSection, offline: bool = False) -> _NamedReranker:
+        return _NamedReranker(provider)
+
+    monkeypatch.setattr(doctor_module, "load_backend", backend)
+    monkeypatch.setattr(doctor_module, "load_reranker", reranker)
+    path = kb / "pinakes.toml"
+    text = path.read_text(encoding="utf-8").replace('provider = "fake"', f'provider = "{provider}"')
+    for model, revision in (("fake-model", embedding_revision), ("fake-reranker", rerank_revision)):
+        if revision is not None:
+            text = text.replace(
+                f'model    = "{model}"', f'model    = "{model}"\nrevision = "{revision}"'
+            )
+    path.write_text(text, encoding="utf-8")
+    return {c.name: c for c in diagnose(load(kb)).checks}
+
+
+def test_an_unpinned_fastembed_model_is_not_told_to_pin_a_revision(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    found = _model_checks(kb, monkeypatch, "fastembed")
+    switch = (
+        'For weights pinned to a commit, set `provider = "sentence-transformers"` in this section'
+    )
+    assert found["embedding"].status is Status.WARN
+    assert found["embedding"].detail == (
+        "fake-model (fastembed), files not pinned (Pinakes passes fastembed no revision)"
+    )
+    assert found["embedding"].remedy == switch + " and run `pnk sync --rebuild`."
+    assert found["reranker"].status is Status.WARN
+    assert found["reranker"].detail == (
+        "fake-reranker (fastembed), files not pinned (Pinakes passes fastembed no revision)"
+    )
+    assert (
+        found["reranker"].remedy
+        == switch + "; thresholds fitted under another provider must be re-fitted."
+    )
+    for check in (found["embedding"], found["reranker"]):
+        assert "revision unpinned" not in check.detail
+        assert check.remedy is not None
+        assert "Pin it in the manifest" not in check.remedy
+
+
+def test_a_revision_set_under_fastembed_is_reported_as_a_label_and_not_ok(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    found = _model_checks(
+        kb, monkeypatch, "fastembed", embedding_revision="abc123", rerank_revision="def456"
+    )
+    switch = (
+        'For weights pinned to a commit, set `provider = "sentence-transformers"` in this section'
+    )
+    assert found["embedding"].status is Status.WARN
+    assert found["embedding"].detail == (
+        "fake-model (fastembed)@abc123, a label, not a pin (Pinakes passes fastembed no revision)"
+    )
+    assert found["embedding"].remedy == (
+        "It selects no file, but the index records it, so changing it asks for a rebuild. "
+        + switch
+        + " and run `pnk sync --rebuild`."
+    )
+    assert found["reranker"].status is Status.WARN
+    assert found["reranker"].detail == (
+        "fake-reranker (fastembed)@def456, a label, not a pin "
+        "(Pinakes passes fastembed no revision)"
+    )
+    assert found["reranker"].remedy == (
+        "It selects no file, but `fitted_for` records it, so changing it makes the thresholds read "
+        "`unknown`. " + switch + "; thresholds fitted under another provider must be re-fitted."
+    )
+
+
+def test_each_fastembed_model_is_judged_by_its_own_revision(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    only_the_reranker = _model_checks(kb, monkeypatch, "fastembed", rerank_revision="def456")
+    assert "files not pinned" in only_the_reranker["embedding"].detail
+    assert "@def456" in only_the_reranker["reranker"].detail
+    assert "@" not in only_the_reranker["embedding"].detail
+
+
+def test_the_other_providers_keep_the_advice_to_pin_and_the_ok_for_a_pin(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    unpinned = _model_checks(kb, monkeypatch, "sentence-transformers")
+    assert unpinned["embedding"].status is Status.WARN
+    assert unpinned["embedding"].detail == "fake-model (sentence-transformers), revision unpinned"
+    assert unpinned["embedding"].remedy == (
+        'Pin it in the manifest to make rebuilds reproducible: revision = "rev-from-info".'
+    )
+    assert unpinned["reranker"].remedy == (
+        'Pin it in the manifest to make rebuilds reproducible: revision = "rev-from-info".'
+    )
+
+
+def test_a_pinned_sentence_transformers_model_is_ok(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pinned = _model_checks(
+        kb,
+        monkeypatch,
+        "sentence-transformers",
+        embedding_revision="abc123",
+        rerank_revision="def456",
+    )
+    assert pinned["embedding"].status is Status.OK
+    assert pinned["embedding"].detail == "fake-model (sentence-transformers)@abc123"
+    assert pinned["embedding"].remedy is None
+    assert pinned["reranker"].status is Status.OK
+    assert pinned["reranker"].detail == "fake-reranker (sentence-transformers)@def456"
 
 
 def test_orphaned_sidecars_are_reported_and_only_pruned_on_request(kb: Path) -> None:
