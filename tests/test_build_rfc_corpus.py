@@ -380,6 +380,41 @@ def test_a_rerun_onto_a_manifest_without_the_provider_names_the_fitted_for_it_di
     assert "this build stamps fastembed:Xenova/ms-marco-MiniLM-L-6-v2" in proc.stdout
 
 
+@pytest.mark.parametrize(
+    ("pattern", "replacement"),
+    [
+        pytest.param(r"\n\[retrieval\.confidence\].*\Z", "\n", id="the-table-is-missing"),
+        pytest.param(r'^fitted_for = ".*"\n', "", id="the-key-is-missing"),
+        pytest.param(r'^fitted_for = ".*"$', "fitted_for = 7", id="the-value-is-not-a-string"),
+    ],
+)
+def test_a_rerun_onto_a_manifest_with_no_usable_fitted_for_says_so_without_a_line_to_edit(
+    tmp_path: Path, pattern: str, replacement: str
+) -> None:
+    """When there is no `fitted_for` to correct, telling the user to "edit that line" is advice
+    that cannot be followed. The note says what is missing and offers the other way out."""
+    cache = tmp_path / "cache"
+    cache_entry(cache, 99991, title="HTTP Semantics")
+    out = tmp_path / "kb"
+
+    build(out, cache, [99991])
+    manifest = out / "pinakes.toml"
+    edited, count = re.subn(
+        pattern,
+        replacement,
+        manifest.read_text(encoding="utf-8"),
+        count=1,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    assert count == 1, "the manifest no longer has the shape this test breaks"
+    manifest.write_text(edited, encoding="utf-8")
+
+    proc = build(out, cache, [99991])
+
+    assert "has no usable [retrieval.confidence] fitted_for" in proc.stdout
+    assert "edit that line" not in proc.stdout
+
+
 def test_it_refuses_to_build_inside_this_repository(tmp_path: Path) -> None:
     """This repository is public and commits no harvested content (`CLAUDE.md`). The refusal is
     older than this file; it is tested here because a corpus builder whose one safety rule is

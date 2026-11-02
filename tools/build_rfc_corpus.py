@@ -548,12 +548,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "editing max_tokens in place rechunks the KB and invalidates any captured baseline."
             )
         fitted = stamped_fitted_for(out)
-        if fitted != FITTED_FOR:
-            found = "is absent or could not be read" if fitted is None else f"is {fitted}"
+        if fitted is None:
             print(
-                f"  its [retrieval.confidence] fitted_for {found}; this build stamps {FITTED_FOR}. "
-                "A value that is not the reranker's provider and model reads `unknown` on every "
-                "question: edit that line, or build into a fresh --out."
+                "  its manifest has no usable [retrieval.confidence] fitted_for (the table or the "
+                "key is missing, the value is not a string, or the file cannot be read); this "
+                f"build stamps {FITTED_FOR}. Without it every confidence reads `unknown`: add the "
+                "table, or build into a fresh --out."
+            )
+        elif fitted != FITTED_FOR:
+            print(
+                f"  its [retrieval.confidence] fitted_for is {fitted}; this build stamps "
+                f"{FITTED_FOR}. A value other than the reranker's provider and model reads "
+                "`unknown` on every question: edit that line, or build into a fresh --out."
             )
     if missing:
         # Named, not just counted: a silent gap is how a corpus quietly becomes something other

@@ -206,7 +206,8 @@ under both, which for a manifest that names no revision (`pnk init` stamps none)
 knowledge base: a result that was `high` under sentence-transformers was `low` under fastembed, with
 no warning, and the same after the `pnk sync --rebuild` that an embedding-provider change requires
 (20261102 09:08 UTC). **After changing the reranker's provider, re-fit with
-`python -m pinakes.calibrate`:** until then the signal is `unknown`.
+`python -m pinakes.calibrate`** (and replace the `[retrieval.confidence]` table you have with the
+one it prints): until then the signal is `unknown`.
 
 **A manifest calibrated before the provider was recorded reads `unknown` until it names one.** Its
 `fitted_for` is `model@revision` with no provider, which cannot be told from thresholds fitted under

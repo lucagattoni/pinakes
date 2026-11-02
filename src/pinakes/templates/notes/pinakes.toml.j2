@@ -40,7 +40,7 @@ vector_tier           = "auto"
 # value is `provider:model` (plus `@revision` if [rerank] sets one): the provider is part of it
 # because its scores sit on its own scale, so thresholds fitted under one are refused under the
 # other. The three lines below show the shape, not a fit: "<revision>" never matches, so
-# uncommenting them unedited fails `pnk doctor` rather than passing beside numbers nobody fitted.
+# uncommenting them unedited makes `pnk doctor` fail once synced, not pass on unfitted numbers.
 # fitted_for = "{{ rerank_provider }}:{{ rerank_model }}@<revision>"
 # low_below  = 0.31
 # high_above = 0.62
