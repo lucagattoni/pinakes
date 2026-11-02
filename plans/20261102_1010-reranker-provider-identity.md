@@ -70,6 +70,42 @@ Do not build P2 until the user has ruled on those three. What each costs, measur
 | D-3 | Does it count as changing "the confidence signal" (`CLAUDE.md` § Changing retrieval)? | Yes: golden-set before and after on `tests/demo-kb` | Yes. Expected: identical labels, once the demo KB's `fitted_for` carries its provider |
 | D-4 | The spelling | `provider:model@revision` inside `fitted_for`, or a separate `provider` key under `[retrieval.confidence]` | A key is permanent surface (`CLAUDE.md`): the user's |
 
+### What each choice touches (read 20261102 against `5a431dc`: by reading, not by running)
+
+- **`ModelInfo.fingerprint()` (`embed.py:45-47`) has three callers and feeds nothing but `fitted_for`.**
+  `calibrate.py:127` writes it. `search.py:656` compares it: a mismatch is `unknown`, exit 0.
+  `doctor.py:1111` compares it: a mismatch is a **`FAIL`** (`doctor.py:1114-1121`), so `pnk doctor` exits 1
+  (only once the index is built and the reranker loads offline). `manifest.py:827` reads `fitted_for` as an
+  opaque string, the index's coherence check does not use it, and nothing parses it, so a `provider:`
+  prefix needs no delimiter rule.
+- **A new manifest key is refused by every older Pinakes.** `_toml.py`'s `done()` rejects unknown keys, so a
+  manifest carrying one cannot be loaded at all by an earlier release; a prefix inside the string loads and
+  reads as a mismatch.
+- **Hand-written sites if the provider enters the string** (each verdict from reading the surrounding code):
+
+| Site | After the change |
+|---|---|
+| `tests/demo-kb/pinakes.toml:39` | mismatch, **loud in CI only**: `pnk doctor --kb tests/demo-kb` exits 1 (`ci.yml`, "Health check") and `pinakes.eval` regresses `confidence_coverage` against `baseline.json`; pytest does not see it |
+| `tests/test_cli_ask.py:56` (`FINGERPRINT`, spelled out on purpose) | loud: 23 tests take the confident and unconfident KB fixtures |
+| `tests/test_embed.py:202-203`, `tests/test_eval.py:1712` and `:1716`, `tests/test_search.py:397` | loud |
+| `tests/test_search_reproducibility.py:146` and `tools/eval_reproducibility_gate.py:159` | **silent**: they plant `fitted_for = "coarse-reranker@v1"` over the demo's literal, which still satisfies their `before in text` check, so every question reads `unknown` and the tests pass (their own comments name this failure). Fix them and assert the labels are not constant |
+| `tools/reachable_ceiling_probe.py:950` | raises `SystemExit` (its count is not 1) if the demo literal is edited |
+| `tools/build_rfc_corpus.py:261` | **silent**: the generated KB's confidence reads `unknown`; `tests/test_build_rfc_corpus.py:416` compares `fitted_for` with the rerank model's name and passes until the generator is edited |
+| the three `notes` templates, line 39 (a comment) | stale text; changing a template needs a version bump and `tools/template_drift_gate.py` is red without one. Fold the template's `# revision = "…"  # pin the HF commit sha…` advice into the same bump |
+| `tests/conftest.py:108` and `tests/test_cli_upgrade.py:50` | **not affected**: the first never equalled the fingerprint (it is only parsed), the second is a synthetic template fixture |
+
+- **Release-class precedent for D-2, read from `CHANGELOG.md`:** breaking changes shipped as MINOR in 0.5.0
+  (duplicate keys and others refused) and 0.8.0 (the paid-extractor key renamed, no fallback), and as PATCH
+  in 0.7.1 (an escaping `include` pattern became a load error) and 0.20.1 ("Breaking, and deliberately in a
+  patch": `vector_tier = "sqlite-vec"` refused). No 1.x has ever been cut. Under legacy-tolerant nothing that
+  worked stops working. Under strict, `pnk doctor` exits 1 on every calibrated KB until it is re-fitted (one
+  line to edit if the provider is known). `tests/demo-kb` is the only calibrated manifest in this repository;
+  the public RFC corpus has its thresholds commented out; private KBs: unstated.
+- **A third option for D-1, considered and rejected:** accept an old value unless its numbers cannot belong to
+  the active scale. It covers one direction only: negative thresholds cannot be sentence-transformers', but its
+  0 to 1 thresholds are valid logits, and that direction (26.7% of answerable questions labelled low) is the
+  one measured.
+
 Files that mention `fitted_for` on `dee3f04` (32; read each before deciding which change):
 `src/pinakes/{calibrate,doctor,embed,manifest,search,template}.py`; the templates
 `src/pinakes/templates/notes/pinakes.toml.j2` and `_versions/1.1`, `_versions/1.2`;
@@ -84,5 +120,5 @@ does not change (`CHANGELOG`, `RETROSPECTIVES`, older plans).
 
 | Row | State |
 |---|---|
-| P1 | built on branch `20261102_1004-revision-under-fastembed`; on `main` after landing |
+| P1 | landed on `main` at `5a431dc` and released in 0.32.9 (published 20261102 15:15 UTC) |
 | P2 | not started; waiting for D-1, D-2 and D-4 |
