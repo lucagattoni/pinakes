@@ -386,13 +386,22 @@ def differs_from(repo: Path, ref: str, path: Path) -> bool:
 
 
 def commits_touching(repo: Path, path: Path, ref: str) -> list[str]:
-    """Commits reachable from `ref` that touched `path`. Absolute `path`, always.
+    """Landings on `ref` that touched `path`: steps along its first-parent chain. Absolute `path`.
+
+    **First-parent, because "landed" is the leg's own unit.** A branch that adds an archive and
+    corrects it in review (the sequence `docs/BUILDING.md` requires) reaches `ref` through one
+    merge commit, and `git log ref` would list every branch commit behind it: `notes@1.3` was
+    added and amended on one branch, landed by `tools/land.py` on 20261102, and the next CI run
+    called three commits "an edit after it shipped". Along the first-parent chain the same landing
+    is one entry, a later branch that edits the directory is a second, and a branch fast-forwarded
+    onto `ref` (which `tools/land.py` never does) leaves no merge commit, so each of its commits
+    counts, the conservative direction.
 
     A relative pathspec is resolved against `cwd`, not against the caller's working directory, so
     passing one here matched nothing and the leg reported the strong mode having checked nothing.
     """
     result = subprocess.run(
-        ["git", "log", "--format=%H", ref, "--", str(path)],
+        ["git", "log", "--first-parent", "--format=%H", ref, "--", str(path)],
         cwd=repo,
         capture_output=True,
         text=True,
@@ -560,7 +569,8 @@ def _history_leg(templates: Path, names: Sequence[Path], *, repo: Path | None) -
     that already *shipped* has been edited, and an archive can be wronged from either side of the
     publication line:
 
-    * **landed history** — at most one commit *reachable from the published ref* may touch an
+    * **landed history** — at most one *landing* (one step along the published ref's first-parent
+      chain, so a merged branch counts once however many commits it carried) may touch an
       archived directory. Catches an add and a later edit that both landed.
     * **in-flight content** — if the published ref carries the directory at all, the working tree's
       copy must be byte-identical to it. Catches the coordinated three-file edit **before** it
@@ -569,7 +579,10 @@ def _history_leg(templates: Path, names: Sequence[Path], *, repo: Path | None) -
     Counting every commit instead — the first version of this leg — failed a branch that adds an
     archive and then corrects it during review, which is the sequence `docs/BUILDING.md` requires
     (green `./check.sh` before review, review fixes in their own commit). An archive the published
-    ref does not carry is **new**, and neither half constrains it.
+    ref does not carry is **new**, and neither half constrains it. Counting every commit
+    *reachable from* the ref — the second version — fixed that and then failed the same branch one
+    step later, once it had merged: `notes@1.3`, 20261102, red on `main` right after `tools/land.py`
+    (`commits_touching` has the account).
     """
     where = (repo if repo is not None else templates).resolve()
     reason = git_history_reason(where)

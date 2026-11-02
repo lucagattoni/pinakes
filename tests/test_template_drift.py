@@ -544,6 +544,109 @@ def test_adding_an_archive_then_correcting_it_before_landing_is_not_an_edit(
     assert "new" in result.stdout
 
 
+def landed_branch_repo(tmp_path: Path) -> Path:
+    """A repository where a branch added the archive, corrected it in its own commit, and was
+    **merged** the way `tools/land.py` merges, with `origin/main` at the merge commit.
+
+    The sequence `docs/BUILDING.md` requires, one step after the test above stops: the branch has
+    landed, so `origin/main` now *reaches* both of its commits. They are one landing.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git(repo, "init", "-q", "-b", "main")
+    git(repo, "config", "user.email", "t@example.invalid")
+    git(repo, "config", "user.name", "T")
+    (repo / "unrelated.txt").write_text(
+        "a repository that predates the archive\n", encoding="utf-8"
+    )
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "before any template")
+
+    git(repo, "checkout", "-q", "-b", "feature")
+    templates = repo / "templates"
+    shutil.copytree(REAL_TEMPLATES, templates)
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "add the archive")
+    readme = templates / "notes" / "README.md"
+    readme.write_text(readme.read_text(encoding="utf-8") + "\nA review fix.\n", encoding="utf-8")
+    (templates / "notes" / "_versions" / LIVE_NOTES / "README.md").write_text(
+        readme.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    repoint(templates, "notes", LIVE_NOTES)
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "review fix, its own commit as BUILDING.md requires")
+
+    git(repo, "checkout", "-q", "main")
+    git(repo, "merge", "-q", "--no-ff", "-m", "land the branch", "feature")
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    return repo
+
+
+def test_a_branch_that_added_an_archive_and_corrected_it_is_one_landing_once_merged(
+    tmp_path: Path,
+) -> None:
+    """The false positive that the previous test's fix did not reach, found on `main` itself
+    20261102: `notes@1.3` was added and amended in review on one branch, landed by `tools/land.py`
+    (a merge commit), and the next CI run failed — the leg counted the three branch commits
+    `origin/main` now reaches, though they landed once. Earlier archives (1.1, 1.2) each had a
+    single commit, so the leg had never been asked. "Already shipped means *landed*, never
+    *committed*" is the leg's own rule; a landing is one step along the first-parent chain."""
+    repo = landed_branch_repo(tmp_path)
+
+    result = run(repo / "templates", "--repo", str(repo))
+
+    assert result.returncode == 0, result.stderr
+    assert "edited after it shipped" not in result.stderr
+    assert "history leg (vii) ran against origin/main" in result.stdout
+    # the fixture is the real template tree: three archived directories, all landed by that merge
+    assert "3 published archived directories unchanged since it shipped" in result.stdout
+
+
+def test_a_second_landing_that_edits_the_archive_is_still_caught(tmp_path: Path) -> None:
+    """The control for the test above, and the reason it is safe: counting landings must not let
+    a *later* branch edit a frozen archive. Two merges now touch the directory, whatever their
+    branches' own commit counts were."""
+    repo = landed_branch_repo(tmp_path)
+    git(repo, "checkout", "-q", "-b", "later")
+    coordinated_edit(repo)
+    git(repo, "checkout", "-q", "main")
+    git(repo, "merge", "-q", "--no-ff", "-m", "land the later branch", "later")
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+
+    result = run(repo / "templates", "--repo", str(repo))
+
+    assert result.returncode == 1
+    assert "edited after it shipped" in result.stderr
+    assert "2 commits on origin/main" in result.stderr
+
+
+def test_a_fast_forward_landing_counts_every_commit_it_brings(tmp_path: Path) -> None:
+    """The conservative direction, pinned so it is a decision and not an accident. A branch landed
+    by fast-forward leaves no merge commit, so its two commits are two steps along the chain and
+    the leg flags them — `tools/land.py` never fast-forwards, and a hand-landed archive that was
+    corrected in review is exactly what this leg should make someone look at."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git(repo, "init", "-q", "-b", "main")
+    git(repo, "config", "user.email", "t@example.invalid")
+    git(repo, "config", "user.name", "T")
+    (repo / "unrelated.txt").write_text("before\n", encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "before any template")
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    templates = repo / "templates"
+    shutil.copytree(REAL_TEMPLATES, templates)
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "add the archive")
+    coordinated_edit(repo)
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+
+    result = run(templates, "--repo", str(repo))
+
+    assert result.returncode == 1
+    assert "2 commits on origin/main" in result.stderr
+
+
 def test_the_history_leg_skips_when_there_is_no_published_branch(tmp_path: Path) -> None:
     """A repository with history but nothing to call published cannot answer leg (vii)'s question,
     and says so rather than guessing. Falling back to counting every commit is what produced the
