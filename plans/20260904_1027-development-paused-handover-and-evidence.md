@@ -11,7 +11,7 @@ time. No ambiguities. So the development can restart anytime from where you both
 
 **This file is the entry point for whoever resumes.** `CLAUDE.md` points here.
 
-> **Update 20261102 11:40 UTC: the pause is lifted for everything.** The user said "Pinakes
+> **Update 20261102 11:40 UTC: development has resumed.** The user said "Pinakes
 > development officially resume from now", before 10:10 UTC, and named no row. `CLAUDE.md` no longer
 > says paused (the "⏸ DEVELOPMENT IS PAUSED" bullet this file points at was replaced by a "Development
 > resumed" bullet); the work opened since is
