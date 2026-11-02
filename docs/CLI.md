@@ -794,7 +794,7 @@ unreadable manifest as one:
 **`cannot compare` is what a KB stamped `notes@1.0` gets**, because that version is deliberately
 not archived — it denotes eleven different template contents, and a diff computed from the wrong
 base is worse than no diff. **It was once true of every KB in existence and no longer is**: the
-archive has shipped `notes@1.1` since 0.17.0, `notes@1.2` since 0.24.0 and `notes@1.3` since the release after 0.32.9, so any KB created from
+archive has shipped `notes@1.1` since 0.17.0, `notes@1.2` since 0.24.0 and `notes@1.3` since 0.33.0, so any KB created from
 0.17.0 onward is compared normally, and only KBs predating it land here. The message says so and names the comparison available now: `pnk init` a
 throwaway directory and diff its `pinakes.toml` against yours. A KB stamped from `notes@1.1` onward
 is compared automatically.
