@@ -229,11 +229,26 @@ def clamp_mutant(**overrides: str | list[str]) -> dict[str, str | list[str]]:
     return mutant
 
 
+def bytecode_environment() -> dict[str, str]:
+    """This process's environment, minus what would stop a scratch run leaving a `.pyc` to find.
+
+    `PYTHONDONTWRITEBYTECODE` makes the interpreter write none — Claude Code's shell exports it, and
+    many container images do — and `PYTHONPYCACHEPREFIX` writes them to a mirrored tree where
+    `pycache_entries` does not look. Neither is what the bytecode tests are about: they need a
+    `.pyc` to exist. A run meant to leave one is therefore not given either, instead of the suite
+    going red on *"nothing warmed the cache"* in whichever shell happens to export one (measured
+    20261102: two tests, in two separate sessions' `./check.sh`; the tool was never at fault).
+    """
+    ambient = {"PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX"}
+    return {name: value for name, value in os.environ.items() if name not in ambient}
+
+
 def warm(root: Path, selector: str = "tests/test_pkg.py") -> None:
     """Run the scratch suite once, so a `.pyc` for `pkg/mod.py` exists."""
     _ = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", selector],
         cwd=root,
+        env=bytecode_environment(),
         capture_output=True,
         check=False,
     )
@@ -894,6 +909,7 @@ def test_a_stale_pyc_really_does_report_a_same_length_mutant_as_survived(repo: P
     stale = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests/test_pkg.py"],
         cwd=repo,
+        env=bytecode_environment(),
         capture_output=True,
         text=True,
         check=False,
@@ -907,6 +923,7 @@ def test_a_stale_pyc_really_does_report_a_same_length_mutant_as_survived(repo: P
     fresh = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests/test_pkg.py"],
         cwd=repo,
+        env=bytecode_environment(),
         capture_output=True,
         text=True,
         check=False,
