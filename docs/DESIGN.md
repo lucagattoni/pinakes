@@ -461,7 +461,7 @@ headline feature fail on the default template, before any success.
 comparable across queries, so an absolute threshold is meaningless; thresholds are fitted per
 template against the golden set and stored in the manifest as `[retrieval.confidence]` (§2.1). Where
 that block is absent the system reports `confidence: unknown` rather than inventing a number — and
-because the block is model-specific, changing the embedding or reranker invalidates it, which
+because the block is model-specific, changing the embedding or reranker, or the reranker's provider, invalidates it, which
 `pnk doctor` reports alongside the §4.4 coherence check.
 
 Query-term coverage is used only as a **tiebreak, never a veto** — as a gate it would penalise

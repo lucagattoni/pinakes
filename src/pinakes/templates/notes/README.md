@@ -7,6 +7,6 @@ The smallest useful blueprint: plain Markdown under `docs/`, structural chunking
 - `pnk search "…"` searches locally and for free.
 
 `[retrieval.confidence]` ships commented out on purpose. Thresholds are only meaningful for the
-corpus and reranker they were fitted against, so until you fit your own, `pnk search` says
+corpus, reranker and reranker provider they were fitted against, so until you fit your own, `pnk search` says
 `confidence: unknown` rather than inventing a number. `eval/questions.yaml` is where a golden set
 starts.

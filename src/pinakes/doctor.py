@@ -31,7 +31,15 @@ from pinakes.budget.ledger import resolve as ledger_resolve
 from pinakes.budget.prices import load_prices
 from pinakes.budget.summary import euros
 from pinakes.budget.window import in_window
-from pinakes.embed import FASTEMBED, ModelInfo, hf_cache_dir, load_backend, load_reranker
+from pinakes.embed import (
+    FASTEMBED,
+    ModelInfo,
+    fitted_for_mismatch,
+    fitted_for_names_no_provider,
+    hf_cache_dir,
+    load_backend,
+    load_reranker,
+)
 from pinakes.errors import (
     CoherenceError,
     ExtractionCoherenceError,
@@ -1108,18 +1116,34 @@ def _calibration(manifest: Manifest) -> Check:
             "Honest, but uninformative. Fit thresholds against a golden set (§4.2/§7).",
         )
     try:
-        active = load_reranker(manifest.rerank, offline=True).info().fingerprint()
+        info = load_reranker(manifest.rerank, offline=True).info()
     except PinakesError:
         return Check("calibration", Status.WARN, f"fitted for {thresholds.fitted_for}", None)
-    if active != thresholds.fitted_for:
+    active = info.fingerprint()
+    if fitted_for_mismatch(thresholds.fitted_for, info) is None:
+        return Check("calibration", Status.OK, f"fitted for {active}")
+    if fitted_for_names_no_provider(thresholds.fitted_for, info):
         return Check(
             "calibration",
             Status.FAIL,
-            f"fitted for {thresholds.fitted_for}, but {active} is configured",
-            "Thresholds do not transfer between rerankers. Re-fit, or confidence reports "
-            "`unknown` rather than a number it cannot justify.",
+            f"fitted for {thresholds.fitted_for}, which names no provider; {active} is configured",
+            "`fitted_for` did not record the provider before it did, and a reranker's scores sit "
+            "on its provider's own scale, so these thresholds read `unknown` until it is named. "
+            f'If they were fitted under {info.provider}, set `fitted_for = "{active}"` in '
+            "`[retrieval.confidence]`; if you do not know, or it was the other provider, re-fit "
+            "with `python -m pinakes.calibrate <kb>` and replace that table with the one it "
+            "prints (a second table of the same name is not valid TOML).",
         )
-    return Check("calibration", Status.OK, f"fitted for {active}")
+    return Check(
+        "calibration",
+        Status.FAIL,
+        f"fitted for {thresholds.fitted_for}, but {active} is configured",
+        "Thresholds do not transfer between rerankers, nor between the two providers of one "
+        "reranker: their scores sit on different scales. Re-fit with `python -m "
+        "pinakes.calibrate <kb>` and replace `[retrieval.confidence]` with the table it prints (a "
+        "second one is not valid TOML), or confidence reports `unknown` rather than a number it "
+        "cannot justify.",
+    )
 
 
 EDGE_HUB_SAMPLE = 3

@@ -156,7 +156,12 @@ def _plant(destination: Path) -> Path:
         # than the one in use, so every question scored `unknown` and the confidence label — the
         # outcome field most sensitive to a tie, being one float against a threshold — could not
         # move whatever the ordering did.
-        ('fitted_for = "BAAI/bge-reranker-base"', 'fitted_for = "coarse-reranker@v1"'),
+        # The planted value must be the fake's whole fingerprint, `fake:coarse-reranker@v1`; `main`
+        # refuses to go on if every question still reads `unknown`.
+        (
+            'fitted_for = "fastembed:BAAI/bge-reranker-base"',
+            'fitted_for = "fake:coarse-reranker@v1"',
+        ),
         # ...and thresholds that sit *inside* the fake reranker's range. The committed pair was
         # fitted on a real cross-encoder's logits and lies below every score this one can emit, so
         # naming the reranker alone bought a label that was constantly `high` instead of constantly
@@ -321,6 +326,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             perturb(root)
             sync(load(root), options=SyncOptions(), now="20260801 00:31")
             incremental = _outcomes(root)
+            if all(outcome[2] == "unknown" for outcome in incremental):
+                # The comparison below would agree with itself over a field that cannot move: the
+                # planted `fitted_for` no longer names the fake reranker, so `confidence_of`
+                # refuses every threshold. Say so instead of printing "0 of N questions differ".
+                problems.append(
+                    f"{label}: every question's confidence label is `unknown`; the `fitted_for` "
+                    "this gate plants no longer matches the fake reranker's fingerprint"
+                )
+                continue
 
             sync(load(root), options=SyncOptions(rebuild=True), now="20260801 00:32")
             rebuilt = _outcomes(root)

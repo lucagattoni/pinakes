@@ -16,6 +16,7 @@ import sqlite3
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from types import ModuleType
+from typing import NoReturn
 
 import numpy as np
 import pytest
@@ -32,7 +33,7 @@ from pinakes.embed import (
     register_embedding_backend,
     register_reranker,
 )
-from pinakes.errors import TemplateError
+from pinakes.errors import EmbeddingError, TemplateError
 from pinakes.ids import mint_doc_id, mint_kb_id
 from pinakes.init import init
 from pinakes.manifest import EmbeddingSection, RerankSection, load
@@ -591,6 +592,88 @@ def test_thresholds_fitted_for_another_reranker_fail(kb: Path) -> None:
     status, detail = checks(kb)["calibration"]
     assert status is Status.FAIL
     assert "someone-else@v9" in detail
+
+
+def _calibration_check_with(kb: Path, fitted_for: str) -> Check:
+    """The whole `calibration` check for a KB whose thresholds claim `fitted_for`, remedy included
+    (`checks` drops the remedy, and for a mismatch the remedy is the part the user acts on)."""
+    path = kb / "pinakes.toml"
+    path.write_text(
+        path.read_text(encoding="utf-8")
+        + f'\n[retrieval.confidence]\nfitted_for = "{fitted_for}"\n'
+        "low_below = 0.3\nhigh_above = 0.7\n",
+        encoding="utf-8",
+    )
+    sync(load(kb), options=SyncOptions(), now="20260725 17:31")
+    return next(c for c in diagnose(load(kb)).checks if c.name == "calibration")
+
+
+def test_thresholds_fitted_for_this_reranker_and_provider_are_ok(kb: Path) -> None:
+    found = _calibration_check_with(kb, "fake:fake-reranker@v1")
+    assert found.status is Status.OK
+    assert found.detail == "fitted for fake:fake-reranker@v1"
+
+
+def test_thresholds_fitted_under_another_provider_fail_and_name_both(kb: Path) -> None:
+    """The same `model@revision` under another provider is a mismatch (their scores sit on
+    different scales), and the check shows both sides so the difference is visible."""
+    found = _calibration_check_with(kb, "other:fake-reranker@v1")
+    assert found.status is Status.FAIL
+    assert found.detail == (
+        "fitted for other:fake-reranker@v1, but fake:fake-reranker@v1 is configured"
+    )
+    assert found.remedy is not None
+    assert "python -m pinakes.calibrate <kb>" in found.remedy
+    assert "between the two providers of one reranker" in found.remedy
+    # calibrate prints a table to paste, and a KB at this point already has one
+    assert "replace `[retrieval.confidence]` with the table it prints" in found.remedy
+
+
+def test_a_fitted_for_with_no_provider_fails_with_the_one_line_that_fixes_it(kb: Path) -> None:
+    """A manifest calibrated before `fitted_for` recorded the provider reads `unknown` until it
+    is named. The remedy gives the exact line to write if the provider is known, and the re-fit if
+    it is not: the two ways out differ, and only the user knows which one applies."""
+    found = _calibration_check_with(kb, "fake-reranker@v1")
+    assert found.status is Status.FAIL
+    assert found.detail == (
+        "fitted for fake-reranker@v1, which names no provider; fake:fake-reranker@v1 is configured"
+    )
+    assert found.remedy is not None
+    assert 'fitted_for = "fake:fake-reranker@v1"' in found.remedy
+    assert "If they were fitted under fake, set `fitted_for" in found.remedy
+    assert "python -m pinakes.calibrate <kb>" in found.remedy
+    # calibrate prints a table to paste, and a KB at this point already has one
+    assert "replace that table with the one it prints" in found.remedy
+
+
+def test_a_stored_value_that_names_another_model_is_not_offered_the_one_line_fix(kb: Path) -> None:
+    """The one-line remedy is for the pre-provider form of *this* reranker: `model@revision` that
+    equals the configured one. A value naming another model, with or without a colon, is a plain
+    mismatch, and telling it to write the active fingerprint would hand the user a wrong line."""
+    found = _calibration_check_with(kb, "someone-else@v9")
+    assert found.status is Status.FAIL
+    assert found.detail == "fitted for someone-else@v9, but fake:fake-reranker@v1 is configured"
+    assert found.remedy is not None
+    assert "names no provider" not in found.detail
+    assert "set `fitted_for" not in found.remedy
+    assert "between the two providers of one reranker" in found.remedy
+
+
+def test_an_unloadable_reranker_leaves_the_calibration_a_warning_that_judges_nothing(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When the reranker cannot be loaded offline there is no fingerprint to compare with, so the
+    check says what the thresholds claim and decides nothing: a WARN, with no remedy, even for a
+    value that would FAIL if the reranker could be read."""
+
+    def cannot_load(section: RerankSection, *, offline: bool) -> NoReturn:
+        raise EmbeddingError("the reranker is not cached", remedy="Run once without --offline.")
+
+    monkeypatch.setattr("pinakes.doctor.load_reranker", cannot_load)
+    found = _calibration_check_with(kb, "fake-reranker@v1")
+    assert found.status is Status.WARN
+    assert found.detail == "fitted for fake-reranker@v1"
+    assert found.remedy is None
 
 
 def test_an_unpinned_revision_is_a_warning_with_the_value_to_pin(kb: Path) -> None:

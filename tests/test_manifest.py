@@ -43,7 +43,10 @@ def test_the_design_example_parses(kb_root: Path) -> None:
     assert manifest.extraction.model == "claude-opus-5"
     assert manifest.retrieval.final_k == 8
     assert manifest.retrieval.confidence is not None
-    assert manifest.retrieval.confidence.fitted_for == "BAAI/bge-reranker-base@abc123"
+    assert (
+        manifest.retrieval.confidence.fitted_for
+        == "sentence-transformers:BAAI/bge-reranker-base@abc123"
+    )
     assert manifest.rerank.model == "BAAI/bge-reranker-base"
     assert manifest.budget.timezone == "UTC"
     assert manifest.links == ()

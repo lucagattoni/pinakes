@@ -4,9 +4,11 @@
 #
 # **One file, because what it covers is one predicate and the sentences it chooses between.**
 # `Filters.any_set()` and `_nothing_to_search` decide what a user is told when retrieval returns
-# nothing, and that is the whole subject here — not fusion, not ranking, not the confidence tiers,
-# none of which this battery touches. A reader who greps this file and finds every anchor resolving
-# has learned nothing about the rest of `search.py`.
+# nothing, and that is the first subject here — not fusion, not ranking, and of the confidence tiers
+# only the last section's two rows: `confidence_of` returns `unknown`, with the reason, when
+# `fitted_for` does not match the reranker in use (its other rows are in
+# `src-pinakes-embed.toml`). A reader who greps this file and finds every anchor resolving has
+# learned nothing about the rest of `search.py`.
 #
 # **The subject is a message, and that is exactly why it needs mutants.** An empty result set is
 # the one path where the code has the least information and the output makes the most specific
@@ -16,7 +18,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 4
+mutants = 6
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260903 · three empty results, three different things to do about them
@@ -77,3 +79,29 @@ old = '''            or self.source_type
 '''
 new = ''''''
 kills = "tests/test_cli_search.py::test_a_filter_that_excludes_everything_still_says_so"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20261102 · confidence is `unknown` for thresholds fitted under another provider
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# **Appended with the change that put the provider into `fitted_for`.** The comparison itself lives
+# in `src/pinakes/embed.py` (`fitted_for_mismatch`, one reading for `search` and `doctor`, with its
+# own rows in that file's battery); these two are the half that is *here*: that `confidence_of`
+# asks it at all, and that it reports what it was told.
+
+[[mutant]]
+name = "confidence_of never asks whether the thresholds fit this reranker and provider"
+file = "src/pinakes/search.py"
+# Thresholds fitted on sigmoid scores would then label raw logits: the measured defect itself.
+old = '''    if mismatch is not None:
+        return UNKNOWN, mismatch'''
+new = '''    if False:
+        return UNKNOWN, mismatch'''
+kills = "tests/test_search.py::test_confidence_is_unknown_when_fitted_under_another_provider_of_the_same_model"
+
+[[mutant]]
+name = "the reason is replaced by a constant, so nobody can tell which side of the mismatch was wrong"
+file = "src/pinakes/search.py"
+old = '''        return UNKNOWN, mismatch'''
+new = '''        return UNKNOWN, "thresholds do not match the reranker in use"'''
+kills = "tests/test_search.py::test_confidence_is_unknown_when_fitted_for_names_no_provider"

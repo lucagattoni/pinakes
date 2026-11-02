@@ -113,9 +113,10 @@ only while the manifest names one. Rebuilding is free, so this is a stop rather 
 the revision to sentence-transformers and none to fastembed (`embed.py` builds a fastembed model from
 a model name and a cache directory, plus `local_files_only` offline, never a revision). Asked for the
 oldest of 31 commits of the repository it reads, fastembed 0.9.1 raised nothing and loaded the
-newest (measured 20261031 23:44 UTC). Under fastembed a `revision` is therefore a label: the index
-records it and, where thresholds are fitted, `fitted_for` contains it, and Pinakes compares each with
-the manifest, but it selects no file. "Refuses to load on a mismatch" compares the manifest with the
+newest (measured 20261031 23:44 UTC). Under fastembed a `revision` is therefore a label. The
+embedding's is recorded by the index, and the reranker's goes into `fitted_for` where thresholds are
+fitted; Pinakes compares each with the manifest, but neither selects a file. "Refuses to load on a
+mismatch" compares the manifest with the
 manifest as it stood at build time, never with the files that loaded. **`pnk doctor` says so
 from 0.32.9:** up to 0.32.8 it told a fastembed user to pin a revision.
 For weights pinned to a commit, use `sentence-transformers`.
@@ -188,22 +189,33 @@ against someone else's corpus are not a calibration. While absent, every result 
 
 | Key | Notes |
 |---|---|
-| `fitted_for` | `model@revision` of the **reranker** the thresholds were fitted against. On mismatch, `unknown` is reported rather than a wrong number. **It names neither the provider nor the scale of the scores** (below) |
+| `fitted_for` | `provider:model@revision` of the **reranker** the thresholds were fitted against (`provider:model` when `[rerank]` sets no revision), e.g. `fastembed:BAAI/bge-reranker-base`. The provider is part of it because its scores sit on its own scale. Compared by equality, never parsed. On mismatch, `unknown` is reported rather than a wrong number, and `pnk doctor` fails. **A value with no provider, which is every manifest calibrated before the provider was recorded, is a mismatch too** (below) |
 | `low_below` | Below this, low confidence |
 | `high_above` | Above this, high confidence |
 
 Fit them with `python -m pinakes.calibrate <kb>`, which *prints* a block to paste and never writes
 one. It is a module entry point, not a `pnk` subcommand.
 
-**Thresholds do not carry from one reranker provider to the other, and `fitted_for` cannot tell.**
+**Thresholds do not carry from one reranker provider to the other, and `fitted_for` says so.**
 Scores sit on the provider's own scale: sentence-transformers' lie between 0 and 1, fastembed's are
-raw logits (-9.28 to 10.31 over the same 2,556 questions, 20261031 20:40 UTC). Changing
-`[rerank] provider` in a manifest that carries thresholds fitted under the other keeps applying them
-whenever `model@revision` still matches, which it does for any manifest that names no revision
-(`pnk init` stamps none). Measured 20261031 23:43 UTC on a small knowledge base: a result that was
-`high` under sentence-transformers was `low` under fastembed, with no warning, and the same after
-the `pnk sync --rebuild` that an embedding-provider change requires (20261102 09:08 UTC).
-**Re-fit with `python -m pinakes.calibrate` after changing the reranker's provider.**
+raw logits (a question's top-1 score ran from -9.28 to 10.31 over the same 2,556 questions, 20261031 20:40 UTC). So `fitted_for`
+records the provider with the model, and thresholds fitted under one provider are refused under the
+other: `unknown`, never a number. Before the provider was recorded, the same `model@revision` matched
+under both, which for a manifest that names no revision (`pnk init` stamps none) meant that changing
+`[rerank] provider` kept applying the old thresholds. Measured 20261031 23:43 UTC on a small
+knowledge base: a result that was `high` under sentence-transformers was `low` under fastembed, with
+no warning, and the same after the `pnk sync --rebuild` that an embedding-provider change requires
+(20261102 09:08 UTC). **After changing the reranker's provider, re-fit with
+`python -m pinakes.calibrate`** (and replace the `[retrieval.confidence]` table you have with the
+one it prints): until then the signal is `unknown`.
+
+**A manifest calibrated before the provider was recorded reads `unknown` until it names one.** Its
+`fitted_for` is `model@revision` with no provider, which cannot be told from thresholds fitted under
+the other provider, so it is refused rather than guessed from the current `[rerank] provider`, the
+very thing that may have changed. `pnk doctor` reports a `FAIL` and prints the line that fixes it
+when you know which provider you fitted under: `fitted_for = "<provider>:<model>"`. If you do not
+know, re-fit, and replace the `[retrieval.confidence]` table you have with the one it prints: a
+second table of that name is not valid TOML.
 
 ## `[rerank]`
 

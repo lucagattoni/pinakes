@@ -42,9 +42,55 @@ class ModelInfo:
     dim: int
     max_seq_length: int
 
-    def fingerprint(self) -> str:
-        """`model@revision` — what `[retrieval.confidence] fitted_for` records (§4.2)."""
+    def model_ref(self) -> str:
+        """`model@revision`, or the model alone: a fingerprint without its provider.
+
+        It is also all that `fitted_for` held before it recorded the provider, which is how an old
+        value is told from a wrong one (`fitted_for_mismatch`).
+        """
         return f"{self.model}@{self.revision}" if self.revision else self.model
+
+    def fingerprint(self) -> str:
+        """`provider:model@revision` — what `[retrieval.confidence] fitted_for` records (§4.2).
+
+        The provider is part of it because a reranker's scores sit on its provider's own scale
+        (sentence-transformers 0 to 1, fastembed raw logits), so thresholds fitted under one are
+        wrong under the other even when `model@revision` is the same string, as it is for a
+        manifest that names no revision. It is compared by equality and never parsed.
+        """
+        return f"{self.provider}:{self.model_ref()}"
+
+
+def fitted_for_mismatch(fitted_for: str, info: ModelInfo) -> str | None:
+    """Why thresholds stamped `fitted_for` do not apply to the reranker `info`; `None` if they do.
+
+    **One verdict for `search` and `doctor`**, because two copies of this comparison are free to
+    disagree about the same manifest: `search` reports `unknown` with this sentence as its reason,
+    and `doctor` reports a `FAIL` whenever it is not `None`, with a detail and a remedy of its own.
+
+    A value that is exactly `info.model_ref()` is the form `fitted_for` had before it recorded the
+    provider. It is refused like any other mismatch (it cannot be told from thresholds fitted under
+    the other provider, which is the defect this exists to close) but named as what it is, because
+    the remedy differs: one line to edit if the provider is known, a re-fit if it is not.
+    """
+    active = info.fingerprint()
+    if fitted_for == active:
+        return None
+    if fitted_for_names_no_provider(fitted_for, info):
+        return (
+            f"thresholds were fitted for {fitted_for}, which names no provider, "
+            f"and {active} is in use"
+        )
+    return f"thresholds were fitted for {fitted_for}, but {active} is in use"
+
+
+def fitted_for_names_no_provider(fitted_for: str, info: ModelInfo) -> bool:
+    """`True` for the pre-provider form of this reranker's `fitted_for` (`model@revision` alone).
+
+    A fingerprint is `provider:` followed by the model reference, so it is always longer than the
+    reference: this is never true of a value that matches, and needs no check that it does not.
+    """
+    return fitted_for == info.model_ref()
 
 
 class EmbeddingBackend(Protocol):

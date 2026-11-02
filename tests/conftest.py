@@ -105,7 +105,7 @@ rerank                = "local"
 vector_tier           = "auto"
 
 [retrieval.confidence]
-fitted_for = "BAAI/bge-reranker-base@abc123"
+fitted_for = "sentence-transformers:BAAI/bge-reranker-base@abc123"
 low_below  = 0.31
 high_above = 0.62
 

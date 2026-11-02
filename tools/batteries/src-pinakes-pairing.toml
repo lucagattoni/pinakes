@@ -33,7 +33,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 81
+mutants = 88
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -1393,3 +1393,73 @@ new = '''    if not info.revision:
             Status.WARN,
             f"{detail}, files not pinned'''
 kills = "tests/test_doctor.py::test_an_unset_fastembed_revision_stays_unset_whatever_the_backend_reports"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20261102 · `pnk doctor` fails a threshold that names another provider, and says what to write
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# **Appended with the change that put the provider into `fitted_for`.** `_calibration` is the
+# surface a user acts on: a KB calibrated before the provider was recorded now fails here, so the
+# remedy has to be right, not merely present. Four ways of getting it wrong.
+
+[[mutant]]
+name = "doctor calls a mismatched threshold OK (the comparison is inverted)"
+file = "src/pinakes/doctor.py"
+old = '''    if fitted_for_mismatch(thresholds.fitted_for, info) is None:'''
+new = '''    if fitted_for_mismatch(thresholds.fitted_for, info) is not None:'''
+kills = "tests/test_doctor.py::test_thresholds_fitted_for_this_reranker_and_provider_are_ok"
+
+[[mutant]]
+name = "the pre-provider form gets the general remedy, with no line to write"
+file = "src/pinakes/doctor.py"
+# The two ways out differ — one line to edit if the provider is known, a re-fit if it is not — and
+# the general remedy offers only the second.
+old = '''    if fitted_for_names_no_provider(thresholds.fitted_for, info):'''
+new = '''    if False:'''
+kills = "tests/test_doctor.py::test_a_fitted_for_with_no_provider_fails_with_the_one_line_that_fixes_it"
+
+[[mutant]]
+name = "the line to write is the stored value, not the one that fits"
+file = "src/pinakes/doctor.py"
+# A remedy that tells the user to write back what is already there is the worst of both: it reads
+# as help and changes nothing.
+old = '''set `fitted_for = "{active}"`'''
+new = '''set `fitted_for = "{thresholds.fitted_for}"`'''
+kills = "tests/test_doctor.py::test_a_fitted_for_with_no_provider_fails_with_the_one_line_that_fixes_it"
+
+[[mutant]]
+name = "a threshold fitted under another provider is a WARN, so doctor exits 0 over it"
+file = "src/pinakes/doctor.py"
+old = '''        Status.FAIL,
+        f"fitted for {thresholds.fitted_for}, but {active} is configured",'''
+new = '''        Status.WARN,
+        f"fitted for {thresholds.fitted_for}, but {active} is configured",'''
+kills = "tests/test_doctor.py::test_thresholds_fitted_under_another_provider_fail_and_name_both"
+
+# Three more from the same fresh reviewer's own mutants. Each survived this battery's first four
+# rows and the tests behind them, and each is a way the *remedy* can be wrong while a status check
+# still passes.
+[[mutant]]
+name = "an unloadable reranker no longer leaves a WARN: doctor says OK about thresholds it could not judge"
+file = "src/pinakes/doctor.py"
+old = '''        return Check("calibration", Status.WARN, f"fitted for {thresholds.fitted_for}", None)'''
+new = '''        return Check("calibration", Status.OK, f"fitted for {thresholds.fitted_for}", None)'''
+kills = "tests/test_doctor.py::test_an_unloadable_reranker_leaves_the_calibration_a_warning_that_judges_nothing"
+
+[[mutant]]
+name = "the remedy names the model where it says which provider the thresholds were fitted under"
+file = "src/pinakes/doctor.py"
+# The old assertion matched a prefix: `fitted under fake` is also the start of `fitted under
+# fake-reranker`, so the wrong word passed. The test now ends the match at the comma.
+old = '''If they were fitted under {info.provider}, set'''
+new = '''If they were fitted under {info.model}, set'''
+kills = "tests/test_doctor.py::test_a_fitted_for_with_no_provider_fails_with_the_one_line_that_fixes_it"
+
+[[mutant]]
+name = "doctor decides 'no provider' by the absence of a colon, so a value naming another model gets the one-line fix"
+file = "src/pinakes/doctor.py"
+# The one-line remedy is only right for the pre-provider form of THIS reranker. A value with no
+# colon that names a different model would be told to write the active fingerprint: a wrong line.
+old = '''    if fitted_for_names_no_provider(thresholds.fitted_for, info):'''
+new = '''    if ":" not in thresholds.fitted_for:'''
+kills = "tests/test_doctor.py::test_a_stored_value_that_names_another_model_is_not_offered_the_one_line_fix"

@@ -1,4 +1,4 @@
-# The provider is part of what a model is: P1 (built) and P2 (stopped, the user's)
+# The provider is part of what a model is: P1 and P2 (both built, P2 on the user's rulings)
 
 **Audience: the agent building it. Goal: executor.** Written 20261102 10:10 UTC, the day the user
 resumed development ("officially resume from now") and chose to start with P1.
@@ -59,9 +59,12 @@ Scope: say what is true, today, without adding surface. No new check name, flag 
   docstring at `tests/test_eval.py:1752`, "real cross-encoders emit logits", which is true of
   fastembed only.
 
-## P2: the provider in the threshold identity (**STOP: D-1, D-2 and D-4 are the user's**)
+## P2: the provider in the threshold identity (built; D-1, D-2 and D-4 ruled by the user, 20261102 19:58 UTC)
 
-Do not build P2 until the user has ruled on those three. What each costs, measured on `dee3f04`:
+**The user ruled on 20261102 19:58 UTC ("Take my lean"): D-1 strict, D-4 the provider inside the `fitted_for`
+string (`provider:model@revision`), D-2 a MINOR release with a "Breaking" entry that names the
+one-line fix; D-3 is yes.** The table is kept as the record of what was weighed, and of what each
+cost, measured on `dee3f04`:
 
 | # | Decision | Options | Leaning, and why it is not mine to take |
 |---|---|---|---|
@@ -121,4 +124,4 @@ does not change (`CHANGELOG`, `RETROSPECTIVES`, older plans).
 | Row | State |
 |---|---|
 | P1 | landed on `main` at `5a431dc` and released in 0.32.9 (published 20261102 15:15 UTC) |
-| P2 | not started; waiting for D-1, D-2 and D-4 |
+| P2 | built on the branch that lands this edit (strict, the provider inside the string, template `notes@1.3`); on `main` after landing. D-3 measured: the published 0.32.9 on the old manifest and this change on the new one agree on all 74 golden questions in every field (labels 54 `high`, 14 `medium`, 6 `low`; `confidence_coverage` 1.0) |

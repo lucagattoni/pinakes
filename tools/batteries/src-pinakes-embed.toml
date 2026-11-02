@@ -2,10 +2,13 @@
 #
 #     python3 tools/mutate.py tools/batteries/src-pinakes-embed.toml
 #
-# **One file, and one subject: what `--offline` means for the model loaders.** The fastembed ones
-# first, then (second section) the sentence-transformers ones, which pass `local_files_only`
-# themselves (read from the wheel and the keyword's name, not run) and lacked only the typed
-# failure. Not `info()`, not the dim check in `load_backend`. A reader who greps this file and finds
+# **Two subjects, one file and one row outside it.** The first: what `--offline` means for the model
+# loaders. The fastembed ones first, then (second section) the sentence-transformers ones, which
+# pass `local_files_only` themselves (read from the wheel and the keyword's name, not run) and
+# lacked only the typed failure. The second, begun 20261102 20:34 UTC: the provider in the threshold
+# identity: `ModelInfo.fingerprint`, `fitted_for_mismatch` and the `info()` of both built-in
+# rerankers, with one row (21:41 UTC) on the notes template's commented `fitted_for`, which has to
+# stay a value that cannot match. Not the dim check in `load_backend`. A reader who greps this file and finds
 # every anchor resolving has learned nothing about the rest of `embed.py`.
 #
 # **The subject is a promise `pnk doctor` makes — "free, offline" — that the code broke.** Measured
@@ -31,7 +34,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 55
+mutants = 68
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20261030 · offline means the cache holds this model, or the load fails typed
@@ -688,3 +691,147 @@ file = "src/pinakes/embed.py"
 old = '''    if offline and not hf_cache_dir().exists():'''
 new = '''    if not hf_cache_dir().exists():'''
 kills = "tests/test_embed.py::test_online_with_no_cache_directory_is_not_refused"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20261102 · fitted_for names the provider, and a value that does not is refused
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# **A second subject in this file, appended with the change that put the provider into `fitted_for`.**
+# The section above is about `--offline`; this one is about what a threshold's identity is. The
+# subject is a defect measured twice (20261031 23:43 UTC and 20261102 09:08 UTC): `fitted_for` held
+# `model@revision` only, the same string under both reranker providers, so changing `[rerank]
+# provider` kept applying thresholds fitted on the other scale and a `high` became `low` with no
+# warning. The tests behind these rows use no real library and no real model.
+
+[[mutant]]
+name = "THE SHIPPED DEFECT — the fingerprint drops the provider, so one model under two providers is one string"
+file = "src/pinakes/embed.py"
+# Exactly the code as it was before: `model@revision` and nothing else. Every other row below is a
+# way of getting part of this wrong while the format still looks right.
+old = '''        return f"{self.provider}:{self.model_ref()}"'''
+new = '''        return self.model_ref()'''
+kills = "tests/test_embed.py::test_the_same_model_under_two_providers_has_two_fingerprints"
+
+[[mutant]]
+name = "the provider is joined to the model with a slash, so the recorded form is not the documented one"
+file = "src/pinakes/embed.py"
+# A different breakage from the row above: the provider is present, so two providers still differ,
+# and only a test that pins the *spelling* (`provider:model@revision`, what `docs/MANIFEST.md`
+# promises and what `python -m pinakes.calibrate` prints) notices.
+old = '''        return f"{self.provider}:{self.model_ref()}"'''
+new = '''        return f"{self.provider}/{self.model_ref()}"'''
+kills = "tests/test_embed.py::test_model_fingerprint_matches_what_fitted_for_records"
+
+[[mutant]]
+name = "model_ref forgets the revision, so a pinned model and an unpinned one share a fingerprint"
+file = "src/pinakes/embed.py"
+old = '''        return f"{self.model}@{self.revision}" if self.revision else self.model'''
+new = '''        return self.model'''
+kills = "tests/test_embed.py::test_model_fingerprint_matches_what_fitted_for_records"
+
+[[mutant]]
+name = "a value that equals the fingerprint is reported as a mismatch (the comparison is inverted)"
+file = "src/pinakes/embed.py"
+old = '''    if fitted_for == active:
+        return None'''
+new = '''    if fitted_for != active:
+        return None'''
+kills = "tests/test_embed.py::test_fitted_for_that_equals_the_fingerprint_matches"
+
+[[mutant]]
+name = "the pre-provider form is no longer named: an old value is told it belongs to another model"
+file = "src/pinakes/embed.py"
+# The remedy differs (one line to edit when the provider is known, a re-fit when it is not), which
+# is why the old form is told apart at all. Without this branch the message is the general one.
+old = '''    if fitted_for_names_no_provider(fitted_for, info):
+        return (
+            f"thresholds were fitted for {fitted_for}, which names no provider, "
+            f"and {active} is in use"
+        )
+'''
+new = ''''''
+kills = "tests/test_embed.py::test_fitted_for_with_no_provider_is_refused_and_named_as_such"
+
+[[mutant]]
+name = "the pre-provider sentence loses the fingerprint that is in use"
+file = "src/pinakes/embed.py"
+# The sentence is where a reader learns what the line to write should be; without the active
+# fingerprint it says an old value was found and not what to compare it with.
+old = '''            f"and {active} is in use"'''
+new = '''            "and the configured reranker is in use"'''
+kills = "tests/test_embed.py::test_fitted_for_with_no_provider_is_refused_and_named_as_such"
+
+[[mutant]]
+name = "every mismatch is called a missing provider"
+file = "src/pinakes/embed.py"
+old = '''    return fitted_for == info.model_ref()'''
+new = '''    return True'''
+kills = "tests/test_embed.py::test_fitted_for_naming_anything_else_is_a_plain_mismatch"
+
+[[mutant]]
+name = "the pre-provider test compares with the whole fingerprint, so a matching value is the one called old"
+file = "src/pinakes/embed.py"
+old = '''    return fitted_for == info.model_ref()'''
+new = '''    return fitted_for == info.fingerprint()'''
+kills = "tests/test_embed.py::test_fitted_for_that_equals_the_fingerprint_matches"
+
+[[mutant]]
+name = "the plain mismatch loses the value that was stored"
+file = "src/pinakes/embed.py"
+old = '''    return f"thresholds were fitted for {fitted_for}, but {active} is in use"'''
+new = '''    return f"thresholds were fitted for another reranker, but {active} is in use"'''
+kills = "tests/test_embed.py::test_fitted_for_naming_anything_else_is_a_plain_mismatch"
+
+# A fresh reviewer's own mutants found the next row survived this battery's first nine, which
+# were all killed. Written after the test that kills it, with the survivor named so the row's
+# provenance is not mistaken for the author's.
+[[mutant]]
+name = "the comparison folds case, so a provider or a model that differs only in case is accepted"
+file = "src/pinakes/embed.py"
+old = '''    if fitted_for == active:
+        return None'''
+new = '''    if fitted_for.lower() == active.lower():
+        return None'''
+kills = "tests/test_embed.py::test_fitted_for_naming_anything_else_is_a_plain_mismatch"
+
+# The seam the fakes cannot see: the two built-in rerankers copy their provider from the manifest
+# section, and `fitted_for` now depends on that string. A fake reports whatever provider its test
+# hands it, so none of them asks the real classes whether they copy it.
+[[mutant]]
+name = "the fastembed reranker reports sentence-transformers as its provider"
+file = "src/pinakes/embed.py"
+old = '''            provider=self._section.provider,
+            model=self._section.model,
+            revision=self._section.revision,
+            dim=0,
+            max_seq_length=512,'''
+new = '''            provider=SENTENCE_TRANSFORMERS,
+            model=self._section.model,
+            revision=self._section.revision,
+            dim=0,
+            max_seq_length=512,'''
+kills = "tests/test_embed.py::test_the_fastembed_reranker_reports_its_provider_in_its_fingerprint"
+
+[[mutant]]
+name = "the sentence-transformers reranker reports fastembed as its provider"
+file = "src/pinakes/embed.py"
+old = '''            provider=self._section.provider,
+            model=self._section.model,
+            revision=self._section.revision,
+            dim=0,  # a cross-encoder emits a score, not a vector'''
+new = '''            provider=FASTEMBED,
+            model=self._section.model,
+            revision=self._section.revision,
+            dim=0,  # a cross-encoder emits a score, not a vector'''
+kills = "tests/test_embed.py::test_the_sentence_transformers_reranker_reports_its_provider_in_its_fingerprint"
+
+# Found by the second review pass (the `adversarial-review` workflow, fixed 20261102 21:32 UTC): the first draft of
+# notes@1.3 shipped a commented `fitted_for` that was the reranker's exact fingerprint. Uncommented
+# unedited it passed `fitted_for_mismatch`, so `pnk doctor` said OK beside thresholds nobody had
+# fitted. The base template's hint ended in `@<revision>`, which can never match.
+[[mutant]]
+name = "the template's commented fitted_for is the reranker's exact fingerprint, so an unedited uncomment passes the check"
+file = "src/pinakes/templates/notes/pinakes.toml.j2"
+old = '''# fitted_for = "{{ rerank_provider }}:{{ rerank_model }}@<revision>"'''
+new = '''# fitted_for = "{{ rerank_provider }}:{{ rerank_model }}"'''
+kills = "tests/test_init.py::test_the_commented_confidence_block_is_refused_when_uncommented_as_shipped"

@@ -21,10 +21,12 @@ Reranker scores sit on their provider's own scale. fastembed returns raw logits,
 one (measured 20260725 15:35; the provider was not recorded, but a negative score cannot come from
 the sigmoid below). sentence-transformers passes a single-label cross-encoder through a sigmoid, so
 its scores lie between 0 and 1 (measured 20261031 20:40 UTC over the 2,556 base questions of
-MultiHop-RAG, in the pinakes-datasets-benchmark repository: 0.00 to 1.00, against -9.28 to 10.31
-for fastembed on the same questions). Nothing here assumes a 0-to-1 range. But `fitted_for` records
-neither the provider nor the scale, so thresholds fitted under one provider are accepted under the
-other when `model@revision` matches (`docs/MANIFEST.md`).
+MultiHop-RAG, in the pinakes-datasets-benchmark repository: a question's top-1 score ran 0.00 to
+1.00, against -9.28 to 10.31 for fastembed on the same questions). Nothing here assumes a 0-to-1
+range. Which is why `fitted_for` records the provider with the model
+(`provider:model@revision`): thresholds fitted under one provider are refused under the other, and
+a value written before the provider was recorded reads `unknown` until it is named
+(`docs/MANIFEST.md`).
 """
 
 import sqlite3
@@ -170,7 +172,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"  answerable scores:   {answerable[0]:.3f} .. {answerable[-1]:.3f}\n"
         f"  unanswerable scores: {unanswerable[0]:.3f} .. {unanswerable[-1]:.3f}\n"
     )
-    print("Paste this into pinakes.toml — nothing here writes it for you:\n")
+    print(
+        "Paste this into pinakes.toml, replacing any [retrieval.confidence] table already there"
+        " (a second one is not valid TOML) — nothing here writes it for you:\n"
+    )
     print(calibration.as_manifest_block())
     return 0
 

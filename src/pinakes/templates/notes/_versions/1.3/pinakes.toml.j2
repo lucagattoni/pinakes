@@ -1,0 +1,66 @@
+[kb]
+name     = "{{ name }}"
+id       = "{{ kb_id }}"          # permanent — never edit or regenerate (docs/DESIGN.md §2.2)
+template = "{{ template }}"
+created  = "{{ created }}"
+
+[sources]
+roots   = ["docs/"]
+include = ["**/*.md", "**/*.txt"]
+exclude = ["**/drafts/**"]
+# Add "**/*.pdf" to `include` above to index PDFs. Left out rather than commented into place
+# because `init` cannot see whether the extractor is installed: PDF ingest needs
+# `uv add "pinakes[pdf]"`, and a glob stamped without it turns every PDF into a failed document.
+# `pnk sync` names any file it skipped for want of a pattern; `pnk doctor` checks the extractor.
+
+[embedding]
+provider = "{{ embedding_provider }}"
+model    = "{{ embedding_model }}"
+dim      = {{ embedding_dim }}
+# revision = "…"   # an HF commit sha: honoured by sentence-transformers only, a label under fastembed
+
+[chunking]
+strategy   = "structural"
+max_tokens = 510                  # <= the model's window minus special tokens
+overlap    = 64
+
+[retrieval]
+candidates_per_source = 50
+fusion                = "rrf"
+fusion_top_k          = 20
+final_k               = 8
+rerank                = "local"
+vector_tier           = "auto"
+
+# [retrieval.confidence]
+# Thresholds are fitted against *your* golden set, not shipped with the template: numbers fitted on
+# someone else's corpus are not a calibration. Until then `pnk search` reports `confidence: unknown`,
+# which is the honest answer. See eval/questions.yaml to start one.
+# `python -m pinakes.calibrate <kb>` prints this block for you to paste, `fitted_for` included. That
+# value is `provider:model` (plus `@revision` if [rerank] sets one): the provider is part of it
+# because its scores sit on its own scale, so thresholds fitted under one are refused under the
+# other. The three lines below show the shape, not a fit: "<revision>" never matches, so
+# uncommenting them unedited makes `pnk doctor` fail once synced, not pass on unfitted numbers.
+# fitted_for = "{{ rerank_provider }}:{{ rerank_model }}@<revision>"
+# low_below  = 0.31
+# high_above = 0.62
+
+[rerank]
+provider = "{{ rerank_provider }}"
+model    = "{{ rerank_model }}"
+
+[budget]
+confirm_above_eur = 0.01          # caps on the two things that can spend: `pnk ask --deep` and the
+per_operation_eur = 2.00          # paid PDF extractor. Both are opt-in — the free extractor is the
+daily_eur         = 6.00          # default and `pnk ask` alone never spends — so these bind only
+monthly_eur       = 30.00         # once you ask (docs/DESIGN.md §5). One operation is one whole
+timezone          = "UTC"         # command, so per_operation_eur bounds a deep run's every call.
+on_exceed         = "abort"       # `partial` returns what a halted deep run found, labelled.
+
+# [deep]
+# `pnk ask --deep`: which model to pay, and how many rounds to allow. **Commented out rather than
+# stamped**, like the thresholds above — a manifest carrying a key your pinakes has never heard of
+# cannot be read by it at all, so a KB written today stays readable by the build that wrote it.
+# These are the values the code uses when the section is absent; uncomment to change one.
+# model      = "claude-opus-5"
+# max_rounds = 3

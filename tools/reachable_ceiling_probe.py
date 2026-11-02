@@ -947,7 +947,11 @@ def _fake_kb(destination: Path) -> Path:
             'model    = "overlap-reranker"\nrevision = "probe-fake-rerank-rev"',
             1,
         ),
-        ('fitted_for = "BAAI/bge-reranker-base"', 'fitted_for = "overlap-reranker@v1"', 1),
+        (
+            'fitted_for = "fastembed:BAAI/bge-reranker-base"',
+            'fitted_for = "fake:overlap-reranker@v1"',
+            1,
+        ),
     ):
         if text.count(old) != occurrences:
             raise SystemExit(f"manifest no longer contains {old!r} exactly {occurrences}x")

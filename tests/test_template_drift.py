@@ -17,6 +17,7 @@ looks correct from the exit code.
 """
 
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -163,11 +164,17 @@ def test_leg_two_stopped_being_vacuous_when_the_second_version_was_archived() ->
     Asserting the note is now *absent* is what keeps it trustworthy the next time it appears. A
     caveat printed whatever the archive holds is a caveat nobody can act on, and this is the only
     test that would notice it had become one.
+
+    **At least two, not exactly two.** This asserted the literal "2 versions archived" until the
+    third version was archived, and so went red at every template bump for a reason that has
+    nothing to do with leg (ii): leg (ii) needs a *pair*, and any count from two up gives it one.
     """
     result = run(REAL_TEMPLATES)
     assert result.returncode == 0, result.stderr
     assert "vacuous" not in result.stdout
-    assert "2 versions archived" in result.stdout
+    archived = re.search(r"(\d+) versions archived", result.stdout)
+    assert archived is not None, result.stdout
+    assert int(archived.group(1)) >= 2
 
 
 # --------------------------------------------------------------------------------------------

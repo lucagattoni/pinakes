@@ -50,7 +50,7 @@ the ledger rather than at either end of it, and **it is the first battery over t
 all**, added 20260902 after a money assertion that had never held by construction went red on a
 refreshed exchange rate; `src-pinakes-template.toml`, over `src/pinakes/template.py` alone; and
 `src-pinakes-search.toml`, over `src/pinakes/search.py` alone, added 20260903 with sweep row 8's
-Low classes. **Those two, and `src-pinakes-embed.toml` (over `src/pinakes/embed.py` alone, added 20261030 with finding F2: what `--offline` means for the fastembed loaders), are the single-file batteries**, and the search one is single-file for the
+Low classes. **Those two, and `src-pinakes-embed.toml` (over `src/pinakes/embed.py`, added 20261030 with finding F2: what `--offline` means for the fastembed loaders, and since 20261102 20:34 UTC the provider in `fitted_for`), are the single-file batteries, the last with one exception: a row (20261102 21:41 UTC) on the notes template's commented `fitted_for` hint**, and the search one is single-file for the
 reason the rule wants stated: `Filters.any_set()` is one predicate in one module, and what its
 mutants separate is *the filters excluded everything* from *this KB has no active documents* — two
 states the confidence reason had been conflating, so a user who passed no filters at all was told
@@ -68,8 +68,9 @@ nor `src/`**: `claude-workflows-adversarial-review.toml`, over `.claude/workflow
 (plus two rows on `.gitignore`), added 20261019. Its target is JavaScript, so `tools/mutate.py`'s
 compile check — which covers `.py` targets only — does not protect its rows, and each was chosen to
 stay valid JavaScript. It runs the script against stub hooks under Node, so it proves control flow
-and nothing about what a real review agent finds. **Named for is not covers**: nine files under `src/` are mutated by some
-battery, `src/pinakes/serve.py` among them via `tools-mcp_handshake_gate.toml` — which is why a
+and nothing about what a real review agent finds. **Named for is not covers**: nine files under `src/` were mutated by some
+battery when this was written (eighteen on 20261102 22:10 UTC, counting `file = "src/…"` keys; one
+of them is the notes template), `src/pinakes/serve.py` among them via `tools-mcp_handshake_gate.toml` — which is why a
 `src-pinakes-serve.toml` proposed on 20260831 was refused by
 `test_no_file_is_claimed_by_two_batteries` and its rows appended to the handshake gate instead.
 **No battery is *named* for an invariant** — a primary target is a file, so none can be — but two

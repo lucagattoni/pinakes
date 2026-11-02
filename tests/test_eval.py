@@ -20,6 +20,7 @@ import pytest
 
 from pinakes import store
 from pinakes.calibrate import fit
+from pinakes.calibrate import main as calibrate_main
 from pinakes.embed import ModelInfo, Vectors, register_embedding_backend, register_reranker
 from pinakes.errors import CalibrationError, EvalError
 from pinakes.eval import (
@@ -1709,11 +1710,36 @@ def test_calibration_fits_thresholds_and_prints_a_manifest_block(demo: Path) -> 
     finally:
         connection.close()
 
-    assert calibration.fitted_for == "overlap-reranker@v1"
+    assert calibration.fitted_for == "fake:overlap-reranker@v1"
     assert calibration.low_below <= calibration.high_above
     block = calibration.as_manifest_block()
     assert "[retrieval.confidence]" in block
-    assert 'fitted_for = "overlap-reranker@v1"' in block
+    assert 'fitted_for = "fake:overlap-reranker@v1"' in block
+
+
+def test_calibrate_tells_the_user_to_replace_the_table_not_to_add_a_second(
+    demo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`python -m pinakes.calibrate` prints a block "to paste", and a KB it is run on has usually
+    a `[retrieval.confidence]` table already (that is why it is being re-run: the reranker or its
+    provider changed). Pasted beside the old one, the manifest stops loading, and nothing else in
+    the output says so. The two doctor remedies and the Guide say to replace; this is the tool's
+    own words, at the moment of pasting."""
+
+    def backend(*_args: object, **_kwargs: object) -> HashingBackend:
+        return HashingBackend()
+
+    def reranker(*_args: object, **_kwargs: object) -> OverlapReranker:
+        return OverlapReranker()
+
+    monkeypatch.setattr("pinakes.embed.load_backend", backend)
+    monkeypatch.setattr("pinakes.embed.load_reranker", reranker)
+
+    assert calibrate_main([str(demo)]) == 0
+
+    out = capsys.readouterr().out
+    assert "replacing any [retrieval.confidence] table already there" in out
+    assert 'fitted_for = "fake:overlap-reranker@v1"' in out
 
 
 def test_calibration_refuses_a_golden_set_with_no_unanswerable_questions(demo: Path) -> None:
