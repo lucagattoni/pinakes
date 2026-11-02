@@ -230,17 +230,16 @@ def clamp_mutant(**overrides: str | list[str]) -> dict[str, str | list[str]]:
 
 
 def bytecode_environment() -> dict[str, str]:
-    """This process's environment, minus what would stop a scratch run leaving a `.pyc` to find.
+    """This process's environment, minus the one variable that stops a scratch run leaving a `.pyc`.
 
     `PYTHONDONTWRITEBYTECODE` makes the interpreter write none — Claude Code's shell exports it, and
-    many container images do — and `PYTHONPYCACHEPREFIX` writes them to a mirrored tree where
-    `pycache_entries` does not look. Neither is what the bytecode tests are about: they need a
-    `.pyc` to exist. A run meant to leave one is therefore not given either, instead of the suite
-    going red on *"nothing warmed the cache"* in whichever shell happens to export one (measured
-    20261102: two tests, in two separate sessions' `./check.sh`; the tool was never at fault).
+    many container images do. The bytecode tests need a `.pyc` to exist, so a run meant to leave one
+    is not given it, instead of the suite going red on *"nothing warmed the cache"* in whichever
+    shell happens to export it. `PYTHONPYCACHEPREFIX` is deliberately **not** stripped: the tool
+    refuses it by design (`tools/mutate.py`), so a shell that exports it fails most of this file
+    whatever these three runs are given, and hiding it here would only make two tests look green.
     """
-    ambient = {"PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX"}
-    return {name: value for name, value in os.environ.items() if name not in ambient}
+    return {name: value for name, value in os.environ.items() if name != "PYTHONDONTWRITEBYTECODE"}
 
 
 def warm(root: Path, selector: str = "tests/test_pkg.py") -> None:
@@ -855,6 +854,23 @@ def pyc_of(source: Path) -> Path:
     matches = sorted((source.parent / "__pycache__").glob(f"{source.stem}.*.pyc"))
     assert len(matches) == 1, f"expected one cached bytecode file, found {matches}"
     return matches[0]
+
+
+def test_the_scratch_run_leaves_a_pyc_whatever_the_shell_exports(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pins `bytecode_environment()` where CI can see it.
+
+    CI exports no `PYTHONDONTWRITEBYTECODE`, so the two tests below passed there whether or not the
+    helper did anything; only a shell that sets it caught a helper that had stopped working. This
+    sets it here instead of waiting for such a shell.
+    """
+    monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")
+    assert "PYTHONDONTWRITEBYTECODE" not in bytecode_environment()
+    assert os.environ["PYTHONDONTWRITEBYTECODE"] == "1", "the helper must not edit this process"
+    warm(repo)
+    source = repo / "pkg" / "mod.py"
+    assert tool_module().pycache_entries(source), "the scratch run left no .pyc to find"
 
 
 def test_the_bytecode_cache_is_cleared_after_the_write_and_after_the_restore(repo: Path) -> None:
