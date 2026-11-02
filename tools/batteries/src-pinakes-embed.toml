@@ -31,7 +31,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 55
+mutants = 64
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20261030 · offline means the cache holds this model, or the load fails typed
@@ -688,3 +688,93 @@ file = "src/pinakes/embed.py"
 old = '''    if offline and not hf_cache_dir().exists():'''
 new = '''    if not hf_cache_dir().exists():'''
 kills = "tests/test_embed.py::test_online_with_no_cache_directory_is_not_refused"
+
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20261102 · fitted_for names the provider, and a value that does not is refused
+# ────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# **A second subject in this file, appended with the change that put the provider into `fitted_for`.**
+# The section above is about `--offline`; this one is about what a threshold's identity is. The
+# subject is a defect measured twice (20261031 23:43 UTC and 20261102 09:08 UTC): `fitted_for` held
+# `model@revision` only, the same string under both reranker providers, so changing `[rerank]
+# provider` kept applying thresholds fitted on the other scale and a `high` became `low` with no
+# warning. The tests behind these rows use no real library and no real model.
+
+[[mutant]]
+name = "THE SHIPPED DEFECT — the fingerprint drops the provider, so one model under two providers is one string"
+file = "src/pinakes/embed.py"
+# Exactly the code as it was before: `model@revision` and nothing else. Every other row below is a
+# way of getting part of this wrong while the format still looks right.
+old = '''        return f"{self.provider}:{self.model_ref()}"'''
+new = '''        return self.model_ref()'''
+kills = "tests/test_embed.py::test_the_same_model_under_two_providers_has_two_fingerprints"
+
+[[mutant]]
+name = "the provider is joined to the model with a slash, so the recorded form is not the documented one"
+file = "src/pinakes/embed.py"
+# A different breakage from the row above: the provider is present, so two providers still differ,
+# and only a test that pins the *spelling* (`provider:model@revision`, what `docs/MANIFEST.md`
+# promises and what `python -m pinakes.calibrate` prints) notices.
+old = '''        return f"{self.provider}:{self.model_ref()}"'''
+new = '''        return f"{self.provider}/{self.model_ref()}"'''
+kills = "tests/test_embed.py::test_model_fingerprint_matches_what_fitted_for_records"
+
+[[mutant]]
+name = "model_ref forgets the revision, so a pinned model and an unpinned one share a fingerprint"
+file = "src/pinakes/embed.py"
+old = '''        return f"{self.model}@{self.revision}" if self.revision else self.model'''
+new = '''        return self.model'''
+kills = "tests/test_embed.py::test_model_fingerprint_matches_what_fitted_for_records"
+
+[[mutant]]
+name = "a value that equals the fingerprint is reported as a mismatch (the comparison is inverted)"
+file = "src/pinakes/embed.py"
+old = '''    if fitted_for == active:
+        return None'''
+new = '''    if fitted_for != active:
+        return None'''
+kills = "tests/test_embed.py::test_fitted_for_that_equals_the_fingerprint_matches"
+
+[[mutant]]
+name = "the pre-provider form is no longer named: an old value is told it belongs to another model"
+file = "src/pinakes/embed.py"
+# The remedy differs (one line to edit when the provider is known, a re-fit when it is not), which
+# is why the old form is told apart at all. Without this branch the message is the general one.
+old = '''    if fitted_for_names_no_provider(fitted_for, info):
+        return (
+            f"thresholds were fitted for {fitted_for}, which names no provider, "
+            f"and {active} is in use"
+        )
+'''
+new = ''''''
+kills = "tests/test_embed.py::test_fitted_for_with_no_provider_is_refused_and_named_as_such"
+
+[[mutant]]
+name = "the pre-provider sentence loses the fingerprint that is in use"
+file = "src/pinakes/embed.py"
+# The sentence is where a reader learns what the line to write should be; without the active
+# fingerprint it says an old value was found and not what to compare it with.
+old = '''            f"and {active} is in use"'''
+new = '''            "and the configured reranker is in use"'''
+kills = "tests/test_embed.py::test_fitted_for_with_no_provider_is_refused_and_named_as_such"
+
+[[mutant]]
+name = "every mismatch is called a missing provider"
+file = "src/pinakes/embed.py"
+old = '''    return fitted_for == info.model_ref()'''
+new = '''    return True'''
+kills = "tests/test_embed.py::test_fitted_for_naming_anything_else_is_a_plain_mismatch"
+
+[[mutant]]
+name = "the pre-provider test compares with the whole fingerprint, so a matching value is the one called old"
+file = "src/pinakes/embed.py"
+old = '''    return fitted_for == info.model_ref()'''
+new = '''    return fitted_for == info.fingerprint()'''
+kills = "tests/test_embed.py::test_fitted_for_that_equals_the_fingerprint_matches"
+
+[[mutant]]
+name = "the plain mismatch loses the value that was stored"
+file = "src/pinakes/embed.py"
+old = '''    return f"thresholds were fitted for {fitted_for}, but {active} is in use"'''
+new = '''    return f"thresholds were fitted for another reranker, but {active} is in use"'''
+kills = "tests/test_embed.py::test_fitted_for_naming_anything_else_is_a_plain_mismatch"
