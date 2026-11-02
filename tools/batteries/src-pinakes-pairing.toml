@@ -33,7 +33,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 67
+mutants = 75
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -1206,3 +1206,107 @@ old = '''    if not unreachable_through_links(path):
 new = '''    if False:
         return None'''
 kills = "tests/test_sync_links.py::test_a_partner_kb_that_is_present_but_unreadable_is_not_reported_as_absent"
+
+# ──────────────────────────────────────────────────────────────────────────────────────────────────
+# unreleased, 20261102 · under fastembed a `revision` is a label, and `pnk doctor` says so (P1)
+# ──────────────────────────────────────────────────────────────────────────────────────────────────
+#
+# `_revision_check` has one job that is easy to get half right: Pinakes hands sentence-transformers
+# the manifest's revision and hands fastembed none, so the same manifest line is a pin under one
+# provider and a label under the other. Each row below breaks one half of that and names the test
+# that must notice. The defect they guard (reported 20261031, reproduced against fastembed 0.9.1)
+# was `pnk doctor` advising a fastembed user to pin a revision and calling a revision they had set
+# `OK`: both outcomes read as a healthy, actionable line while the files loaded were not selected
+# by it. The rows run in the order of the function.
+
+[[mutant]]
+name = "the provider test is inverted, so fastembed gets the sentence-transformers lines and the others get the fastembed ones"
+file = "src/pinakes/doctor.py"
+# The whole function turns on this one comparison. Inverted, every provider reads the other's
+# lines at once, so more than one test dies: the one named here is the clearest, because it asserts
+# the *unchanged* behaviour of the providers this increment must not touch.
+old = '''    if section.provider != FASTEMBED:'''
+new = '''    if section.provider == FASTEMBED:'''
+kills = "tests/test_doctor.py::test_the_other_providers_keep_the_advice_to_pin_and_the_ok_for_a_pin"
+
+[[mutant]]
+name = "a revision set under fastembed is reported OK again, so a label reads as a pin"
+file = "src/pinakes/doctor.py"
+# **This is the original defect, restored.** A user who set `revision` under fastembed saw a green
+# line saying their model was pinned, while the loader had never been given it.
+old = '''        Status.WARN,
+        f"{detail}@{section.revision}, a label, not a pin (Pinakes passes fastembed no revision)",'''
+new = '''        Status.OK,
+        f"{detail}@{section.revision}, a label, not a pin (Pinakes passes fastembed no revision)",'''
+kills = "tests/test_doctor.py::test_a_revision_set_under_fastembed_is_reported_as_a_label_and_not_ok"
+
+[[mutant]]
+name = "an unpinned fastembed model is reported OK, so the unpinned files stop being surfaced"
+file = "src/pinakes/doctor.py"
+# The mirror: the fix must not buy the removal of the futile advice by also removing the warning.
+# Files that nothing selects are still unpinned, and `pnk doctor` is the only place that says so.
+old = '''            Status.WARN,
+            f"{detail}, files not pinned (Pinakes passes fastembed no revision)",'''
+new = '''            Status.OK,
+            f"{detail}, files not pinned (Pinakes passes fastembed no revision)",'''
+kills = "tests/test_doctor.py::test_an_unpinned_fastembed_model_is_not_told_to_pin_a_revision"
+
+[[mutant]]
+name = "an unpinned fastembed model is told to pin a revision again"
+file = "src/pinakes/doctor.py"
+# **The other half of the original defect.** The remedy is advice a user acts on, so it is the part
+# that has to be true: pinning a revision under fastembed changes a label and nothing else.
+old = '''            f"{detail}, files not pinned (Pinakes passes fastembed no revision)",
+            switch,'''
+new = '''            f"{detail}, files not pinned (Pinakes passes fastembed no revision)",
+            "Pin it in the manifest to make rebuilds reproducible.",'''
+kills = "tests/test_doctor.py::test_an_unpinned_fastembed_model_is_not_told_to_pin_a_revision"
+
+[[mutant]]
+name = "the embedding and reranker consequences are swapped, so each model is told the other's"
+file = "src/pinakes/doctor.py"
+# What changing a label costs differs by model: the embedding's goes into the index and asks for a
+# rebuild; the reranker's goes into `fitted_for` and turns the thresholds `unknown`. Told the wrong
+# one, a user rebuilds an index that was fine, or re-fits thresholds that never moved.
+old = '''    if label == "embedding":
+        switch += " and run `pnk sync --rebuild`."'''
+new = '''    if label == "reranker":
+        switch += " and run `pnk sync --rebuild`."'''
+kills = "tests/test_doctor.py::test_a_revision_set_under_fastembed_is_reported_as_a_label_and_not_ok"
+
+[[mutant]]
+name = "the revision test inside the fastembed branch is inverted, so a set revision reads as unset and the reverse"
+file = "src/pinakes/doctor.py"
+# Anchored with the lines after it, because `if section.revision is None:` also opens the
+# sentence-transformers branch two levels up; only this occurrence is followed by the fastembed
+# `files not pinned` line.
+old = '''    if section.revision is None:
+        return Check(
+            label,
+            Status.WARN,
+            f"{detail}, files not pinned'''
+new = '''    if section.revision is not None:
+        return Check(
+            label,
+            Status.WARN,
+            f"{detail}, files not pinned'''
+kills = "tests/test_doctor.py::test_each_fastembed_model_is_judged_by_its_own_revision"
+
+[[mutant]]
+name = "the reranker line is judged by the embedding section's revision"
+file = "src/pinakes/doctor.py"
+# The caller's wiring, which the function's own tests cannot see: `_backends` loops over two
+# (label, section, loader) triples, and passing the wrong section is invisible whenever the two
+# sections happen to agree. The test sets a revision on the reranker only, so they do not.
+old = '''        yield _revision_check(label, section, info)'''
+new = '''        yield _revision_check(label, manifest.embedding, info)'''
+kills = "tests/test_doctor.py::test_each_fastembed_model_is_judged_by_its_own_revision"
+
+[[mutant]]
+name = "a pinned sentence-transformers model stops being OK"
+file = "src/pinakes/doctor.py"
+# Guards the providers this increment must leave alone. Without it, a change that broke the
+# unchanged branch while fixing the fastembed one would be green.
+old = '''        return Check(label, Status.OK, f"{detail}@{section.revision}")'''
+new = '''        return Check(label, Status.WARN, f"{detail}@{section.revision}")'''
+kills = "tests/test_doctor.py::test_a_pinned_sentence_transformers_model_is_ok"
