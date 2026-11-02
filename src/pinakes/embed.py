@@ -85,8 +85,12 @@ def fitted_for_mismatch(fitted_for: str, info: ModelInfo) -> str | None:
 
 
 def fitted_for_names_no_provider(fitted_for: str, info: ModelInfo) -> bool:
-    """`True` for the pre-provider form of this reranker's `fitted_for` (`model@revision` alone)."""
-    return fitted_for != info.fingerprint() and fitted_for == info.model_ref()
+    """`True` for the pre-provider form of this reranker's `fitted_for` (`model@revision` alone).
+
+    A fingerprint is `provider:` followed by the model reference, so it is always longer than the
+    reference: this is never true of a value that matches, and needs no check that it does not.
+    """
+    return fitted_for == info.model_ref()
 
 
 class EmbeddingBackend(Protocol):
