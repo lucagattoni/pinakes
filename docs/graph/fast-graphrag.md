@@ -1,5 +1,9 @@
 # fast-graphrag — investigation notes
 
+> 🗄️ **Historical copy, moved 20261102 09:01 UTC.** This research now lives in the public
+> [knowledge-graph reference](https://github.com/lucagattoni/knowledge-graph-tutorial) and is updated there. The neutral entry is [`kb-kg/projects/fast-graphrag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/kb-kg/projects/fast-graphrag.md); Pinakes' reading of it is [`pinakes/takeaways/fast-graphrag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/pinakes/takeaways/fast-graphrag.md).
+> This file is left as it was and is no longer updated; where the two differ, the maintained version wins.
+
 **Repo:** https://github.com/circlemind-ai/fast-graphrag · **Stars:** ~3,800 · **License:** MIT · **Investigated:** 20260725 15:30
 
 ## What it is

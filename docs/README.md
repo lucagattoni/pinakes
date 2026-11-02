@@ -29,7 +29,7 @@ anyway.
 | [**DESIGN.md**](DESIGN.md) | *Why is it built this way?* Architecture, storage, sync semantics, concurrency, trade-offs |
 | [**RETROSPECTIVES.md**](RETROSPECTIVES.md) | *What did we learn?* Per-increment findings, and the design's own review passes |
 | [**KB-UPDATES.md**](KB-UPDATES.md) | *What happens to a KB somebody already has when Pinakes changes?* Design note — **part built**: `requires_pinakes` (G4, 0.6.0) and template-drift **detection** (§6's gate, 0.17.0), `pnk doctor` reporting **how far** a template has drifted (T2, 0.18.0), **`pnk upgrade`**, which prints the lines themselves (T3, 0.19.0), and **`--apply`**, which adopts the hunks that fit (T4, 0.20.0). What is still a proposal is what its §8 leaves open, and anything that reaches beyond `pinakes.toml`. **`pnk adopt` is not from this note** — it has never appeared in it; the §8 that proposes it is [PINAKES_APPROACH.md](graph/PINAKES_APPROACH.md)'s *ClaudeKB: the first fleet*, it is unimplemented, and which release owns it is D-8 of [the template-release plan](../plans/20260804_1016-template-release.md), unanswered |
-| [**graph/**](graph/) | Graph-retrieval research shaping the links and graph releases — thirteen investigations plus the synthesis |
+| [**graph/**](graph/) | Graph-retrieval research shaping the links and graph releases — thirteen investigations plus the synthesis. **Historical copies since 20261102 09:01 UTC:** the maintained version is in the public [knowledge-graph reference](https://github.com/lucagattoni/knowledge-graph-tutorial) |
 
 Build plans live in [`plans/`](../plans/); the release history is [`CHANGELOG.md`](../CHANGELOG.md).
 `plans/` holds more than one kind of file. **As of 20260901 11:58 three files propose work: the

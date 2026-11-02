@@ -1,5 +1,9 @@
 # The Pinakes graph: lazy, agent-driven, budget-tunable
 
+> 🗄️ **Historical copy, moved 20261102 09:01 UTC.** This research now lives in the public
+> [knowledge-graph reference](https://github.com/lucagattoni/knowledge-graph-tutorial) and is updated there. The maintained version is [`pinakes/approach/PINAKES_APPROACH.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/pinakes/approach/PINAKES_APPROACH.md).
+> This file is left as it was and is no longer updated; where the two differ, the maintained version wins.
+
 > ℹ️ **Dated research, left as written.** §10 maps this work onto a single "the graph release"; it
 > has since been **split in two** — the **links release** (`pnk link`, `pinakes_links`,
 > reverse-scan, link coverage; no `schema_version` bump) and the **graph release** (structural

@@ -1,5 +1,9 @@
 # LinearRAG — investigation notes
 
+> 🗄️ **Historical copy, moved 20261102 09:01 UTC.** This research now lives in the public
+> [knowledge-graph reference](https://github.com/lucagattoni/knowledge-graph-tutorial) and is updated there. The neutral entry is [`kb-kg/projects/linearrag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/kb-kg/projects/linearrag.md); Pinakes' reading of it is [`pinakes/takeaways/linearrag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/pinakes/takeaways/linearrag.md).
+> This file is left as it was and is no longer updated; where the two differ, the maintained version wins.
+
 **Repo:** https://github.com/DEEP-PolyU/LinearRAG · **Stars:** ~526 · **License:** GPL-3.0 · **Investigated:** 20260725 15:34
 **Paper:** [arXiv:2510.10114](https://arxiv.org/abs/2510.10114) — "LinearRAG: Linear Graph Retrieval Augmented Generation on Large-scale Corpora", ICLR 2026 (PolyU DEEP lab)
 

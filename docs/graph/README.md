@@ -1,5 +1,9 @@
 # Graph retrieval — research
 
+> 🗄️ **Historical copy, moved 20261102 09:01 UTC.** This research now lives in the public
+> [knowledge-graph reference](https://github.com/lucagattoni/knowledge-graph-tutorial) and is updated there. The whole set moved. Start from [`README.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/README.md) and [`pinakes/README.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/pinakes/README.md). Where each file went: `GRAPH_RAG.md` to `kb-kg/literature/` and `pinakes/recommendations-r1-r7.md`; `PINAKES_APPROACH.md` to `pinakes/approach/`; `claudekb.md` to `pinakes/precedent/`; the twelve investigation notes to `kb-kg/projects/` (the neutral entry) and `pinakes/takeaways/` (Pinakes' reading).
+> This file is left as it was and is no longer updated; where the two differ, the maintained version wins.
+
 Thirteen investigations — twelve external projects plus the in-house precedent — and the synthesis
 that turns them into a gated build order for **the links release** and **the graph release**.
 Research, not specification: where these disagree with [`../DESIGN.md`](../DESIGN.md), DESIGN wins;

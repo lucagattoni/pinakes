@@ -1,5 +1,9 @@
 # Youtu-GraphRAG — investigation notes
 
+> 🗄️ **Historical copy, moved 20261102 09:01 UTC.** This research now lives in the public
+> [knowledge-graph reference](https://github.com/lucagattoni/knowledge-graph-tutorial) and is updated there. The neutral entry is [`kb-kg/projects/youtu-graphrag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/kb-kg/projects/youtu-graphrag.md); Pinakes' reading of it is [`pinakes/takeaways/youtu-graphrag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/pinakes/takeaways/youtu-graphrag.md).
+> This file is left as it was and is no longer updated; where the two differ, the maintained version wins.
+
 > ℹ️ **Version numbers below reflect the convention in use when this was written.** Unbuilt
 > work is now **named, not numbered** ([STATUS.md](../STATUS.md)). This record is left as it was.
 

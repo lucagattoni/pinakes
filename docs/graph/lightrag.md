@@ -1,4 +1,9 @@
 # LightRAG — investigation notes
+
+> 🗄️ **Historical copy, moved 20261102 09:01 UTC.** This research now lives in the public
+> [knowledge-graph reference](https://github.com/lucagattoni/knowledge-graph-tutorial) and is updated there. The neutral entry is [`kb-kg/projects/lightrag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/kb-kg/projects/lightrag.md); Pinakes' reading of it is [`pinakes/takeaways/lightrag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/pinakes/takeaways/lightrag.md).
+> This file is left as it was and is no longer updated; where the two differ, the maintained version wins.
+
 **Repo:** https://github.com/HKUDS/LightRAG · **Stars:** ~38k · **License:** MIT · **Investigated:** 20260725 15:29
 **Paper:** https://arxiv.org/abs/2410.05779 (EMNLP 2025)
 
