@@ -45,7 +45,10 @@ Scope: say what is true, today, without adding surface. No new check name, flag 
   `::test_each_section_is_judged_by_its_own_provider`,
   `::test_the_other_providers_keep_the_advice_to_pin_and_the_ok_for_a_pin`,
   `::test_a_built_in_backend_that_knows_no_revision_gets_the_placeholder`,
-  `::test_a_pinned_sentence_transformers_model_is_ok` and
+  `::test_a_pinned_sentence_transformers_model_is_ok`,
+  `::test_a_fastembed_label_is_printed_from_the_manifest_and_not_the_backend`,
+  `::test_a_pinned_sentence_transformers_line_is_printed_from_the_manifest_and_not_the_backend`,
+  `::test_an_unset_fastembed_revision_stays_unset_whatever_the_backend_reports` and
   `::test_the_model_cache_line_appears_once`; rows in `docs/VERIFICATION.md`; mutants appended to
   `tools/batteries/src-pinakes-pairing.toml` (which already claims `doctor.py`).
 - Out of scope, deliberately, and left for a later row: the threshold identity (P2); the template

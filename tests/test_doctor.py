@@ -791,6 +791,55 @@ def test_a_pinned_sentence_transformers_model_is_ok(
     assert pinned["reranker"].detail == "fake-reranker (sentence-transformers)@def456"
 
 
+def test_a_fastembed_label_is_printed_from_the_manifest_and_not_the_backend(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """What only a backend which DISAGREES with the manifest can show.
+
+    A built-in backend reports the manifest's own revision, so a line that printed the backend's
+    value instead would be identical for every built-in. This uses a fake that claims another
+    revision (`echo_revision=False`), the only way to tell the two sources apart.
+    """
+    label = _model_checks(
+        kb,
+        monkeypatch,
+        "fastembed",
+        embedding_revision="abc123",
+        rerank_revision="def456",
+        echo_revision=False,
+    )
+    assert "@abc123, a label" in label["embedding"].detail
+    assert "@def456, a label" in label["reranker"].detail
+    assert "rev-from-info" not in label["embedding"].detail + label["reranker"].detail
+
+
+def test_a_pinned_sentence_transformers_line_is_printed_from_the_manifest_and_not_the_backend(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same disagreement on the unchanged provider (its own fixture: the helper rewrites the
+    manifest, so two calls on one KB would write the `revision` line twice)."""
+    pinned = _model_checks(
+        kb,
+        monkeypatch,
+        _ST,
+        embedding_revision="abc123",
+        rerank_revision="def456",
+        echo_revision=False,
+    )
+    assert pinned["embedding"].detail == "fake-model (sentence-transformers)@abc123"
+    assert pinned["reranker"].detail == "fake-reranker (sentence-transformers)@def456"
+
+
+def test_an_unset_fastembed_revision_stays_unset_whatever_the_backend_reports(
+    kb: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    found = _model_checks(kb, monkeypatch, "fastembed", echo_revision=False)
+    for name in ("embedding", "reranker"):
+        assert found[name].detail.endswith(
+            "files not pinned (Pinakes passes fastembed no revision)"
+        )
+
+
 def test_the_model_cache_line_appears_once(kb: Path) -> None:
     """It follows the loop over the two models; inside it, it would print once per model."""
     names = [c.name for c in diagnose(load(kb)).checks]

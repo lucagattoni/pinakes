@@ -101,7 +101,7 @@ check showed five and six — the extra one is the last row.)
 
 | WARN | When | What to do |
 |---|---|---|
-| `embedding` and `reranker`: revision unpinned | always, on either provider, through 0.32.8 | pin `revision` in `pinakes.toml` once you are settled. **That pins files under `sentence-transformers` only.** On `main`, in no published release yet, a `fastembed` KB reads "files not pinned" instead, because Pinakes passes fastembed no revision and none can pin it; a revision you set there is reported as a label: see [MANIFEST](MANIFEST.md#embedding) |
+| `embedding` and `reranker`: revision unpinned | whenever the revision is unset (on `main`, in no published release yet, a `fastembed` KB reads "files not pinned" instead) | pin `revision` in `pinakes.toml` once you are settled. **That pins files under `sentence-transformers` only.** Nothing pins them under `fastembed`: Pinakes passes it no revision, and a revision you set there is reported as a label: see [MANIFEST](MANIFEST.md#embedding) |
 | `index: not built yet` | before the first sync only | `pnk sync` |
 | `git hooks: not a git repository` | until the KB is one **and** `pnk install-hooks` has run — *from the source:* after `git init` alone it reads `0 of 3 installed` | `doctor` says freshness is git-triggered and a loose folder needs a manual or cron `pnk sync`; `pnk install-hooks` installs the hooks ([Guide](GUIDE.md)) — not run here |
 | `calibration: no fitted thresholds` | after the first sync | honest, not a fault: `confidence` reports `unknown` until you fit thresholds against a golden set |

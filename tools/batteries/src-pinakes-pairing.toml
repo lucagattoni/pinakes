@@ -33,7 +33,7 @@
 #
 # No `pytest` key: a committed battery takes the default, `uv run --frozen pytest`.
 
-mutants = 78
+mutants = 81
 
 # ────────────────────────────────────────────────────────────────────────────────────────────────
 # unreleased, 20260825 · a plan must never retire an id it also adopts
@@ -1312,14 +1312,22 @@ new = '''        return Check(label, Status.WARN, f"{detail}@{section.revision}"
 kills = "tests/test_doctor.py::test_a_pinned_sentence_transformers_model_is_ok"
 
 # ──────────────────────────────────────────────────────────────────────────────────────────────────
-# unreleased, 20261102 · P1, after its independent review (three survivors the author's rows missed)
+# unreleased, 20261102 · P1, after its independent review (survivors the author's rows missed)
 # ──────────────────────────────────────────────────────────────────────────────────────────────────
 #
-# A fresh reviewer wrote 25 mutants of `_revision_check` and `_backends` of its own; five survived
-# the author's tests and three were real. These rows are those three, each now killed by a test
-# written for it. The shapes they share: the author's fakes always knew a revision (so the line that
-# builds the placeholder was never reached by a built-in backend's shape), and the author's tests
-# gave both models the same provider (so reading the other section's provider was invisible).
+# A fresh reviewer wrote 25 mutants of `_revision_check` and `_backends` of its own. Ten survived the
+# author's tests: five were equivalent, one (the failure path losing its `continue`) is killed by a
+# test outside `test_doctor.py`, and four were real. Three rows cover those four (the two that read
+# the other section's provider share one mirror row). The shapes they share: the author's fakes
+# always knew a revision (so the line that builds the placeholder was never reached by a built-in
+# backend's shape), and the author's tests gave both models the same provider (so reading the other
+# section's provider was invisible).
+#
+# **The fix then lost three kills of its own, and the second review found it.** Making the fakes
+# echo the manifest's revision, as every built-in does, made `info.revision` equal
+# `section.revision` in every test, so a line that printed the backend's value instead of the
+# manifest's died no more. The last three rows put that back with a fake that DISAGREES with the
+# manifest (`echo_revision=False`), the only way to tell the two sources apart.
 
 [[mutant]]
 name = "the placeholder is dropped, so an unpinned built-in model is told to pin revision = \"None\""
@@ -1348,3 +1356,40 @@ file = "src/pinakes/doctor.py"
 old = '''    yield Check("model cache", Status.OK, f"weights resolve under {hf_cache_dir()}")'''
 new = '''        yield Check("model cache", Status.OK, f"weights resolve under {hf_cache_dir()}")'''
 kills = "tests/test_doctor.py::test_the_model_cache_line_appears_once"
+
+[[mutant]]
+name = "a pinned sentence-transformers line prints the backend's revision instead of the manifest's"
+file = "src/pinakes/doctor.py"
+# Equivalent for every built-in backend (its `info.revision` IS `section.revision`), which is why the
+# tests that echo the manifest cannot see it. A backend that disagrees can: a registered provider, or
+# a built-in one day reporting the revision it resolved.
+old = '''        return Check(label, Status.OK, f"{detail}@{section.revision}")'''
+new = '''        return Check(label, Status.OK, f"{detail}@{info.revision}")'''
+kills = "tests/test_doctor.py::test_a_pinned_sentence_transformers_line_is_printed_from_the_manifest_and_not_the_backend"
+
+[[mutant]]
+name = "the fastembed label line prints the backend's revision instead of the manifest's"
+file = "src/pinakes/doctor.py"
+# The same disagreement on the fastembed side. The label is what the user wrote in the manifest;
+# showing them a revision they did not write would make the line unreadable as advice.
+old = '''        f"{detail}@{section.revision}, a label, not a pin (Pinakes passes fastembed no revision)",'''
+new = '''        f"{detail}@{info.revision}, a label, not a pin (Pinakes passes fastembed no revision)",'''
+kills = "tests/test_doctor.py::test_a_fastembed_label_is_printed_from_the_manifest_and_not_the_backend"
+
+[[mutant]]
+name = "whether a fastembed revision is set is read from the backend, not from the manifest"
+file = "src/pinakes/doctor.py"
+# Anchored with the lines after it for the reason the row above it gives: `if section.revision is
+# None:` also opens the sentence-transformers branch. A backend reporting a revision for a manifest
+# that names none would turn "files not pinned" into "a label", about a label nobody wrote.
+old = '''    if section.revision is None:
+        return Check(
+            label,
+            Status.WARN,
+            f"{detail}, files not pinned'''
+new = '''    if not info.revision:
+        return Check(
+            label,
+            Status.WARN,
+            f"{detail}, files not pinned'''
+kills = "tests/test_doctor.py::test_an_unset_fastembed_revision_stays_unset_whatever_the_backend_reports"
