@@ -1,5 +1,9 @@
 # HippoRAG 2 — investigation notes
 
+> 🗄️ **Historical copy, moved 20261102 09:01 UTC.** This research now lives in the public
+> [knowledge-graph reference](https://github.com/lucagattoni/knowledge-graph-tutorial) and is updated there. The neutral entry is [`kb-kg/projects/hipporag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/kb-kg/projects/hipporag.md); Pinakes' reading of it is [`pinakes/takeaways/hipporag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/pinakes/takeaways/hipporag.md).
+> This file is left as it was and is no longer updated; where the two differ, the maintained version wins.
+
 **Repo:** https://github.com/OSU-NLP-Group/HippoRAG · **Stars:** ~3.9k · **License:** MIT · **Investigated:** 20260725 15:32
 **Papers:** HippoRAG (NeurIPS 2024) https://arxiv.org/abs/2405.14831 · HippoRAG 2 "From RAG to Memory" (ICML 2025) https://arxiv.org/abs/2502.14802
 

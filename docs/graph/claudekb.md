@@ -1,5 +1,9 @@
 # ClaudeKB — the in-house precedent
 
+> 🗄️ **Historical copy, moved 20261102 09:01 UTC.** This research now lives in the public
+> [knowledge-graph reference](https://github.com/lucagattoni/knowledge-graph-tutorial) and is updated there. The maintained version is [`pinakes/precedent/claudekb.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/pinakes/precedent/claudekb.md).
+> This file is left as it was and is no longer updated; where the two differ, the maintained version wins.
+
 > ℹ️ **Version numbers below reflect the convention in use when this was written.** Unbuilt
 > work is now **named, not numbered** ([STATUS.md](../STATUS.md)). This record is left as it was.
 

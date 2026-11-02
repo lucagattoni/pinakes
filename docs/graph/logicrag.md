@@ -1,5 +1,9 @@
 # LogicRAG — investigation notes
 
+> 🗄️ **Historical copy, moved 20261102 09:01 UTC.** This research now lives in the public
+> [knowledge-graph reference](https://github.com/lucagattoni/knowledge-graph-tutorial) and is updated there. The neutral entry is [`kb-kg/projects/logicrag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/kb-kg/projects/logicrag.md); Pinakes' reading of it is [`pinakes/takeaways/logicrag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/pinakes/takeaways/logicrag.md).
+> This file is left as it was and is no longer updated; where the two differ, the maintained version wins.
+
 **Repo:** https://github.com/chensyCN/LogicRAG · **Stars:** ~234 (36 forks) · **License:** GPL-3.0 · **Investigated:** 20260726 08:53
 **Paper:** arXiv 2508.06105 (AAAI 2026)
 

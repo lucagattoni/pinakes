@@ -1,5 +1,9 @@
 # Microsoft GraphRAG (+ LazyGraphRAG) — investigation notes
 
+> 🗄️ **Historical copy, moved 20261102 09:01 UTC.** This research now lives in the public
+> [knowledge-graph reference](https://github.com/lucagattoni/knowledge-graph-tutorial) and is updated there. The neutral entry is [`kb-kg/projects/microsoft-graphrag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/kb-kg/projects/microsoft-graphrag.md); Pinakes' reading of it is [`pinakes/takeaways/microsoft-graphrag.md`](https://github.com/lucagattoni/knowledge-graph-tutorial/blob/main/pinakes/takeaways/microsoft-graphrag.md).
+> This file is left as it was and is no longer updated; where the two differ, the maintained version wins.
+
 **Repo:** https://github.com/microsoft/graphrag · **Stars:** ~34.8k · **License:** MIT · **Investigated:** 20260725 15:33
 **Papers:** [From Local to Global (arXiv 2404.16130)](https://arxiv.org/abs/2404.16130) · [LazyGraphRAG MSR blog, 2024-11-25](https://www.microsoft.com/en-us/research/blog/lazygraphrag-setting-a-new-standard-for-quality-and-cost/) (blog only — no paper)
 
