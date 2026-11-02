@@ -13,7 +13,7 @@ file exists.**
 > **Update 20261102 11:49 UTC.** The user said "Pinakes development officially resume from now",
 > stating no scope and naming no row. The repository does not record whether that releases B2, B3 and
 > B4, which the user held on 20261019 (D-B7 below; § 5.2: *"Keep B2, B3 and B4 paused until a real run
-> of the checklist says what hurt"*). Until the user says, they stay held
+> of the checklist says what hurt"*). Ask the user before picking one up
 > ([`BUILDING.md` § Open questions](../docs/BUILDING.md#open-questions): when it is unclear whose, it
 > is the user's).
 

@@ -50,12 +50,12 @@ executable guard ([RELEASING § Landing a branch](docs/RELEASING.md#landing-a-br
 
 ## What is live right now
 
-- **Development resumed** by the user's word, recorded 20261102 11:39 UTC; it named no row, and
+- **Development resumed** by the user's word (20261102, before 10:10 UTC); it named no row, and
   a bare "continue" still names none: ask. Opened since:
   [the reranker provider identity](plans/20261102_1010-reranker-provider-identity.md). The pause:
   [its handover](plans/20260904_1027-development-paused-handover-and-evidence.md).
-- **Option B** ([plan](plans/20261019_0817-option-b-dogfooding-on-ramp.md)): designed, not built. B2, B3 and B4
-  stay held by the user's 20261019 ruling (a real run of the checklist first); the resumption names none of them.
+- **Option B** ([plan](plans/20261019_0817-option-b-dogfooding-on-ramp.md)): designed, not built. The user's
+  20261019 ruling holds B2, B3 and B4 until a real run of the checklist; the resumption names none of them and no release is recorded: ask.
 - **The live build order**: [§ 3 of the live plan](plans/20260901_1148-clear-the-user-facing-list.md).
   Read a row's **body**, not its cells; **a plan's `## Build order` beats any snapshot of it.**
 

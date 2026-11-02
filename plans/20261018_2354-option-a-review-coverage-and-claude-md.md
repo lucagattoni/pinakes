@@ -8,8 +8,9 @@ on-ramp."* Approved 20261018, with the recommendations on D1–D5 below, includi
 **Every other row in the live plan stays paused.** Do not pick one up because this file exists.
 
 > **Update 20261102 13:59 UTC.** This plan is complete (0.32.7). On 20261102 the user resumed
-> development ("Pinakes development officially resume from now"), so the sentences here about the pause
-> and the other rows staying paused are the record of 20261018, not the state of the project.
+> development ("Pinakes development officially resume from now"). The sentences here about the pause
+> and the other rows staying paused are the record of 20261018; for what has happened since, see
+> `CLAUDE.md` § What is live right now.
 
 ## 1. What this is, and the source
 
