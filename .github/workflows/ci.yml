@@ -170,11 +170,20 @@ jobs:
       - name: Index the demo KB
         run: uv run --frozen pnk sync --kb tests/demo-kb
 
-      - name: Health check
-        run: uv run --frozen pnk doctor --kb tests/demo-kb
-
       - name: Golden-set evaluation against the baseline
         run: uv run --frozen python -m pinakes.eval tests/demo-kb
+
+      # After the evaluation, and not before it. `pnk doctor` loads models `--offline` and downloads
+      # none (0.32.9), and `pnk sync` loads only the embedder, so the reranker first reaches the
+      # cache when the evaluation loads it. With this step ahead of it, the first run after the
+      # cache expired (seven and three-quarter idle days; job 129990126135 of run 42861945592,
+      # 20261110 17:09 UTC) failed here on `FAIL reranker`, and a failed job skips the cache's save
+      # step. Reproduced on an empty HF_HOME, 20261110 17:27 to 17:28 UTC: `sync` leaves 65,680 KB
+      # (the embedder); `doctor` run then exits 1 and leaves it at 65,680 KB; the evaluation takes
+      # it to 1,168,924 KB and exits 0; `doctor` then exits 0 with no FAIL line. A failing
+      # evaluation now skips this step. `tests/test_ci_eval_job.py` pins the order.
+      - name: Health check
+        run: uv run --frozen pnk doctor --kb tests/demo-kb
 
   pdf-eval:
     # I3b: joins CI in the same commit that adds the gate, not deferred until I9 the way the draft

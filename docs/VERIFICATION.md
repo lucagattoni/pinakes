@@ -754,6 +754,8 @@ which is the section above; this is what a module that *may* import a client the
 | adding a document does not reorder tied results elsewhere | G1 | `tests/test_search_reproducibility.py::test_a_tied_ranking_is_unmoved_by_documents_added_elsewhere` |
 | two machines answer every question the same way | G1 | CI's `eval-cross-machine` and `eval-cross-machine-compare` jobs; `tests/test_check_script.py::test_ci_compares_per_question_outcomes_across_two_operating_systems` asserts both legs are still there |
 | the gate is invoked, and can still fail | G1 | `tests/test_check_script.py::test_check_sh_declares_the_eval_reproducibility_gate`, `tests/test_check_script.py::test_ci_runs_the_eval_reproducibility_gate_and_proves_it_can_fail` |
+| the CI `eval` job runs the evaluation before `pnk doctor` asks offline for the reranker, so a cold model cache cannot fail it | fix | CI `eval`, pinned by `tests/test_ci_eval_job.py::test_the_eval_job_runs_the_evaluation_before_it_asks_doctor_for_the_reranker` |
+| …and that check is watched failing on the order that failed, and refuses a step it cannot judge | fix | `tests/test_ci_eval_job.py::test_the_check_notices_the_order_that_failed_on_a_cold_cache` + `tests/test_ci_eval_job.py::test_a_conditional_step_is_refused_rather_than_trusted` |
 
 ## The manifest compatibility floor (G4)
 
