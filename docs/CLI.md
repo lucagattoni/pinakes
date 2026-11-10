@@ -44,7 +44,7 @@ Stamps a new KB and mints its **permanent** KB ULID.
 | `--name NAME` | the directory name | Human-facing only; rename freely |
 | `--template TEMPLATE` | `notes` | The blueprint. `notes` is the only one shipped. **A single path component** — `[A-Za-z0-9][A-Za-z0-9_-]*` — refused before any directory is created, so `notes/../notes` and `notes/_versions/1.1` both print `no template named` and write nothing |
 | `--backend` (`st` or `light`) | `st` | Which install extra's models to stamp, in **both** `[embedding]` and `[rerank]`. `st` is `sentence-transformers`, `light` is `fastembed`; the model ids are identical, so only `provider` differs in the file (the weights behind an id are not the same: [MANIFEST](MANIFEST.md#embedding)). **A flag, never detection** — `pinakes.toml` is portable and committed, so stamping whatever the machine has bakes one author's install into a file their collaborators read |
-| `--ci` | off | Also write `.github/workflows/pinakes.yml`, which caches `.pinakes/` and the model weights, syncs, loads the models online with one `pnk search`, and runs `pnk doctor`. Refuses to overwrite an existing one |
+| `--ci` | off | Also write `.github/workflows/pinakes.yml`, which caches `.pinakes/` and the model weights, syncs, loads the models online with one `pnk search`, and runs `pnk doctor`. It installs `pinakes[light,pdf]`, so it needs a manifest that names `fastembed` (`--backend light`). Refuses to overwrite an existing one |
 
 Writes `pinakes.toml`, `docs/`, a `.gitignore` covering `.pinakes/`, and **the files the template
 declares** — `README.md` and `eval/questions.yaml` unless it says otherwise
@@ -76,17 +76,24 @@ would be worse. Re-run without `--ci` to initialise the KB and keep your workflo
 non-interactive and must never spend, exactly as the git hooks are. `init` prints that at write
 time too.
 
+**The workflow installs `pinakes[light,pdf]`, which is fastembed**, so it works for a KB whose
+manifest names `provider = "fastembed"` in `[embedding]` and `[rerank]`: pass `--backend light` to
+`init`, or edit the manifest ([GUIDE](GUIDE.md#choosing-a-backend)). On the default
+`sentence-transformers` manifest its sync fails with *backend not installed* when the KB has
+documents, and its search step fails the same way when it has none.
+
 **Why the workflow runs a search before `pnk doctor`.** `pnk doctor` loads models offline and
 downloads none, and `pnk sync` loads only the embedder (nothing at all while the KB has no
-documents), so on a runner whose model cache is cold the health check fails on the reranker.
-`pnk search warm-up -k 1` loads both models online first, and the workflow caches the weights so a
-later run downloads nothing. **A workflow `init` wrote earlier is never updated**, since it is never
-overwritten: add a cache step for `~/.cache/huggingface` before the sync, and a `pnk search warm-up
--k 1` step before the health check.
+documents), so on a runner whose model cache is cold the health check fails on the models: on the
+reranker when the KB has documents, on both when it has none. `pnk search warm-up -k 1` loads both
+online first, and the workflow caches the weights so a later run downloads nothing. **A workflow
+`init` wrote earlier is never updated**, since it is never overwritten: add a cache step for
+`~/.cache/huggingface` before the sync, and a `pnk search warm-up -k 1 > /dev/null` step after the
+sync and before the health check.
 
-Two things `init` cannot know, both needing a manual manifest edit afterwards
-([GUIDE](GUIDE.md#choosing-a-backend)): it always stamps the `sentence-transformers` provider, and
-it does not include `**/*.pdf` in `[sources]`.
+Two things `init` cannot know, each needing a manual manifest edit afterwards
+([GUIDE](GUIDE.md#choosing-a-backend)): without `--backend light` it stamps the
+`sentence-transformers` provider, and it does not include `**/*.pdf` in `[sources]`.
 
 ## `pnk templates`
 

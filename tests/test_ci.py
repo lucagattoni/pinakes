@@ -122,17 +122,36 @@ def _steps(workflow: str) -> list[dict[str, Any]]:
     return yaml.safe_load(workflow)["jobs"]["sync"]["steps"]
 
 
+#: A step whose whole `run:` is one `pnk` invocation through `uvx`. Anything else (an `echo`, a
+#: block of several commands) is not counted as one.
+_INVOCATION = re.compile(r"^uvx --from '[^']+' pnk (?P<verb>sync|search|doctor)\b(?P<rest>[^\n]*)$")
+
+
 def loads_the_models_between_the_sync_and_the_health_check(workflow: str) -> bool:
     """`pnk doctor` loads models `--offline` and downloads none, and `pnk sync` loads only the
     embedder, so on a cold model cache the health check fails unless something loaded the models
-    online first. The order is read from the commands the steps run, not from their names."""
-    commands = [str(step.get("run", "")) for step in _steps(workflow)]
-    sync = [i for i, command in enumerate(commands) if "pnk sync" in command]
-    search = [i for i, command in enumerate(commands) if "pnk search" in command]
-    doctor = [i for i, command in enumerate(commands) if "pnk doctor" in command]
-    assert len(sync) == 1 and len(doctor) == 1, commands
+    online first. The order is read from the commands the steps run, not from their names.
+
+    A step that is conditional, or that chains another command after the invocation (`|| true`,
+    `&&`, a pipe), is refused: the order would no longer say what runs.
+    """
+    invocations: list[tuple[str, str]] = []
+    for step in _steps(workflow):
+        run = str(step.get("run", ""))
+        found = _INVOCATION.match(run)
+        if found is None:
+            continue
+        assert "if" not in step and "continue-on-error" not in step, f"a conditional step: {run}"
+        assert re.search(r"[|;&]", found.group("rest")) is None, f"a chained command: {run}"
+        invocations.append((found.group("verb"), run))
+    verbs = [verb for verb, _ in invocations]
+    assert verbs.count("sync") == 1 and verbs.count("doctor") == 1, verbs
+    if "search" not in verbs:
+        return False
+    search = verbs.index("search")
     return (
-        bool(search) and sync[0] < search[0] < doctor[0] and "--offline" not in commands[search[0]]
+        verbs.index("sync") < search < verbs.index("doctor")
+        and "--offline" not in invocations[search][1]
     )
 
 
@@ -162,6 +181,28 @@ def test_the_check_notices_a_workflow_that_never_loads_the_models_or_loads_them_
     assert not loads_the_models_between_the_sync_and_the_health_check(late)
 
 
+def test_a_conditional_or_chained_load_step_is_refused_rather_than_trusted() -> None:
+    """Each of these keeps the commands in the right order and makes the step unable to load the
+    models: a condition that is never true, a failure swallowed by `|| true`, and a command that is
+    only echoed. The checker must not call any of them a pass."""
+    step = _LOAD_STEP.search(WORKFLOW)
+    assert step is not None
+    text = step.group(0)
+    conditional = WORKFLOW.replace(
+        text, text.replace("        run:", "        if: ${{ false }}\n        run:")
+    )
+    swallowed = WORKFLOW.replace(text, text.replace("> /dev/null", "|| true"))
+    echoed = WORKFLOW.replace(
+        text, '      - name: Load the models\n        run: echo "pnk search"\n\n'
+    )
+    for variant in (conditional, swallowed):
+        assert variant != WORKFLOW
+        with pytest.raises(AssertionError, match=r"conditional step|chained command"):
+            loads_the_models_between_the_sync_and_the_health_check(variant)
+    assert echoed != WORKFLOW
+    assert not loads_the_models_between_the_sync_and_the_health_check(echoed)
+
+
 def test_the_workflow_caches_the_model_weights_under_a_key_of_its_own() -> None:
     caches = [step for step in _steps(WORKFLOW) if step.get("uses", "").startswith("actions/cache")]
     index = next(step for step in caches if step["with"]["path"] == ".pinakes")
@@ -172,3 +213,13 @@ def test_the_workflow_caches_the_model_weights_under_a_key_of_its_own() -> None:
     # sit under the other's restore prefix.
     assert not models["with"]["key"].startswith(index["with"]["restore-keys"])
     assert not index["with"]["key"].startswith(models["with"]["restore-keys"])
+    # `startswith` is vacuous against a multi-line restore-keys block, which is never a prefix of a
+    # key: both must be one line for the two assertions above to mean anything.
+    assert "\n" not in index["with"]["restore-keys"]
+    assert "\n" not in models["with"]["restore-keys"]
+    # It must save as well as restore (`actions/cache/restore` would not), and be restored before
+    # anything loads a model.
+    assert models["uses"].startswith("actions/cache@")
+    steps = _steps(WORKFLOW)
+    sync = next(i for i, step in enumerate(steps) if "pnk sync" in str(step.get("run", "")))
+    assert steps.index(models) < sync

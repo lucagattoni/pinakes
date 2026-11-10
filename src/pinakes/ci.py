@@ -19,8 +19,15 @@ it cannot add to it either.
 has no documents), so on a runner whose model cache is cold the health check failed on `FAIL
 reranker`. One `pnk search` brings the embedder and the reranker into the cache, whether or not the
 KB has documents, and the weights are cached under the manifest's hash so a run that changes no
-model downloads nothing. Measured 20261110 on an empty model cache, both with 30 documents and with
-none: `doctor` exited 1 before the search and 0 after it.
+model downloads nothing. Measured 20261110 21:57 to 21:58 UTC on an empty model cache, both with 30
+documents and with none: `doctor` exited 1 before the search and 0 after it. The search's output is
+discarded, because it prints passage text and an Actions log can be public.
+
+**The workflow installs `pinakes[light,pdf]`, which is fastembed**, so it works for a KB whose
+manifest names `provider = "fastembed"` in both `[embedding]` and `[rerank]` (`pnk init --backend
+light` writes that). On the default `sentence-transformers` manifest its sync fails with
+"backend not installed" when the KB has documents, and its search step fails the same way when
+it has none.
 """
 
 from pathlib import Path
@@ -42,6 +49,9 @@ WORKFLOW = f"""\
 #
 # This workflow runs `pnk sync {FREE_BACKEND_FLAG}`: CI is non-interactive and must never spend.
 # Paid extraction stays a deliberate `pnk sync` a human runs.
+#
+# It installs `pinakes[light,pdf]`, which is fastembed: the manifest must name `provider =
+# "fastembed"` in both `[embedding]` and `[rerank]` (`pnk init --backend light` writes that).
 name: pinakes
 
 on:
@@ -75,8 +85,9 @@ jobs:
 
       # `pnk doctor` loads models offline and downloads none, and `pnk sync` loads only the
       # embedder: this search is what brings the models into the cache before the health check.
+      # Its output is discarded: a search prints passage text, and an Actions log can be public.
       - name: Load the models
-        run: uvx --from 'pinakes[light,pdf]' pnk search warm-up -k 1
+        run: uvx --from 'pinakes[light,pdf]' pnk search warm-up -k 1 > /dev/null
 
       - name: Health check
         run: uvx --from 'pinakes[light,pdf]' pnk doctor
