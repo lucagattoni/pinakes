@@ -211,7 +211,7 @@ def test_the_check_accepts_a_quieter_redirect_and_refuses_an_offline_environment
     step = _LOAD_STEP.search(WORKFLOW)
     assert step is not None
     text = step.group(0)
-    quieter = WORKFLOW.replace(text, text.replace("> /dev/null", "> /dev/null 2>&1"))
+    quieter = WORKFLOW.replace(text, re.sub(r"(pnk search[^\n]*)", r"\1 2>&1", text))
     assert quieter != WORKFLOW
     assert loads_the_models_between_the_sync_and_the_health_check(quieter)
 
@@ -227,7 +227,7 @@ def test_the_check_accepts_a_quieter_redirect_and_refuses_an_offline_environment
 def test_the_search_output_is_discarded_because_the_step_only_loads_the_models() -> None:
     """The step exists to load the models; the passage text a search prints would only add noise to
     the log. The models still load: their progress goes to stderr."""
-    assert re.search(r"pnk search[^\n]*> /dev/null\n", WORKFLOW) is not None
+    assert re.search(r"pnk search[^\n]*> /dev/null\b[^\n]*\n", WORKFLOW) is not None
 
 
 def test_the_workflow_caches_the_model_weights_under_a_key_of_its_own() -> None:
