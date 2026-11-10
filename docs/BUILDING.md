@@ -95,6 +95,24 @@ changes is that a question the old *planner* would have ruled is yours whenever 
 | Permanent surface (a command, flag, name, exit code, schema key); anything irreversible or outward-facing (a tag, a publish, a deletion); anything the plan, or a pause the user has declared, marks the user's | **The user's** | Stop and put the options to them, as `CLAUDE.md` § *Working mode* sets the bar for asking |
 | You cannot tell whose | **The user's**, until shown otherwise | Ask |
 
+**A statement about a hold the user set takes one of three forms, and no other.** A pause, a
+deferral or a ruling that keeps something from you is theirs, and a sentence that claims more than
+the records say is how a decision they reserved gets taken by whoever reads that sentence next. The
+forms may share a sentence (`CLAUDE.md` § *What is live right now* does):
+
+1. **The ruling, quoted, with its date** — *"Keep B2, B3 and B4 paused until a real run of the
+   checklist says what hurt."* (20261019). Its end condition is the quoted words, never a
+   paraphrase of them.
+2. **"No release is recorded"** — after you looked (the plan, `CLAUDE.md`, what the user said this
+   session) and found none. It says what you looked at; it does not say the hold stands, and it
+   does not say the hold ended.
+3. **"Ask"** — when you cannot tell which of those applies. Put the question to the user.
+
+Three paraphrases failed this, each found by a fresh reviewer in the wording of the pass before it
+(`c4465fb`): *"stay held until the user says"* (the end condition is a real run of the checklist),
+*"are not released by this"* stated as fact, and *"everything else … stayed paused until the user
+resumed development"* (a scope the resumption never stated).
+
 ## Read the build order out of `plans/`
 
 **Never "the newest file" there.** That directory also holds shipped plans, an iteration log,
