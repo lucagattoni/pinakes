@@ -95,22 +95,21 @@ changes is that a question the old *planner* would have ruled is yours whenever 
 | Permanent surface (a command, flag, name, exit code, schema key); anything irreversible or outward-facing (a tag, a publish, a deletion); anything the plan, or a pause the user has declared, marks the user's | **The user's** | Stop and put the options to them, as `CLAUDE.md` § *Working mode* sets the bar for asking |
 | You cannot tell whose | **The user's**, until shown otherwise | Ask |
 
-**A statement about a pause, deferral or ruling the user set says one of three things.** Whether it
-still stands, what ends it and what it covers are the user's to say, so write it as:
+**When you write about a pause or deferral the user set, quote it; do not summarise it.**
 
-1. **The ruling, quoted, with its date and time** — for example *"Keep B2, B3 and B4 paused until a
-   real run of the checklist says what hurt."* (20261019, before 13:01 UTC). An end condition or a
-   scope is the quoted words, never a summary of them.
-2. **"No release is recorded in <the files you read>, as of <UTC time>"** — and no word on whether
-   it still stands or has ended.
-3. **"Ask"** — the held item is the user's (the table's third row), so after form 1 or form 2 you
-   stop and put the question to them before acting on it.
+- **Give their words with the date and time** — for example *"Keep B2, B3 and B4 paused until a real
+  run of the checklist says what hurt."* (20261019, before 13:01 UTC). Where space is short, link
+  the place that quotes them. Never restate an end condition or a scope in your own words.
+- **If you say no release exists, say where you looked and when**, and say no more:
+  `no release is recorded in <files you read>, as of <UTC time>`. Not that the pause still stands,
+  not that it ended.
+- **If you need to act on what it covers, ask the user first.**
 
-A dated record of the past ("was paused as of 20261019, before 13:01 UTC") says nothing about now and
-is not covered. `c4465fb` rewrote the statements about option B's B2, B3 and B4 to these forms after
-a third fresh reviewer found *"are not released by this"* stated as fact, and *"everything else …
-stayed paused until the user resumed development"* (a scope the resumption never stated), in the
-tree after the second review pass.
+A record of the past — past tense, its source named, a UTC time — says nothing about now and needs
+only that; it does not excuse a scope or an end condition in your own words. Two sentences that
+overclaimed, both from wording `c4465fb` replaced: *"are not released by this"*, stated as fact, and
+*"everything else … stayed paused until the user resumed development"*, a scope the quoted words
+never stated.
 
 ## Read the build order out of `plans/`
 
