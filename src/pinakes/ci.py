@@ -15,19 +15,22 @@ nothing. `ledger.jsonl` lives in that same directory and is restored with it; CI
 it cannot add to it either.
 
 **The health check follows a step that loads the models online.** `pnk doctor` loads models
-`--offline` and downloads none, and `pnk sync` loads only the embedder (nothing at all while the KB
-has no documents), so on a runner whose model cache is cold the health check failed on `FAIL
-reranker`. One `pnk search` brings the embedder and the reranker into the cache, whether or not the
-KB has documents, and the weights are cached under the manifest's hash so a run that changes no
-model downloads nothing. Measured 20261110 21:57 to 21:58 UTC on an empty model cache, both with 30
-documents and with none: `doctor` exited 1 before the search and 0 after it. The search's output is
-discarded, because it prints passage text and an Actions log can be public.
+`--offline` and downloads none, and `pnk sync` loads the embedder only when a document needs
+embedding and the reranker never, so on a runner whose model cache is cold the health check failed:
+on the reranker after a sync that embedded something, on both models after one that embedded
+nothing (an unchanged KB, which is the normal run once `.pinakes/` is restored, or an empty one).
+One `pnk search` brings the embedder and the reranker into the cache whether or not the KB has
+documents, and the weights are cached under the manifest's hash so a run that changes no model
+downloads nothing. Measured 20261110 on an empty model cache: with 30 documents synced and with
+none (21:57 to 21:58 UTC), `doctor` exited 1 before the search and 0 after it; with 30 unchanged
+documents and a restored index (22:36 UTC), the sync loaded nothing and `doctor` exited 1 on both
+models. The search's output is discarded because the step only loads the models.
 
 **The workflow installs `pinakes[light,pdf]`, which is fastembed**, so it works for a KB whose
 manifest names `provider = "fastembed"` in both `[embedding]` and `[rerank]` (`pnk init --backend
-light` writes that). On the default `sentence-transformers` manifest its sync fails with
-"backend not installed" when the KB has documents, and its search step fails the same way when
-it has none.
+light` writes that). On the default `sentence-transformers` manifest its sync fails with "the
+`sentence-transformers` backend is not installed" when the KB has documents, and its search step
+fails the same way when it has none.
 """
 
 from pathlib import Path
@@ -83,9 +86,9 @@ jobs:
       - name: Sync
         run: uvx --from 'pinakes[light,pdf]' pnk sync {FREE_BACKEND_FLAG}
 
-      # `pnk doctor` loads models offline and downloads none, and `pnk sync` loads only the
-      # embedder: this search is what brings the models into the cache before the health check.
-      # Its output is discarded: a search prints passage text, and an Actions log can be public.
+      # `pnk doctor` loads models offline and downloads none, and `pnk sync` loads the embedder
+      # only when a document needs embedding: this search is what brings both models into the
+      # cache before the health check. Its output is discarded: the step only loads the models.
       - name: Load the models
         run: uvx --from 'pinakes[light,pdf]' pnk search warm-up -k 1 > /dev/null
 

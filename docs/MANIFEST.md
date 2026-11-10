@@ -100,7 +100,7 @@ defaulted.
 
 | Key | Required | Notes |
 |---|---|---|
-| `provider` | ✅ | `sentence-transformers` or `fastembed`. `init` always stamps the former ([GUIDE](GUIDE.md#choosing-a-backend)) |
+| `provider` | ✅ | `sentence-transformers` or `fastembed`. `init` stamps the former unless you pass `--backend light` ([GUIDE](GUIDE.md#choosing-a-backend)) |
 | `model` | ✅ | e.g. `BAAI/bge-small-en-v1.5`. **The default model ids are identical on both providers** |
 | `dim` | ✅ | Must match the model's real width, or it is a hard error at sync |
 | `revision` | | HF commit sha. Pin it once settled; the index refuses to load on a mismatch. **Honoured by `sentence-transformers` only** (below) |

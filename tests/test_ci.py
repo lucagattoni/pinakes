@@ -128,12 +128,14 @@ _INVOCATION = re.compile(r"^uvx --from '[^']+' pnk (?P<verb>sync|search|doctor)\
 
 
 def loads_the_models_between_the_sync_and_the_health_check(workflow: str) -> bool:
-    """`pnk doctor` loads models `--offline` and downloads none, and `pnk sync` loads only the
-    embedder, so on a cold model cache the health check fails unless something loaded the models
-    online first. The order is read from the commands the steps run, not from their names.
+    """`pnk doctor` loads models `--offline` and downloads none, and `pnk sync` loads the embedder
+    only when a document needs embedding, so on a cold model cache the health check fails unless
+    something loaded the models online first. The order is read from the commands the steps run,
+    not from their names, and some search between the sync and the doctor must load them online.
 
-    A step that is conditional, or that chains another command after the invocation (`|| true`,
-    `&&`, a pipe), is refused: the order would no longer say what runs.
+    A step that is conditional, that sets an offline environment, or that chains another command
+    after the invocation (`|| true`, `&&`, a pipe), is refused: the order would no longer say what
+    runs. A redirect (`> /dev/null`, `2>&1`) is not a chain.
     """
     invocations: list[tuple[str, str]] = []
     for step in _steps(workflow):
@@ -142,16 +144,15 @@ def loads_the_models_between_the_sync_and_the_health_check(workflow: str) -> boo
         if found is None:
             continue
         assert "if" not in step and "continue-on-error" not in step, f"a conditional step: {run}"
-        assert re.search(r"[|;&]", found.group("rest")) is None, f"a chained command: {run}"
+        assert "OFFLINE" not in str(step.get("env", "")).upper(), f"an offline environment: {run}"
+        assert re.search(r"[|;]|&&", found.group("rest")) is None, f"a chained command: {run}"
         invocations.append((found.group("verb"), run))
     verbs = [verb for verb, _ in invocations]
     assert verbs.count("sync") == 1 and verbs.count("doctor") == 1, verbs
-    if "search" not in verbs:
-        return False
-    search = verbs.index("search")
-    return (
-        verbs.index("sync") < search < verbs.index("doctor")
-        and "--offline" not in invocations[search][1]
+    sync, doctor = verbs.index("sync"), verbs.index("doctor")
+    return any(
+        verb == "search" and sync < position < doctor and "--offline" not in run
+        for position, (verb, run) in enumerate(invocations)
     )
 
 
@@ -203,9 +204,29 @@ def test_a_conditional_or_chained_load_step_is_refused_rather_than_trusted() -> 
     assert not loads_the_models_between_the_sync_and_the_health_check(echoed)
 
 
-def test_the_search_output_is_discarded_because_an_actions_log_can_be_public() -> None:
-    """A search prints passage text (`docs/DOGFOODING.md` warns of it), and the log of a public
-    repository's workflow run is public. The models still load: progress goes to stderr."""
+def test_the_check_accepts_a_quieter_redirect_and_refuses_an_offline_environment() -> None:
+    """The first is a harmless edit a maintainer might make, and refusing it would teach people to
+    stop trusting the check. The second makes the search unable to download, with the command and
+    the order untouched."""
+    step = _LOAD_STEP.search(WORKFLOW)
+    assert step is not None
+    text = step.group(0)
+    quieter = WORKFLOW.replace(text, text.replace("> /dev/null", "> /dev/null 2>&1"))
+    assert quieter != WORKFLOW
+    assert loads_the_models_between_the_sync_and_the_health_check(quieter)
+
+    offline = WORKFLOW.replace(
+        text,
+        text.replace("        run:", "        env:\n          HF_HUB_OFFLINE: 1\n        run:"),
+    )
+    assert offline != WORKFLOW
+    with pytest.raises(AssertionError, match="offline environment"):
+        loads_the_models_between_the_sync_and_the_health_check(offline)
+
+
+def test_the_search_output_is_discarded_because_the_step_only_loads_the_models() -> None:
+    """The step exists to load the models; the passage text a search prints would only add noise to
+    the log. The models still load: their progress goes to stderr."""
     assert re.search(r"pnk search[^\n]*> /dev/null\n", WORKFLOW) is not None
 
 

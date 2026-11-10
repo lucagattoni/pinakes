@@ -79,17 +79,31 @@ time too.
 **The workflow installs `pinakes[light,pdf]`, which is fastembed**, so it works for a KB whose
 manifest names `provider = "fastembed"` in `[embedding]` and `[rerank]`: pass `--backend light` to
 `init`, or edit the manifest ([GUIDE](GUIDE.md#choosing-a-backend)). On the default
-`sentence-transformers` manifest its sync fails with *backend not installed* when the KB has
-documents, and its search step fails the same way when it has none.
+`sentence-transformers` manifest its sync fails with *the `sentence-transformers` backend is not
+installed* when the KB has documents, and its search step fails the same way when it has none.
 
 **Why the workflow runs a search before `pnk doctor`.** `pnk doctor` loads models offline and
-downloads none, and `pnk sync` loads only the embedder (nothing at all while the KB has no
-documents), so on a runner whose model cache is cold the health check fails on the models: on the
-reranker when the KB has documents, on both when it has none. `pnk search warm-up -k 1` loads both
-online first, and the workflow caches the weights so a later run downloads nothing. **A workflow
-`init` wrote earlier is never updated**, since it is never overwritten: add a cache step for
-`~/.cache/huggingface` before the sync, and a `pnk search warm-up -k 1 > /dev/null` step after the
-sync and before the health check.
+downloads none, and `pnk sync` loads the embedder only when a document needs embedding and the
+reranker never, so on a runner whose model cache is cold the health check fails on the models: on
+the reranker after a sync that embedded something, on both after one that embedded nothing, which
+is the normal run once `.pinakes/` is restored. `pnk search warm-up -k 1` loads both online first,
+and the workflow caches the weights so a later run downloads nothing. **A workflow `init` wrote
+earlier is never updated**, since it is never overwritten: add these two steps to it, the first
+before the sync and the second after the sync and before the health check.
+
+```yaml
+      - name: Restore the model weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: pinakes-models-${{ runner.os }}-${{ hashFiles('pinakes.toml') }}
+          restore-keys: pinakes-models-${{ runner.os }}-
+```
+
+```yaml
+      - name: Load the models
+        run: uvx --from 'pinakes[light,pdf]' pnk search warm-up -k 1 > /dev/null
+```
 
 Two things `init` cannot know, each needing a manual manifest edit afterwards
 ([GUIDE](GUIDE.md#choosing-a-backend)): without `--backend light` it stamps the
