@@ -191,7 +191,7 @@ def test_a_conditional_or_chained_load_step_is_refused_rather_than_trusted() -> 
     conditional = WORKFLOW.replace(
         text, text.replace("        run:", "        if: ${{ false }}\n        run:")
     )
-    swallowed = WORKFLOW.replace(text, text.replace("> /dev/null", "|| true"))
+    swallowed = WORKFLOW.replace(text, re.sub(r"(pnk search[^\n]*)", r"\1 || true", text))
     echoed = WORKFLOW.replace(
         text, '      - name: Load the models\n        run: echo "pnk search"\n\n'
     )
@@ -201,6 +201,12 @@ def test_a_conditional_or_chained_load_step_is_refused_rather_than_trusted() -> 
             loads_the_models_between_the_sync_and_the_health_check(variant)
     assert echoed != WORKFLOW
     assert not loads_the_models_between_the_sync_and_the_health_check(echoed)
+
+
+def test_the_search_output_is_discarded_because_an_actions_log_can_be_public() -> None:
+    """A search prints passage text (`docs/DOGFOODING.md` warns of it), and the log of a public
+    repository's workflow run is public. The models still load: progress goes to stderr."""
+    assert re.search(r"pnk search[^\n]*> /dev/null\n", WORKFLOW) is not None
 
 
 def test_the_workflow_caches_the_model_weights_under_a_key_of_its_own() -> None:
