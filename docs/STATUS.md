@@ -93,7 +93,11 @@ screen existed to make that call *before* the irreversible schema bump, and it d
 lexical channel needs the schema bump the screen declined. The claim is *"vector-only injection does
 not help on this corpus"* — **not** *"metadata is worthless"*. What would re-open it is a corpus,
 not a new idea about the prefix: this one's `lexical` and `simple-lookup` questions are saturated at
-1.00, so all its statistical power sat in `paraphrase`.
+1.00, so all its statistical power sat in `paraphrase`. A second corpus has since run the same
+option — each chunk's title embedded, `max_tokens = 459`, Pinakes' other defaults and its reranker —
+and found no gain in the first 8 passages and a loss in the reranker's pool: a different instrument,
+so evidence beside this screen and not a replication of it
+([below](#multihop-rag-measured-outside-this-repository--run-20261030-1826-utc)).
 
 **Why the null is trustworthy** — the controls, not the number: both legs proven to be the same
 corpus (one sha256 over all 43 353 chunk texts, equal); the injection proven to have reached the
@@ -675,6 +679,69 @@ is the circularity that cutting cross-KB questions removed once already, and it 
 afterwards. Held by `tools/reachable_ceiling_probe.py`, whose own tests pin that it needs no schema
 change and that its count moves when an edge kind is removed — a reachability probe answering
 "reachable" for everything is the failure mode it exists to avoid.
+
+### MultiHop-RAG, measured outside this repository — run 20261030 18:26 UTC
+
+**[`pinakes-datasets-benchmark`](https://github.com/lucagattoni/pinakes-datasets-benchmark/blob/11cbbb5/README.md#results)**
+builds a Pinakes KB from the public MultiHop-RAG dataset (609 news articles), asks it every
+question the dataset contains (2,556), and scores what comes back. **It is a separate public
+repository: nothing here runs it and no gate reads it.** Its first full run used **Pinakes 0.32.8
+from PyPI at its defaults** over 2,255 answerable and 301 null questions (8,497 searches: 2,556
+unfiltered, one per question, and 5,941 oracle-filtered variants this section does not use; started
+20261030 18:26 UTC, 2,356 s). **Nothing below was re-run on a later release** — 0.32.9 and
+[0.33.0](ROADMAP.md#0330--thresholds-that-name-their-rerankers-provider-and-a-drift-gate-that-counts-landings--20261102-2236)
+exist, and the repository's pins still read 0.32.8 (read 20261110 16:25 UTC). Intervals are 95%.
+
+| In the first… | at least one gold article | **every** gold article |
+|---|---|---|
+| 5 passages | 91.5% (90.3–92.6) | 33.8% (31.9–35.8) |
+| 8 passages (what `pnk search` returns by default) | 96.8% (96.0–97.5) | **43.4%** (41.3–45.4) |
+| 20 passages (the reranker's whole pool) | 99.2% (98.7–99.5) | 61.0% (58.9–63.0) |
+
+The first column is read from the run's `summary.json` (2,063, 2,183 and 2,236 of 2,255). The
+benchmark's README, at 11cbbb5, prints 91.5% and 96.8% without intervals and "not computed" for 20
+passages, which the run did compute.
+
+A question needs two to four articles, so *some* of the evidence is easy and *all* of it is not. Of
+the answerable questions, **39.0%** are missing at least one gold article from the whole pool of 20,
+and a further **17.6%** have every gold article in the pool but not all in the first 8. The
+benchmark reads that gap through chunking: a paragraph is a chunk (median 38 tokens), so 20
+passages cover about 10 articles.
+
+- **Abstention.** The top rerank score separates null from answerable questions: AUROC 0.944
+  (0.929–0.957), and 0.945 (0.882–0.982) on the 18 null questions that have none of the wording tells
+  the benchmark found in them — a small sample.
+- **Confidence labels.** `pinakes.calibrate` fits both thresholds from the scores of the null
+  questions alone; here it used the 147 of one half, and the thresholds were read on the other. A
+  null question is labelled high-confidence **16.2%** of the time (11.2–22.9, n = 154) against
+  10.9% on the half they were fitted on — the optimism its docstring warns about — and an
+  answerable question whose evidence was found (by the any-article definition) is labelled low 1.1%
+  of the time. `python -m pinakes.eval` on that half reports the same 0.162.
+- **The metadata prefix did not help.** [`[chunking] metadata = "prefix"`](MANIFEST.md#chunking),
+  which embeds each chunk's title and needs `max_tokens = 459` on these articles (a second run,
+  started 20261030 19:10 UTC), leaves every gold article in the first 8 passages at
+  **42.3% against 43.4%** (79 questions gained, 104 lost, p = 0.076) and loses ground in
+  the pool, **55.7% against 61.0%** (71 gained, 191 lost, p < 0.0001). The metadata-injection screen
+  [above](#metadata-injection-measured-answered-and-shipped-off--0160) ran at `rerank = "none"` on
+  195 RFCs; this run keeps Pinakes' default reranker.
+- **The same Pinakes through fastembed** (started 20261031 16:46 UTC, on CPU, from fastembed's own
+  ONNX files and not the same model files) **ranks alike**: 43.3% against 43.4% for every gold
+  article in the first 8 passages, and the same articles in the same order over the pool in 2,424 of
+  the 2,556 unfiltered searches. **Its scores do not mean the same thing**: top-1 rerank scores ran from -9.28 to 10.31
+  against 0.00 to 1.00, so thresholds fitted under one provider labelled 26.7% of the 1,140
+  answerable held-out questions low-confidence under the other, and in the other direction every
+  question came out high. That is the finding 0.33.0 acted on.
+
+**What it can and cannot carry.** One dataset, whose questions and answers a language model
+generated; one machine; default settings throughout, nothing tuned. The benchmark lists these, and
+others (among them the oracle filters and the latencies), in its own
+[Limits](https://github.com/lucagattoni/pinakes-datasets-benchmark/blob/11cbbb5/README.md#limits).
+**A switch from one reranker provider to the other on a KB of real size, with thresholds fitted by
+`python -m pinakes.calibrate`, was not run** — on 0.32.8 or on 0.33.0. **Whether it can license a
+retrieval change is not settled here**: [DESIGN §7.3](DESIGN.md#73-what-a-corpus-can-license) asks
+that an improvable pool be re-measured under the settings a change would be judged on, not carried
+forward, and the shares above (39.0% and 17.6%) were measured on 0.32.8 and count questions by
+*every* gold article, where §7.3 counted on the any-hit `recall@k`.
 
 ## Published on PyPI
 
