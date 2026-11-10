@@ -95,23 +95,22 @@ changes is that a question the old *planner* would have ruled is yours whenever 
 | Permanent surface (a command, flag, name, exit code, schema key); anything irreversible or outward-facing (a tag, a publish, a deletion); anything the plan, or a pause the user has declared, marks the user's | **The user's** | Stop and put the options to them, as `CLAUDE.md` § *Working mode* sets the bar for asking |
 | You cannot tell whose | **The user's**, until shown otherwise | Ask |
 
-**A statement about a hold the user set takes one of three forms, and no other.** A pause, a
-deferral or a ruling that keeps something from you is theirs, and a sentence that claims more than
-the records say is how a decision they reserved gets taken by whoever reads that sentence next. The
-forms may share a sentence (`CLAUDE.md` § *What is live right now* does):
+**A statement about a pause, deferral or ruling the user set says one of three things.** Whether it
+still stands, what ends it and what it covers are the user's to say, so write it as:
 
-1. **The ruling, quoted, with its date** — *"Keep B2, B3 and B4 paused until a real run of the
-   checklist says what hurt."* (20261019). Its end condition is the quoted words, never a
-   paraphrase of them.
-2. **"No release is recorded"** — after you looked (the plan, `CLAUDE.md`, what the user said this
-   session) and found none. It says what you looked at; it does not say the hold stands, and it
-   does not say the hold ended.
-3. **"Ask"** — when you cannot tell which of those applies. Put the question to the user.
+1. **The ruling, quoted, with its date and time** — for example *"Keep B2, B3 and B4 paused until a
+   real run of the checklist says what hurt."* (20261019, before 13:01 UTC). An end condition or a
+   scope is the quoted words, never a summary of them.
+2. **"No release is recorded in <the files you read>, as of <UTC time>"** — and no word on whether
+   it still stands or has ended.
+3. **"Ask"** — the held item is the user's (the table's third row), so after form 1 or form 2 you
+   stop and put the question to them before acting on it.
 
-Three paraphrases failed this, each found by a fresh reviewer in the wording of the pass before it
-(`c4465fb`): *"stay held until the user says"* (the end condition is a real run of the checklist),
-*"are not released by this"* stated as fact, and *"everything else … stayed paused until the user
-resumed development"* (a scope the resumption never stated).
+A dated record of the past ("was paused as of 20261019, before 13:01 UTC") says nothing about now and
+is not covered. `c4465fb` rewrote the statements about option B's B2, B3 and B4 to these forms after
+a third fresh reviewer found *"are not released by this"* stated as fact, and *"everything else …
+stayed paused until the user resumed development"* (a scope the resumption never stated), in the
+tree after the second review pass.
 
 ## Read the build order out of `plans/`
 
