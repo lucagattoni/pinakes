@@ -1,6 +1,7 @@
 """`pnk init --ci` — the workflow §6.3 designed in v0.1 and I6b finally writes."""
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -112,3 +113,58 @@ def test_the_init_line_describes_the_workflow_not_the_hooks(
     out = capsys.readouterr().out
     assert "workflow:" in out
     assert "hooks" not in out
+
+
+def _steps(workflow: str) -> list[dict[str, Any]]:
+    import yaml
+
+    return yaml.safe_load(workflow)["jobs"]["sync"]["steps"]
+
+
+def loads_the_models_between_the_sync_and_the_health_check(workflow: str) -> bool:
+    """`pnk doctor` loads models `--offline` and downloads none, and `pnk sync` loads only the
+    embedder, so on a cold model cache the health check fails unless something loaded the models
+    online first. The order is read from the commands the steps run, not from their names."""
+    commands = [str(step.get("run", "")) for step in _steps(workflow)]
+    sync = [i for i, command in enumerate(commands) if "pnk sync" in command]
+    search = [i for i, command in enumerate(commands) if "pnk search" in command]
+    doctor = [i for i, command in enumerate(commands) if "pnk doctor" in command]
+    assert len(sync) == 1 and len(doctor) == 1, commands
+    return (
+        bool(search) and sync[0] < search[0] < doctor[0] and "--offline" not in commands[search[0]]
+    )
+
+
+_LOAD_THE_MODELS = (
+    "      - name: Load the models\n"
+    "        run: uvx --from 'pinakes[light,pdf]' pnk search warm-up -k 1\n"
+)
+
+
+def test_the_workflow_loads_the_models_between_the_sync_and_the_health_check() -> None:
+    assert _LOAD_THE_MODELS in WORKFLOW
+    assert loads_the_models_between_the_sync_and_the_health_check(WORKFLOW)
+
+
+def test_the_check_notices_a_workflow_that_never_loads_the_models_or_loads_them_too_late() -> None:
+    """A checker that cannot fail verifies nothing: the workflow as it stood, which failed its
+    health check on every cold cache, and one that loads the models after it."""
+    without = WORKFLOW.replace(_LOAD_THE_MODELS + "\n", "")
+    assert without != WORKFLOW
+    assert not loads_the_models_between_the_sync_and_the_health_check(without)
+
+    late = WORKFLOW.replace(_LOAD_THE_MODELS + "\n", "") + "\n" + _LOAD_THE_MODELS
+    assert late != WORKFLOW
+    assert not loads_the_models_between_the_sync_and_the_health_check(late)
+
+
+def test_the_workflow_caches_the_model_weights_under_a_key_of_its_own() -> None:
+    caches = [step for step in _steps(WORKFLOW) if step.get("uses", "").startswith("actions/cache")]
+    index = next(step for step in caches if step["with"]["path"] == ".pinakes")
+    models = next(step for step in caches if step["with"]["path"] == "~/.cache/huggingface")
+    assert models["with"]["key"].startswith("pinakes-models-${{ runner.os }}-")
+    assert "hashFiles('pinakes.toml')" in models["with"]["key"]
+    # Restoring the index must never restore the weights, or the other way round: neither key may
+    # sit under the other's restore prefix.
+    assert not models["with"]["key"].startswith(index["with"]["restore-keys"])
+    assert not index["with"]["key"].startswith(models["with"]["restore-keys"])

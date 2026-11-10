@@ -13,6 +13,14 @@ literals are two places for the forced backend to drift.
 The cache key is keyed on the sources, so a run that changes nothing restores `.pinakes/` and syncs
 nothing. `ledger.jsonl` lives in that same directory and is restored with it; CI cannot spend, so
 it cannot add to it either.
+
+**The health check follows a step that loads the models online.** `pnk doctor` loads models
+`--offline` and downloads none, and `pnk sync` loads only the embedder (nothing at all while the KB
+has no documents), so on a runner whose model cache is cold the health check failed on `FAIL
+reranker`. One `pnk search` brings the embedder and the reranker into the cache, whether or not the
+KB has documents, and the weights are cached under the manifest's hash so a run that changes no
+model downloads nothing. Measured 20261110 on an empty model cache, both with 30 documents and with
+none: `doctor` exited 1 before the search and 0 after it.
 """
 
 from pathlib import Path
@@ -23,6 +31,11 @@ from pinakes.hooks import FREE_BACKEND_FLAG
 WORKFLOW_PATH = Path(".github") / "workflows" / "pinakes.yml"
 
 _CACHE_KEY = "pinakes-${{ runner.os }}-${{ hashFiles('docs/**', 'pinakes.toml') }}"
+
+#: The weights live under `~/.cache/huggingface` (`HF_HOME` unset on a runner), keyed on the
+#: manifest because it names the models. A prefix of its own, so that restoring the index never
+#: restores the weights or the other way round.
+_MODELS_CACHE_KEY = "pinakes-models-${{ runner.os }}-${{ hashFiles('pinakes.toml') }}"
 
 WORKFLOW = f"""\
 # Installed by `pnk init --ci`. Keeps the index fresh for a published KB.
@@ -50,8 +63,20 @@ jobs:
           key: {_CACHE_KEY}
           restore-keys: pinakes-${{{{ runner.os }}}}-
 
+      - name: Restore the model weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: {_MODELS_CACHE_KEY}
+          restore-keys: pinakes-models-${{{{ runner.os }}}}-
+
       - name: Sync
         run: uvx --from 'pinakes[light,pdf]' pnk sync {FREE_BACKEND_FLAG}
+
+      # `pnk doctor` loads models offline and downloads none, and `pnk sync` loads only the
+      # embedder: this search is what brings the models into the cache before the health check.
+      - name: Load the models
+        run: uvx --from 'pinakes[light,pdf]' pnk search warm-up -k 1
 
       - name: Health check
         run: uvx --from 'pinakes[light,pdf]' pnk doctor

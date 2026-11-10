@@ -44,7 +44,7 @@ Stamps a new KB and mints its **permanent** KB ULID.
 | `--name NAME` | the directory name | Human-facing only; rename freely |
 | `--template TEMPLATE` | `notes` | The blueprint. `notes` is the only one shipped. **A single path component** — `[A-Za-z0-9][A-Za-z0-9_-]*` — refused before any directory is created, so `notes/../notes` and `notes/_versions/1.1` both print `no template named` and write nothing |
 | `--backend` (`st` or `light`) | `st` | Which install extra's models to stamp, in **both** `[embedding]` and `[rerank]`. `st` is `sentence-transformers`, `light` is `fastembed`; the model ids are identical, so only `provider` differs in the file (the weights behind an id are not the same: [MANIFEST](MANIFEST.md#embedding)). **A flag, never detection** — `pinakes.toml` is portable and committed, so stamping whatever the machine has bakes one author's install into a file their collaborators read |
-| `--ci` | off | Also write `.github/workflows/pinakes.yml`, which syncs and caches `.pinakes/`. Refuses to overwrite an existing one |
+| `--ci` | off | Also write `.github/workflows/pinakes.yml`, which caches `.pinakes/` and the model weights, syncs, loads the models online with one `pnk search`, and runs `pnk doctor`. Refuses to overwrite an existing one |
 
 Writes `pinakes.toml`, `docs/`, a `.gitignore` covering `.pinakes/`, and **the files the template
 declares** — `README.md` and `eval/questions.yaml` unless it says otherwise
@@ -75,6 +75,14 @@ would be worse. Re-run without `--ci` to initialise the KB and keep your workflo
 `--ci`'s workflow runs `pnk sync --extract=pypdfium2` and says so on the line itself: CI is
 non-interactive and must never spend, exactly as the git hooks are. `init` prints that at write
 time too.
+
+**Why the workflow runs a search before `pnk doctor`.** `pnk doctor` loads models offline and
+downloads none, and `pnk sync` loads only the embedder (nothing at all while the KB has no
+documents), so on a runner whose model cache is cold the health check fails on the reranker.
+`pnk search warm-up -k 1` loads both models online first, and the workflow caches the weights so a
+later run downloads nothing. **A workflow `init` wrote earlier is never updated**, since it is never
+overwritten: add a cache step for `~/.cache/huggingface` before the sync, and a `pnk search warm-up
+-k 1` step before the health check.
 
 Two things `init` cannot know, both needing a manual manifest edit afterwards
 ([GUIDE](GUIDE.md#choosing-a-backend)): it always stamps the `sentence-transformers` provider, and

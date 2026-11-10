@@ -559,6 +559,9 @@ attempt was shutdown.
 | the generated CI workflow forces the free backend too | I6b | `tests/test_ci.py::test_the_workflow_forces_the_free_backend`, `tests/test_ci.py::test_the_workflow_and_the_hooks_cannot_disagree` |
 | that workflow caches the state directory holding the ledger | I6b | `tests/test_ci.py::test_the_workflow_caches_the_state_directory_that_holds_the_ledger` |
 | `pnk init --ci` never overwrites a workflow somebody wrote | I6b | `tests/test_ci.py::test_an_existing_workflow_is_never_overwritten` |
+| the generated workflow loads the models online between the sync and the health check, so a cold model cache cannot fail it | fix | `tests/test_ci.py::test_the_workflow_loads_the_models_between_the_sync_and_the_health_check` |
+| …and that check is watched failing on a workflow that never loads them, and on one that loads them late | fix | `tests/test_ci.py::test_the_check_notices_a_workflow_that_never_loads_the_models_or_loads_them_too_late` |
+| the workflow caches the model weights under a key that never sits under the index cache's restore prefix, or the other way round | fix | `tests/test_ci.py::test_the_workflow_caches_the_model_weights_under_a_key_of_its_own` |
 
 ## The paid-path allowlist
 
