@@ -1,5 +1,6 @@
 """`pnk init --ci` — the workflow §6.3 designed in v0.1 and I6b finally writes."""
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -135,25 +136,28 @@ def loads_the_models_between_the_sync_and_the_health_check(workflow: str) -> boo
     )
 
 
-_LOAD_THE_MODELS = (
-    "      - name: Load the models\n"
-    "        run: uvx --from 'pinakes[light,pdf]' pnk search warm-up -k 1\n"
+#: The step that runs the search, found by what it runs and not by its name or its arguments, so
+#: that renaming the step or changing the query does not break the tests that cut it out.
+_LOAD_STEP = re.compile(
+    r"^      - name: [^\n]+\n        run: [^\n]*pnk search[^\n]*\n\n", re.MULTILINE
 )
 
 
 def test_the_workflow_loads_the_models_between_the_sync_and_the_health_check() -> None:
-    assert _LOAD_THE_MODELS in WORKFLOW
+    assert _LOAD_STEP.search(WORKFLOW) is not None
     assert loads_the_models_between_the_sync_and_the_health_check(WORKFLOW)
 
 
 def test_the_check_notices_a_workflow_that_never_loads_the_models_or_loads_them_too_late() -> None:
     """A checker that cannot fail verifies nothing: the workflow as it stood, which failed its
     health check on every cold cache, and one that loads the models after it."""
-    without = WORKFLOW.replace(_LOAD_THE_MODELS + "\n", "")
+    step = _LOAD_STEP.search(WORKFLOW)
+    assert step is not None
+    without = WORKFLOW.replace(step.group(0), "")
     assert without != WORKFLOW
     assert not loads_the_models_between_the_sync_and_the_health_check(without)
 
-    late = WORKFLOW.replace(_LOAD_THE_MODELS + "\n", "") + "\n" + _LOAD_THE_MODELS
+    late = without + "\n" + step.group(0).rstrip("\n") + "\n"
     assert late != WORKFLOW
     assert not loads_the_models_between_the_sync_and_the_health_check(late)
 
