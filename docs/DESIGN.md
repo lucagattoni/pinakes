@@ -996,7 +996,9 @@ fraction of a real run's cost, which is what makes it the documented first step 
 one. It refuses on a free backend rather than reporting €0.00: "nothing to estimate" and "this run
 would cost nothing" are different answers.
 
-`pnk init --ci` drops a GitHub Actions workflow that syncs and caches `.pinakes/`. No daemon.
+`pnk init --ci` drops a GitHub Actions workflow that caches `.pinakes/` and the model weights, syncs,
+loads the models online with one search (`pnk doctor` downloads none), and runs `pnk doctor`. No
+daemon.
 
 **All four machine-driven callers — the three hooks and that workflow — write
 `pnk sync --extract=pypdfium2` explicitly, forcing the free backend regardless of the manifest**,

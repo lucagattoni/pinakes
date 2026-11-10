@@ -324,3 +324,37 @@ def test_a_filter_that_excludes_everything_still_says_so(
     and reaches the empty-allowed-set branch — the corpus holds only markdown."""
     assert main(["search", "retrieval", "--kb", str(kb), "--source-type", "pdf"]) == 0
     assert "nothing matched the filters" in capsys.readouterr().out
+
+
+def _counted[T](log: list[tuple[str, bool]], entry: tuple[str, bool], made: T) -> T:
+    log.append(entry)
+    return made
+
+
+def test_a_search_loads_both_models_even_when_the_kb_has_no_documents(tmp_path: Path) -> None:
+    """The workflow `pnk init --ci` writes depends on this. `pnk doctor` loads models offline and
+    downloads none, and `pnk sync` loads none while there is nothing to index, so the search that
+    runs before the health check is what brings both models into the cache, and it can only do that
+    online. A search that loaded its models lazily, after finding the index empty, or that asked for
+    them offline, would leave that workflow failing on a cold cache, and nothing else here would
+    notice."""
+    loaded: list[tuple[str, bool]] = []
+    register_embedding_backend(
+        "fake", lambda section, offline: _counted(loaded, ("embedder", offline), FakeBackend())
+    )
+    register_reranker(
+        "fake", lambda section, offline: _counted(loaded, ("reranker", offline), FakeReranker())
+    )
+    result = init(tmp_path / "empty", now="20261110 22:30")
+    manifest_path = result.root / "pinakes.toml"
+    text = manifest_path.read_text(encoding="utf-8")
+    text = text.replace('provider = "sentence-transformers"', 'provider = "fake"')
+    text = text.replace('model    = "BAAI/bge-small-en-v1.5"', 'model    = "fake-model"')
+    text = text.replace("dim      = 384", f"dim      = {len(VOCABULARY)}")
+    text = text.replace('model    = "BAAI/bge-reranker-base"', 'model    = "fake-reranker"')
+    manifest_path.write_text(text, encoding="utf-8")
+    sync(load(result.root), options=SyncOptions(), now="20261110 22:31")
+    loaded.clear()  # whatever the sync loaded is not what this pins
+
+    assert main(["search", "anything", "--kb", str(result.root)]) == 0
+    assert sorted(loaded) == [("embedder", False), ("reranker", False)]

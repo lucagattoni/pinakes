@@ -13,6 +13,24 @@ literals are two places for the forced backend to drift.
 The cache key is keyed on the sources, so a run that changes nothing restores `.pinakes/` and syncs
 nothing. `ledger.jsonl` lives in that same directory and is restored with it; CI cannot spend, so
 it cannot add to it either.
+
+**The health check follows a step that loads the models online.** `pnk doctor` loads models
+`--offline` and downloads none, and `pnk sync` loads the embedder only when a document needs
+embedding and the reranker never, so on a runner whose model cache is cold the health check failed:
+on the reranker after a sync that embedded something, on both models after one that embedded
+nothing (an unchanged KB, which is the normal run once `.pinakes/` is restored, or an empty one).
+One `pnk search` brings the embedder and the reranker into the cache whether or not the KB has
+documents, and the weights are cached under the manifest's hash so a run that changes no model
+downloads nothing. Measured 20261110 on an empty model cache: with 30 documents synced and with
+none (21:57 to 21:58 UTC), `doctor` exited 1 before the search and 0 after it; with 30 unchanged
+documents and a restored index (22:36 UTC), the sync loaded nothing and `doctor` exited 1 on both
+models. The search's output is discarded because the step only loads the models.
+
+**The workflow installs `pinakes[light,pdf]`, which is fastembed**, so it works for a KB whose
+manifest names `provider = "fastembed"` in both `[embedding]` and `[rerank]` (`pnk init --backend
+light` writes that). On the default `sentence-transformers` manifest its sync fails with "the
+`sentence-transformers` backend is not installed" when the KB has documents, and its search step
+fails the same way when it has none.
 """
 
 from pathlib import Path
@@ -24,11 +42,19 @@ WORKFLOW_PATH = Path(".github") / "workflows" / "pinakes.yml"
 
 _CACHE_KEY = "pinakes-${{ runner.os }}-${{ hashFiles('docs/**', 'pinakes.toml') }}"
 
+#: The weights live under `~/.cache/huggingface` (`HF_HOME` unset on a runner), keyed on the
+#: manifest because it names the models. A prefix of its own, so that restoring the index never
+#: restores the weights or the other way round.
+_MODELS_CACHE_KEY = "pinakes-models-${{ runner.os }}-${{ hashFiles('pinakes.toml') }}"
+
 WORKFLOW = f"""\
 # Installed by `pnk init --ci`. Keeps the index fresh for a published KB.
 #
 # This workflow runs `pnk sync {FREE_BACKEND_FLAG}`: CI is non-interactive and must never spend.
 # Paid extraction stays a deliberate `pnk sync` a human runs.
+#
+# It installs `pinakes[light,pdf]`, which is fastembed: the manifest must name `provider =
+# "fastembed"` in both `[embedding]` and `[rerank]` (`pnk init --backend light` writes that).
 name: pinakes
 
 on:
@@ -50,8 +76,21 @@ jobs:
           key: {_CACHE_KEY}
           restore-keys: pinakes-${{{{ runner.os }}}}-
 
+      - name: Restore the model weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: {_MODELS_CACHE_KEY}
+          restore-keys: pinakes-models-${{{{ runner.os }}}}-
+
       - name: Sync
         run: uvx --from 'pinakes[light,pdf]' pnk sync {FREE_BACKEND_FLAG}
+
+      # `pnk doctor` loads models offline and downloads none, and `pnk sync` loads the embedder
+      # only when a document needs embedding: this search is what brings both models into the
+      # cache before the health check. Its output is discarded: the step only loads the models.
+      - name: Load the models
+        run: uvx --from 'pinakes[light,pdf]' pnk search warm-up -k 1 > /dev/null
 
       - name: Health check
         run: uvx --from 'pinakes[light,pdf]' pnk doctor

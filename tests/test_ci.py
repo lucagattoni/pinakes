@@ -1,6 +1,8 @@
 """`pnk init --ci` — the workflow §6.3 designed in v0.1 and I6b finally writes."""
 
+import re
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -112,3 +114,139 @@ def test_the_init_line_describes_the_workflow_not_the_hooks(
     out = capsys.readouterr().out
     assert "workflow:" in out
     assert "hooks" not in out
+
+
+def _steps(workflow: str) -> list[dict[str, Any]]:
+    import yaml
+
+    return yaml.safe_load(workflow)["jobs"]["sync"]["steps"]
+
+
+#: A step whose whole `run:` is one `pnk` invocation through `uvx`. Anything else (an `echo`, a
+#: block of several commands) is not counted as one.
+_INVOCATION = re.compile(r"^uvx --from '[^']+' pnk (?P<verb>sync|search|doctor)\b(?P<rest>[^\n]*)$")
+
+
+def loads_the_models_between_the_sync_and_the_health_check(workflow: str) -> bool:
+    """`pnk doctor` loads models `--offline` and downloads none, and `pnk sync` loads the embedder
+    only when a document needs embedding, so on a cold model cache the health check fails unless
+    something loaded the models online first. The order is read from the commands the steps run,
+    not from their names, and some search between the sync and the doctor must load them online.
+
+    A step that is conditional, that sets an offline environment, or that chains another command
+    after the invocation (`|| true`, `&&`, a pipe), is refused: the order would no longer say what
+    runs. A redirect (`> /dev/null`, `2>&1`) is not a chain.
+    """
+    invocations: list[tuple[str, str]] = []
+    for step in _steps(workflow):
+        run = str(step.get("run", ""))
+        found = _INVOCATION.match(run)
+        if found is None:
+            continue
+        assert "if" not in step and "continue-on-error" not in step, f"a conditional step: {run}"
+        assert "OFFLINE" not in str(step.get("env", "")).upper(), f"an offline environment: {run}"
+        assert re.search(r"[|;]|&&", found.group("rest")) is None, f"a chained command: {run}"
+        invocations.append((found.group("verb"), run))
+    verbs = [verb for verb, _ in invocations]
+    assert verbs.count("sync") == 1 and verbs.count("doctor") == 1, verbs
+    sync, doctor = verbs.index("sync"), verbs.index("doctor")
+    return any(
+        verb == "search" and sync < position < doctor and "--offline" not in run
+        for position, (verb, run) in enumerate(invocations)
+    )
+
+
+#: The step that runs the search, found by what it runs and not by its name or its arguments, so
+#: that renaming the step or changing the query does not break the tests that cut it out.
+_LOAD_STEP = re.compile(
+    r"^      - name: [^\n]+\n        run: [^\n]*pnk search[^\n]*\n\n", re.MULTILINE
+)
+
+
+def test_the_workflow_loads_the_models_between_the_sync_and_the_health_check() -> None:
+    assert _LOAD_STEP.search(WORKFLOW) is not None
+    assert loads_the_models_between_the_sync_and_the_health_check(WORKFLOW)
+
+
+def test_the_check_notices_a_workflow_that_never_loads_the_models_or_loads_them_too_late() -> None:
+    """A checker that cannot fail verifies nothing: the workflow as it stood, which failed its
+    health check on every cold cache, and one that loads the models after it."""
+    step = _LOAD_STEP.search(WORKFLOW)
+    assert step is not None
+    without = WORKFLOW.replace(step.group(0), "")
+    assert without != WORKFLOW
+    assert not loads_the_models_between_the_sync_and_the_health_check(without)
+
+    late = without + "\n" + step.group(0).rstrip("\n") + "\n"
+    assert late != WORKFLOW
+    assert not loads_the_models_between_the_sync_and_the_health_check(late)
+
+
+def test_a_conditional_or_chained_load_step_is_refused_rather_than_trusted() -> None:
+    """Each of these keeps the commands in the right order and makes the step unable to load the
+    models: a condition that is never true, a failure swallowed by `|| true`, and a command that is
+    only echoed. The checker must not call any of them a pass."""
+    step = _LOAD_STEP.search(WORKFLOW)
+    assert step is not None
+    text = step.group(0)
+    conditional = WORKFLOW.replace(
+        text, text.replace("        run:", "        if: ${{ false }}\n        run:")
+    )
+    swallowed = WORKFLOW.replace(text, re.sub(r"(pnk search[^\n]*)", r"\1 || true", text))
+    echoed = WORKFLOW.replace(
+        text, '      - name: Load the models\n        run: echo "pnk search"\n\n'
+    )
+    for variant in (conditional, swallowed):
+        assert variant != WORKFLOW
+        with pytest.raises(AssertionError, match=r"conditional step|chained command"):
+            loads_the_models_between_the_sync_and_the_health_check(variant)
+    assert echoed != WORKFLOW
+    assert not loads_the_models_between_the_sync_and_the_health_check(echoed)
+
+
+def test_the_check_accepts_a_quieter_redirect_and_refuses_an_offline_environment() -> None:
+    """The first is a harmless edit a maintainer might make, and refusing it would teach people to
+    stop trusting the check. The second makes the search unable to download, with the command and
+    the order untouched."""
+    step = _LOAD_STEP.search(WORKFLOW)
+    assert step is not None
+    text = step.group(0)
+    quieter = WORKFLOW.replace(text, re.sub(r"(pnk search[^\n]*)", r"\1 2>&1", text))
+    assert quieter != WORKFLOW
+    assert loads_the_models_between_the_sync_and_the_health_check(quieter)
+
+    offline = WORKFLOW.replace(
+        text,
+        text.replace("        run:", "        env:\n          HF_HUB_OFFLINE: 1\n        run:"),
+    )
+    assert offline != WORKFLOW
+    with pytest.raises(AssertionError, match="offline environment"):
+        loads_the_models_between_the_sync_and_the_health_check(offline)
+
+
+def test_the_search_output_is_discarded_because_the_step_only_loads_the_models() -> None:
+    """The step exists to load the models; the passage text a search prints would only add noise to
+    the log. The models still load: their progress goes to stderr."""
+    assert re.search(r"pnk search[^\n]*> /dev/null\b[^\n]*\n", WORKFLOW) is not None
+
+
+def test_the_workflow_caches_the_model_weights_under_a_key_of_its_own() -> None:
+    caches = [step for step in _steps(WORKFLOW) if step.get("uses", "").startswith("actions/cache")]
+    index = next(step for step in caches if step["with"]["path"] == ".pinakes")
+    models = next(step for step in caches if step["with"]["path"] == "~/.cache/huggingface")
+    assert models["with"]["key"].startswith("pinakes-models-${{ runner.os }}-")
+    assert "hashFiles('pinakes.toml')" in models["with"]["key"]
+    # Restoring the index must never restore the weights, or the other way round: neither key may
+    # sit under the other's restore prefix.
+    assert not models["with"]["key"].startswith(index["with"]["restore-keys"])
+    assert not index["with"]["key"].startswith(models["with"]["restore-keys"])
+    # `startswith` is vacuous against a multi-line restore-keys block, which is never a prefix of a
+    # key: both must be one line for the two assertions above to mean anything.
+    assert "\n" not in index["with"]["restore-keys"]
+    assert "\n" not in models["with"]["restore-keys"]
+    # It must save as well as restore (`actions/cache/restore` would not), and be restored before
+    # anything loads a model.
+    assert models["uses"].startswith("actions/cache@")
+    steps = _steps(WORKFLOW)
+    sync = next(i for i, step in enumerate(steps) if "pnk sync" in str(step.get("run", "")))
+    assert steps.index(models) < sync

@@ -106,7 +106,10 @@ def _init_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--ci",
         action="store_true",
-        help="also write a GitHub Actions workflow that syncs with the free extractor",
+        help=(
+            "also write a GitHub Actions workflow that syncs with the free extractor "
+            "(it installs the light extra: use --backend light)"
+        ),
     )
 
 

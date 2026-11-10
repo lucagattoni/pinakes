@@ -559,6 +559,11 @@ attempt was shutdown.
 | the generated CI workflow forces the free backend too | I6b | `tests/test_ci.py::test_the_workflow_forces_the_free_backend`, `tests/test_ci.py::test_the_workflow_and_the_hooks_cannot_disagree` |
 | that workflow caches the state directory holding the ledger | I6b | `tests/test_ci.py::test_the_workflow_caches_the_state_directory_that_holds_the_ledger` |
 | `pnk init --ci` never overwrites a workflow somebody wrote | I6b | `tests/test_ci.py::test_an_existing_workflow_is_never_overwritten` |
+| the generated workflow loads the models online between the sync and the health check, so a cold model cache cannot fail it | fix | `tests/test_ci.py::test_the_workflow_loads_the_models_between_the_sync_and_the_health_check` |
+| …and that check is watched failing on a workflow that never loads them, and on one that loads them late, refuses a conditional or chained step, accepts a quieter redirect and refuses an offline environment | fix | `tests/test_ci.py::test_the_check_notices_a_workflow_that_never_loads_the_models_or_loads_them_too_late` + `tests/test_ci.py::test_a_conditional_or_chained_load_step_is_refused_rather_than_trusted` + `tests/test_ci.py::test_the_check_accepts_a_quieter_redirect_and_refuses_an_offline_environment` |
+| `pnk search` loads both models, online, even when the KB has no documents, which that workflow relies on | fix | `tests/test_cli_search.py::test_a_search_loads_both_models_even_when_the_kb_has_no_documents` |
+| that workflow discards the search's output, since the step only loads the models | fix | `tests/test_ci.py::test_the_search_output_is_discarded_because_the_step_only_loads_the_models` |
+| the workflow caches the model weights under a key that never sits under the index cache's restore prefix, or the other way round | fix | `tests/test_ci.py::test_the_workflow_caches_the_model_weights_under_a_key_of_its_own` |
 
 ## The paid-path allowlist
 
