@@ -126,7 +126,7 @@ own ONNX export. For `BAAI/bge-small-en-v1.5` that is a float16, operator-fused 
 Hub repository (`Qdrant/bge-small-en-v1.5-onnx-Q`: 149 float16 tensors and no quantization
 operators, read with the `onnx` package, 20261031 16:23 UTC), where sentence-transformers loads the
 float32 BAAI weights. On one benchmark the two ranked alike (the same articles in the same order in
-2,424 of 2,556 searches: `pinakes-datasets-benchmark` at commit `deb2329`), so this is a fact to
+2,424 of 2,556 searches: [`pinakes-datasets-benchmark`](https://github.com/lucagattoni/pinakes-datasets-benchmark/blob/deb2329/README.md#the-same-pinakes-on-its-other-provider) at commit `deb2329`), so this is a fact to
 know, not a defect.
 
 ## `[extraction]`
