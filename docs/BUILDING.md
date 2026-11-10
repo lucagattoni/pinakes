@@ -98,18 +98,23 @@ changes is that a question the old *planner* would have ruled is yours whenever 
 **When you write about a pause or deferral the user set, quote it; do not summarise it.**
 
 - **Give their words with the date and time** — for example *"Keep B2, B3 and B4 paused until a real
-  run of the checklist says what hurt."* (20261019, before 13:01 UTC). Where space is short, link
-  the place that quotes them. Never restate an end condition or a scope in your own words.
-- **If you say no release exists, say where you looked and when**, and say no more:
-  `no release is recorded in <files you read>, as of <UTC time>`. Not that the pause still stands,
-  not that it ended.
+  run of the checklist says what hurt."* (20261019, before 13:01 UTC;
+  [§ 5.2 of the option-B plan](https://github.com/lucagattoni/pinakes/blob/main/plans/20261019_0817-option-b-dogfooding-on-ramp.md#52-what-b0-does-to-b2)
+  quotes it). Where space is short, link the place that quotes them. A status marker ("⏸",
+  "paused") counts: give it with that date and link. Never restate an end condition or a scope in
+  your own words.
+- **If you say the user has not lifted it, say where you looked and when**, and say no more:
+  `no word lifting it is recorded in <files you read>, as of <YYYYMMDD HH:MM UTC>`. Not that it
+  still stands, not that it ended.
 - **If you need to act on what it covers, ask the user first.**
 
-A record of the past — past tense, its source named, a UTC time — says nothing about now and needs
-only that; it does not excuse a scope or an end condition in your own words. Two sentences that
-overclaimed, both from wording `c4465fb` replaced: *"are not released by this"*, stated as fact, and
-*"everything else … stayed paused until the user resumed development"*, a scope the quoted words
-never stated.
+A record of the past needs a past tense, a named source and the UTC time of the event; it still may
+not state a scope or an end condition in your own words. Two sentences that overclaimed: *"are not
+released by this"*, stated as fact, and *"everything else … stayed paused until the user resumed
+development"*, a scope no quote supported.
+
+This applies to what you write now. Rewrite an older sentence that breaks it when you next edit it;
+`CLAUDE.md` is the user's, so show them the diff first.
 
 ## Read the build order out of `plans/`
 
