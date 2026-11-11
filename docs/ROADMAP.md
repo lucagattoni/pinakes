@@ -17,18 +17,32 @@ precision nobody measured.
 
 ---
 
-## Where things stand right now — 20261102 23:12 UTC
+## Where things stand right now — 20261111 16:54 UTC
 
-- **69 releases in 100 days** — **counted from `CHANGELOG.md`, not incremented from this
+- **70 releases in 109 days** — **counted from `CHANGELOG.md`, not incremented from this
   sentence's own previous value**, which is exactly how it drifted: it read **58** while the file
   held **59**. Across the **109** commits that have carried this sentence it agreed with the
   CHANGELOG in **70** and was wrong in **39** — all but two of them low, because a release added one
-  to the printed number instead of counting the entries. The three registers still reconcile: **70** entries = **69** git tags + `0.30.3`, prepared and never tagged — **counted from
+  to the printed number instead of counting the entries. The three registers still reconcile: **71** entries = **70** git tags + `0.30.3`, prepared and never tagged — **counted from
   `git ls-remote --tags`, the CHANGELOG's headings and this file's table, never incremented**, which is
   the discipline this row exists to keep and the one it previously failed. **The index is a fourth
-  register and is deliberately lower — 62** — because seven tags predate publishing and `0.30.3`
+  register and is deliberately lower — 63** — because seven tags predate publishing and `0.30.3`
   reached no index.
   [`0.1.0`](#010--the-engine--20260725-1527) on 20260725.
+  [`0.33.1`](#0331--ci-workflows-that-load-their-models-before-they-check-them--20261111-1057)
+  is **on PyPI as of 20261111 16:52** — landed 11:20:38, the tag held for `minimum-python` at this
+  commit (CPython 3.13.18, 3034 passed, 126 skipped, read in its job's log) and then for the user's
+  yes, so the hold ran 5 hours 31 minutes 18 seconds and the wheel reached the index 19 seconds after
+  the Release run began. **Its control is two published wheels read side by side**, each hashing to the
+  value the index lists: 0.33.0's `prices.toml` carries `1.1216` and 0.33.1's carries `1.1214`. They
+  hold 82 entries each, **no `tools/` entry**, nothing added and nothing removed, and exactly four
+  files differ — `pinakes/__init__.py`, `pinakes/budget/prices.toml`, `pinakes/ci.py` and
+  `pinakes/cli.py` — which is the list the release stated. **The subject is read in the published
+  code**: 0.33.1's `ci.py` carries the `pnk search warm-up -k 1 > /dev/null` step and the
+  `pinakes-models-` cache key, and 0.33.0's carries neither. The GitHub release's notes begin with the
+  tag's annotation, *“0.33.1 — CI workflows that load their models before they check them”*, and
+  `Restore the tag's annotation` passed again. **Not run:** the generated workflow on a real GitHub
+  runner, and the `eval` job's new order on a cold cache.
   [`0.33.0`](#0330--thresholds-that-name-their-rerankers-provider-and-a-drift-gate-that-counts-landings--20261102-2236)
   is **on PyPI as of 20261102 23:09** — landed 22:48:56, the tag held for `minimum-python` at this
   commit (CPython 3.13.18, 3024 passed, 126 skipped, read in its job's log) and then for the user's
@@ -188,7 +202,7 @@ precision nobody measured.
   rather than folded away, because the record was written honestly and deleting it would erase the
   gap instead of correcting it. The **seven** tags below `v0.2.2` are not a second exception: they
   predate publishing altogether, since `PUBLISH_TO_PYPI` became `true` on 20260728 17:15.
-- **Latest on PyPI: `0.33.0`**, confirmed by installing it from the index rather than by reading a
+- **Latest on PyPI: `0.33.1`**, confirmed by installing it from the index rather than by reading a
   green workflow ([STATUS § Published on PyPI](STATUS.md#published-on-pypi)) — and by opening the
   published wheel, because a matching version string says nothing about whether the release's own
   subject is inside it. **0.28.1 adds a third form of that check, for the claim the other two cannot
