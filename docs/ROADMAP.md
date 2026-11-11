@@ -384,6 +384,7 @@ number belongs to a release only when it is cut
 | **[0.32.8](#0328--a-fresh-install-that-resolved-newer-dependencies-than-the-lockfile-pins--20261029-1710)** | 20261029 17:10 | a fresh install that resolved newer dependencies than the lockfile pins | • `python-ulid` 4.1.0 reads lowercase ULIDs and `ids.py` relied on the library refusing them — **a fresh install accepted one**; it now requires the canonical spelling to equal its input<br>• `mcp` 2.3.0 keeps non-`ToolError` text on the server, so a mistyped `source_type` came back as `Error executing tool pinakes_search`; `ServeError` and `TraversalError` — and only those — now cross as a `ToolError`<br>• both were green on the lockfile (4.0.1, 2.0.0) and red on a fresh resolve<br>• the README Quickstart says where `uv add` runs; `prices.toml` re-stamped (`usd_per_eur` `1.1253` → `1.113`, `claude-opus-5` unchanged at `5.00`/`25.00`)<br>• the `CLAUDE.md` size guard and a test fix (a test that read the committed FX rate went red when a re-verified rate crossed a rounding step) are developer tooling and ship in no wheel; no `schema_version`, no rebuild |
 | **[0.32.9](#0329--an-offline-load-that-stops-downloading-and-a-revision-that-is-called-a-label--20261102-1445)** | 20261102 14:45 | an offline load that stops downloading, and a revision that is called a label | • `--offline` on `fastembed` no longer downloads a missing model: `pnk doctor` printed *Fetching 5 files* and grew the cache from 67 MB to 1.1 GB while claiming to be offline; it now fails with exit 1 and fetches nothing<br>• `pnk doctor` no longer tells a `fastembed` user to pin a `revision` — Pinakes hands `fastembed` none — and reports one that is set as a label (`WARN`), not `OK`<br>• the manifest reference, the Guide and the CLI reference say what `revision` and `fitted_for` do not pin; thresholds fitted under one reranker provider are applied under the other — **documented, not fixed**<br>• the README Quickstart pins `--python 3.13`; two `doctor` remedies no longer call the unbuilt `sqlite-vec` tier "the template release"; `prices.toml` re-stamped (`usd_per_eur` `1.113` → `1.1172`, `claude-opus-5` unchanged at `5.00`/`25.00`)<br>• release notes now come from the tag's annotation — **this release is the first real run of that step in Actions**; two bytecode tests, the moved graph files, one agent instead of two roles, and the resumption of development are not in a wheel; no `schema_version`, no rebuild |
 | **[0.33.0](#0330--thresholds-that-name-their-rerankers-provider-and-a-drift-gate-that-counts-landings--20261102-2236)** | 20261102 22:36 | thresholds that name their reranker's provider, and a drift gate that counts landings | • `fitted_for` is now `provider:model@revision`: thresholds fitted on `sentence-transformers` (scores 0 to 1) were applied to `fastembed` (raw logits) whenever the model matched, and a `high` turned `low` with no warning<br>• **Breaking, deliberately in a minor:** a `fitted_for` without a provider reads `unknown`; `pnk doctor` fails and prints the one line that fixes it when you know the provider<br>• `python -m pinakes.calibrate` says to replace the `[retrieval.confidence]` table you have, not to add a second one<br>• `notes@1.3`: comments in the manifest and one prose line in the stamped README<br>• the template drift gate counts landings, after failing `main` on the first real one<br>• `prices.toml` re-stamped (`usd_per_eur` `1.1172` → `1.1216`, `claude-opus-5` unchanged at `5.00`/`25.00`); no `schema_version` bump and no rebuild |
+| **[0.33.1](#0331--ci-workflows-that-load-their-models-before-they-check-them--20261111-1057)** | 20261111 10:57 | CI workflows that load their models before they check them | • the workflow `pnk init --ci` writes caches `~/.cache/huggingface` and runs one `pnk search warm-up -k 1 > /dev/null` before `pnk doctor`: since 0.32.9 `pnk doctor` downloads no `fastembed` model and `pnk sync` loads the embedder only when a document needs embedding, so the check failed on every cold runner<br>• **It has always installed `pinakes[light,pdf]`, so it needs a manifest that names `fastembed`** (`--backend light`), which this release is the first to say, and **a workflow written earlier is never updated**<br>• this repository's CI `eval` job runs the evaluation before `pnk doctor`, pinned by `tests/test_ci_eval_job.py`<br>• STATUS holds the MultiHop-RAG benchmark's figures; BUILDING says how to write about a pause the user set<br>• `prices.toml` re-stamped (`usd_per_eur` `1.1216` → `1.1214`, `claude-opus-5` unchanged at `5.00`/`25.00`); no `schema_version` bump and no rebuild |
 | | | **[The deep release](#the-deep-release--the-loop-shipped-in-0240)** ✅ **complete 0.26.0** | • `pnk ask --deep` — the budgeted agentic loop, **built and shipped in [0.24.0](#0240--pnk-ask---deep-answers--20260811-2224)**<br>• The last paid entry point; the allowlist is complete at two<br>• **All seven increments are done** — the free surface, the estimator, the client, the loop, the run transcript, the measurement run and the printed suggestions<br>• **E6 published the over-reservation factor** — 29.75x on the cheap synthesis branch, 50.92x and 22.35x on the two loop branches, with every constant measured and none lowered; it was the only increment that spends real money, under `docs/MEASUREMENT-RUN.md`<br>• **E7 shipped in [0.26.0](#0260--a-paid-run-tells-you-what-it-learned-about-your-kb--20260822-0132)** — a run ends by printing the `links[]` entries its own citations propose; `--write-suggestions` is deferred (D-25 A) and **not planned** |
 | | | **[The template release](#the-template-release--t1-shipped-in-0170)** | • Template ecosystem, `pnk upgrade`, `sqlite-vec` tier<br>• **T1 shipped in 0.17.0, T2 in 0.18.0, T3 in 0.19.0, T4 in 0.20.0, T5 in 0.20.1, T7 in 0.21.0**<br>• **T8 closed 20260811 — gate run, fails leg 3: every divergence in every real KB is a manifest value**<br>• **T6 deferred behind a written trigger** — a queried KB past ~50 000 chunks *with* felt latency<br>• **Final cut 0.22.0** (the user, 20261030, before 19:40 UTC): T6 is now *the `sqlite-vec` tier, staged*, and the template release's name left the unbuilt-work table |
 
@@ -3190,6 +3191,48 @@ about 0.4% lower, and `claude-opus-5` is unchanged at `5.00`/`25.00`, still list
 `sentence-transformers` reranker end to end (the repository's stand-ins and the `fastembed` path were run).
 **The wheel's changes** are `embed.py`, `doctor.py`, `search.py`, `calibrate.py`, docstrings in `manifest.py`
 and `template.py`, the `notes@1.3` template and its archive, `__version__` and the price table. **No
+`schema_version` bump and no rebuild.**
+
+## 0.33.1 — CI workflows that load their models before they check them · 20261111 10:57
+
+**One change reaches a user, in a file `pnk init --ci` writes.** Since 0.32.9 `pnk doctor` loads models
+offline and, on `fastembed`, downloads none, and `pnk sync` loads the embedder only when a document needs embedding and
+the reranker never. So on a runner whose model cache is empty the workflow's `pnk doctor` step failed on the
+models: on the reranker after a sync that embedded something, and on both after one that embedded nothing,
+which is the normal run once the index is restored. The weights were cached nowhere. The workflow now caches
+`~/.cache/huggingface` under a key of its own and runs one `pnk search warm-up -k 1 > /dev/null` before the
+health check, which loads both models online. Measured on an empty model cache: `pnk doctor` exited 1 before
+that search and 0 after it, with 30 documents and with none, and exited 1 on both models after a sync of 30
+unchanged documents.
+
+**What it asks of a user.** The workflow has always installed `pinakes[light,pdf]`, so it needs a manifest
+that names `fastembed`, and this release is the first to say so: pass `--backend light` to `init`, or edit
+the manifest (the `--ci` help names the flag and the `pnk init` reference gives the rest; a default
+manifest names `sentence-transformers` and cannot pass the generated workflow). **A workflow written earlier is never updated**, since `init` never overwrites one: the reference
+gives the two steps to add.
+
+**This repository's CI had the same defect.** Its `eval` job ran `pnk doctor` before the evaluation, so the
+first run after the model cache expired failed on `FAIL reranker`, and a failed job skips the cache's save
+step. The evaluation, which loads the reranker, now runs first, and `tests/test_ci_eval_job.py` pins the
+order. Reproduced on an empty model cache with the job's own three commands: the old order exits 1 at
+`pnk doctor`, and the same cache passes once the evaluation has run.
+
+**Documents.** `docs/STATUS.md` now holds what the public MultiHop-RAG benchmark measured about Pinakes
+0.32.8, with its date, its subject and what the run cannot carry, and the manifest reference links the section
+it cites. `docs/BUILDING.md` says how to write about a pause or deferral the user set: quote their words with
+the date and time, never restate an end condition or a scope in your own words, and ask before acting on what
+it covers. `prices.toml` is re-stamped at 20261111 10:57: `usd_per_eur` `1.1216` → `1.1214` (the ECB fixing of
+2026-11-10, read twice from `api.frankfurter.dev`; the same source returns 2026-11-02 as the `1.1216` the file
+carried), so EUR figures for the same USD cost are about 0.02% higher, and `claude-opus-5` is unchanged at
+`5.00`/`25.00`, still listed as legacy. The day the table would first be refused (`(now - as_of).days > 30`,
+true from the 31st day) moves from 20261203 to 20261212.
+
+**Not run:** the new workflow steps on a real GitHub runner, and the `eval` job's new order on a cold cache
+(the CI run for `a2a8d98` restored the cache); the cold path was reproduced locally with the same commands. **Not fixed:** the other documented sequences that run `pnk doctor` after a sync on a cold
+cache (the dogfooding checklist, whose § 4 says *exit 0 is healthy*, and the Makefile's `demo` then `doctor`
+targets) meet the same failure, and the remedy
+`pnk doctor` prints, *Run once without --offline*, names a flag `doctor` does not have.
+**The wheel's changes** are `ci.py`, a help string in `cli.py`, `__version__` and the price table. **No
 `schema_version` bump and no rebuild.**
 
 # Part 5 · What is not built

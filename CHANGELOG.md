@@ -10,6 +10,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.33.1] — 20261111 10:57
+
+### Changed
+
+- **`docs/STATUS.md` now holds what the public MultiHop-RAG benchmark measured about Pinakes 0.32.8, and the manifest reference links the benchmark section it cites.** [`pinakes-datasets-benchmark`](https://github.com/lucagattoni/pinakes-datasets-benchmark) builds a KB from MultiHop-RAG and scores every question; this repository had cited it only in passing. The new [section under *Measured numbers*](https://github.com/lucagattoni/pinakes/blob/main/docs/STATUS.md#multihop-rag-measured-outside-this-repository--run-20261030-1826-utc) carries the figures, their date and the Pinakes they were measured on, and says what the run cannot carry: nothing was re-run on 0.32.9 or 0.33.0, a provider switch on a KB of real size was not run, and whether the corpus can license a retrieval change is not settled, since [DESIGN §7.3](https://github.com/lucagattoni/pinakes/blob/main/docs/DESIGN.md#73-what-a-corpus-can-license) asks for an improvable pool to be re-measured on the settings under change, not carried forward. The metadata-injection section and the manifest's `metadata` row now point at the benchmark's result for the same option. No code changed.
+
+- **`docs/BUILDING.md` now says how to write about a pause or deferral the user set.** Under [*Open questions*](https://github.com/lucagattoni/pinakes/blob/main/docs/BUILDING.md#open-questions): quote their words with the date and time and never restate an end condition or a scope in your own words; if you say the user has not lifted it, say where you looked and when, and say no more; and ask the user before acting on what it covers. A record of the past needs a past tense, a named source and a UTC time, and still may not state a scope or an end condition in your own words. The rule applies to what is written from now on. It follows from [`c4465fb`](https://github.com/lucagattoni/pinakes/commit/c4465fb), where a fresh reviewer found the wording about option B's B2, B3 and B4 claiming more than the records held. No code changed.
+
+- **`src/pinakes/budget/prices.toml` is re-stamped at 20261111 10:57, which moves the day the table is first refused from 20261203 to 20261212.** `usd_per_eur` `1.1216` → `1.1214` (the ECB fixing of 2026-11-10, read twice from `api.frankfurter.dev`; the same source returns 2026-11-02 as the `1.1216` the file carried), so EUR figures for the same USD cost are about 0.02% higher, and `claude-opus-5` is unchanged at `5.00`/`25.00`, still listed as legacy.
+
+### Fixed
+
+- **CI's `eval` job no longer fails when the model cache is cold.** It ran `pnk doctor` before the evaluation, but since 0.32.9 `pnk doctor` loads models offline and, on `fastembed`, downloads none, and `pnk sync` loads at most the embedder, so the reranker had not reached the cache: the first run after the cache expired failed on `FAIL reranker`, and a failed job skips the cache's save step. The evaluation, which loads the reranker, now runs first, and `tests/test_ci_eval_job.py` pins the order. Reproduced on an empty model cache with the job's own three commands: the old order exits 1 at `pnk doctor`, and the same cache passes once the evaluation has run. No code under `src/` changed.
+
+- **The workflow `pnk init --ci` writes no longer fails its health check on a cold model cache.** `pnk doctor` loads models offline and, on `fastembed`, downloads none (0.32.9), and `pnk sync` loads the embedder only when a document needs embedding and the reranker never, so on a fresh runner the workflow's `pnk doctor` step failed on the models (the reranker after a sync that embedded something, both after one that embedded nothing, which is the normal run once the index is restored), because the weights were cached nowhere. The workflow now caches `~/.cache/huggingface` under a key of its own and runs one `pnk search warm-up -k 1 > /dev/null` before the health check, which loads both models online. Measured on an empty model cache: `pnk doctor` exited 1 before that search and 0 after it, with 30 documents and with none, and exited 1 on both models after a sync of 30 unchanged documents. **The workflow installs `pinakes[light,pdf]` and always has, so it needs a manifest that names `fastembed`; 0.33.1 is the first release to say so**: pass `--backend light` to `init` (its `--ci` help now names the flag), or edit the manifest. **A workflow written earlier is never updated**, since `init` never overwrites one: the [`pnk init` reference](https://github.com/lucagattoni/pinakes/blob/main/docs/CLI.md#pnk-init) gives the two steps to add. **Not run:** the new workflow steps on a real GitHub runner, and the `eval` job's new order on a cold cache (the CI run for `a2a8d98` restored the cache); the cold path was reproduced locally with the same commands.
+
 ## [0.33.0] — 20261102 22:36
 
 ### Changed
@@ -5295,7 +5311,8 @@ Not in this release, by design: PDF ingest (v0.2), cross-KB links (v0.3), `pnk a
 budget ledger (v0.4), the `sqlite-vec` tier and template ecosystem (v0.5). Their schema ships now
 where it could not be retrofitted — ULIDs, sidecars for every document, `[[links.kb]]`, `[budget]`.
 
-[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.33.0...HEAD
+[Unreleased]: https://github.com/lucagattoni/pinakes/compare/v0.33.1...HEAD
+[0.33.1]: https://github.com/lucagattoni/pinakes/releases/tag/v0.33.1
 [0.33.0]: https://github.com/lucagattoni/pinakes/releases/tag/v0.33.0
 [0.32.9]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.9
 [0.32.8]: https://github.com/lucagattoni/pinakes/releases/tag/v0.32.8
